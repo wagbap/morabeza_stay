@@ -42,12 +42,17 @@ const Alojamentos = () => {
   }, []);
 
   // Filtragem
-  const alojamentosFiltrados = alojamentos.filter(casa => {
-    const atendePreco = Number(casa.preco_noite || 0) <= orcamento;
-    const atendeTipo = tiposSelecionados.length === 0 || tiposSelecionados.includes(casa.tipo);
-    const atendeDestino = casa.localizacao?.toLowerCase().includes(filtroDestino.toLowerCase());
-    return atendePreco && atendeTipo && atendeDestino;
-  });
+// Filtragem Inteligente 🧠
+const alojamentosFiltrados = alojamentos.filter(casa => {
+  const atendePreco = Number(casa.preco_noite || 0) <= orcamento;
+  const atendeTipo = tiposSelecionados.length === 0 || tiposSelecionados.includes(casa.tipo);
+
+  // Alteração aqui: Se for "Cabo Verde" ou estiver vazio, ignora o filtro de destino e mostra TUDO 🌍
+  const isGeral = !filtroDestino || filtroDestino === 'Cabo Verde';
+  const atendeDestino = isGeral || casa.localizacao?.toLowerCase().includes(filtroDestino.toLowerCase());
+
+  return atendePreco && atendeTipo && atendeDestino;
+});
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] pt-24 pb-16">
