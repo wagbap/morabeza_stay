@@ -10,7 +10,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
   return (
     <div className="relative">
       {/* BOTÃO DO PERFIL */}
-      <button 
+        <button 
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(!isOpen);
@@ -18,12 +18,13 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
         className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 p-1.5 pr-4 rounded-full transition-all z-50 shadow-sm"
       >
         <img 
-          src={user.foto} 
-          alt={user.nome} 
+          src={user.picture} // Alterado de user.foto para user.picture
+          alt={user.name} 
           className="w-8 h-8 rounded-full border border-white/50 object-cover"
+          referrerPolicy="no-referrer" // Necessário para imagens do Google
         />
         <span className="text-xs font-bold text-white uppercase tracking-wider hidden md:block">
-          {user.nome ? user.nome.split(' ')[0] : 'User'}
+          {user.name ? user.name.split(' ')[0] : 'User'}
         </span>
         <ChevronDown size={14} className={`text-white transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>

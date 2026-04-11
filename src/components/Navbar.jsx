@@ -78,11 +78,16 @@ const Navbar = () => {
             ))}
           </div>
 
-          {!user ? (
-            <LoginGoogle onLoginSuccess={(u) => setUser(u)} />
-          ) : (
-            <UserDropdown user={user} onLogout={handleLogout} isOpen={userDropdownOpen} setIsOpen={setUserDropdownOpen} />
-          )}
+    {!user ? (
+  <LoginGoogle onLoginSuccess={(u) => setUser(u)} />
+) : (
+  <UserDropdown 
+    user={user} 
+    onLogout={handleLogout} 
+    isOpen={userDropdownOpen} 
+    setIsOpen={setUserDropdownOpen} 
+  />
+)}
 
           <button 
             onClick={() => setIsOpen(true)} 
@@ -127,7 +132,7 @@ const Navbar = () => {
           <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest px-4">Navegação</p>
           {navLinks.map((link, index) => (
             <Link key={index} to={link.path} onClick={() => setIsOpen(false)} className="flex items-center gap-4 p-4 hover:bg-blue-50 text-gray-700 rounded-2xl transition-all group">
-              <span className="text-gray-400 group-hover:text-blue-500 transition-colors">{link.icon}</span>
+              <span className="Stext-gray-400 group-hover:text-blue-500 transition-colors">{link.icon}</span>
               <span className="font-bold">{link.name}</span>
             </Link>
           ))}
@@ -137,4 +142,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;  
+export default Navbar;
