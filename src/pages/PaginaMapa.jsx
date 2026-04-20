@@ -7,7 +7,8 @@ import axios from 'axios';
 // OBRIGATÓRIO PARA O BUILD: Importar o CSS do Mapbox aqui
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const MAPBOX_TOKEN = 'pk.eyJ1Ijoicm9tYXJpb2xlbGEiLCJhIjoiY20wdHB6MjFsMHdrbzJwb2FpaHR1djNlNSJ9.bY3p1PcxssBGQFXw5PuSAg';
+// Substitui a string direta por isto:
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const PaginaMapa = () => {
   const navigate = useNavigate();
