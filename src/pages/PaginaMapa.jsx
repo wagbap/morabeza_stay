@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Map, Marker, NavigationControl, Popup } from 'react-map-gl'; 
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Home, Star } from 'lucide-react';
+import { ArrowLeft, Home, Star, Info } from 'lucide-react';
 import axios from 'axios';
+
+// OBRIGATÓRIO PARA O BUILD: Importar o CSS do Mapbox aqui
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoicm9tYXJpb2xlbGEiLCJhIjoiY20wdHB6MjFsMHdrbzJwb2FpaHR1djNlNSJ9.bY3p1PcxssBGQFXw5PuSAg';
@@ -10,89 +12,102 @@ const MAPBOX_TOKEN = 'pk.eyJ1Ijoicm9tYXJpb2xlbGEiLCJhIjoiY20wdHB6MjFsMHdrbzJwb2F
 const PaginaMapa = () => {
   const navigate = useNavigate();
   const [alojamentos, setAlojamentos] = useState([]);
-  const [selectedHotel, setSelectedHotel] = useState(null); // Para mostrar detalhes ao clicar
-  const [viewport, setViewport] = useState({
+  const [selectedHotel, setSelectedHotel] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const [viewState, setViewState] = useState({
     latitude: 16.002,
     longitude: -24.013,
-    zoom: 7
+    zoom: 7,
+    pitch: 0,
+    bearing: 0
   });
 
   useEffect(() => {
-    axios.get('https://welovepalop.com/api/get_alojamentos.php')
-      .then(res => {
+    const carregarDados = async () => {
+      try {
+        const res = await axios.get('https://welovepalop.com/api/get_alojamentos.php');
         const dados = Array.isArray(res.data) ? res.data : [];
         setAlojamentos(dados);
         
-        // Se houver dados, focar no primeiro hotel que tenha coordenadas reais
-        const primeiroValido = dados.find(h => h.latitude && h.longitude);
-        if (primeiroValido) {
-          setViewport(prev => ({
+        // Focar no primeiro hotel válido para não abrir no meio do oceano
+        const foco = dados.find(h => h.latitude && h.longitude);
+        if (foco) {
+          setViewState(prev => ({
             ...prev,
-            latitude: parseFloat(primeiroValido.latitude),
-            longitude: parseFloat(primeiroValido.longitude),
+            latitude: parseFloat(foco.latitude),
+            longitude: parseFloat(foco.longitude),
             zoom: 12
           }));
         }
-      })
-      .catch(err => console.error(err));
+      } catch (err) {
+        console.error("Erro ao carregar mapa:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    carregarDados();
   }, []);
 
+  // Memorizar marcadores para evitar re-renders lentos no build de produção
+  const marcadores = useMemo(() => 
+    alojamentos.map((hotel) => {
+      const lat = parseFloat(hotel.latitude);
+      const lng = parseFloat(hotel.longitude);
+      if (!lat || !lng) return null;
+
+      return (
+        <Marker 
+          key={hotel.id} 
+          latitude={lat} 
+          longitude={lng} 
+          anchor="bottom"
+          onClick={e => {
+            e.originalEvent.stopPropagation();
+            setSelectedHotel(hotel);
+          }}
+        >
+          <div className={`
+            px-3 py-1.5 rounded-full border-2 border-white shadow-lg font-black text-[11px] transition-all
+            ${selectedHotel?.id === hotel.id ? 'bg-black text-white scale-110' : 'bg-blue-600 text-white hover:bg-blue-700'}
+          `}>
+            {Number(hotel.preco_noite || hotel.preco).toLocaleString()} CVE
+          </div>
+        </Marker>
+      );
+    }), [alojamentos, selectedHotel]);
+
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', backgroundColor: '#e5e7eb' }}>
+    <div className="w-screen h-screen relative bg-slate-100 overflow-hidden">
       
-      {/* HUD de Navegação */}
-      <div style={{ position: 'absolute', top: '24px', left: '24px', zIndex: 10, display: 'flex', gap: '12px' }}>
+      {/* Botão Voltar - Estilo Flutuante Profissional */}
+      <div className="absolute top-6 left-6 z-50">
         <button 
           onClick={() => navigate(-1)}
-          style={{ background: 'white', padding: '12px 24px', borderRadius: '16px', cursor: 'pointer', border: 'none', fontWeight: '900', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', textTransform: 'uppercase' }}
+          className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest transition-all border border-gray-100"
         >
-          <ArrowLeft size={16} /> Voltar à Lista
+          <ArrowLeft size={18} /> Voltar à Morabeza
         </button>
       </div>
 
+      {loading && (
+        <div className="absolute inset-0 z-40 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="font-black text-[10px] uppercase tracking-[0.2em] text-blue-600">Mapeando Cabo Verde...</p>
+        </div>
+      )}
+
       <Map
-        {...viewport}
-        onMove={evt => setViewport(evt.viewState)}
+        {...viewState}
+        onMove={evt => setViewState(evt.viewState)}
         mapStyle="mapbox://styles/mapbox/streets-v12"
         mapboxAccessToken={MAPBOX_TOKEN}
         style={{ width: '100%', height: '100%' }}
       >
         <NavigationControl position="bottom-right" />
 
-        {alojamentos.map((hotel) => {
-          const lat = parseFloat(hotel.latitude);
-          const lng = parseFloat(hotel.longitude);
+        {marcadores}
 
-          // SÓ DESENHA SE TIVER COORDENADAS NA BASE DE DADOS
-          if (!lat || !lng) return null;
-
-          return (
-            <Marker key={hotel.id} latitude={lat} longitude={lng} anchor="bottom">
-              <div 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedHotel(hotel);
-                }}
-                style={{ 
-                  background: selectedHotel?.id === hotel.id ? '#000' : '#2563eb', 
-                  color: 'white',
-                  padding: '6px 12px',
-                  borderRadius: '20px',
-                  fontWeight: '900',
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                  border: '2px solid white',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {hotel.preco_noite || hotel.preco} CVE
-              </div>
-            </Marker>
-          );
-        })}
-
-        {/* POPUP DE DETALHE (Igual ao Airbnb) */}
         {selectedHotel && (
           <Popup
             latitude={parseFloat(selectedHotel.latitude)}
@@ -100,15 +115,37 @@ const PaginaMapa = () => {
             onClose={() => setSelectedHotel(null)}
             closeButton={false}
             anchor="top"
-            offset={10}
+            offset={15}
+            maxWidth="240px"
           >
-            <div style={{ padding: '4px', maxWidth: '200px', cursor: 'pointer' }} onClick={() => navigate(`/alojamento/${selectedHotel.id}`)}>
-              <img 
-                src={selectedHotel.foto_principal} 
-                style={{ width: '100%', height: '100px', objectCover: 'cover', borderRadius: '8px', marginBottom: '8px' }} 
-              />
-              <h4 style={{ margin: '0', fontSize: '12px', fontWeight: '900', textTransform: 'uppercase' }}>{selectedHotel.nome}</h4>
-              <p style={{ margin: '4px 0', fontSize: '10px', color: '#2563eb', fontWeight: '800' }}>⭐ 4.9 • Reservar Agora</p>
+            <div 
+              className="p-1 group cursor-pointer"
+              onClick={() => navigate(`/alojamento/${selectedHotel.id}`)}
+            >
+              <div className="relative h-32 rounded-xl overflow-hidden mb-3">
+                <img 
+                  src={selectedHotel.foto_principal} 
+                  alt={selectedHotel.nome}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded-md text-[10px] font-black flex items-center gap-1 shadow-sm">
+                  <Star size={10} className="fill-yellow-400 text-yellow-400" /> 4.9
+                </div>
+              </div>
+              
+              <h4 className="font-black text-xs uppercase tracking-tighter text-gray-900 line-clamp-1">
+                {selectedHotel.nome}
+              </h4>
+              <p className="text-[10px] text-gray-500 font-bold uppercase mt-1 mb-2">
+                {selectedHotel.localizacao}
+              </p>
+              
+              <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+                <span className="text-blue-600 font-black text-xs">
+                  {Number(selectedHotel.preco_noite).toLocaleString()} CVE
+                </span>
+                <span className="text-[9px] font-black uppercase text-gray-400 underline">Detalhes</span>
+              </div>
             </div>
           </Popup>
         )}

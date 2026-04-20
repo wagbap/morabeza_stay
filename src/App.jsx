@@ -11,7 +11,7 @@ import SearchBar from './components/SearchBar';
 import CategoryBar from './components/CategoryBar';
 import Hero from './components/Hero';
 import CardAlojamento from './components/CardAlojamento';
-import PaginaMapa from './pages/PaginaMapa';
+import PaginaMapa from './pages/PaginaMapa.jsx';
 
 
 // Páginas

@@ -1,1 +1,9 @@
 @import "tailwindcss";  
+
+/* Forçar o container do Google a ser circular no mobile se necessário */
+@media (max-width: 768px) {
+  iframe[src*="accounts.google.com"] {
+    max-width: 44px !important;
+    border-radius: 50% !important;
+  }
+}

@@ -1,44 +1,53 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { 
   MapPin, Star, Heart, Share, ThumbsUp, X,
-  Wifi, Snowflake, Tv, Coffee, Utensils, ChevronLeft, ChevronRight, Info 
+  Wifi, Snowflake, Tv, Coffee, Utensils, ChevronLeft, ChevronRight, Info, Loader2, ShieldCheck, Clock
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 
 const PaginaDetalhes = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { id } = useParams();
   
+  const [alojamento, setAlojamento] = useState(location.state?.alojamento || null);
+  const [loading, setLoading] = useState(!alojamento);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
 
-  const { alojamento } = location.state || {};
+  useEffect(() => {
+    if (!alojamento && id) {
+      const fetchAlojamento = async () => {
+        try {
+          setLoading(true);
+          const response = await axios.get('https://welovepalop.com/api/get_alojamentos.php');
+          const lista = Array.isArray(response.data) ? response.data : [];
+          const encontrado = lista.find(item => String(item.id) === String(id));
+          if (encontrado) setAlojamento(encontrado);
+        } catch (error) { console.error(error); } 
+        finally { setLoading(false); }
+      };
+      fetchAlojamento();
+    }
+    window.scrollTo(0, 0); // Garante que a página abre no topo
+  }, [id, alojamento]);
 
-  if (!alojamento) return <div className="p-20 text-center font-black uppercase tracking-widest">Carregando detalhes...</div>;
+  if (loading) return (
+    <div className="h-screen flex flex-col items-center justify-center bg-[#f8fafc]">
+      <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
+      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Morabeza Stay</span>
+    </div>
+  );
 
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/";
-
-  // FOTO PRINCIPAL
-  const imgPrincipal = alojamento.imagem_url 
-    ? `${BASE_URL_IMAGENS}${alojamento.imagem_url}` 
-    : "https://images.unsplash.com/photo-1566073771259-6a8506099945";
-
-  // 1. LISTA COMPLETA DE FOTOS (Sem limites para o modal)
-  const fotosExtras = (alojamento.imagens_extra || []).map(img => `${BASE_URL_IMAGENS}${img.caminho_url}`);
+  const imgPrincipal = alojamento?.imagem_url ? `${BASE_URL_IMAGENS}${alojamento.imagem_url}` : "https://images.unsplash.com/photo-1566073771259-6a8506099945";
+  const fotosExtras = (alojamento?.imagens_extra || []).map(img => `${BASE_URL_IMAGENS}${img.caminho_url}`);
   const todasAsFotos = [imgPrincipal, ...fotosExtras];
-
-  // 2. GARANTIR PELO MENOS 5 PARA A GRELHA (Preenche com placeholders se necessário)
   const fotosGrelha = [...todasAsFotos];
-  while (fotosGrelha.length < 5) {
-    fotosGrelha.push("https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=600");
-  }
-
-  const abrirGaleria = (index) => {
-    setPhotoIndex(index);
-    setIsGalleryOpen(true);
-  };
+  while (fotosGrelha.length < 5) fotosGrelha.push("https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=600");
 
   const iconMap = {
     wifi: <Wifi size={18} className="text-[#006ce4]" />,
