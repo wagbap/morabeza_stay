@@ -11,6 +11,8 @@ import SearchBar from './components/SearchBar';
 import CategoryBar from './components/CategoryBar';
 import Hero from './components/Hero';
 import CardAlojamento from './components/CardAlojamento';
+import PaginaMapa from './pages/PaginaMapa';
+
 
 // Páginas
 import Alojamentos from './pages/Alojamentos';
@@ -89,6 +91,9 @@ function App() {
 
             {/* Rota Detalhes (IMPORTANTE) */}
             <Route path="/alojamento/:id" element={<PaginaDetalhes />} />
+
+            <Route path="/mapa" element={<PaginaMapa />} />
+
           </Routes>
 
           <footer className="bg-gray-900 text-white py-16 mt-20">
