@@ -1,10 +1,8 @@
 import React from 'react';
 import { MapPin, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 
 const CardAlojamento = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, comodidades, imagens_extra }) => {
-  const { t } = useTranslation();
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/"; 
   const imagemCompleta = imagem_url ? `${BASE_URL_IMAGENS}${imagem_url}` : "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=400";
 
@@ -16,7 +14,7 @@ const CardAlojamento = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo
           <Heart size={18} />
         </button>
         <div className="absolute bottom-4 left-4 bg-blue-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em]">
-          {t(tipo?.toLowerCase() || 'alojamento')}
+          {tipo || 'Alojamento'}
         </div>
       </div>
 
@@ -33,19 +31,18 @@ const CardAlojamento = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo
 
         <div className="mt-auto pt-5 border-t border-gray-50 flex justify-between items-end">
           <div className="text-left">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t('por_noite')}</p>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">por noite</p>
             <div className="flex items-baseline gap-1">
               <span className="text-2xl font-black text-gray-900">{Number(preco_noite).toLocaleString('pt-PT')}</span>
               <span className="text-xs font-black text-blue-600 uppercase">CVE</span>
             </div>
           </div>
-          {/* O LINK QUE PASSA OS DADOS PARA A PÁGINA DE DETALHES */}
           <Link 
             to={`/alojamento/${id}`} 
             state={{ alojamento: { id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, comodidades, imagens_extra } }}
             className="bg-gray-900 hover:bg-blue-600 text-white px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95"
           >
-            {t('ver_estadia')}
+            Ver estadia
           </Link>
         </div>
       </div>

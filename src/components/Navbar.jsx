@@ -9,25 +9,31 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [langDropdownOpen, setLangDropdownOpen] = useState(false); // Dropdown de línguas
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   
   const { i18n, t } = useTranslation();
   const location = useLocation();
-  const isHome = location.pathname === "/";
   const langRef = useRef(null);
+
+  // Páginas que devem ter navbar transparente sobre a imagem
+  const paginasComHero = ['/', '/experiencias'];
+  const isHeroPage = paginasComHero.includes(location.pathname);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) setUser(JSON.parse(savedUser));
 
-    // Fechar dropdown de línguas ao clicar fora
     const handleClickOutside = (event) => {
       if (langRef.current && !langRef.current.contains(event.target)) {
         setLangDropdownOpen(false);
       }
     };
+    
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -57,24 +63,31 @@ const Navbar = () => {
     { code: 'de', label: 'Deutsch' },
   ];
 
+  const getNavbarClasses = () => {
+    if (isHeroPage) {
+      // ABSOLUTE para ficar sobre a imagem, sem fundo
+      return "absolute top-0 left-0 bg-transparent text-white";
+    } else {
+      return "relative bg-white shadow-md text-gray-900 border-b border-gray-100";
+    }
+  };
+
   return (
     <>
-      <nav className={`fixed top-0 left-0 w-full z-[100] px-6 md:px-12 py-5 flex justify-between items-center transition-all duration-300 ${
-        isHome 
-          ? "bg-transparent border-b border-white/10 text-white" 
-          : "bg-white shadow-md text-gray-900 border-b border-gray-100"
-      }`}>
+      <nav className={`w-full z-[100] px-6 md:px-12 py-5 flex justify-between items-center transition-all duration-300 ${getNavbarClasses()}`}>
         
-        {/* LOGO (Lado Esquerdo) */}
         <Link to="/" className="flex items-center gap-1 min-w-[150px]">
           <span className="text-3xl font-bold italic text-[#a5d6a7]">M</span>
-          <span className={`text-xl font-bold uppercase tracking-widest ${isHome ? "text-white" : "text-gray-900"}`}>
+          <span className={`text-xl font-bold uppercase tracking-widest transition-colors ${
+            isHeroPage ? "text-white" : "text-gray-900"
+          }`}>
             Morabeza<span className="font-light opacity-80 uppercase tracking-tighter">Stay</span>
           </span>
         </Link>
 
-        {/* LINKS NO CENTRO 🎯 */}
-        <div className={`hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] absolute left-1/2 -translate-x-1/2 ${isHome ? "text-white" : "text-gray-600"}`}>
+        <div className={`hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] absolute left-1/2 -translate-x-1/2 transition-colors ${
+          isHeroPage ? "text-white" : "text-gray-600"
+        }`}>
           {navLinks.map((link, idx) => (
             <Link key={idx} to={link.path} className="hover:text-blue-400 transition-all opacity-80 hover:opacity-100 relative group">
               {link.name}
@@ -83,26 +96,28 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* LADO DIREITO (Ações) */}
         <div className="flex items-center gap-4 min-w-[150px] justify-end">
           
-          {/* DROPDOWN DE LÍNGUAS 🌍 */}
           <div className="relative hidden sm:block" ref={langRef}>
             <button 
               onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-              className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:opacity-100 opacity-80 transition-all ${isHome ? "text-white" : "text-gray-700"}`}
+              className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:opacity-100 opacity-80 transition-all ${
+                isHeroPage ? "text-white" : "text-gray-700"
+              }`}
             >
               {i18n.language.substring(0, 2)}
               <ChevronDown size={12} className={`transition-transform ${langDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {langDropdownOpen && (
-              <div className="absolute right-0 mt-3 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-2 overflow-hidden animate-in fade-in slide-in-from-top-2">
+              <div className="absolute right-0 mt-3 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-2 overflow-hidden">
                 {languages.map((lng) => (
                   <button
                     key={lng.code}
                     onClick={() => changeLanguage(lng.code)}
-                    className={`w-full text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-blue-50 transition-colors ${i18n.language === lng.code ? "text-blue-600 bg-blue-50/50" : "text-gray-600"}`}
+                    className={`w-full text-left px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-blue-50 transition-colors ${
+                      i18n.language === lng.code ? "text-blue-600 bg-blue-50/50" : "text-gray-600"
+                    }`}
                   >
                     {lng.label}
                   </button>
@@ -111,7 +126,6 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* LOGIN / USER */}
           {!user ? (
             <LoginGoogle onLoginSuccess={(u) => setUser(u)} />
           ) : (
@@ -123,11 +137,10 @@ const Navbar = () => {
             />
           )}
 
-          {/* BOTÃO MENU (Sidebar) */}
           <button 
             onClick={() => setIsOpen(true)} 
             className={`flex items-center gap-2 border p-2 rounded-full transition-all ${
-              isHome 
+              isHeroPage 
                 ? "bg-white/10 border-white/30 text-white hover:bg-white/20" 
                 : "bg-gray-100 border-gray-200 text-gray-900 hover:bg-gray-200"
             }`}
@@ -137,7 +150,7 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* SIDEBAR MOBILE */}
+      {/* Sidebar mantém igual */}
       <div className={`fixed top-0 right-0 h-full w-[300px] bg-white z-[110] shadow-2xl transform transition-transform duration-500 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="p-8 flex justify-between items-center border-b border-gray-50">
           <span className="text-xl font-bold uppercase text-gray-800 tracking-tighter">Menu</span>
@@ -161,7 +174,9 @@ const Navbar = () => {
                   <button 
                     key={lng.code}
                     onClick={() => { changeLanguage(lng.code); setIsOpen(false); }}
-                    className={`py-3 text-[10px] font-bold rounded-xl border transition-all ${i18n.language === lng.code ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100"}`}
+                    className={`py-3 text-[10px] font-bold rounded-xl border transition-all ${
+                      i18n.language === lng.code ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100"
+                    }`}
                   >
                     {lng.label}
                   </button>

@@ -7,3 +7,22 @@
     border-radius: 50% !important;
   }
 }
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Garantir que o navbar não tenha margens */
+nav {
+  margin-bottom: 0;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

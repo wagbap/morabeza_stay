@@ -5,7 +5,7 @@ const Hero = () => {
   const { t, i18n } = useTranslation();
 
   return (
-    <div key={i18n.language} className="relative h-[650px] w-full flex flex-col items-center justify-center text-white overflow-hidden bg-slate-900">
+    <div key={i18n.language} className="relative h-[450px] w-full flex flex-col items-center justify-center text-white overflow-hidden bg-slate-900">
       
       {/* BACKGROUND: Imagem com brilho real, sem ser baça */}
       <div 
@@ -20,7 +20,7 @@ const Hero = () => {
       <div className="relative z-10 text-center px-4">
         
         {/* TÍTULO: Letras grandes, brancas puras e com sombra forte */}
-        <h1 className="text-6xl md:text-8xl font-black mb-4 uppercase tracking-tighter drop-shadow-[0_8px_30px_rgb(0,0,0,0.8)]">
+        <h1 className="text-4xl md:text-6xl font-black mb-4 uppercase italic tracking-tighter drop-shadow-[0_8px_30px_rgb(0,0,0,0.8)]">
           {t('welcome')}
         </h1>
         
