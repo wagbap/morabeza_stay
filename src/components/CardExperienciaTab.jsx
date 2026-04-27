@@ -3,88 +3,89 @@ import { Link } from 'react-router-dom';
 import { MapPin, Star, Clock, Heart } from 'lucide-react';
 
 const CardExperienciaTab = ({ experiencia }) => {
-  const dados = experiencia?.id ? experiencia : experiencia;
+  const dados = experiencia || {};
   
-  if (!dados) return null;
+  if (!dados.id && !experiencia) return null;
 
-  const id = dados.id || Math.random();
+  const id = dados.id;
   const slug = dados.slug || `experiencia-${id}`;
   const titulo = dados.titulo || "Experiência";
-  const imagem = dados.imagem_principal || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400";
+  const imagem = dados.imagem_principal || dados.imagem_url || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400";
   const localizacao = dados.localizacao || dados.ilha || "Cabo Verde";
-  const preco = Number(dados.preco) || 5000;
+  const preco = Number(dados.preco || dados.preco_pessoa) || 0;
   const duracao = dados.duracao || "Flexível";
   const categoria = dados.categoria_nome || "Experiência";
-  const rating = Number(dados.rating) || 4.5;
-  const totalReviews = dados.total_reviews || 0;
+  const rating = Number(dados.rating || dados.estrelas) || 4.5;
+  const totalReviews = dados.total_reviews || dados.total_avaliacoes || 0;
 
   return (
-    <div className="group bg-white rounded-[32px] overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col h-full">
-      {/* Imagem */}
-      <div className="relative h-56 overflow-hidden">
+    <div className="relative group bg-white rounded-2xl flex flex-col h-full w-full overflow-hidden transition-all duration-300 border border-gray-100 hover:shadow-2xl">
+      
+      {/* Container da Imagem - Arredondado apenas no topo */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-2xl">
         <img 
           src={imagem} 
           alt={titulo} 
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
         />
-        <button className="absolute top-4 right-4 p-2.5 bg-white/90 backdrop-blur-md rounded-full text-gray-400 hover:text-red-500 transition-all shadow-lg z-10">
-          <Heart size={18} />
-        </button>
-        <div className="absolute bottom-4 left-4 bg-blue-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em] z-10">
+        
+        {/* Badge de Categoria */}
+        <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider shadow-lg z-10">
           {categoria}
         </div>
+
+        {/* Coração Padrão (Círculo Branco) */}
+        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform">
+          <Heart size={18} strokeWidth={2.5} className="text-gray-900" />
+        </button>
       </div>
 
-      {/* Conteúdo */}
-      <div className="p-5 flex flex-col flex-1 text-left">
-        {/* Título e Rating */}
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-black text-gray-900 leading-tight group-hover:text-blue-600 transition-colors uppercase line-clamp-1">
-            {titulo}
-          </h3>
-          <div className="flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-xl flex-shrink-0 ml-2">
-            <Star size={12} className="fill-amber-400 text-amber-400" />
-            <span className="text-amber-600 font-black text-xs">{rating.toFixed(1)}</span>
+      {/* Conteúdo do Card */}
+      <div className="p-4 flex flex-col flex-1 text-left">
+        
+        {/* Localização e Duração */}
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1 text-[#1a2b6d]">
+            <MapPin size={14} className="text-blue-500" /> 
+            <span className="text-[11px] font-bold opacity-80 uppercase tracking-tight truncate">
+              {localizacao}
+            </span>
           </div>
-        </div>
-
-        {/* Localização */}
-        <p className="flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-widest mb-3">
-          <MapPin size={14} className="text-blue-500 flex-shrink-0" /> 
-          <span className="truncate">{localizacao}</span>
-        </p>
-
-        {/* Especificações */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <div className="flex items-center gap-1 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
+          <div className="flex items-center gap-1 text-gray-400">
             <Clock size={12} />
-            <span className="text-[9px] font-bold">{duracao}</span>
-          </div>
-          <div className="flex items-center gap-1 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
-            <span className="text-[9px] font-bold">⭐ {rating}</span>
-          </div>
-          <div className="flex items-center gap-1 text-gray-500 bg-gray-50 px-2 py-1 rounded-lg">
-            <span className="text-[9px] font-bold">({totalReviews})</span>
+            <span className="text-[10px] font-bold uppercase">{duracao}</span>
           </div>
         </div>
 
-        {/* Preço e Botão */}
-        <div className="mt-auto pt-4 border-t border-gray-50 flex justify-between items-end">
-          <div className="text-left">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">por pessoa</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black text-gray-900">{preco.toLocaleString('pt-PT')}</span>
-              <span className="text-[9px] font-black text-blue-600 uppercase">CVE</span>
-            </div>
+        {/* Título */}
+        <h3 className="text-base font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors">
+          {titulo}
+        </h3>
+
+        {/* Footer: Rating e Preço (Padrão UI) */}
+        <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-3">
+          {/* Rating à esquerda */}
+          <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg">
+            <Star size={14} className="fill-orange-400 text-orange-400" />
+            <span className="text-xs font-bold text-gray-800">
+              {rating.toFixed(1)}
+            </span>
+            <span className="text-[10px] text-gray-400">({totalReviews})</span>
           </div>
-          <Link 
-            to={`/experiencia/${slug}`}
-            className="bg-gray-900 hover:bg-blue-600 text-white px-5 py-3 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 flex-shrink-0 ml-2"
-          >
-            Ver detalhes
-          </Link>
+
+          {/* Preço à direita em linha única */}
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl font-extrabold text-[#1a2b6d]">
+              {preco.toLocaleString('pt-PT')}
+            </span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">CVE</span>
+            <span className="text-xs font-semibold text-gray-400">/ pessoa</span>
+          </div>
         </div>
       </div>
+      
+      {/* Link invisível sobre o card todo */}
+      <Link to={`/experiencia/${slug}`} className="absolute inset-0 z-0" />
     </div>
   );
 };

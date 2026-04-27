@@ -9,79 +9,92 @@ const CardGridItem = ({ item }) => {
   const isCarro = !!item.preco_dia || item.tipo?.toLowerCase().includes('car');
   const isExperiencia = !!item.duracao || !!item.categoria_nome;
 
-  // Normalização
+  // Normalização de Dados
+  const id = item.id;
   const titulo = item.titulo || "Sem título";
   const imagem = item.imagem_url || item.imagem_principal || "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=400";
-  const preco = Number(item.preco_noite || item.preco_dia || item.preco || 0).toLocaleString('pt-PT');
+  const preco = Number(item.preco_noite || item.preco_dia || item.preco || 0);
   const rating = Number(item.estrelas || item.rating || 4.8).toFixed(1);
   const reviews = item.total_reviews || item.reviews || "0";
+  const localizacao = item.localizacao || item.ilha || "Cabo Verde";
+
+  // Prefixo de rota dinâmico
+  const rotaBase = isCarro ? 'carro' : isExperiencia ? 'experiencia' : 'alojamento';
 
   return (
-    <div className="group bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col h-full">
-      {/* Imagem com Aspect Ratio fixo */}
-      <div className="relative aspect-[4/3] overflow-hidden">
+    <div className="relative group bg-white rounded-2xl flex flex-col h-full w-full overflow-hidden transition-all duration-300 border border-gray-100 hover:shadow-2xl">
+      
+      {/* 1. Container da Imagem - Arredondado apenas no topo */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-2xl">
         <img 
           src={imagem} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
           alt={titulo} 
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
         />
-        <button className="absolute top-5 right-5 p-2.5 bg-white/80 backdrop-blur-md rounded-full text-gray-400 hover:text-red-500 transition-all">
-          <Heart size={20} />
-        </button>
-        <div className="absolute bottom-5 left-5 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest">
+        
+        {/* Badge de Categoria/Tipo */}
+        <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider shadow-lg z-10">
           {item.categoria_nome || item.tipo || (isCarro ? "Aluguer" : "Alojamento")}
         </div>
+
+        {/* Botão Heart Padrão (Círculo Branco) */}
+        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform">
+          <Heart size={18} strokeWidth={2.5} className="text-gray-900" />
+        </button>
       </div>
 
-      <div className="p-6 flex flex-col flex-1 text-left">
-        {/* Título Estilo Premium */}
-        <h3 className="text-xl font-black text-gray-900 leading-tight uppercase italic tracking-tighter mb-2 line-clamp-1">
+      {/* 2. Conteúdo do Card */}
+      <div className="p-4 flex flex-col flex-1 text-left">
+        
+        {/* Specs Rápidas / Localização */}
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1 text-[#1a2b6d]">
+            <MapPin size={14} className="text-blue-500" /> 
+            <span className="text-[11px] font-bold opacity-80 uppercase tracking-tight truncate max-w-[120px]">
+              {localizacao}
+            </span>
+          </div>
+          
+          {/* Info extra baseada no tipo */}
+          <div className="flex items-center gap-2 text-gray-400 text-[10px] font-bold uppercase">
+            {isCarro ? (
+              <span className="flex items-center gap-1"><Users size={12} /> {item.passageiros || 5}</span>
+            ) : (
+              <span className="flex items-center gap-1"><Clock size={12} /> {item.duracao || '4h'}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Título Padronizado */}
+        <h3 className="text-base font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors">
           {titulo}
         </h3>
 
-        {/* Specs Dinâmicas baseadas na foto */}
-        <div className="flex items-center gap-3 text-gray-400 text-[11px] font-bold uppercase tracking-wide mb-4">
-          {isCarro ? (
-            <>
-              <span className="flex items-center gap-1"><Users size={14} className="text-blue-500"/> {item.passageiros || 5} lugares</span>
-              <span>•</span>
-              <span className="flex items-center gap-1"><Fuel size={14} className="text-blue-500"/> {item.combustivel || 'Manual'}</span>
-            </>
-          ) : (
-            <>
-              <span className="flex items-center gap-1"><Clock size={14} className="text-blue-500"/> {item.duracao || '4 horas'}</span>
-              <span>•</span>
-              <span className="flex items-center gap-1">{item.localizacao || 'Santiago'}</span>
-            </>
-          )}
-        </div>
-
-        {/* Preço e Rating (Alinhados como na imagem) */}
-        <div className="mt-auto pt-5 border-t border-gray-50">
-          <div className="flex items-baseline gap-1 mb-2">
-            <span className="text-2xl font-black text-gray-900">{preco} CVE</span>
-            <span className="text-[11px] font-bold text-gray-400">/pessoa</span>
+        {/* 3. Footer: Rating e Preço (Alinhamento Horizontal) */}
+        <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-3">
+          
+          {/* Rating à esquerda */}
+          <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg">
+            <Star size={14} className="fill-orange-400 text-orange-400" />
+            <span className="text-xs font-bold text-gray-800">{rating}</span>
+            <span className="text-[10px] text-gray-400">({reviews})</span>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <div className="flex text-amber-400">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={14} fill={i < Math.floor(rating) ? "currentColor" : "none"} />
-                ))}
-              </div>
-              <span className="text-[11px] font-bold text-gray-400">({rating} ({reviews}))</span>
-            </div>
-
-            <Link 
-              to={`/${isCarro ? 'carro' : 'experiencia'}/${item.id}`}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-200"
-            >
-              {isCarro ? 'Ver estadia' : 'Ver detalhes'}
-            </Link>
+          {/* Preço à direita em linha única */}
+          <div className="flex items-baseline gap-1 text-right">
+            <span className="text-xl font-extrabold text-[#1a2b6d]">
+              {preco.toLocaleString('pt-PT')}
+            </span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">CVE</span>
+            <span className="text-[10px] font-semibold text-gray-400 truncate">
+              {isCarro ? '/ dia' : isExperiencia ? '/ pessoa' : '/ noite'}
+            </span>
           </div>
         </div>
       </div>
+      
+      {/* Link invisível que cobre o card inteiro */}
+      <Link to={`/${rotaBase}/${id}`} className="absolute inset-0 z-0" />
     </div>
   );
 };

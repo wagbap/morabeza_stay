@@ -1,51 +1,80 @@
 import React from 'react';
-import { MapPin, Heart } from 'lucide-react';
+import { MapPin, Heart, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const CardAlojamento = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, comodidades, imagens_extra }) => {
+const CardAlojamento = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, comodidades, imagens_extra, total_avaliacoes }) => {
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/"; 
-  const imagemCompleta = imagem_url ? `${BASE_URL_IMAGENS}${imagem_url}` : "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=400";
+  const imagemCompleta = imagem_url 
+    ? (imagem_url.startsWith('http') ? imagem_url : `${BASE_URL_IMAGENS}${imagem_url}`)
+    : "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=400";
 
   return (
-    <div className="group bg-white rounded-[32px] overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col h-full">
-      <div className="relative h-64 overflow-hidden">
-        <img src={imagemCompleta} alt={titulo} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-        <button className="absolute top-4 right-4 p-2.5 bg-white/90 backdrop-blur-md rounded-full text-gray-400 hover:text-red-500 transition-all shadow-lg">
-          <Heart size={18} />
-        </button>
-        <div className="absolute bottom-4 left-4 bg-blue-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em]">
+    <div className="relative group bg-white rounded-2xl flex flex-col h-full w-full overflow-hidden transition-all duration-300 border border-gray-100 hover:shadow-2xl">
+      
+      {/* Container da Imagem - CORRIGIDO: Arredondado apenas no topo */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-2xl">
+        <img 
+          src={imagemCompleta} 
+          alt={titulo} 
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+        />
+        
+        {/* Badge de Tipo (Ex: Apartamento Inteiro) */}
+        <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider shadow-lg z-10">
           {tipo || 'Alojamento'}
         </div>
+
+        {/* CORRIGIDO: Botão Heart padrão do projeto (Círculo Branco) */}
+        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform">
+          <Heart size={18} strokeWidth={2.5} className="text-gray-900" />
+        </button>
       </div>
 
-      <div className="p-6 flex flex-col flex-1 text-left">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-xl font-black text-gray-900 leading-tight group-hover:text-blue-600 transition-colors uppercase">{titulo}</h3>
-          <div className="flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-xl">
-            <span className="text-amber-600 font-black text-xs">{estrelas || '4.8'}</span>
-          </div>
+      {/* Conteúdo do Card */}
+      <div className="p-4 flex flex-col flex-1 text-left">
+        
+        {/* Localização */}
+        <div className="flex items-center gap-1.5 text-[#1a2b6d] mb-1.5">
+          <MapPin size={14} className="text-blue-500" /> 
+          <span className="text-[11px] font-bold opacity-80 uppercase tracking-tight truncate">
+            {localizacao}
+          </span>
         </div>
-        <p className="flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-widest mb-6 text-left">
-          <MapPin size={14} className="text-blue-500" /> {localizacao}
-        </p>
 
-        <div className="mt-auto pt-5 border-t border-gray-50 flex justify-between items-end">
-          <div className="text-left">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">por noite</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-black text-gray-900">{Number(preco_noite).toLocaleString('pt-PT')}</span>
-              <span className="text-xs font-black text-blue-600 uppercase">CVE</span>
-            </div>
+        {/* Título com a cor padrão #1a2b6d */}
+        <h3 className="text-base font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors">
+          {titulo}
+        </h3>
+
+        {/* Footer do card: Rating à esquerda e Preço à direita */}
+        <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-3">
+          
+          {/* Rating padronizado */}
+          <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg">
+            <Star size={14} className="fill-orange-400 text-orange-400" />
+            <span className="text-xs font-bold text-gray-800">
+              {Number(estrelas || 4.8).toFixed(1)}
+            </span>
+            <span className="text-[10px] text-gray-400">({total_avaliacoes || 0})</span>
           </div>
-          <Link 
-            to={`/alojamento/${id}`} 
-            state={{ alojamento: { id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, comodidades, imagens_extra } }}
-            className="bg-gray-900 hover:bg-blue-600 text-white px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95"
-          >
-            Ver estadia
-          </Link>
+
+          {/* Preço em linha única com CVE */}
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl font-extrabold text-[#1a2b6d]">
+              {Number(preco_noite).toLocaleString('pt-PT')}
+            </span>
+            <span className="text-[10px] font-bold text-gray-500">CVE</span>
+            <span className="text-xs font-semibold text-gray-400">/ noite</span>
+          </div>
         </div>
       </div>
+      
+      {/* Link invisível que cobre o card todo para remover o botão manual */}
+      <Link 
+        to={`/alojamento/${id}`} 
+        state={{ alojamento: { id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, comodidades, imagens_extra } }}
+        className="absolute inset-0 z-0" 
+      />
     </div>
   );
 };

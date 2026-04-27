@@ -82,7 +82,7 @@ const Footer = () => {
         <div className="pt-10 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
           <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
             © 2026 Morabeza Stay. Todos os direitos reservados.
-          </p>
+          </p>  
           <div className="flex gap-8">
             <div className="flex items-center gap-2 text-[10px] font-black text-gray-300 uppercase tracking-widest cursor-pointer hover:text-gray-900 transition-colors">
               <Globe size={14} /> <span>PT / EN</span> {/* Ícone de Globo fiel à foto */}
