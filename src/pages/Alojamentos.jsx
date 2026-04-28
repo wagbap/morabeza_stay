@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import CardAlojamento from '../components/CardAlojamento';
-import FiltrosLaterais from '../components/FiltrosLateral'; 
+import FiltrosLateralAlojamento from '../components/FiltrosLateralAlojamento'; 
 import SearchBar from '../components/SearchBar';
 import MapaInterativo from '../components/MapaInterativo';
 
@@ -16,8 +16,7 @@ const Alojamentos = () => {
   const queryParams = new URLSearchParams(location.search);
 
   const filtroDestino = queryParams.get('destino') || 'Cabo Verde';
-  const filtroHospedes = queryParams.get('hospedes') || '2';
-
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
   const [alojamentos, setAlojamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orcamento, setOrcamento] = useState(30000);
@@ -62,14 +61,9 @@ const Alojamentos = () => {
           <span className="text-blue-600">Início</span> / <span>{filtroDestino}</span>
         </div>
 
-        {/* CORREÇÃO AQUI: Mudamos o comportamento do grid no mobile */}
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 items-start">
-          
-          {/* Lado Lateral: Filtros
-              No mobile: Ocupa a largura toda e flui com o scroll.
-              No desktop (lg): Fica sticky ao lado. */}
           <aside className="w-full lg:col-span-3 lg:sticky lg:top-28 z-10">
-            <FiltrosLaterais 
+            <FiltrosLateralAlojamento 
               orcamento={orcamento} 
               setOrcamento={setOrcamento} 
               tiposSelecionados={tiposSelecionados}
@@ -79,7 +73,6 @@ const Alojamentos = () => {
             />
           </aside>
 
-          {/* Coluna Principal */}
           <main className="w-full lg:col-span-9 text-left">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
               <h1 className="text-2xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter flex items-baseline gap-3">
@@ -91,10 +84,18 @@ const Alojamentos = () => {
                   Sugestões
                 </button>
                 <div className="w-px h-6 bg-gray-100 mx-1"></div>
-                <button className="p-3 rounded-full text-blue-600 bg-blue-50">
+                
+                {/* Botões de Alternância Funcionais */}
+                <button 
+                  onClick={() => setViewMode('grid')}
+                  className={`p-3 rounded-full transition-all ${viewMode === 'grid' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:bg-gray-50'}`}
+                >
                   <LayoutGrid size={18} />
                 </button>
-                <button className="p-3 rounded-full text-gray-400 hover:bg-gray-50">
+                <button 
+                  onClick={() => setViewMode('list')}
+                  className={`p-3 rounded-full transition-all ${viewMode === 'list' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:bg-gray-50'}`}
+                >
                   <List size={18} />
                 </button>
               </div>
@@ -111,10 +112,13 @@ const Alojamentos = () => {
                 <p className="font-black uppercase tracking-widest text-[10px]">A sincronizar...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+              <div className={viewMode === 'grid' 
+                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8" 
+                : "flex flex-col gap-6"
+              }>
                 {alojamentosFiltrados.length > 0 ? (
                   alojamentosFiltrados.map(casa => (
-                    <CardAlojamento key={casa.id} {...casa} />
+                    <CardAlojamento key={casa.id} {...casa} isList={viewMode === 'list'} />
                   ))
                 ) : (
                   <div className="col-span-full py-24 text-center bg-white rounded-[40px] border-2 border-dashed border-gray-100 flex flex-col items-center gap-4">

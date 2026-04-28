@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Star, MapPin, Calendar, Clock, Users, ChevronLeft, 
-  Check, X, ChevronRight
+  Star, MapPin, Clock, Users, ChevronLeft, ChevronRight, 
+  Check, ShieldCheck, Info, Camera, Calendar, Minus, Plus, 
+  Headphones, Heart, Sunset, Share2, Sun // <--- ADICIONA O SUN AQUI
 } from 'lucide-react';
 
 const ExperienciaDetalhes = () => {
@@ -10,311 +11,308 @@ const ExperienciaDetalhes = () => {
   const navigate = useNavigate();
   const [experiencia, setExperiencia] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState(null);
+  
+  // Estados para o formulário de reserva
   const [quantidadePessoas, setQuantidadePessoas] = useState(2);
-  const [dataSelecionada, setDataSelecionada] = useState('');
+  const [dataPasseio, setDataPasseio] = useState("2024-05-24");
+  const [periodo, setPeriodo] = useState("Manhã");
+  const [horario, setHorario] = useState("09:00");
 
   useEffect(() => {
-    const buscarDetalhes = async () => {
-      try {
-        setLoading(true);
-        setErro(null);
-        
-        // URL da API - ajuste para o caminho correto
-        const apiUrl = `https://welovepalop.com/api/get_experiencia_by_slug.php?slug=${slug}`;
-        console.log('Buscando:', apiUrl); // Debug
-        
-        const response = await fetch(apiUrl);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const texto = await response.text(); // Primeiro pega como texto
-        console.log('Resposta bruta:', texto); // Debug para ver o que está retornando
-        
-        // Tenta fazer o parse do JSON
-        let resultado;
-        try {
-          resultado = JSON.parse(texto);
-        } catch (e) {
-          console.error('Erro ao fazer parse do JSON:', e);
-          throw new Error('Resposta da API não é um JSON válido');
-        }
-        
-        if (resultado.success && resultado.data) {
-          setExperiencia(resultado.data);
-        } else {
-          setErro(resultado.error || 'Experiência não encontrada');
-        }
-      } catch (err) {
-        console.error("Erro na busca:", err);
-        setErro(err.message);
-      } finally {
-        setLoading(false);
-      }
+    // Simulação de fetch da API com base no slug
+    const fetchDados = async () => {
+      setLoading(true);
+      // Aqui entraria sua chamada fetch(apiUrl)
+      setLoading(false);
     };
-
-    if (slug) {
-      buscarDetalhes();
-    }
+    fetchDados();
   }, [slug]);
 
-  const handleReservar = () => {
-    console.log('Reservar:', {
-      experiencia: experiencia?.id,
-      pessoas: quantidadePessoas,
-      data: dataSelecionada
-    });
-  };
+  if (loading) return <div className="p-20 text-center font-bold">Carregando detalhes...</div>;
 
-  if (loading) {
-    return (
-      <div className="bg-[#f8f9fc] min-h-screen">
-        <div className="max-w-7xl mx-auto py-16 px-6">
-          <div className="animate-pulse">
-            <div className="h-[500px] bg-gray-200 rounded-3xl mb-8"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                <div className="h-32 bg-gray-200 rounded"></div>
-              </div>
-              <div className="h-96 bg-gray-200 rounded-xl"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const precoPorPessoa = 8000;
+  const subtotal = precoPorPessoa * quantidadePessoas;
 
-  if (erro || !experiencia) {
-    return (
-      <div className="bg-[#f8f9fc] min-h-screen flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8">
-          <p className="text-red-500 mb-4">{erro || 'Experiência não encontrada'}</p>
-          <button 
-            onClick={() => navigate('/experiencias')}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3 rounded-xl transition-all"
-          >
-            Voltar para Experiências
-          </button>
-        </div>
-      </div>
-    );
-  }
+
+const periodos = [
+  { label: 'Manhã', time: '08:00 - 10:00', Icon: Sun, color: 'text-yellow-500' },
+  { label: 'Meio dia', time: '12:00 - 14:00', Icon: Sun, color: 'text-orange-500' },
+  { label: 'Tarde', time: '15:00 - 17:00', Icon: Sunset, color: 'text-red-400' }
+];
 
   return (
-    <div className="bg-[#f8f9fc] min-h-screen">
-      {/* Header com navegação */}<br></br>
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <button 
-            onClick={() => navigate('/experiencias')}
-            className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors group"
-          >
-            <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="font-bold text-sm uppercase tracking-wider">Voltar para experiências</span>
-          </button>
-        </div>
-      </div>
+    <div className="bg-[#fcfcfc] min-h-screen pb-20 font-sans text-[#1a2b6d]">
+      {/* Breadcrumbs - Exatamente como na imagem */}
+      <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500">
+        <span>Início</span> <ChevronRight size={10} />
+        <span>Experiências</span> <ChevronRight size={10} />
+        <span className="text-slate-500 font-semibold">Moto de Água em Santiago</span>
+      </nav>
 
-      {/* Hero Section com Imagem Principal */}
-      <div className="relative h-[60vh] min-h-[500px] w-full overflow-hidden">
-        <img 
-          src={experiencia.imagem_principal} 
-          alt={experiencia.titulo}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/1200x800?text=Imagem+Indisponível';
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+      <main className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Badges flutuantes */}
-        <div className="absolute top-8 left-8 flex gap-3 z-10 flex-wrap">
-          <span className="bg-blue-600 text-white text-xs font-black uppercase tracking-wider px-4 py-2 rounded-full shadow-lg">
-            {experiencia.categoria_nome || 'Experiência'}
-          </span>
-          <span className="bg-white/90 backdrop-blur-sm text-gray-900 text-xs font-black uppercase tracking-wider px-4 py-2 rounded-full shadow-lg flex items-center gap-1">
-            <Star size={14} className="fill-orange-400 text-orange-400" />
-            {experiencia.rating_formatado || '0.0'} • {experiencia.total_reviews || 0} reviews
-          </span>
-        </div>
-
-        {/* Título e info na imagem */}
-        <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 text-white">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-4xl md:text-6xl font-black mb-4 uppercase italic tracking-tighter">
-              {experiencia.titulo}
-            </h1>
-            <div className="flex flex-wrap gap-6 text-white/90">
-              <div className="flex items-center gap-2">
-                <MapPin size={20} />
-                <span>{experiencia.localizacao}, {experiencia.ilha}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock size={20} />
-                <span>{experiencia.duracao || 'Flexível'}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users size={20} />
-                <span>Máx. {experiencia.max_pessoas || 'N/A'} pessoas</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Conteúdo Principal */}
-      <main className="max-w-7xl mx-auto py-12 px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        {/* COLUNA ESQUERDA - CONTEÚDO */}
+        <div className="lg:col-span-2">
           
-          {/* Coluna Esquerda - Detalhes */}
-          <div className="lg:col-span-2 space-y-12">
-            
-            {/* Descrição */}
-            <section>
-              <h2 className="text-2xl font-black text-gray-900 mb-4 italic uppercase tracking-tighter">
-                Sobre esta experiência
-              </h2>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-line">
-                {experiencia.descricao_completa || experiencia.descricao_curta || 'Sem descrição disponível'}
-              </p>
-            </section>
+          {/* Galeria de Imagens */}
+        {/* Galeria de Imagens */}
+<div className="space-y-3 mb-6">
+  {/* Imagem Principal - Alterado de aspect-video (16:9) para uma proporção mais fina */}
+  <div className="relative h-[300px] md:h-[380px] rounded-2xl overflow-hidden group">
+    <img 
+      src="https://images.unsplash.com/photo-1559131397-f94da358f7ca?q=80&w=1200" 
+      className="w-full h-full object-cover" 
+      alt="Principal" 
+    />
+    <button className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all">
+      <ChevronLeft size={18}/>
+    </button>
+    <button className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all">
+      <ChevronRight size={18}/>
+    </button>
+    <div className="absolute bottom-4 left-4 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-xl">
+      <Users size={12}/> Passeio Náutico
+    </div>
+  </div>
+  
+  {/* Miniaturas - Reduzidas de h-28 para h-20 */}
+  <div className="grid grid-cols-5 gap-2 h-20">
+    {[1, 2, 3, 4].map(i => (
+      <div key={i} className="rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-600 transition-all cursor-pointer">
+        <img 
+          src="https://images.unsplash.com/photo-1559131397-f94da358f7ca?q=80&w=300" 
+          className="w-full h-full object-cover" 
+          alt="Thumbnail" 
+        />
+      </div>
+    ))}
+    <div className="bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-500 cursor-pointer hover:bg-slate-100 transition-colors">
+      <Camera size={16}/>
+      <span className="text-[9px] font-black uppercase tracking-tighter">18 fotos</span>
+    </div>
+  </div>
+</div>
 
-            {/* O que está incluído */}
-            {experiencia.inclusoes && experiencia.inclusoes.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-black text-gray-900 mb-4 italic uppercase tracking-tighter">
-                  O que está incluído
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {experiencia.inclusoes.map((incl, idx) => (
-                    <div key={idx} className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
-                      {incl.incluido == 1 ? (
-                        <Check size={18} className="text-green-500" />
-                      ) : (
-                        <X size={18} className="text-red-400" />
-                      )}
-                      <span className={`text-sm font-medium ${incl.incluido == 1 ? 'text-gray-700' : 'text-gray-400 line-through'}`}>
-                        {incl.item}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Requisitos */}
-            {experiencia.requisitos && experiencia.requisitos.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-black text-gray-900 mb-4 italic uppercase tracking-tighter">
-                  Requisitos
-                </h2>
-                <ul className="space-y-2">
-                  {experiencia.requisitos.map((req, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-gray-600">
-                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-                      <span>{req.requisito}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/* Ponto de encontro */}
-            {experiencia.ponto_encontro && (
-              <section>
-                <h2 className="text-2xl font-black text-gray-900 mb-4 italic uppercase tracking-tighter">
-                  Ponto de encontro
-                </h2>
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                  <p className="text-gray-700 font-medium">{experiencia.ponto_encontro}</p>
-                </div>
-              </section>
-            )}
-          </div>
-
-          {/* Coluna Direita - Card de Reserva */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24">
-              <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
-                <div className="mb-6">
-                  <div className="text-3xl font-black text-gray-900">
-                    {experiencia.preco} CVE
-                  </div>
-                  <p className="text-gray-400 text-sm font-medium">por pessoa</p>
-                </div>
-
-                {/* Selecionar data */}
-                <div className="mb-4">
-                  <label className="text-xs font-black uppercase tracking-wider text-gray-400 block mb-2">
-                    Selecionar data
-                  </label>
-                  <input 
-                    type="date"
-                    value={dataSelecionada}
-                    onChange={(e) => setDataSelecionada(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 font-medium focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-
-                {/* Número de pessoas */}
-                <div className="mb-6">
-                  <label className="text-xs font-black uppercase tracking-wider text-gray-400 block mb-2">
-                    Número de pessoas
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => setQuantidadePessoas(Math.max(1, quantidadePessoas - 1))}
-                      className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center hover:border-blue-600 transition-colors"
-                    >
-                      -
-                    </button>
-                    <span className="text-lg font-bold w-12 text-center">{quantidadePessoas}</span>
-                    <button 
-                      onClick={() => setQuantidadePessoas(Math.min(experiencia.max_pessoas || 10, quantidadePessoas + 1))}
-                      className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center hover:border-blue-600 transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Máx. {experiencia.max_pessoas || 'N/A'} pessoas
-                  </p>
-                </div>
-
-                {/* Preço total */}
-                <div className="border-t border-gray-100 pt-4 mb-6">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600">{experiencia.preco} CVE x {quantidadePessoas} pessoa(s)</span>
-                    <span className="font-bold">{parseFloat(experiencia.preco) * quantidadePessoas} CVE</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                    <span className="font-bold text-gray-900">Total</span>
-                    <span className="text-2xl font-black text-blue-600">
-                      {parseFloat(experiencia.preco) * quantidadePessoas} CVE
-                    </span>
-                  </div>
-                </div>
-
-                {/* Botão reservar */}
-                <button 
-                  onClick={handleReservar}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all uppercase tracking-wider text-sm shadow-lg shadow-blue-200 active:scale-95"
-                >
-                  Reservar agora
-                </button>
-
-                <p className="text-xs text-center text-gray-400 mt-4">
-                  Pagamento seguro • Cancelamento gratuito até 24h antes
-                </p>
-              </div>
+          {/* Título e Infos Rápidas */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-4">Moto de Água em Santiago</h1>
+            <div className="flex flex-wrap gap-5 text-xs font-semibold text-slate-500">
+              <div className="flex items-center gap-1"><Star size={14} className="fill-orange-400 text-orange-400"/> 4,8 (126 avaliações)</div>
+              <div className="flex items-center gap-1 text-slate-400">|</div>
+              <div className="flex items-center gap-1"><MapPin size={14}/> Ilha de Santiago</div>
+              <div className="flex items-center gap-1 text-slate-400">|</div>
+              <div className="flex items-center gap-1"><Clock size={14}/> Duração: 30 min</div>
+              <div className="flex items-center gap-1 text-slate-400">|</div>
+              <div className="flex items-center gap-1"><Users size={14}/> Guia local</div>
             </div>
           </div>
+
+          <p className="text-slate-500 text-sm mb-8">
+            Sinta a adrenalina e explore as águas cristalinas de Santiago em uma aventura inesquecível de moto de água.
+          </p>
+
+          {/* Ícones de Inclusão */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12 py-6 border-y border-slate-100">
+            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter"><ShieldCheck size={18} className="text-slate-400"/> Equipamento incluído</div>
+            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter"><Headphones size={18} className="text-slate-400"/> Instruções de segurança</div>
+            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter"><Info size={18} className="text-slate-400"/> Água e lanche</div>
+            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter"><ShieldCheck size={18} className="text-slate-400"/> Seguro de viagem</div>
+          </div>
+
+          {/* Sobre a Experiência */}
+          <div className="mb-12">
+            <h3 className="font-black text-lg mb-4">Sobre a experiência</h3>
+            <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">
+              Após um briefing de segurança, você pilotará uma moto de água moderna acompanhado por um instrutor experiente. A atividade acontece em mar aberto, com uma vista incrível da costa de Santiago.
+            </p>
+          </div>
+
+          {/* Informações Importantes */}
+          <div className="mb-12">
+            <h3 className="font-black text-lg mb-6">Informações importantes</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-12">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Check size={16} className="text-green-500"/> Idade mínima: 12 anos</div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Check size={16} className="text-green-500"/> Saber nadar é recomendado</div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Check size={16} className="text-green-500"/> Levar documento de identificação</div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Check size={16} className="text-green-500"/> Cancelamento grátis até 24h antes</div>
+            </div>
+          </div>
+
+          {/* Cards Inferiores (Confirmação, Cancelamento, Atendimento) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 pt-8">
+            <div className="flex gap-4 p-4 bg-blue-50/30 rounded-2xl">
+              <Calendar className="text-blue-600 shrink-0" size={24}/>
+              <div><h4 className="font-bold text-xs">Confirmação imediata</h4><p className="text-[10px] text-slate-400">Após o pagamento</p></div>
+            </div>
+            <div className="flex gap-4 p-4 bg-blue-50/30 rounded-2xl">
+              <ShieldCheck className="text-blue-600 shrink-0" size={24}/>
+              <div><h4 className="font-bold text-xs">Cancelamento grátis</h4><p className="text-[10px] text-slate-400">Até 24h antes do passeio</p></div>
+            </div>
+            <div className="flex gap-4 p-4 bg-blue-50/30 rounded-2xl">
+              <Headphones className="text-blue-600 shrink-0" size={24}/>
+              <div><h4 className="font-bold text-xs">Atendimento 24/7</h4><p className="text-[10px] text-slate-400">Estamos sempre disponíveis</p></div>
+            </div>
+          </div>
+
         </div>
+
+        {/* COLUNA DIREITA - SIDEBAR DE RESERVA */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-8 bg-white border border-slate-100 shadow-2xl shadow-blue-900/5 rounded-[2rem] p-8">
+            
+            <div className="flex items-baseline gap-1 mb-8">
+              <span className="text-2xl font-bold">8 000 CVE</span>
+              <span className="text-xs font-semibold text-slate-400">/ pessoa</span>
+            </div>
+
+            <div className="space-y-6">
+              {/* Data */}
+              <div>
+              <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3">
+                Data do passeio
+              </label>
+                    <div className="relative">
+                      <input type="date" value={dataPasseio} className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs font-bold focus:outline-none" />
+                    </div>
+                  </div>
+
+           <div className="space-y-3">
+    <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3">Escolha o período (horário)</label>
+  
+  <div className="grid grid-cols-3 gap-2">
+    {periodos.map((p) => {
+      const isSelected = periodo === p.label;
+      return (
+        <button 
+          key={p.label}
+          onClick={() => setPeriodo(p.label)}
+          // Adicionado p-3 para reduzir o padding excessivo e items-center para alinhar o conteúdo
+          className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all gap-1.5 ${
+            isSelected 
+              ? 'border-blue-600 bg-blue-50/40 ring-1 ring-blue-600' 
+              : 'border-slate-200 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <p.Icon 
+              size={14} // Reduzido ligeiramente para equilibrar
+              className={isSelected ? p.color : 'text-slate-300'} 
+              strokeWidth={3} 
+              fill="currentColor"
+              fillOpacity={0.15}
+            />
+            <span className={`text-[12px] font-black tracking-tight ${isSelected ? 'text-[#1a2b6d]' : 'text-slate-800'}`}>
+              {p.label}
+            </span>
+          </div>
+
+          {/* Container das horas com largura controlada */}
+          <div className="flex items-center gap-1.5 min-w-[85px]">
+            <span className="text-[11px] font-black text-slate-400 leading-none tracking-tight whitespace-nowrap">
+              {p.time.split(' - ')[0]}
+            </span>
+            <span className="text-[11px] font-black text-slate-400 leading-none">-</span>
+            <span className="text-[11px] font-black text-slate-400 leading-none tracking-tight whitespace-nowrap">
+              {p.time.split(' - ')[1]}
+            </span>
+          </div>
+        </button>
+      );
+    })}
+  </div>
+</div>
+
+              {/* Horários */}
+              <div>
+
+                    <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3">    Horários disponíveis</label>
+                <div className="grid grid-cols-3 gap-2 text-[10px] font-black uppercase tracking-widest">
+                  {['08:00', '09:00', '10:00'].map(h => (
+                    <button 
+                      key={h}
+                      onClick={() => setHorario(h)}
+                      className={`py-3 rounded-xl border transition-all ${horario === h ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-100 text-slate-800'}`}
+                    >
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+             {/* Número de pessoas */}
+<div className="space-y-3">
+  <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3">    Numero de pessoas</label>
+  <div className="flex items-center gap-2">
+    {/* Botão Menos */}
+    <button 
+      onClick={() => setQuantidadePessoas(Math.max(1, quantidadePessoas - 1))}
+      className="w-12 h-12 flex items-center justify-center border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors text-slate-600"
+    >
+      <Minus size={18} strokeWidth={3} />
+    </button>
+
+    {/* Display Central */}
+    <div className="flex-1 h-12 flex items-center justify-center border border-slate-200 rounded-xl bg-white">
+      <span className="text-[13px] font-bold text-[#1a2b6d]  tracking-tight">
+        {quantidadePessoas} pessoas
+      </span>
+    </div>
+
+    {/* Botão Mais */}
+    <button 
+      onClick={() => setQuantidadePessoas(quantidadePessoas + 1)}
+      className="w-12 h-12 flex items-center justify-center border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors text-slate-600"
+    >
+      <Plus size={18} strokeWidth={3} />
+    </button>
+  </div>
+
+  {/* Info de preço adicional (conforme imagem) */}
+  <div className="w-full py-3 px-4 bg-blue-50/50 border border-blue-100/50 rounded-xl">
+    <p className="text-[12px] font-bold text-slate-500 tracking-tight">
+      Cada pessoa adicional: <span className="text-[#1a2b6d]">8 000 CVE</span>
+    </p>
+  </div>
+</div>
+
+       
+              {/* Totais */}
+              <div className="pt-6 border-t border-slate-100 space-y-3">
+                <div className="flex justify-between text-[11px] font-bold text-slate-500">
+                  <span>Preço por pessoa</span> <span>{precoPorPessoa.toLocaleString()} CVE</span>
+                </div>
+                <div className="flex justify-between text-[11px] font-bold text-slate-500">
+                  <span>Subtotal ({quantidadePessoas} pessoas)</span> <span>{subtotal.toLocaleString()} CVE</span>
+                </div>
+                <div className="flex justify-between text-[11px] font-bold text-slate-500">
+                  <span>Taxa de serviço</span> <span>0 CVE</span>
+                </div>
+                
+                <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                  <span className="text-lg font-black tracking-tighter">Total</span>
+                  <span className="text-xl font-black">{subtotal.toLocaleString()} CVE</span>
+                </div>
+              </div>
+
+              {/* Botão Reservar */}
+              <button className="w-full bg-[#2563eb] hover:bg-blue-700 text-white font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-200">
+                <Calendar size={18}/> Reservar agora
+              </button>
+
+              {/* Badge Segurança */}
+              <div className="flex items-center justify-center gap-3 bg-blue-50/30 p-4 rounded-xl">
+                 <ShieldCheck className="text-blue-600" size={24}/>
+                 <div className="text-left">
+                   <h5 className="text-[10px] font-black uppercase">Pagamento seguro</h5>
+                   <p className="text-[9px] text-slate-400">Seus dados protegidos com segurança.</p>
+                 </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
       </main>
     </div>
   );

@@ -14,14 +14,13 @@ import CardAlojamento from './components/CardAlojamento';
 import PaginaMapa from './pages/PaginaMapa.jsx';
 import Experiencias from './pages/Experiencias';
 import Alojamentos from './pages/Alojamentos';
+import Carros from './pages/Carros'; // Verifique se o ficheiro Carros.jsx existe nesta pasta
 import PaginaDetalhes from './pages/PaginaDetalhes';
 import ExperienciaDetalhes from './pages/ExperienciaDetalhes';
 import TabsComponent from './components/TabsComponent';
 import CardGridItem from './components/CardGridItem';
 import CardPromocionalBanner from './components/CardPromocionalBanner';
 import Footer from './components/Footer';
-
-
 
 // --- COMPONENTE HOME CORRIGIDO ---
 const HomeOriginal = ({ alojamentos, carros, experiencias, loading }) => {
@@ -53,36 +52,33 @@ const HomeOriginal = ({ alojamentos, carros, experiencias, loading }) => {
           experiencias={experiencias}
         />
 
-        {/* SECÇÃO 2: ADICIONE CONFORTO (Carros e Experiências) */}
-   {/* SECÇÃO: ADICIONE AINDA MAIS CONFORTO (Design fiel à foto) */}
-<section className="mb-24">
-  <div className="flex flex-col mb-8 text-left">
-    {/* Título com estilo premium e itálico conforme a imagem */}
-    <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic">
-      Adicione ainda mais conforto à sua estadia
-    </h2>
-  </div>
+        {/* SECÇÃO: ADICIONE AINDA MAIS CONFORTO */}
+        <section className="mb-24">
+          <div className="flex flex-col mb-8 text-left">
+            <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic">
+              Adicione ainda mais conforto à sua estadia
+            </h2>
+          </div>
 
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-    {/* CARD 1: CARRO - Pega o primeiro item do estado 'carros' */}
-    {carros.length > 0 ? (
-      <CardGridItem item={carros[0]} />
-    ) : (
-      <div className="h-[450px] bg-gray-100 animate-pulse rounded-[2.5rem]"></div>
-    )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* CARD 1: CARRO */}
+            {carros.length > 0 ? (
+              <CardGridItem item={carros[0]} />
+            ) : (
+              <div className="h-[450px] bg-gray-100 animate-pulse rounded-[2.5rem]"></div>
+            )}
 
-    {/* CARD 2: EXPERIÊNCIA - Pega o primeiro item do estado 'experiencias' */}
-    {experiencias.length > 0 ? (
-      <CardGridItem item={experiencias[0]} />
-    ) : (
-      <div className="h-[450px] bg-gray-100 animate-pulse rounded-[2.5rem]"></div>
-    )}
+            {/* CARD 2: EXPERIÊNCIA */}
+            {experiencias.length > 0 ? (
+              <CardGridItem item={experiencias[0]} />
+            ) : (
+              <div className="h-[450px] bg-gray-100 animate-pulse rounded-[2.5rem]"></div>
+            )}
 
-    {/* CARD 3: BANNER PROMOCIONAL - O componente fixo com botão verde */}
-    <CardPromocionalBanner />
-  </div>
-</section>
-
+            {/* CARD 3: BANNER PROMOCIONAL */}
+            <CardPromocionalBanner />
+          </div>
+        </section>
 
         {/* SECÇÃO 3: BANNER CTA FINAL */}
         <div className="relative rounded-[2.5rem] overflow-hidden h-[300px] flex items-center shadow-xl">
@@ -105,10 +101,9 @@ const HomeOriginal = ({ alojamentos, carros, experiencias, loading }) => {
           </div>
         </div>
 
-
         {loading && (
           <div className="py-20 text-center opacity-30 font-black uppercase tracking-widest text-xs">
-            Carregando alojamentos...
+            Carregando dados...
           </div>
         )}
       </main>
@@ -132,7 +127,7 @@ function App() {
         setAlojamentos(Array.isArray(alojamentosRes.data) ? alojamentosRes.data : alojamentosRes.data?.data || []);
 
         // Buscar carros
-        const carrosRes = await axios.get('https://welovepalop.com/api/get_carros.php');
+        const carrosRes = await axios.get('https://welovepalop.com/api/get_carro.php');
         setCarros(Array.isArray(carrosRes.data) ? carrosRes.data : carrosRes.data?.data || []);
 
         // Buscar experiências
@@ -177,13 +172,14 @@ function App() {
             <Route path="/experiencias" element={<Experiencias />} />
             <Route path="/experiencia/:slug" element={<ExperienciaDetalhes />} />
 
+            {/* Rota de Carros ✨ */}
+            <Route path="/carros" element={<Carros />} />
+
             {/* Rota Mapa */}
             <Route path="/mapa" element={<PaginaMapa />} />
           </Routes>
 
-        {/* O Footer fica aqui, fora das Routes para aparecer em tudo */}
           <Footer />
-  
         </div>
       </Router>
     </HelmetProvider>
