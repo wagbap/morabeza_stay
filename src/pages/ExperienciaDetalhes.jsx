@@ -3,142 +3,212 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Star, MapPin, Clock, Users, ChevronLeft, ChevronRight, 
   Check, ShieldCheck, Info, Camera, Calendar, Minus, Plus, 
-  Headphones, Heart, Sunset, Share2, Sun // <--- ADICIONA O SUN AQUI
+  Headphones, Heart, Sunset, Share2, Sun 
 } from 'lucide-react';
 
 const ExperienciaDetalhes = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  
+  // Estados dinâmicos da API
   const [experiencia, setExperiencia] = useState(null);
   const [loading, setLoading] = useState(true);
   
   // Estados para o formulário de reserva
-  const [quantidadePessoas, setQuantidadePessoas] = useState(2);
-  const [dataPasseio, setDataPasseio] = useState("2024-05-24");
+  const [quantidadePessoas, setQuantidadePessoas] = useState(1);
+  const [dataPasseio, setDataPasseio] = useState(new Date().toISOString().split('T')[0]);
   const [periodo, setPeriodo] = useState("Manhã");
-  const [horario, setHorario] = useState("09:00");
+  const [horario, setHorario] = useState("");
 
   useEffect(() => {
-    // Simulação de fetch da API com base no slug
     const fetchDados = async () => {
-      setLoading(true);
-      // Aqui entraria sua chamada fetch(apiUrl)
-      setLoading(false);
+      try {
+        setLoading(true);
+        const response = await fetch(`https://welovepalop.com/api/get_experiencias.php?slug=${slug}`);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          const dados = Array.isArray(result.data) ? result.data[0] : result.data;
+          
+          if (dados) {
+            setExperiencia(dados);
+          } else {
+            setExperiencia(null);
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao carregar detalhes:", error);
+        setExperiencia(null);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchDados();
   }, [slug]);
 
-  if (loading) return <div className="p-20 text-center font-bold">Carregando detalhes...</div>;
+  // Definição dos períodos visuais e cálculo dinâmico do range vindo do horários_json
+  const periodosUI = [
+    { label: 'Manhã', range: [8, 11], Icon: Sun, color: 'text-yellow-500' },
+    { label: 'Meio dia', range: [12, 14], Icon: Sun, color: 'text-orange-500' },
+    { label: 'Tarde', range: [15, 17], Icon: Sunset, color: 'text-red-400' }
+  ].map(p => {
+    // Extrai horários do JSON para criar o label (ex: 08:00 - 10:00)
+    let timeRange = "Indisponível";
+    let temHorarios = false;
 
-  const precoPorPessoa = 8000;
-  const subtotal = precoPorPessoa * quantidadePessoas;
+    if (experiencia?.horarios_json) {
+      try {
+        const todosHorarios = JSON.parse(experiencia.horarios_json);
+        const horasNoPeriodo = todosHorarios.filter(h => {
+          const hora = parseInt(h.split(':')[0], 10);
+          return hora >= p.range[0] && hora <= p.range[1];
+        }).sort();
 
+        if (horasNoPeriodo.length > 0) {
+          timeRange = `${horasNoPeriodo[0]} - ${horasNoPeriodo[horasNoPeriodo.length - 1]}`;
+          temHorarios = true;
+        }
+      } catch (e) {
+        console.error("Erro ao processar JSON para labels", e);
+      }
+    }
 
-const periodos = [
-  { label: 'Manhã', time: '08:00 - 10:00', Icon: Sun, color: 'text-yellow-500' },
-  { label: 'Meio dia', time: '12:00 - 14:00', Icon: Sun, color: 'text-orange-500' },
-  { label: 'Tarde', time: '15:00 - 17:00', Icon: Sunset, color: 'text-red-400' }
-];
+    return { ...p, timeRange, temHorarios };
+  });
+
+  // Lógica de Filtragem de Horários específicos para os botões inferiores
+  const getHorariosFiltrados = () => {
+    if (!experiencia || !experiencia.horarios_json) return [];
+    
+    try {
+      const todosHorarios = JSON.parse(experiencia.horarios_json);
+      const configPeriodo = periodosUI.find(p => p.label === periodo);
+      
+      return todosHorarios.filter(h => {
+        const horaNum = parseInt(h.split(':')[0], 10);
+        return horaNum >= configPeriodo.range[0] && horaNum <= configPeriodo.range[1];
+      });
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const horariosDisponiveis = getHorariosFiltrados();
+
+  // Seleciona o primeiro horário disponível automaticamente ao trocar período
+  useEffect(() => {
+    if (horariosDisponiveis.length > 0) {
+      setHorario(horariosDisponiveis[0]);
+    } else {
+      setHorario("");
+    }
+  }, [periodo, experiencia, horariosDisponiveis.length]);
+
+  if (loading) return <div className="p-20 text-center font-bold text-[#1a2b6d]">Carregando detalhes...</div>;
+  if (!experiencia) return <div className="p-20 text-center font-bold text-red-500">Experiência não encontrada.</div>;
+
+  // LÓGICA DE PREÇO E DISPONIBILIDADE
+  const precoBase = parseFloat(experiencia.preco) || 0;
+
+  const getPrecoAtual = () => {
+    if (!experiencia.regras_disponibilidade) return precoBase;
+    const regra = experiencia.regras_disponibilidade.find(r => 
+      r.data_especifica === dataPasseio && r.periodo === periodo
+    );
+    return regra && regra.preco_especial ? parseFloat(regra.preco_especial) : precoBase;
+  };
+
+  const verificarDisponibilidade = () => {
+    if (horariosDisponiveis.length === 0) return "Indisponível neste período";
+    const regra = experiencia.regras_disponibilidade?.find(r => 
+      r.data_especifica === dataPasseio && r.periodo === periodo
+    );
+    if (regra) {
+      if (parseInt(regra.disponivel) === 0 || parseInt(regra.vagas_disponiveis) === 0) return "Esgotado";
+      if (quantidadePessoas > parseInt(regra.vagas_disponiveis)) return `Apenas ${regra.vagas_disponiveis} vagas`;
+    }
+    return "Disponível";
+  };
+
+  const precoVigente = getPrecoAtual();
+  const subtotalDinamico = precoVigente * quantidadePessoas;
+  const statusVagas = verificarDisponibilidade();
 
   return (
     <div className="bg-[#fcfcfc] min-h-screen pb-20 font-sans text-[#1a2b6d]">
-      {/* Breadcrumbs - Exatamente como na imagem */}
+      {/* Breadcrumbs */}
       <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500">
-        <span>Início</span> <ChevronRight size={10} />
-        <span>Experiências</span> <ChevronRight size={10} />
-        <span className="text-slate-500 font-semibold">Moto de Água em Santiago</span>
+        <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate('/')}>Início</span> <ChevronRight size={10} />
+        <span className="cursor-pointer hover:text-blue-600" onClick={() => navigate('/experiencias')}>Experiências</span> <ChevronRight size={10} />
+        <span className="text-slate-500 font-semibold">{experiencia.titulo}</span>
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* COLUNA ESQUERDA - CONTEÚDO */}
+        {/* COLUNA ESQUERDA */}
         <div className="lg:col-span-2">
-          
-          {/* Galeria de Imagens */}
-        {/* Galeria de Imagens */}
-<div className="space-y-3 mb-6">
-  {/* Imagem Principal - Alterado de aspect-video (16:9) para uma proporção mais fina */}
-  <div className="relative h-[300px] md:h-[380px] rounded-2xl overflow-hidden group">
-    <img 
-      src="https://images.unsplash.com/photo-1559131397-f94da358f7ca?q=80&w=1200" 
-      className="w-full h-full object-cover" 
-      alt="Principal" 
-    />
-    <button className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all">
-      <ChevronLeft size={18}/>
-    </button>
-    <button className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all">
-      <ChevronRight size={18}/>
-    </button>
-    <div className="absolute bottom-4 left-4 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-xl">
-      <Users size={12}/> Passeio Náutico
-    </div>
-  </div>
-  
-  {/* Miniaturas - Reduzidas de h-28 para h-20 */}
-  <div className="grid grid-cols-5 gap-2 h-20">
-    {[1, 2, 3, 4].map(i => (
-      <div key={i} className="rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-600 transition-all cursor-pointer">
-        <img 
-          src="https://images.unsplash.com/photo-1559131397-f94da358f7ca?q=80&w=300" 
-          className="w-full h-full object-cover" 
-          alt="Thumbnail" 
-        />
-      </div>
-    ))}
-    <div className="bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-500 cursor-pointer hover:bg-slate-100 transition-colors">
-      <Camera size={16}/>
-      <span className="text-[9px] font-black uppercase tracking-tighter">18 fotos</span>
-    </div>
-  </div>
-</div>
+          <div className="space-y-3 mb-6">
+            <div className="relative h-[300px] md:h-[380px] rounded-2xl overflow-hidden group">
+              <img 
+                src={experiencia.imagem_principal || (experiencia.imagens && experiencia.imagens[0]?.caminho_url)} 
+                className="w-full h-full object-cover" 
+                alt={experiencia.titulo} 
+              />
+              <button className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all">
+                <ChevronLeft size={18}/>
+              </button>
+              <button className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all">
+                <ChevronRight size={18}/>
+              </button>
+              <div className="absolute bottom-4 left-4 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-xl">
+                <Users size={12}/> {experiencia.categoria_nome || 'Aventura'}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-5 gap-2 h-20">
+              {experiencia.imagens?.slice(0, 4).map((img, i) => (
+                <div key={i} className="rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-600 transition-all cursor-pointer">
+                  <img src={img.caminho_url} className="w-full h-full object-cover" alt={`Thumbnail ${i}`} />
+                </div>
+              ))}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-500 cursor-pointer hover:bg-slate-100 transition-colors">
+                <Camera size={16}/>
+                <span className="text-[9px] font-black uppercase tracking-tighter">{experiencia.imagens?.length || 0} fotos</span>
+              </div>
+            </div>
+          </div>
 
-          {/* Título e Infos Rápidas */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-4">Moto de Água em Santiago</h1>
+            <h1 className="text-3xl font-bold mb-4">{experiencia.titulo}</h1>
             <div className="flex flex-wrap gap-5 text-xs font-semibold text-slate-500">
-              <div className="flex items-center gap-1"><Star size={14} className="fill-orange-400 text-orange-400"/> 4,8 (126 avaliações)</div>
+              <div className="flex items-center gap-1">
+                <Star size={14} className="fill-orange-400 text-orange-400"/> 
+                {experiencia.rating_formatado} ({experiencia.reviews_recentes?.length || 0} avaliações)
+              </div>
               <div className="flex items-center gap-1 text-slate-400">|</div>
-              <div className="flex items-center gap-1"><MapPin size={14}/> Ilha de Santiago</div>
+              <div className="flex items-center gap-1"><MapPin size={14}/> {experiencia.ilha}, {experiencia.localizacao}</div>
               <div className="flex items-center gap-1 text-slate-400">|</div>
-              <div className="flex items-center gap-1"><Clock size={14}/> Duração: 30 min</div>
+              <div className="flex items-center gap-1"><Clock size={14}/> {experiencia.duracao}</div>
               <div className="flex items-center gap-1 text-slate-400">|</div>
-              <div className="flex items-center gap-1"><Users size={14}/> Guia local</div>
+              <div className="flex items-center gap-1"><Users size={14}/> Máx: {experiencia.max_pessoas}</div>
             </div>
           </div>
 
-          <p className="text-slate-500 text-sm mb-8">
-            Sinta a adrenalina e explore as águas cristalinas de Santiago em uma aventura inesquecível de moto de água.
-          </p>
+          <p className="text-slate-500 text-sm mb-8 leading-relaxed">{experiencia.descricao_curta}</p>
 
-          {/* Ícones de Inclusão */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12 py-6 border-y border-slate-100">
-            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter"><ShieldCheck size={18} className="text-slate-400"/> Equipamento incluído</div>
-            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter"><Headphones size={18} className="text-slate-400"/> Instruções de segurança</div>
-            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter"><Info size={18} className="text-slate-400"/> Água e lanche</div>
-            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter"><ShieldCheck size={18} className="text-slate-400"/> Seguro de viagem</div>
+            {experiencia.inclusoes?.map((inc, i) => (
+              <div key={i} className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter">
+                <Check size={18} className="text-blue-500"/> {inc.item}
+              </div>
+            ))}
           </div>
 
-          {/* Sobre a Experiência */}
           <div className="mb-12">
-            <h3 className="font-black text-lg mb-4">Sobre a experiência</h3>
-            <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">
-              Após um briefing de segurança, você pilotará uma moto de água moderna acompanhado por um instrutor experiente. A atividade acontece em mar aberto, com uma vista incrível da costa de Santiago.
-            </p>
+            <h3 className="font-black text-lg mb-4 text-[#1a2b6d]">Sobre a experiência</h3>
+            <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">{experiencia.descricao_longa || experiencia.descricao_curta}</p>
           </div>
 
-          {/* Informações Importantes */}
-          <div className="mb-12">
-            <h3 className="font-black text-lg mb-6">Informações importantes</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-12">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Check size={16} className="text-green-500"/> Idade mínima: 12 anos</div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Check size={16} className="text-green-500"/> Saber nadar é recomendado</div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Check size={16} className="text-green-500"/> Levar documento de identificação</div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><Check size={16} className="text-green-500"/> Cancelamento grátis até 24h antes</div>
-            </div>
-          </div>
-
-          {/* Cards Inferiores (Confirmação, Cancelamento, Atendimento) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 pt-8">
             <div className="flex gap-4 p-4 bg-blue-50/30 rounded-2xl">
               <Calendar className="text-blue-600 shrink-0" size={24}/>
@@ -146,14 +216,13 @@ const periodos = [
             </div>
             <div className="flex gap-4 p-4 bg-blue-50/30 rounded-2xl">
               <ShieldCheck className="text-blue-600 shrink-0" size={24}/>
-              <div><h4 className="font-bold text-xs">Cancelamento grátis</h4><p className="text-[10px] text-slate-400">Até 24h antes do passeio</p></div>
+              <div><h4 className="font-bold text-xs">Cancelamento grátis</h4><p className="text-[10px] text-slate-400">Até 24h antes</p></div>
             </div>
             <div className="flex gap-4 p-4 bg-blue-50/30 rounded-2xl">
               <Headphones className="text-blue-600 shrink-0" size={24}/>
-              <div><h4 className="font-bold text-xs">Atendimento 24/7</h4><p className="text-[10px] text-slate-400">Estamos sempre disponíveis</p></div>
+              <div><h4 className="font-bold text-xs">Suporte Local</h4><p className="text-[10px] text-slate-400">Guias Certificados</p></div>
             </div>
           </div>
-
         </div>
 
         {/* COLUNA DIREITA - SIDEBAR DE RESERVA */}
@@ -161,111 +230,70 @@ const periodos = [
           <div className="sticky top-8 bg-white border border-slate-100 shadow-2xl shadow-blue-900/5 rounded-[2rem] p-8">
             
             <div className="flex items-baseline gap-1 mb-8">
-              <span className="text-2xl font-bold">8 000 CVE</span>
+              <span className="text-2xl font-bold">{precoVigente.toLocaleString()} CVE</span>
               <span className="text-xs font-semibold text-slate-400">/ pessoa</span>
+              {precoVigente !== precoBase && (
+                <span className="ml-2 text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold uppercase">Preço Especial</span>
+              )}
             </div>
 
             <div className="space-y-6">
-              {/* Data */}
+              {/* DATA */}
               <div>
-              <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3">
-                Data do passeio
-              </label>
-                    <div className="relative">
-                      <input type="date" value={dataPasseio} className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs font-bold focus:outline-none" />
-                    </div>
-                  </div>
+                <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">Data do passeio</label>
+                <input 
+                  type="date" 
+                  value={dataPasseio} 
+                  onChange={(e) => setDataPasseio(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-[#1a2b6d]" 
+                />
+              </div>
 
-           <div className="space-y-3">
-    <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3">Escolha o período (horário)</label>
-  
-  <div className="grid grid-cols-3 gap-2">
-    {periodos.map((p) => {
-      const isSelected = periodo === p.label;
-      return (
-        <button 
-          key={p.label}
-          onClick={() => setPeriodo(p.label)}
-          // Adicionado p-3 para reduzir o padding excessivo e items-center para alinhar o conteúdo
-          className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all gap-1.5 ${
-            isSelected 
-              ? 'border-blue-600 bg-blue-50/40 ring-1 ring-blue-600' 
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <p.Icon 
-              size={14} // Reduzido ligeiramente para equilibrar
-              className={isSelected ? p.color : 'text-slate-300'} 
-              strokeWidth={3} 
-              fill="currentColor"
-              fillOpacity={0.15}
-            />
-            <span className={`text-[12px] font-black tracking-tight ${isSelected ? 'text-[#1a2b6d]' : 'text-slate-800'}`}>
-              {p.label}
-            </span>
-          </div>
-
-          {/* Container das horas com largura controlada */}
-          <div className="flex items-center gap-1.5 min-w-[85px]">
-            <span className="text-[11px] font-black text-slate-400 leading-none tracking-tight whitespace-nowrap">
-              {p.time.split(' - ')[0]}
-            </span>
-            <span className="text-[11px] font-black text-slate-400 leading-none">-</span>
-            <span className="text-[11px] font-black text-slate-400 leading-none tracking-tight whitespace-nowrap">
-              {p.time.split(' - ')[1]}
-            </span>
-          </div>
-        </button>
-      );
-    })}
-  </div>
-</div>
-
-              {/* Horários */}
-              <div>
-
-                    <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3">    Horários disponíveis</label>
-                <div className="grid grid-cols-3 gap-2 text-[10px] font-black uppercase tracking-widest">
-                  {['08:00', '09:00', '10:00'].map(h => (
-                    <button 
-                      key={h}
-                      onClick={() => setHorario(h)}
-                      className={`py-3 rounded-xl border transition-all ${horario === h ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-slate-100 text-slate-800'}`}
-                    >
-                      {h}
-                    </button>
-                  ))}
+              {/* PERÍODO (VISUAL DA IMAGEM) */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">Período</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {periodosUI.map((p) => {
+                    const isSelected = periodo === p.label;
+                    return (
+                      <button 
+                        key={p.label}
+                        disabled={!p.temHorarios}
+                        onClick={() => setPeriodo(p.label)}
+                        className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-1 ${
+                          isSelected 
+                            ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600 shadow-sm' 
+                            : 'border-slate-100 bg-white hover:border-slate-200'
+                        } ${!p.temHorarios ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
+                      >
+                        <p.Icon size={18} className={isSelected ? p.color : 'text-slate-300'} fill="currentColor" fillOpacity={0.15}/>
+                        <span className={`text-[12px] font-black mt-1 ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>{p.label}</span>
+                        <span className={`text-[9px] font-medium ${isSelected ? 'text-blue-400' : 'text-slate-400'}`}>{p.timeRange}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-             {/* Número de pessoas */}
-<div className="space-y-3">
-  <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3">    Numero de pessoas</label>
-  <div className="flex items-center gap-2">
-    {/* Botão Menos */}
-    <button 
-      onClick={() => setQuantidadePessoas(Math.max(1, quantidadePessoas - 1))}
-      className="w-12 h-12 flex items-center justify-center border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors text-slate-600"
-    >
-      <Minus size={18} strokeWidth={3} />
-    </button>
-
-    {/* Display Central */}
-    <div className="flex-1 h-12 flex items-center justify-center border border-slate-200 rounded-xl bg-white">
-      <span className="text-[13px] font-bold text-[#1a2b6d]  tracking-tight">
-        {quantidadePessoas} pessoas
-      </span>
-    </div>
-
-    {/* Botão Mais */}
-    <button 
-      onClick={() => setQuantidadePessoas(quantidadePessoas + 1)}
-      className="w-12 h-12 flex items-center justify-center border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors text-slate-600"
-    >
-      <Plus size={18} strokeWidth={3} />
-    </button>
-  </div>
+              {/* HORÁRIOS ESPECÍFICOS */}
+              <div>
+                <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">Horário no período</label>
+                <div className="grid grid-cols-3 gap-2 text-[10px] font-black uppercase tracking-widest">
+                  {horariosDisponiveis.length > 0 ? (
+                    horariosDisponiveis.map(h => (
+                      <button 
+                        key={h}
+                        onClick={() => setHorario(h)}
+                        className={`py-3 rounded-xl border transition-all ${horario === h ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200' : 'bg-white border-slate-100 text-slate-800 hover:border-slate-300'}`}
+                      >
+                        {h}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="col-span-3 text-[9px] text-slate-400 py-3 text-center bg-slate-50 rounded-xl border border-dashed">Indisponível</div>
+                  )}
+                </div>
+              </div>
 
   {/* Info de preço adicional (conforme imagem) */}
   <div className="w-full py-3 px-4 bg-blue-50/50 border border-blue-100/50 rounded-xl">
@@ -273,46 +301,75 @@ const periodos = [
       Cada pessoa adicional: <span className="text-[#1a2b6d]">8 000 CVE</span>
     </p>
   </div>
-</div>
-
-       
-              {/* Totais */}
-              <div className="pt-6 border-t border-slate-100 space-y-3">
-                <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                  <span>Preço por pessoa</span> <span>{precoPorPessoa.toLocaleString()} CVE</span>
-                </div>
-                <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                  <span>Subtotal ({quantidadePessoas} pessoas)</span> <span>{subtotal.toLocaleString()} CVE</span>
-                </div>
-                <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                  <span>Taxa de serviço</span> <span>0 CVE</span>
-                </div>
-                
-                <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-                  <span className="text-lg font-black tracking-tighter">Total</span>
-                  <span className="text-xl font-black">{subtotal.toLocaleString()} CVE</span>
+              {/* PESSOAS */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">Número de pessoas</label>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setQuantidadePessoas(Math.max(1, quantidadePessoas - 1))}
+                    className="w-12 h-12 flex items-center justify-center border border-slate-100 rounded-xl bg-white hover:bg-slate-50 transition-colors"
+                  >
+                    <Minus size={18} strokeWidth={3} />
+                  </button>
+                  <div className="flex-1 h-12 flex items-center justify-center border border-slate-100 rounded-xl bg-white">
+                    <span className="text-[13px] font-bold text-[#1a2b6d]">{quantidadePessoas} {quantidadePessoas === 1 ? 'pessoa' : 'pessoas'}</span>
+                  </div>
+                  <button 
+                    onClick={() => setQuantidadePessoas(Math.min(experiencia.max_pessoas || 10, quantidadePessoas + 1))}
+                    className="w-12 h-12 flex items-center justify-center border border-slate-100 rounded-xl bg-white hover:bg-slate-50 transition-colors"
+                  >
+                    <Plus size={18} strokeWidth={3} />
+                  </button>
                 </div>
               </div>
 
-              {/* Botão Reservar */}
-              <button className="w-full bg-[#2563eb] hover:bg-blue-700 text-white font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-200">
-                <Calendar size={18}/> Reservar agora
-              </button>
-
-              {/* Badge Segurança */}
-              <div className="flex items-center justify-center gap-3 bg-blue-50/30 p-4 rounded-xl">
-                 <ShieldCheck className="text-blue-600" size={24}/>
-                 <div className="text-left">
-                   <h5 className="text-[10px] font-black uppercase">Pagamento seguro</h5>
-                   <p className="text-[9px] text-slate-400">Seus dados protegidos com segurança.</p>
-                 </div>
+              {/* STATUS */}
+              <div className="w-full py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl">
+                <p className="text-[11px] font-bold text-slate-500 tracking-tight">
+                  Disponibilidade: <span className={statusVagas === "Disponível" ? "text-green-600" : "text-red-500"}>{statusVagas}</span>
+                </p>
               </div>
-
             </div>
 
+           
+            {/* SECÇÃO DE TOTAIS */}
+            <div className="pt-6 border-t border-slate-100 space-y-3 mt-6">
+              <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
+                <span>Preço por pessoa</span> 
+                <span>{precoVigente.toLocaleString()} CVE</span>
+              </div>
+              <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
+                <span>Subtotal ({quantidadePessoas} p.)</span> 
+                <span>{subtotalDinamico.toLocaleString()} CVE</span>
+              </div>
+              <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
+                <span>Taxa de serviço</span> 
+                <span className="text-green-600 text-[10px] bg-green-50 px-2 py-0.5 rounded">GRÁTIS</span>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <span className="text-lg font-black tracking-tighter uppercase text-[#1a2b6d]">Total</span>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-blue-600">{subtotalDinamico.toLocaleString()} CVE</span>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">Impostos incluídos</p>
+                </div>
+              </div>
+
+              <button 
+                disabled={statusVagas !== "Disponível"}
+                className={`w-full font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] mt-4
+                  ${statusVagas === "Disponível" 
+                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200" 
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"}`}
+              >
+                <Calendar size={18}/> {statusVagas === "Disponível" ? "Reservar agora" : statusVagas}
+              </button>
+
+           
+          
+            </div>
           </div>
         </div>
-
       </main>
     </div>
   );

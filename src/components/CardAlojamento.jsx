@@ -1,8 +1,8 @@
 import React from 'react';
-import { MapPin, Heart, Star, ArrowRight } from 'lucide-react';
+import { MapPin, Heart, Star, ArrowRight, ZapOffIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const CardAlojamento = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, comodidades, imagens_extra, total_avaliacoes, isList }) => {
+const CardAlojamento = ({ id, imagem_url, titulo, localizacao, descricao, preco_noite, tipo, estrelas, comodidades, imagens_extra, total_avaliacoes, isList }) => {
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/"; 
   
   // Garantia de carregamento da URL
@@ -51,13 +51,13 @@ const CardAlojamento = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo
           </div>
 
           {/* Título: font-black mantido, mas removido o uppercase */}
-          <h3 className={`${isList ? 'text-2xl md:text-3xl' : 'text-base'} font-black text-[#1a2b6d] leading-tight mb-3 group-hover:text-blue-600 transition-colors line-clamp-2`}>
+         <h3 className="text-lg font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors line-clamp-2">
             {titulo}
           </h3>
           
           {isList && (
             <p className="text-gray-400 text-sm font-medium mb-4 line-clamp-2 leading-relaxed">
-              Descubra o máximo conforto em {localizacao}. Este espaço foi preparado cuidadosamente para oferecer uma estadia memorável.
+               {descricao}
             </p>
           )}
         </div>

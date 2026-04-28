@@ -53,7 +53,7 @@ const CardCarro = (props) => {
         </div>
 
         {/* Título (Marca + Modelo) */}
-        <h3 className="text-lg font-bold text-[#1a2b6d] mb-4 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors">
+        <h3 className="text-lg font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors line-clamp-2">
           {carro.titulo || `${carro.marca} ${carro.modelo}`}
         </h3>
 

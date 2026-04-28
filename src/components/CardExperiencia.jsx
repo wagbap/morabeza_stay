@@ -2,7 +2,20 @@ import React from 'react';
 import { MapPin, Heart, Star, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const CardExperiencia = ({ id, imagem_principal, titulo, localizacao, preco, categoria_nome, rating, total_reviews, duracao, isList }) => {
+const CardExperiencia = ({ 
+  id, 
+  slug, // Adicionado aqui
+  imagem_principal, 
+  titulo, 
+  localizacao, 
+  preco, 
+  categoria_nome, 
+  rating, 
+  total_reviews, 
+  duracao, 
+  isList 
+}) => {
+  
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/"; 
   
   const imagemCompleta = imagem_principal 
@@ -16,6 +29,13 @@ const CardExperiencia = ({ id, imagem_principal, titulo, localizacao, preco, cat
         : "flex flex-col h-full w-full rounded-[32px]"
     }`}>
       
+      {/* 1. LINK INVISÍVEL (Cobre o card todo, exceto botões) */}
+      <Link 
+        to={`/experiencia/${slug}`} 
+        className="absolute inset-0 z-10" 
+        aria-label={`Ver detalhes de ${titulo}`}
+      />
+
       {/* CONTAINER DA IMAGEM */}
       <div className={`relative overflow-hidden shrink-0 bg-gray-100 ${
         isList 
@@ -29,14 +49,13 @@ const CardExperiencia = ({ id, imagem_principal, titulo, localizacao, preco, cat
           loading="lazy"
         />
         
-        
-        {/* Badge de Categoria */}
-        <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-lg z-10">
+        {/* Badge de Categoria - z-20 para ficar acima do link se necessário, mas z-10 aqui basta */}
+        <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-lg z-20">
           {categoria_nome || 'Experiência'}
         </div>
 
-        {/* Botão Heart */}
-        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform">
+        {/* Botão Heart - z-20 para ser clicável por cima do Link */}
+        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-20 hover:scale-110 transition-transform active:scale-95">
           <Heart size={18} strokeWidth={2.5} />
         </button>
       </div>
@@ -60,7 +79,7 @@ const CardExperiencia = ({ id, imagem_principal, titulo, localizacao, preco, cat
             )}
           </div>
 
-          <h3 className={`${isList ? 'text-2xl md:text-3xl' : 'text-lg'} font-black text-[#1a2b6d] leading-tight mb-3 group-hover:text-blue-600 transition-colors line-clamp-2`}>
+          <h3 className={`${isList ? 'text-2xl md:text-3xl' : 'text-lg'} font-bold text-[#1a2b6d] leading-tight mb-3 group-hover:text-blue-600 transition-colors line-clamp-2`}>
             {titulo}
           </h3>
         </div>
@@ -86,14 +105,12 @@ const CardExperiencia = ({ id, imagem_principal, titulo, localizacao, preco, cat
           </div>
 
           {isList && (
-            <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-100">
+            <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-100 z-20">
               Reservar agora <ArrowRight size={14} />
             </div>
           )}
         </div>
       </div>
-      
-      <Link to={`/experiencia/${id}`} className="absolute inset-0 z-0" />
     </div>
   );
 };
