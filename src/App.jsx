@@ -21,6 +21,7 @@ import TabsComponent from './components/TabsComponent';
 import CardGridItem from './components/CardGridItem';
 import CardPromocionalBanner from './components/CardPromocionalBanner';
 import Footer from './components/Footer';
+import Checkout from './pages/Checkout';
 
 // --- COMPONENTE HOME CORRIGIDO ---
 const HomeOriginal = ({ alojamentos, carros, experiencias, loading }) => {
@@ -163,6 +164,9 @@ function App() {
                 />
               } 
             />
+
+            <Route path="/checkout" element={<Checkout />} />
+
 
             {/* Rotas de Alojamentos */}
             <Route path="/alojamentos" element={<Alojamentos />} />

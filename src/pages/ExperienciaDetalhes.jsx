@@ -14,6 +14,9 @@ const ExperienciaDetalhes = () => {
   const [experiencia, setExperiencia] = useState(null);
   const [loading, setLoading] = useState(true);
   
+  // Estado para a imagem principal
+  const [imagemPrincipal, setImagemPrincipal] = useState('');
+  
   // Estados para o formulário de reserva
   const [quantidadePessoas, setQuantidadePessoas] = useState(1);
   const [dataPasseio, setDataPasseio] = useState(new Date().toISOString().split('T')[0]);
@@ -32,6 +35,9 @@ const ExperienciaDetalhes = () => {
           
           if (dados) {
             setExperiencia(dados);
+            // Define a imagem principal como a primeira imagem ou imagem_principal
+            const imagemInicial = dados.imagem_principal || (dados.imagens && dados.imagens[0]?.caminho_url);
+            setImagemPrincipal(imagemInicial);
           } else {
             setExperiencia(null);
           }
@@ -45,6 +51,32 @@ const ExperienciaDetalhes = () => {
     };
     fetchDados();
   }, [slug]);
+
+
+  const handleReservarAgora = () => {
+  // Verifica se o user logado existe
+  const userLogado = localStorage.getItem('user');
+  
+  if (!userLogado) {
+    alert("Por favor, faça login com o Google primeiro.");
+    return;
+  }
+
+  // Envia os dados da seleção para o Checkout
+  navigate('/checkout', { 
+    state: { 
+      reservaData: {
+        titulo: experiencia.titulo,
+        imagem: experiencia.imagem_principal,
+        localizacao: experiencia.ilha,
+        entrada: dataPasseio,
+        saida: dataPasseio, // ou check-out para alojamento
+        precoTotal: subtotalDinamico
+      }
+    } 
+  });
+};
+
 
   // Definição dos períodos visuais e cálculo dinâmico do range vindo do horários_json
   const periodosUI = [
@@ -104,6 +136,11 @@ const ExperienciaDetalhes = () => {
     }
   }, [periodo, experiencia, horariosDisponiveis.length]);
 
+  // Função para trocar a imagem principal
+  const trocarImagemPrincipal = (novaImagem) => {
+    setImagemPrincipal(novaImagem);
+  };
+
   if (loading) return <div className="p-20 text-center font-bold text-[#1a2b6d]">Carregando detalhes...</div>;
   if (!experiencia) return <div className="p-20 text-center font-bold text-red-500">Experiência não encontrada.</div>;
 
@@ -150,7 +187,7 @@ const ExperienciaDetalhes = () => {
           <div className="space-y-3 mb-6">
             <div className="relative h-[300px] md:h-[380px] rounded-2xl overflow-hidden group">
               <img 
-                src={experiencia.imagem_principal || (experiencia.imagens && experiencia.imagens[0]?.caminho_url)} 
+                src={imagemPrincipal} 
                 className="w-full h-full object-cover" 
                 alt={experiencia.titulo} 
               />
@@ -167,7 +204,11 @@ const ExperienciaDetalhes = () => {
             
             <div className="grid grid-cols-5 gap-2 h-20">
               {experiencia.imagens?.slice(0, 4).map((img, i) => (
-                <div key={i} className="rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-600 transition-all cursor-pointer">
+                <div 
+                  key={i} 
+                  onClick={() => trocarImagemPrincipal(img.caminho_url)}
+                  className="rounded-xl overflow-hidden border-2 border-transparent hover:border-blue-600 transition-all cursor-pointer"
+                >
                   <img src={img.caminho_url} className="w-full h-full object-cover" alt={`Thumbnail ${i}`} />
                 </div>
               ))}
@@ -295,12 +336,12 @@ const ExperienciaDetalhes = () => {
                 </div>
               </div>
 
-  {/* Info de preço adicional (conforme imagem) */}
-  <div className="w-full py-3 px-4 bg-blue-50/50 border border-blue-100/50 rounded-xl">
-    <p className="text-[12px] font-bold text-slate-500 tracking-tight">
-      Cada pessoa adicional: <span className="text-[#1a2b6d]">8 000 CVE</span>
-    </p>
-  </div>
+              {/* Info de preço adicional (conforme imagem) */}
+              <div className="w-full py-3 px-4 bg-blue-50/50 border border-blue-100/50 rounded-xl">
+                <p className="text-[12px] font-bold text-slate-500 tracking-tight">
+                  Cada pessoa adicional: <span className="text-[#1a2b6d]">8 000 CVE</span>
+                </p>
+              </div>
               {/* PESSOAS */}
               <div className="space-y-3">
                 <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">Número de pessoas</label>
@@ -355,16 +396,18 @@ const ExperienciaDetalhes = () => {
                 </div>
               </div>
 
-              <button 
-                disabled={statusVagas !== "Disponível"}
-                className={`w-full font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] mt-4
-                  ${statusVagas === "Disponível" 
-                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200" 
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"}`}
-              >
-                <Calendar size={18}/> {statusVagas === "Disponível" ? "Reservar agora" : statusVagas}
-              </button>
 
+
+     <button 
+              disabled={statusVagas !== "Disponível"}
+              onClick={handleReservarAgora} // <--- ADICIONE ESTA LINHA
+              className={`w-full font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] mt-4
+                ${statusVagas === "Disponível" 
+                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200" 
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"}`}
+            >
+              <Calendar size={18}/> {statusVagas === "Disponível" ? "Reservar agora" : statusVagas}
+            </button>
            
           
             </div>
