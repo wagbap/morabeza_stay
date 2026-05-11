@@ -10,10 +10,9 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import ResumoReserva from './ResumoReserva';
 
-// INICIALIZAÇÃO DO STRIPE (Substitua pela sua chave pública real)
+// INICIALIZAÇÃO DO STRIPE
 const stripePromise = loadStripe('pk_test_51Q2vbsBGBgdae3VE253hWrzJikRaIK6tYOlWOeCKkFt6GArcJUZrNoaBc21vXz1F0sxPc3ErEqskwvQFf2EIDov200ZtBcleBd');
 
-// 1. COMPONENTE DE CONTEÚDO (Onde a lógica reside)
 const PagamentoContent = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,6 +34,67 @@ const PagamentoContent = () => {
       setReserva(dados.reservaData);
     }
   }, [reservaData]);
+
+  // FUNÇÃO PARA ENVIAR EMAILS
+  const enviarEmailsConfirmacao = async (dadosReserva) => {
+    try {
+        console.log('📧 Iniciando envio de emails...');
+        
+        const reservaPendente = sessionStorage.getItem('reservaPendente');
+        if (!reservaPendente) {
+            console.log('❌ Nenhuma reserva pendente encontrada');
+            return;
+        }
+        
+        const dados = JSON.parse(reservaPendente);
+        const { reservaData, participantePrincipal, participantesAdicionais } = dados;
+        
+        // Formatar a data corretamente
+        const dataFormatada = reservaData.data || reservaData.entrada || new Date().toLocaleDateString('pt-PT');
+        const horarioFormatado = `${reservaData.periodo || ''} ${reservaData.horario || ''}`.trim();
+        
+        const emailPayload = {
+            email_cliente: participantePrincipal.email,
+            nome_cliente: participantePrincipal.nome_completo,
+            phone_cliente: participantePrincipal.phone,
+            codigo_reserva: dadosReserva.codigo_reserva,
+            reserva_id: dadosReserva.reserva_id,
+            experiencia: reservaData.titulo,
+            data: dataFormatada,
+            horario: horarioFormatado || 'Confirmar horário',
+            quantidade_pessoas: reservaData.participantes || 1,
+            preco_total: reservaData.precoTotal,
+            metodo_pagamento: metodoPagamento,
+            status_pagamento: metodoPagamento === 'cartao' ? 'pago' : 'pendente',
+            participante_principal: participantePrincipal,
+            participantes_adicionais: participantesAdicionais || []
+        };
+        
+        console.log('📤 Payload do email:', emailPayload);
+        
+        const response = await fetch('https://welovepalop.com/api/send_email.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailPayload)
+        });
+        
+        const result = await response.json();
+        console.log('✅ Resultado envio de emails:', result);
+        
+        if (result.cliente_notificado) {
+            console.log('📧 Email enviado para o cliente:', participantePrincipal.email);
+        }
+        if (result.admin_notificado) {
+            console.log('📧 Email enviado para o admin');
+        }
+        
+        return result;
+        
+    } catch (error) {
+        console.error('❌ Erro ao enviar emails:', error);
+        // Não bloqueia o fluxo principal se o email falhar
+    }
+  };
 
   const salvarReservaNoBackend = async (dadosTransacao) => {
     const reservaPendente = sessionStorage.getItem('reservaPendente');
@@ -64,13 +124,26 @@ const PagamentoContent = () => {
       stripe_id: dadosTransacao?.id || null
     };
 
+    console.log('💾 Salvando reserva no backend:', payload);
+    
     const response = await fetch('https://welovepalop.com/api/checkout_api.php', { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify(payload) 
     });
     
-    return await response.json();
+    const result = await response.json();
+    console.log('💾 Resultado da reserva:', result);
+    
+    // APÓS SALVAR A RESERVA, ENVIAR OS EMAILS
+    if (result.success && result.data) {
+        console.log('📧 Reserva salva, enviando emails...');
+        await enviarEmailsConfirmacao(result.data);
+    } else {
+        console.log('⚠️ Reserva não foi salva, ignorando envio de emails');
+    }
+    
+    return result;
   };
 
   const handleFinalizarPagamento = async () => {
@@ -80,20 +153,37 @@ const PagamentoContent = () => {
     try {
       if (metodoPagamento === 'cartao') {
         if (!stripe || !elements) {
-          setError("O sistema de pagamento não carregou corretamente. Recarregue a página.");
+          setError("O sistema de pagamento não carregou corretamente.");
           setLoading(false);
           return;
         }
 
-        // 1. Criar Intent no Backend
+        // 1. Conversão de CVE para EUR
+        const valorEmCVE = reserva.precoTotal;
+        const taxaConversao = 110.265;
+        let valorEmEUR = valorEmCVE / taxaConversao;
+        
+        if (valorEmEUR < 0.50) {
+          setError(`O valor mínimo para cartão é €0,50. Seu total (${valorEmEUR.toFixed(2)}€) é insuficiente.`);
+          setLoading(false);
+          return;
+        }
+
+        const valorEmCentavos = Math.round(valorEmEUR * 100);
+        
+        console.log(`💶 Convertendo: ${valorEmCVE} CVE → €${valorEmEUR.toFixed(2)} → ${valorEmCentavos} centavos`);
+        
         const resIntent = await fetch('https://welovepalop.com/api/create-payment-intent.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: reserva.precoTotal, currency: 'eur' })
+          body: JSON.stringify({ 
+            amount: valorEmCentavos,
+            currency: 'eur'
+          })
         });
         
         const dataIntent = await resIntent.json();
-        if (!dataIntent.clientSecret) throw new Error("Não foi possível iniciar a transação.");
+        if (!resIntent.ok) throw new Error(dataIntent.error || "Erro no servidor");
 
         // 2. Confirmar com o Stripe
         const result = await stripe.confirmCardPayment(dataIntent.clientSecret, {
@@ -108,27 +198,38 @@ const PagamentoContent = () => {
           return;
         }
         
-        // 3. Sucesso no Stripe -> Salvar no DB
+        console.log('✅ Pagamento confirmado no Stripe');
+        
+        // 3. Salvar reserva (os emails serão enviados dentro da função)
         const saveResult = await salvarReservaNoBackend(result.paymentIntent);
-        if (saveResult.success) finalizeSucesso(saveResult.data);
-        else setError(saveResult.error);
+        if (saveResult.success) {
+          finalizeSucesso(saveResult.data);
+        } else {
+          setError(saveResult.error || "Erro ao salvar reserva");
+        }
 
       } else {
-        // Fluxo outros métodos
-        await new Promise(r => setTimeout(r, 2000));
+        // Outros métodos (Transferência, ZAP)
+        console.log('💳 Processando pagamento via:', metodoPagamento);
         const saveResult = await salvarReservaNoBackend();
-        if (saveResult.success) finalizeSucesso(saveResult.data);
-        else setError(saveResult.error);
+        if (saveResult.success) {
+          finalizeSucesso(saveResult.data);
+        } else {
+          setError(saveResult.error || "Erro ao salvar reserva");
+        }
       }
     } catch (err) {
-      console.error(err);
-      setError("Erro ao processar o pedido. Tente novamente.");
+      console.error('❌ Erro:', err);
+      setError(err.message || "Erro ao processar o pedido.");
     } finally {
       setLoading(false);
     }
   };
 
   const finalizeSucesso = (data) => {
+    console.log('🎉 Reserva finalizada com sucesso!');
+    console.log('📧 Emails devem ter sido enviados para cliente e admin');
+    
     sessionStorage.removeItem('reservaPendente');
     navigate('/confirmacao', { 
       state: { 
@@ -267,7 +368,6 @@ const PagamentoContent = () => {
   );
 };
 
-// 2. EXPORT DEFAULT (Wrapper que fornece o contexto)
 const Pagamento = () => {
   return (
     <Elements stripe={stripePromise}>
