@@ -22,6 +22,9 @@ import CardGridItem from './components/CardGridItem';
 import CardPromocionalBanner from './components/CardPromocionalBanner';
 import Footer from './components/Footer';
 import Checkout from './pages/Checkout';
+import Pagamento from './pages/Pagamento';
+import Confirmacao from './pages/Confirmacao';
+
 
 // --- COMPONENTE HOME CORRIGIDO ---
 const HomeOriginal = ({ alojamentos, carros, experiencias, loading }) => {
@@ -166,7 +169,8 @@ function App() {
             />
 
             <Route path="/checkout" element={<Checkout />} />
-
+            <Route path="/pagamento" element={<Pagamento />} />
+            <Route path="/confirmacao" element={<Confirmacao />} />
 
             {/* Rotas de Alojamentos */}
             <Route path="/alojamentos" element={<Alojamentos />} />

@@ -1,189 +1,371 @@
-import React, { useState } from 'react';
-import { Check, User, Calendar, MapPin, Clock, Users, ChevronRight, Plus, Trash2, ArrowLeft, ShieldCheck } from 'lucide-react';
-import DataModal from './DataModal'; // Importar os modais
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { 
+  Check, ArrowLeft, Loader, AlertCircle, ChevronRight
+} from 'lucide-react';
+import DataModal from './DataModal';
 import HorarioModal from './HorarioModal';
+import ParticipantePrincipal from './ParticipantePrincipal';
+import ParticipantesAdicionais from './ParticipantesAdicionais';
+import ParticipantesAnterioresTabela from './ParticipantesAnterioresTabela';
+import ResumoReserva from './ResumoReserva';
 
 const Checkout = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { reservaData, dataSelecionada, horarioSelecionado, periodoSelecionado } = location.state || {};
+  
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [isDataModalOpen, setDataModalOpen] = useState(false);
   const [isHorarioModalOpen, setHorarioModalOpen] = useState(false);
-  const [participantes, setParticipantes] = useState([{ id: 1 }]);
+  const [participantesAnteriores, setParticipantesAnteriores] = useState([]);
+  const [carregandoDados, setCarregandoDados] = useState(false);
+  const [deletandoParticipante, setDeletandoParticipante] = useState(null);
+  const [editandoParticipante, setEditandoParticipante] = useState(null);
+  const [editForm, setEditForm] = useState({ nome_completo: '', idade: '', nacionalidade: '' });
+  
+  const [reserva, setReserva] = useState({
+    id: reservaData?.id || null,
+    titulo: reservaData?.titulo || '',
+    imagem: reservaData?.imagem || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=200',
+    localizacao: reservaData?.localizacao || '',
+    data: dataSelecionada || reservaData?.entrada || 'Selecionar data',
+    dataISO: reservaData?.dataISO || null,
+    periodo: periodoSelecionado || reservaData?.periodo || 'Manhã',
+    horario: horarioSelecionado || reservaData?.horario || '08:00',
+    precoBase: reservaData?.precoTotal || 0,
+    duracao: reservaData?.duracao || '3 - 4 horas',
+    maxPessoas: reservaData?.maxPessoas || 15,
+    precoPorPessoa: reservaData?.precoPorPessoa || 4500
+  });
+  
+  const [participantePrincipal, setParticipantePrincipal] = useState({
+    nome_completo: '',
+    email: '',
+    phone: '',
+    idade: 'adulto',
+    nacionalidade: 'Cabo Verde'
+  });
+  
+  const [participantes, setParticipantes] = useState([]);
 
-  // Simulação de dados (viriam do seu state/context)
-  const reserva = {
-    titulo: "Cidade Velha Cultura & Tour",
-    local: "Cidade Velha, Santiago",
-    data: "24 de maio de 2024",
-    periodo: "Manhã (08:00)",
-    total: "9.000"
+  const buscarDadosUsuario = async (email, googleId) => {
+    setCarregandoDados(true);
+    try {
+      let url = `https://welovepalop.com/api/checkout_api.php?email=${encodeURIComponent(email)}`;
+      const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+      const result = await response.json();
+      
+      if (result.success) {
+        if (result.usuario) {
+          setParticipantePrincipal(prev => ({
+            ...prev,
+            nome_completo: result.usuario.full_name || prev.nome_completo,
+            email: result.usuario.email || prev.email,
+            phone: result.usuario.phone || prev.phone
+          }));
+        }
+        setParticipantesAnteriores(result.participantes_anteriores || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar dados:', err);
+    } finally {
+      setCarregandoDados(false);
+    }
   };
 
+  const deletarParticipante = async (participante) => {
+    if (!window.confirm(`Tem certeza que deseja remover "${participante.nome_completo}"?`)) return;
+    
+    setDeletandoParticipante(participante.nome_completo);
+    try {
+      const response = await fetch('https://welovepalop.com/api/checkout_api.php', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `nome_completo=${encodeURIComponent(participante.nome_completo)}&email=${encodeURIComponent(participantePrincipal.email)}`
+      });
+      const result = await response.json();
+      if (result.success) {
+        setParticipantesAnteriores(prev => prev.filter(p => p.nome_completo !== participante.nome_completo));
+      }
+    } catch (err) {
+      console.error('Erro ao deletar:', err);
+    } finally {
+      setDeletandoParticipante(null);
+    }
+  };
+
+  const iniciarEdicao = (participante) => {
+    setEditandoParticipante(participante.nome_completo);
+    setEditForm({
+      nome_completo: participante.nome_completo,
+      idade: participante.idade,
+      nacionalidade: participante.nacionalidade
+    });
+  };
+
+  const salvarEdicao = async (participanteOriginal) => {
+    if (!editForm.nome_completo.trim()) {
+      setError('O nome do participante não pode estar vazio');
+      return;
+    }
+    
+    setDeletandoParticipante(participanteOriginal.nome_completo);
+    try {
+      const response = await fetch('https://welovepalop.com/api/checkout_api.php', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome_antigo: participanteOriginal.nome_completo,
+          nome_novo: editForm.nome_completo,
+          idade: editForm.idade,
+          nacionalidade: editForm.nacionalidade,
+          email: participantePrincipal.email
+        })
+      });
+      const result = await response.json();
+      if (result.success) {
+        setParticipantesAnteriores(prev => prev.map(p => 
+          p.nome_completo === participanteOriginal.nome_completo ? {
+            ...p,
+            nome_completo: editForm.nome_completo,
+            idade: editForm.idade,
+            nacionalidade: editForm.nacionalidade
+          } : p
+        ));
+        setParticipantes(prev => prev.map(p => 
+          p.nome_completo === participanteOriginal.nome_completo ? {
+            ...p,
+            nome_completo: editForm.nome_completo,
+            idade: editForm.idade,
+            nacionalidade: editForm.nacionalidade
+          } : p
+        ));
+        setEditandoParticipante(null);
+      }
+    } catch (err) {
+      console.error('Erro ao editar:', err);
+    } finally {
+      setDeletandoParticipante(null);
+    }
+  };
+
+  const cancelarEdicao = () => {
+    setEditandoParticipante(null);
+    setEditForm({ nome_completo: '', idade: '', nacionalidade: '' });
+  };
+
+  const adicionarParticipanteAnterior = (participante) => {
+    const jaExiste = participantes.some(p => p.nome_completo === participante.nome_completo);
+    if (jaExiste) {
+      setError(`"${participante.nome_completo}" já foi adicionado à reserva atual`);
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    setParticipantes([...participantes, { 
+      id: Date.now(),
+      nome_completo: participante.nome_completo,
+      idade: participante.idade || 'adulto',
+      nacionalidade: participante.nacionalidade || 'Cabo Verde'
+    }]);
+  };
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        const email = userData.email;
+        const googleId = userData.sub || userData.google_id || null;
+        setUser({ ...userData, google_id: googleId, email });
+        buscarDadosUsuario(email, googleId);
+        setParticipantePrincipal(prev => ({
+          ...prev,
+          nome_completo: userData.name || userData.full_name || '',
+          email: email,
+          phone: userData.phone || ''
+        }));
+      } catch (e) {
+        console.error('Erro ao parsear usuário:', e);
+      }
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
+  const handleSelectData = (dataObj) => {
+    setReserva(prev => ({ ...prev, data: dataObj.full, dataISO: dataObj.iso }));
+    setDataModalOpen(false);
+  };
+
+  const handleSelectHorario = (horario, periodo) => {
+    setReserva(prev => ({ ...prev, horario, periodo }));
+    setHorarioModalOpen(false);
+  };
+
+  const addParticipante = () => {
+    setParticipantes([...participantes, { id: Date.now(), nome_completo: '', idade: 'adulto', nacionalidade: 'Cabo Verde' }]);
+  };
+
+  const removeParticipante = (id) => {
+    setParticipantes(participantes.filter(p => p.id !== id));
+  };
+
+  const updateParticipantePrincipal = (field, value) => {
+    setParticipantePrincipal(prev => ({ ...prev, [field]: value }));
+  };
+
+  const updateParticipante = (id, field, value) => {
+    setParticipantes(participantes.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const validateForm = () => {
+    if (!participantePrincipal.nome_completo.trim()) {
+      setError('Nome completo do participante principal é obrigatório');
+      return false;
+    }
+    if (!participantePrincipal.email.trim()) {
+      setError('Email do participante principal é obrigatório');
+      return false;
+    }
+    if (!participantePrincipal.phone.trim()) {
+      setError('Telefone do participante principal é obrigatório');
+      return false;
+    }
+    if (reserva.data === 'Selecionar data') {
+      setError('Por favor, selecione uma data para o passeio');
+      return false;
+    }
+    for (let i = 0; i < participantes.length; i++) {
+      if (!participantes[i].nome_completo.trim()) {
+        setError(`Nome do participante ${i + 2} é obrigatório`);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleSubmit = () => {
+    if (!validateForm()) return;
+    if (!user || !user.email) {
+      setError('Usuário não está logado.');
+      return;
+    }
+    
+    const totalPessoas = participantes.length + 1;
+    const precoTotal = reserva.precoPorPessoa * totalPessoas;
+    
+    // Salvar dados dos participantes no sessionStorage para serem usados no pagamento
+    const dadosReserva = {
+      reservaData: {
+        ...reserva,
+        participantes: totalPessoas,
+        precoTotal: precoTotal
+      },
+      participantePrincipal,
+      participantesAdicionais: participantes,
+      usuario: user
+    };
+    
+    sessionStorage.setItem('reservaPendente', JSON.stringify(dadosReserva));
+    
+    // Navegar para pagamento
+    navigate('/pagamento', { 
+      state: { 
+        reservaData: { ...reserva, participantes: totalPessoas, precoTotal },
+        dadosParticipantes: { participantePrincipal, participantes }
+      } 
+    });
+  };
+
+  const totalPessoas = participantes.length + 1;
+  const precoTotal = reserva.precoPorPessoa * totalPessoas;
+
   return (
-    <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* STEPPER - IGUAL À IMAGEM */}
-        <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
-          {[
-            { n: 1, label: 'Dados do participante', check: true },
-            { n: 2, label: 'Pagamento', check: true },
-            { n: 3, label: 'Pagamento' },
-          ].map((s, i, arr) => (
-            <React.Fragment key={i}>
-              <div className="flex flex-col items-center min-w-[120px]">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-2 ${
-                  s.active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 
-                  s.check ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-400'
-                }`}>
-                  {s.check ? <Check size={14} strokeWidth={3} /> : s.n}
-                </div>
-                <span className={`text-[10px] whitespace-nowrap ${s.active || s.check ? 'text-blue-900 font-bold' : 'text-slate-400'}`}>
-                  {s.label}
-                </span>
-              </div>
-              {i < arr.length - 1 && <div className="flex-1 border-t border-dashed border-slate-200 mx-2 mb-6"></div>}
-            </React.Fragment>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* COLUNA ESQUERDA: FORMULÁRIO */}
-          <div className="lg:col-span-8">
-            <h1 className="text-2xl font-bold text-blue-900 mb-2">Dados dos participantes</h1>
-            <p className="text-slate-500 text-sm mb-6">Preencha os dados para todos os participantes.</p>
-
-            {/* INFO BOX AZUL */}
-            <div className="bg-[#F0F7FF] border border-blue-100 rounded-lg p-4 flex gap-3 mb-8">
-              <div className="w-5 h-5 rounded-full border border-blue-600 flex items-center justify-center text-blue-600 text-[10px] font-bold italic shrink-0">i</div>
-              <div>
-                <p className="text-sm font-bold text-blue-900">Informação importante</p>
-                <p className="text-xs text-blue-700">O nome informado deve ser igual ao documento de identificação.</p>
-              </div>
-            </div>
-
-            {/* PARTICIPANTE PRINCIPAL */}
-            <div className="mb-10">
-              <h3 className="text-sm font-bold text-blue-900 mb-4">Participante principal <span className="font-normal text-slate-400 text-xs">(responsável pela reserva)</span></h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <InputGroup label="Nome completo *" placeholder="Ex: João Maria Silva" />
-                <InputGroup label="Email *" placeholder="Ex: joao@email.com" />
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-2">Telefone *</label>
-                  <div className="flex border border-slate-200 rounded-lg overflow-hidden h-[45px]">
-                    <div className="bg-slate-50 px-3 flex items-center border-r border-slate-200 text-xs font-bold gap-1">🇨🇻 +238</div>
-                    <input className="flex-1 px-3 text-sm outline-none" placeholder="Ex: 991 23 45" />
+    <>
+      <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
+        <div className="max-w-7xl mx-auto">
+          {/* STEPPER */}
+          <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
+            {[{ n: 1, label: 'Dados dos participantes', active: true }, { n: 2, label: 'Pagamento', active: false }, { n: 3, label: 'Confirmação', active: false }].map((s, i, arr) => (
+              <React.Fragment key={i}>
+                <div className="flex flex-col items-center min-w-[120px]">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-2 ${s.active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'border border-slate-200 text-slate-400'}`}>
+                    {s.n}
                   </div>
+                  <span className={`text-[10px] whitespace-nowrap ${s.active ? 'text-blue-900 font-bold' : 'text-slate-400'}`}>{s.label}</span>
                 </div>
-              </div>
-            </div>
-
-            {/* LISTA DE ACOMPANHANTES */}
-            <div className="space-y-6">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                <h3 className="text-sm font-bold text-blue-900 uppercase">Participantes</h3>
-                <button onClick={() => setParticipantes([...participantes, {id: Date.now()}])} className="text-blue-600 text-xs font-bold flex items-center gap-1">
-                   + Adicionar participante
-                </button>
-              </div>
-
-              {participantes.map((p, index) => (
-                <div key={p.id} className="p-6 border border-slate-100 rounded-xl relative group">
-                  <div className="flex items-center gap-3 mb-4">
-                    <User size={18} className="text-blue-600" />
-                    <span className="text-sm font-bold text-blue-900">Participante {index + 2}</span>
-                    <button onClick={() => setParticipantes(participantes.filter(item => item.id !== p.id))} className="ml-auto text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18}/></button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div className="md:col-span-6"><InputGroup label="Nome completo *" placeholder="Ex: Maria da Luz Gomes" /></div>
-                    <div className="md:col-span-3"><SelectGroup label="Idade *" options={['Selecione', 'Adulto', 'Criança']} /></div>
-                    <div className="md:col-span-3"><SelectGroup label="Nacionalidade *" options={['Selecione', 'Cabo-verdiana', 'Portuguesa']} /></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-12 flex justify-between h-[55px]">
-              <button className="px-8 border border-slate-200 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-50"><ArrowLeft size={18}/> Voltar</button>
-              <button className="px-10 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-blue-700">Continuar para pagamento <ChevronRight size={18}/></button>
-            </div>
+                {i < arr.length - 1 && <div className="flex-1 border-t border-dashed border-slate-200 mx-2 mb-6"></div>}
+              </React.Fragment>
+            ))}
           </div>
 
-          {/* COLUNA DIREITA: RESUMO (FIXO) */}
-          <div className="lg:col-span-4">
-            <div className="border border-slate-100 rounded-2xl p-6 bg-white shadow-sm sticky top-6">
-              <h2 className="text-lg font-bold text-blue-900 mb-6">Resumo da reserva</h2>
-              <div className="flex gap-4 mb-6">
-                <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=200" className="w-20 h-20 rounded-lg object-cover" alt="" />
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-8">
+              <h1 className="text-2xl font-bold text-blue-900 mb-2">Dados dos participantes</h1>
+              <p className="text-slate-500 text-sm mb-6">Preencha os dados para todos os participantes.</p>
+
+              <div className="bg-[#F0F7FF] border border-blue-100 rounded-lg p-4 flex gap-3 mb-8">
+                <div className="w-5 h-5 rounded-full border border-blue-600 flex items-center justify-center text-blue-600 text-[10px] font-bold italic shrink-0">i</div>
                 <div>
-                  <h4 className="text-sm font-bold text-blue-900">Cidade Velha Cultura & Tour</h4>
-                  <div className="mt-2 space-y-1 text-[11px] font-bold text-slate-400">
-                    <p className="flex items-center gap-2"><Clock size={12}/> 3 - 4 horas</p>
-                    <p className="flex items-center gap-2"><Users size={12}/> 1 - 15 pessoas</p>
-                    <p className="flex items-center gap-2"><MapPin size={12}/> Cidade Velha, Santiago</p>
-                  </div>
+                  <p className="text-sm font-bold text-blue-900">Informação importante</p>
+                  <p className="text-xs text-blue-700">O nome informado deve ser igual ao documento de identificação.</p>
                 </div>
               </div>
 
-              <div className="space-y-5 border-t border-slate-50 pt-6">
-                <ResumoItem label="Data selecionada" value={reserva.data} onEdit={() => setDataModalOpen(true)} />
-                <ResumoItem label="Período" value={reserva.periodo} onEdit={() => setHorarioModalOpen(true)} />
-                <ResumoItem label="Participantes" value={`${participantes.length + 1} pessoas`} onEdit={() => {}} />
-                
-                <div className="flex justify-between text-xs pt-2">
-                  <span className="text-slate-500">Preço por pessoa</span>
-                  <span className="font-bold text-blue-900 tracking-tight">A partir de 4.500 CVE</span>
-                </div>
+              <ParticipantePrincipal participantePrincipal={participantePrincipal} updateParticipantePrincipal={updateParticipantePrincipal} />
+              <ParticipantesAdicionais participantes={participantes} addParticipante={addParticipante} removeParticipante={removeParticipante} updateParticipante={updateParticipante} />
+              <ParticipantesAnterioresTabela 
+                participantesAnteriores={participantesAnteriores}
+                carregandoDados={carregandoDados}
+                editandoParticipante={editandoParticipante}
+                editForm={editForm}
+                setEditForm={setEditForm}
+                deletandoParticipante={deletandoParticipante}
+                user={user}
+                buscarDadosUsuario={buscarDadosUsuario}
+                iniciarEdicao={iniciarEdicao}
+                salvarEdicao={salvarEdicao}
+                cancelarEdicao={cancelarEdicao}
+                adicionarParticipanteAnterior={adicionarParticipanteAnterior}
+                deletarParticipante={deletarParticipante}
+              />
 
-                <div className="flex justify-between items-center border-t border-slate-100 pt-4">
-                  <span className="text-lg font-bold text-blue-900">Total</span>
-                  <span className="text-xl font-bold text-blue-600 tracking-tighter">Sob consulta</span>
-                </div>
-
-                <div className="bg-[#F0F7FF] p-4 rounded-xl flex gap-3">
-                  <ShieldCheck className="text-blue-600 shrink-0" size={20} />
-                  <div>
-                    <p className="text-[10px] font-bold text-blue-900">Reserva 100% segura</p>
-                    <p className="text-[9px] text-blue-700 leading-tight mt-1 opacity-80">Os seus dados estão protegidos e a sua reserva será confirmada após o pagamento.</p>
-                  </div>
-                </div>
+              <div className="mt-10 flex flex-col sm:flex-row justify-between gap-3">
+                <button onClick={() => navigate(-1)} className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50">
+                  <ArrowLeft size={18}/> Voltar
+                </button>
+                <button onClick={handleSubmit} className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700">
+                  Continuar para pagamento <ChevronRight size={18}/>
+                </button>
               </div>
+            </div>
+
+            <div className="lg:col-span-4">
+              <ResumoReserva 
+                reserva={reserva} 
+                totalPessoas={totalPessoas} 
+                precoTotal={precoTotal} 
+                setDataModalOpen={setDataModalOpen} 
+                setHorarioModalOpen={setHorarioModalOpen} 
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* MODAIS */}
-      {isDataModalOpen && <DataModal onClose={() => setDataModalOpen(false)} />}
-      {isHorarioModalOpen && <HorarioModal onClose={() => setHorarioModalOpen(false)} />}
-    </div>
+      {isDataModalOpen && <DataModal onClose={() => setDataModalOpen(false)} onSelectData={handleSelectData} experienciaTitulo={reserva.titulo} currentDate={reserva.dataISO || reserva.data} />}
+      {isHorarioModalOpen && <HorarioModal onClose={() => setHorarioModalOpen(false)} onSelectHorario={handleSelectHorario} currentPeriodo={reserva.periodo} currentHorario={reserva.horario} />}
+    </>
   );
 };
-
-// Componentes Auxiliares para manter o código limpo
-const InputGroup = ({ label, placeholder }) => (
-  <div className="w-full">
-    <label className="text-xs font-bold text-slate-700 block mb-2">{label}</label>
-    <input className="w-full h-[45px] border border-slate-200 rounded-lg px-3 text-sm outline-none focus:border-blue-500" placeholder={placeholder} />
-  </div>
-);
-
-const SelectGroup = ({ label, options }) => (
-  <div className="w-full">
-    <label className="text-xs font-bold text-slate-700 block mb-2">{label}</label>
-    <select className="w-full h-[45px] border border-slate-200 rounded-lg px-3 text-sm outline-none bg-white">
-      {options.map(opt => <option key={opt}>{opt}</option>)}
-    </select>
-  </div>
-);
-
-const ResumoItem = ({ label, value, onEdit }) => (
-  <div className="flex justify-between items-start">
-    <div className="text-xs">
-      <p className="font-bold text-slate-800">{label}</p>
-      <p className="text-slate-500 mt-1">{value}</p>
-    </div>
-    <button onClick={onEdit} className="text-blue-600 font-bold text-[10px] underline">Alterar</button>
-  </div>
-);
 
 export default Checkout;
