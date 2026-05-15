@@ -3,4 +3,5 @@ export default {
     "@tailwindcss/postcss": {}, // Mudámos de 'tailwindcss' para isto
     "autoprefixer": {},
   },
+  
 }

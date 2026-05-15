@@ -1,16 +1,21 @@
+// CheckoutAlojamento.jsx - Versão atualizada
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Check, ArrowLeft, Loader, AlertCircle, ChevronRight
+  Check, ArrowLeft, Loader, AlertCircle, ChevronRight, Calendar, Users, Home, CreditCard
 } from 'lucide-react';
-import DataModal from '../../../pages/DataModal';
-import HorarioModal from '../../../pages/HorarioModal';
-import ParticipantePrincipal from '../../../pages/ParticipantePrincipal';
-import ParticipantesAdicionais from '../../../pages/ParticipantesAdicionais';
-import ParticipantesAnterioresTabela from '../../../pages/ParticipantesAnterioresTabela';
-import ResumoReservaAlojamento from './ResumoReservaAlojamento';
 
-const CheckoutAlojamento = () => {
+
+
+// AGORA O CAMINHO É DIRETO E LIMPO:
+import DataModal from "../../experiencias/components/DataModalExperiencia";
+import HorarioModal from "../../experiencias/components/HorarioModalExperiencia";
+import ParticipantePrincipal from "../../experiencias/components/ParticipantePrincipalExperiencia";
+import ParticipantesAnterioresTabela from "../../experiencias/components/ParticipanteAnteriorExperiencia";
+import ResumoReservaExperiencia from "../../experiencias/components/ResumoReservaExperiencia";
+
+
+const CheckoutAlojamento = () => {<a href=""></a>
   const location = useLocation();
   const navigate = useNavigate();
   const { reservaData } = location.state || {};
@@ -26,8 +31,9 @@ const CheckoutAlojamento = () => {
   const [editandoParticipante, setEditandoParticipante] = useState(null);
   const [editForm, setEditForm] = useState({ nome_completo: '', idade: '', nacionalidade: '' });
   
-  // Calcular noites
+  // Calcular noites (caso não venha na reservaData)
   const calcularNoites = () => {
+    if (reservaData?.noites) return reservaData.noites;
     if (!reservaData?.checkIn || !reservaData?.checkOut) return 1;
     const entrada = new Date(reservaData.checkIn);
     const saida = new Date(reservaData.checkOut);
@@ -47,6 +53,7 @@ const CheckoutAlojamento = () => {
     titulo: reservaData?.titulo || '',
     imagem: reservaData?.imagem || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200',
     localizacao: reservaData?.localizacao || '',
+    ilha: reservaData?.ilha || 'Cabo Verde',
     checkIn: reservaData?.checkIn || '',
     checkOut: reservaData?.checkOut || '',
     noites: noites,
@@ -288,7 +295,8 @@ const CheckoutAlojamento = () => {
     navigate('/pagamento', { 
       state: { 
         reservaData: { ...reserva, totalHospedes: totalHospedes, precoTotal: totalGeral },
-        dadosParticipantes: { participantePrincipal, participantes }
+        dadosParticipantes: { participantePrincipal, participantes },
+        tipo: 'alojamento'
       } 
     });
   };
@@ -305,13 +313,24 @@ const CheckoutAlojamento = () => {
     );
   }
 
+  // Formatar datas para exibição
+  const formatarData = (data) => {
+    if (!data) return '';
+    const d = new Date(data);
+    return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
   return (
     <>
       <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
         <div className="max-w-7xl mx-auto">
           {/* STEPPER */}
           <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
-            {[{ n: 1, label: 'Dados dos hóspedes', active: true }, { n: 2, label: 'Pagamento', active: false }, { n: 3, label: 'Confirmação', active: false }].map((s, i, arr) => (
+            {[
+              { n: 1, label: 'Dados dos hóspedes', active: true },
+              { n: 2, label: 'Pagamento', active: false },
+              { n: 3, label: 'Confirmação', active: false }
+            ].map((s, i, arr) => (
               <React.Fragment key={i}>
                 <div className="flex flex-col items-center min-w-[120px]">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-2 ${s.active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'border border-slate-200 text-slate-400'}`}>
@@ -344,8 +363,35 @@ const CheckoutAlojamento = () => {
                 </div>
               </div>
 
-              <ParticipantePrincipal participantePrincipal={participantePrincipal} updateParticipantePrincipal={updateParticipantePrincipal} />
-              <ParticipantesAdicionais participantes={participantes} addParticipante={addParticipante} removeParticipante={removeParticipante} updateParticipante={updateParticipante} />
+              {/* Resumo rápido da reserva */}
+              <div className="bg-slate-50 rounded-xl p-4 mb-6 flex flex-wrap gap-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <Calendar size={14} className="text-blue-600"/>
+                  <span className="font-medium">{formatarData(reserva.checkIn)} - {formatarData(reserva.checkOut)}</span>
+                  <span className="text-slate-400">• {reserva.noites} noites</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users size={14} className="text-blue-600"/>
+                  <span className="font-medium">{reserva.hospedes} hóspedes</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Home size={14} className="text-blue-600"/>
+                  <span className="font-medium">{reserva.titulo}</span>
+                </div>
+              </div>
+
+              <ParticipantePrincipal 
+                participantePrincipal={participantePrincipal} 
+                updateParticipantePrincipal={updateParticipantePrincipal} 
+              />
+              
+              <ParticipantePrincipal 
+                participantes={participantes} 
+                addParticipante={addParticipante} 
+                removeParticipante={removeParticipante} 
+                updateParticipante={updateParticipante} 
+              />
+              
               <ParticipantesAnterioresTabela 
                 participantesAnteriores={participantesAnteriores}
                 carregandoDados={carregandoDados}
@@ -363,17 +409,23 @@ const CheckoutAlojamento = () => {
               />
 
               <div className="mt-10 flex flex-col sm:flex-row justify-between gap-3">
-                <button onClick={() => navigate(-1)} className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50">
+                <button 
+                  onClick={() => navigate(-1)} 
+                  className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
+                >
                   <ArrowLeft size={18}/> Voltar
                 </button>
-                <button onClick={handleSubmit} className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700">
+                <button 
+                  onClick={handleSubmit} 
+                  className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md"
+                >
                   Continuar para pagamento <ChevronRight size={18}/>
                 </button>
               </div>
             </div>
 
             <div className="lg:col-span-4">
-              <ResumoReservaAlojamento 
+              <ResumoReservaExperiencia 
                 reserva={reserva} 
                 totalHospedes={totalHospedes} 
                 precoTotal={precoTotal}

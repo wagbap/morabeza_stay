@@ -1,3 +1,4 @@
+// PaginaDetalhes.jsx - Versão atualizada
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -7,7 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const PaginaDetalhes = () => {
+const InfoAlojamento = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -102,19 +103,30 @@ const PaginaDetalhes = () => {
       return;
     }
 
+    if (noites <= 0) {
+      alert("A data de check-out deve ser posterior à data de check-in");
+      return;
+    }
+
+    // Dados completos para o checkout
     const reservaData = {
       id: alojamento.id,
       titulo: alojamento.titulo,
       imagem: imagemPrincipal,
       localizacao: alojamento.localizacao,
+      ilha: alojamento.ilha || 'Cabo Verde',
       precoNoite: Number(alojamento.preco_noite),
       checkIn: checkIn,
       checkOut: checkOut,
       hospedes: numHospedes,
+      capacidade: alojamento.capacidade || numHospedes,
       noites: noites,
       totalBase: totalBase,
-      taxaLimpeza: 2500, 
-      taxaServico: 1200
+      taxaLimpeza: Number(alojamento.taxa_limpeza) || 2500,
+      taxaServico: Number(alojamento.taxa_servico) || 1200,
+      descricao: alojamento.descricao,
+      comodidades: alojamento.comodidades || [],
+      imagens_extra: alojamento.imagens_extra || []
     };
 
     navigate('/checkout-alojamento', { state: { reservaData } });
@@ -176,7 +188,6 @@ const PaginaDetalhes = () => {
     );
   }
 
-  // Data mínima (hoje)
   const minDate = new Date().toISOString().split('T')[0];
 
   return (
@@ -263,11 +274,11 @@ const PaginaDetalhes = () => {
               </div>
             </div>
 
-            <p className="text-slate-500 text-sm mb-8 leading-relaxed">{alojamento.descricao?.substring(0, 150)}...</p>
+            <p className="text-slate-500 text-sm mb-8 leading-relaxed">{alojamento.descricao?.substring(0, 200)}...</p>
 
             {alojamento.comodidades && alojamento.comodidades.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12 py-6 border-y border-slate-100">
-                {alojamento.comodidades.map((com, i) => (
+                {alojamento.comodidades.slice(0, 4).map((com, i) => (
                   <div key={i} className="flex items-center gap-2 text-[11px] font-bold text-slate-600 uppercase tracking-tighter">
                     <Check size={18} className="text-blue-500"/> {com.nome}
                   </div>
@@ -338,34 +349,37 @@ const PaginaDetalhes = () => {
                     onChange={(e) => setNumHospedes(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-[#1a2b6d] appearance-none"
                   >
-                    <option value={1}>1 Adulto</option>
-                    <option value={2}>2 Adultos</option>
-                    <option value={3}>3 Adultos</option>
-                    <option value={4}>4 Adultos</option>
+                    {[...Array(alojamento.capacidade || 4)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>{i + 1} {i + 1 === 1 ? 'Hóspede' : 'Hóspedes'}</option>
+                    ))}
                   </select>
                 </div>
 
-                {/* STATUS DE DISPONIBILIDADE */}
+                {/* INFO DISPONIBILIDADE */}
                 <div className="w-full py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl">
                   <p className="text-[11px] font-bold text-slate-500 tracking-tight">
-                    Disponibilidade: <span className="text-green-600">Verificar no checkout</span>
+                    {noites > 0 ? (
+                      <span className="text-green-600">✓ {noites} {noites === 1 ? 'noite' : 'noites'} selecionada(s)</span>
+                    ) : (
+                      <span>⚠️ Selecione as datas</span>
+                    )}
                   </p>
                 </div>
               </div>
 
-              {/* TOTAL CORRIGIDO */}
+              {/* TOTAL */}
               <div className="pt-6 border-t border-slate-100 space-y-3 mt-6">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-bold text-slate-600">
                     Preço por noite ({noites} {noites === 1 ? 'noite' : 'noites'})
                   </span>
                   <span className="text-lg font-bold text-blue-600">
-                    {Number(alojamento.preco_noite).toLocaleString()} CVE
+                    {Number(alojamento.preco_noite).toLocaleString()} CVE × {noites} = {totalBase.toLocaleString()} CVE
                   </span>
                 </div>
                 
                 <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                  <span className="text-sm font-bold text-slate-600">Total</span>
+                  <span className="text-sm font-bold text-slate-600">Total (sem taxas)</span>
                   <span className="text-xl font-bold text-blue-600">
                     {totalBase.toLocaleString()} CVE
                   </span>
@@ -375,11 +389,11 @@ const PaginaDetalhes = () => {
                   onClick={handleIrParaCheckout}
                   className="w-full font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl active:scale-[0.98] mt-4 bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 cursor-pointer"
                 >
-                  <Calendar size={18}/> Confirmar Reserva
+                  <Calendar size={18}/> Continuar para Checkout
                 </button>
                 
                 <p className="text-[9px] text-slate-400 text-center mt-3">
-                  As taxas de limpeza e serviço serão calculadas no próximo passo
+                  Taxa de limpeza e serviço serão calculadas no checkout
                 </p>
               </div>
             </div>
@@ -390,4 +404,4 @@ const PaginaDetalhes = () => {
   );
 };
 
-export default PaginaDetalhes;
+export default InfoAlojamento;
