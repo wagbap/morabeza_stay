@@ -22,6 +22,9 @@ import Checkout from './features/experiencias/components/CheckoutExperiencia';
 import Pagamento from './pages/Pagamento';
 import Confirmacao from './pages/Confirmacao';
 
+
+import InfoAlojamento from './features/alojamento/components/InfoAlojamento';
+
 function App() {
   const { alojamentos, carros, experiencias, loading } = useFetchHomeData();
 
@@ -45,6 +48,8 @@ function App() {
             {/* Alojamentos */}
             <Route path="/alojamentos" element={<Alojamentos />} />
             <Route path="/alojamento/:id" element={<PaginaDetalhes />} />
+
+            <Route path="/alojamento_teste" element={<InfoAlojamento />} />
 
             {/* Experiências */}
             <Route path="/experiencias" element={<Experiencias />} />

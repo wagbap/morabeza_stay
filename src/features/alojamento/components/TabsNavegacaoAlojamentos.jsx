@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const TabsNavegacao = ({ activeTab = 0 }) => {
+export const TabsNavegacaoAlojamentos = ({ activeTab = 0 }) => {
   const tabs = [
     'Descrição', 
     'Comodidades', 
@@ -51,3 +51,5 @@ export const TabsNavegacao = ({ activeTab = 0 }) => {
     </div>
   );
 };
+
+export default TabsNavegacaoAlojamentos;
