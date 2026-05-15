@@ -5,7 +5,7 @@ import {
   Mail, Camera, ArrowRight, Printer, List, 
   ShieldCheck, Phone, HelpCircle, Copy, CheckCircle
 } from 'lucide-react';
-import ResumoReserva from './ResumoReserva';
+import ResumoReserva from '../features/experiencias/components/ResumoReservaExperiencia';
 
 const Confirmacao = () => {
   const location = useLocation();

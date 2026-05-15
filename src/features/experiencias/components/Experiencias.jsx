@@ -5,10 +5,10 @@ import { Loader2, LayoutGrid, List, Info, ArrowRight } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 // Componentes Importados
-import ExperiencesHero from '../components/ExperiencesHero';
-import SearchBarExperiencias from '../components/SearchBarExperiencias';
-import FiltroLateralExperiencia from '../components/FiltroLateralExperiencia';
-import CardExperiencia from '../components/CardExperiencia';
+import ExperiencesHero from './ExperiencesHero';
+import SearchBarExperiencias from './SearchBarExperiencias';
+import FiltroLateralExperiencia from './FiltroLateralExperiencia';
+import CardExperiencia from './CardExperiencia';
 
 const Experiencias = () => {
   const location = useLocation();

@@ -5,10 +5,10 @@ import { Loader2, LayoutGrid, List, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
-import CardAlojamento from '../components/CardAlojamento';
-import FiltrosLateralAlojamento from '../components/FiltrosLateralAlojamento'; 
-import SearchBar from '../components/SearchBar';
-import MapaInterativo from '../components/MapaInterativo';
+import CardAlojamento from './CardAlojamento';
+import FiltrosLateralAlojamento from './FiltrosLateralAlojamento'; 
+import SearchBar from './SearchBarAlojamento';
+import MapaInterativo from '../../experiencias/components/MapaInterativoExperiencia';
 
 const Alojamentos = () => {
   const { t } = useTranslation();

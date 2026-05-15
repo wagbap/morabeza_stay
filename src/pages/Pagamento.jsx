@@ -9,7 +9,7 @@ import {
 // Stripe Imports
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
-import ResumoReserva from './ResumoReserva';
+import ResumoReserva from '../features/experiencias/components/ResumoReservaExperiencia';
 import PayPalButton from './PayPalButton';
 
 // INICIALIZAÇÃO DO STRIPE

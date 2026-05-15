@@ -3,12 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Check, ArrowLeft, Loader, AlertCircle, ChevronRight
 } from 'lucide-react';
-import DataModal from './DataModal';
-import HorarioModal from './HorarioModal';
-import ParticipantePrincipal from './ParticipantePrincipal';
-import ParticipantesAdicionais from './ParticipantesAdicionais';
-import ParticipantesAnterioresTabela from './ParticipantesAnterioresTabela';
-import ResumoReserva from './ResumoReserva';
+import DataModal from './DataModalExperiencia';
+import HorarioModal from './HorarioModalExperiencia';
+import ParticipantePrincipal from './ParticipantePrincipalExperiencia';
+import ParticipantesAdicionais from './ParticipantesAddExperiencia';
+import ParticipantesAnterioresTabela from './ParticipanteAnteriorExperiencia';
+import ResumoReserva from './ResumoReservaExperiencia';
 
 const Checkout = () => {
   const location = useLocation();

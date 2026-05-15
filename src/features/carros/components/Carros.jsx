@@ -4,10 +4,10 @@ import { Helmet } from 'react-helmet-async';
 import { Loader2, LayoutGrid, List, Info } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-import CarrosHero from '../components/CarrosHero';
-import SearchBarCarros from '../components/SearchBarCarros';
-import FiltrosCarros from '../components/FiltrosLateralCarros'; 
-import CardCarro from '../components/CardCarro';
+import CarrosHero from './CarrosHero';
+import SearchBarCarros from './SearchBarCarros';
+import CardCarro from './CardCarro';
+import FiltrosLateralCarros from './FiltrosLateralCarros';
 
 const Carros = () => {
   const location = useLocation();
@@ -104,7 +104,7 @@ const Carros = () => {
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-12 items-start">
           
           <aside className="w-full lg:col-span-3 lg:sticky lg:top-28 z-10">
-            <FiltrosCarros 
+            <FiltrosLateralCarros 
               orcamento={orcamento} 
               setOrcamento={setOrcamento} 
               tiposSelecionados={categoriasSelecionadas}

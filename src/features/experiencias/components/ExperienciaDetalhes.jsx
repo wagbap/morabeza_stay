@@ -5,7 +5,7 @@ import {
   Check, ShieldCheck, Info, Camera, Calendar, Minus, Plus, 
   Headphones, Heart, Sunset, Share2, Sun 
 } from 'lucide-react';
-import AvaliacoesSeccao from './AvaliacoesSeccao';
+import AvaliacoesSeccao from './AvaliacoesSeccaoExperiencia';
 
 const ExperienciaDetalhes = () => {
   const { slug } = useParams();
@@ -334,10 +334,10 @@ const ExperienciaDetalhes = () => {
             <div className="mb-8">
               <h1 className="text-3xl font-bold mb-4">{experiencia.titulo}</h1>
               <div className="flex flex-wrap gap-5 text-xs font-semibold text-slate-500">
-           <div className="flex items-center gap-1">
-  <Star size={14} className="fill-orange-400 text-orange-400"/> 
-  {experiencia.rating_formatado || '5.0'} ({experiencia.total_avaliacoes || 0} avaliações)
-</div>
+                <div className="flex items-center gap-1">
+                  <Star size={14} className="fill-orange-400 text-orange-400"/> 
+                  {experiencia.rating_formatado || '5.0'} ({experiencia.reviews_recentes?.length || 0} avaliações)
+                </div>
                 <div className="flex items-center gap-1 text-slate-400">|</div>
                 <div className="flex items-center gap-1"><MapPin size={14}/> {experiencia.ilha}, {experiencia.localizacao}</div>
                 <div className="flex items-center gap-1 text-slate-400">|</div>
@@ -347,7 +347,7 @@ const ExperienciaDetalhes = () => {
               </div>
             </div>
 
-            <p className="text-slate-500 text-sm mb-8 leading-relaxed">{experiencia.descricao_curta}</p>
+            <p className="text-slate-500 text-Zsm mb-8 leading-relaxed">{experiencia.descricao_curta}</p>
 
             {experiencia.inclusoes && experiencia.inclusoes.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12 py-6 border-y border-slate-100">

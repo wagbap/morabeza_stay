@@ -4,9 +4,9 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
-import CardAlojamentoItem from './CardAlojamentoItem';
-import CardCarro from './CardCarro';
-import CardExperienciaTab from './CardExperienciaTab';
+import CardAlojamentoItem from '../features/alojamento/components/CardAlojamentoItem';
+import CardCarro from '../features/carros/components/CardCarro';
+import CardExperienciaTab from '../features/experiencias/components/CardExperienciaTab';
 import { Link } from 'react-router-dom';
 
 const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
