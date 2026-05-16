@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { 
   Users, Bed, Bath, Wifi, Wind, Coffee, MapPin, Star, 
   ChevronRight, ChevronLeft, LayoutGrid, Camera,
-  CheckCircle, ExternalLink, ChevronDown, X
+  CheckCircle, ExternalLink, ChevronDown, X, Loader2
 } from 'lucide-react';
 
 // Componente SliderModal para visualização em tela cheia
@@ -18,18 +19,21 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
       <button 
         onClick={onClose}
         className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
+        aria-label="Fechar"
       >
         <X size={24} />
       </button>
       <button 
         onClick={(e) => { e.stopPropagation(); onPrev(); }}
         className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
+        aria-label="Imagem anterior"
       >
         <ChevronLeft size={24} />
       </button>
       <button 
         onClick={(e) => { e.stopPropagation(); onNext(); }}
         className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
+        aria-label="Próxima imagem"
       >
         <ChevronRight size={24} />
       </button>
@@ -78,23 +82,29 @@ const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
 };
 
 // Componente HostInfo
-const HostInfo = () => {
+const HostInfo = ({ proprietario }) => {
+  if (!proprietario) return null;
+  
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
       <div className="flex items-center gap-3 mb-4">
         <div className="relative">
           <img 
-            src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop" 
-            alt="Anfitrião" 
+            src={proprietario.foto || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"} 
+            alt={proprietario.nome} 
             className="w-12 h-12 rounded-full object-cover border border-slate-100"
           />
-          <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
-            <CheckCircle className="text-orange-500 fill-orange-500" size={14} />
-          </div>
+          {proprietario.superhost && (
+            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
+              <CheckCircle className="text-orange-500 fill-orange-500" size={14} />
+            </div>
+          )}
         </div>
         <div>
-          <h4 className="text-sm font-bold text-slate-900 leading-tight">Anfitrião: João Silva</h4>
-          <p className="text-[10px] text-slate-500 font-medium">Superhost • Responde rápido</p>
+          <h4 className="text-sm font-bold text-slate-900 leading-tight">Anfitrião: {proprietario.nome}</h4>
+          <p className="text-[10px] text-slate-500 font-medium">
+            {proprietario.superhost ? 'Superhost • ' : ''}{proprietario.tempo_resposta || 'Responde rápido'}
+          </p>
         </div>
       </div>
       <button className="w-full py-2.5 border border-[#003580] text-[#003580] text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors">
@@ -105,13 +115,13 @@ const HostInfo = () => {
 };
 
 // Componente MapLocation
-const MapLocation = () => {
+const MapLocation = ({ localizacao, pontosProximos, endereco }) => {
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
       <div className="flex justify-between items-start mb-3">
         <div>
           <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
-          <p className="text-[10px] text-slate-500 font-medium mt-0.5">Santa Maria, Ilha do Sal</p>
+          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{localizacao}</p>
         </div>
         <button className="flex items-center gap-1 text-[#003580] text-[10px] font-bold hover:underline">
           Ver no mapa <ExternalLink size={10} />
@@ -135,11 +145,17 @@ const MapLocation = () => {
 };
 
 // Componente SidebarReserva
-const SidebarReserva = () => {
-  const [startDate, setStartDate] = useState(new Date());
+const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [] }) => {
+  const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [numHospedes, setNumHospedes] = useState(2);
   const [showCalendar, setShowCalendar] = useState(false);
+
+  // Filtrar datas bloqueadas
+  const isDateBlocked = (date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return datasBloqueadas.includes(dateStr);
+  };
 
   const onChange = (dates) => {
     const [start, end] = dates;
@@ -150,13 +166,22 @@ const SidebarReserva = () => {
     }
   };
 
+  const noites = startDate && endDate 
+    ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))
+    : 1;
+
+  const totalBase = precoPorNoite * noites;
+
   return (
     <div className="sticky top-24">
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
         <div className="flex justify-between items-end mb-5">
-          <div className="text-2xl font-bold text-slate-900">85€ <span className="text-sm font-normal text-slate-500">/ noite</span></div>
+          <div className="text-2xl font-bold text-slate-900">
+            {precoPorNoite.toLocaleString()} CVE 
+            <span className="text-sm font-normal text-slate-500"> / noite</span>
+          </div>
           <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
-            <Star size={14} className="fill-orange-500 text-orange-500" /> 4.9
+            <Star size={14} className="fill-orange-500 text-orange-500" /> {estrelas}
           </div>
         </div>
 
@@ -167,11 +192,15 @@ const SidebarReserva = () => {
           >
             <div className="flex-1 p-2.5 border-r border-slate-300">
               <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Check-in</label>
-              <div className="text-xs font-bold text-slate-900">{startDate ? startDate.toLocaleDateString('pt-PT') : 'Data'}</div>
+              <div className="text-xs font-bold text-slate-900">
+                {startDate ? startDate.toLocaleDateString('pt-PT') : 'Data'}
+              </div>
             </div>
             <div className="flex-1 p-2.5">
               <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Check-out</label>
-              <div className="text-xs font-bold text-slate-900">{endDate ? endDate.toLocaleDateString('pt-PT') : 'Data'}</div>
+              <div className="text-xs font-bold text-slate-900">
+                {endDate ? endDate.toLocaleDateString('pt-PT') : 'Data'}
+              </div>
             </div>
           </div>
 
@@ -186,10 +215,14 @@ const SidebarReserva = () => {
                 monthsShown={window.innerWidth > 768 ? 2 : 1}
                 inline
                 minDate={new Date()}
+                excludeDates={datasBloqueadas.map(d => new Date(d))}
                 calendarClassName="morabeza-calendar-inline"
               />
               <div className="p-2 border-t border-slate-100 flex justify-end">
-                <button onClick={() => setShowCalendar(false)} className="text-[#003580] font-bold text-[10px] uppercase">
+                <button 
+                  onClick={() => setShowCalendar(false)} 
+                  className="text-[#003580] font-bold text-[10px] uppercase"
+                >
                   Fechar
                 </button>
               </div>
@@ -214,7 +247,25 @@ const SidebarReserva = () => {
           </div>
         </div>
 
-        <button className="w-full bg-[#003580] text-white font-bold py-3 rounded-xl mb-4 hover:bg-blue-900 transition-all shadow-lg text-sm">
+        <div className="pt-6 border-t border-slate-100 space-y-3 mt-6">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-600">
+              Preço por noite ({noites} {noites === 1 ? 'noite' : 'noites'})
+            </span>
+            <span className="text-xs font-bold text-blue-600">
+              {precoPorNoite.toLocaleString()} CVE × {noites} = {totalBase.toLocaleString()} CVE
+            </span>
+          </div>
+          
+          <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+            <span className="text-sm font-bold text-slate-600">Total (sem taxas)</span>
+            <span className="text-base font-bold text-blue-600">
+              {totalBase.toLocaleString()} CVE
+            </span>
+          </div>
+        </div>
+
+        <button className="w-full bg-[#003580] text-white font-bold py-3 rounded-xl mb-4 mt-8 hover:bg-blue-900 transition-all shadow-lg text-sm">
           Ver disponibilidade
         </button>
 
@@ -231,15 +282,15 @@ const SidebarReserva = () => {
 };
 
 // Componente AmenitiesBar
-const AmenitiesBar = () => {
+const AmenitiesBar = ({ infoBasica, comodidades }) => {
   const amenities = [
-    { icon: Users, label: '4 Hóspedes', sub: 'Máximo 4 pessoas' },
-    { icon: Bed, label: '2 Quartos', sub: '1 cama queen, 2 ind.' },
-    { icon: Bath, label: '2 Casas de banho', sub: 'Água quente' },
-    { icon: Wifi, label: 'Wi-Fi', sub: 'Rápido e gratuito' },
-    { icon: Wind, label: 'Ar Condicionado', sub: 'Todos os quartos' },
-    { icon: Coffee, label: 'Cozinha', sub: 'Totalmente equipada' },
-  ];
+    { icon: Users, label: `${infoBasica?.capacidade || 4} Hóspedes`, sub: 'Máximo de pessoas', show: true },
+    { icon: Bed, label: `${infoBasica?.quartos || 2} Quartos`, sub: 'Camas confortáveis', show: true },
+    { icon: Bath, label: `${infoBasica?.casas_banho || 2} Casas de banho`, sub: 'Água quente', show: true },
+    { icon: Wifi, label: 'Wi-Fi', sub: infoBasica?.wifi ? 'Rápido e gratuito' : 'Disponível', show: true },
+    { icon: Wind, label: 'Ar Condicionado', sub: infoBasica?.ar_condicionado ? 'Todos os quartos' : 'Disponível', show: true },
+    { icon: Coffee, label: 'Cozinha', sub: infoBasica?.cozinha ? 'Totalmente equipada' : 'Básica', show: true },
+  ].filter(a => a.show);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
@@ -258,11 +309,10 @@ const AmenitiesBar = () => {
   );
 };
 
-// Componente ImageGallery com setas de navegação
-const ImageGallery = ({ images, mainImageIndex, onImageChange, onOpenModal, onPrev, onNext }) => {
+// Componente ImageGallery
+const ImageGallery = ({ images, mainImageIndex, onImageChange, onOpenModal, onPrev, onNext, titulo, tipo }) => {
   return (
     <div className="relative">
-      {/* Container da imagem principal com setas */}
       <div className="relative group">
         <div 
           className="relative rounded-2xl overflow-hidden shadow-xl shadow-blue-900/10 cursor-pointer"
@@ -272,46 +322,38 @@ const ImageGallery = ({ images, mainImageIndex, onImageChange, onOpenModal, onPr
             <img 
               src={images[mainImageIndex]} 
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-              alt="Apartamento Morabeza" 
+              alt={titulo} 
             />
           </div>
           <div className="absolute bottom-4 left-4 bg-[#003580] text-white px-4 py-2 rounded-xl flex items-center gap-2 text-[11px] font-black uppercase shadow-lg z-10">
-            <LayoutGrid size={12} /> Apartamento Premium
+            <LayoutGrid size={12} /> {tipo || 'Apartamento'} Premium
           </div>
           <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-medium backdrop-blur-sm z-10">
             <Camera size={14} /> Ver fotos
           </div>
         </div>
 
-        {/* SETA ESQUERDA */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onPrev();
-          }}
+          onClick={(e) => { e.stopPropagation(); onPrev(); }}
           className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
+          aria-label="Imagem anterior"
         >
           <ChevronLeft size={24} />
         </button>
 
-        {/* SETA DIREITA */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onNext();
-          }}
+          onClick={(e) => { e.stopPropagation(); onNext(); }}
           className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
+          aria-label="Próxima imagem"
         >
           <ChevronRight size={24} />
         </button>
 
-        {/* Indicador de posição */}
         <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded-md text-xs font-medium backdrop-blur-sm z-10">
           {mainImageIndex + 1} / {images.length}
         </div>
       </div>
 
-      {/* Miniaturas */}
       <div className="flex gap-3 mt-4 overflow-x-auto no-scrollbar">
         {images.map((img, idx) => (
           <div 
@@ -332,7 +374,9 @@ const ImageGallery = ({ images, mainImageIndex, onImageChange, onOpenModal, onPr
 };
 
 // Componente de conteúdo das tabs
-const TabContent = ({ activeTab }) => {
+const TabContent = ({ activeTab, alojamento }) => {
+  if (!alojamento) return null;
+
   switch(activeTab) {
     case 0:
       return (
@@ -340,26 +384,20 @@ const TabContent = ({ activeTab }) => {
           <div>
             <h3 className="text-lg font-bold text-slate-900 mb-4">Sobre este espaço</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
-              Este espaçoso apartamento em Santa Maria oferece uma experiência única de conforto e tranquilidade. 
-              Com vista para o mar e localização privilegiada, você estará a poucos passos das melhores praias da Ilha do Sal.
-              Totalmente remodelado, dispõe de todos os equipamentos necessários para uma estadia inesquecível.
-            </p>
-            <p className="text-slate-600 text-sm leading-relaxed mt-3">
-              O apartamento conta com uma varanda privativa onde pode desfrutar do pequeno-almoço com vista para o oceano. 
-              A cozinha está totalmente equipada com eletrodomésticos modernos e utensílios de qualidade.
+              {alojamento.descricao_detalhada || alojamento.descricao || 
+                `Este espaçoso ${alojamento.tipo_propriedade?.toLowerCase() || 'apartamento'} em ${alojamento.localizacao} oferece uma experiência única de conforto e tranquilidade. 
+                Com localização privilegiada, você estará a poucos passos das melhores atrações da região.
+                Totalmente equipado, dispõe de todos os equipamentos necessários para uma estadia inesquecível.`}
             </p>
           </div>
 
           <div className="border-t border-slate-100 pt-6">
             <h3 className="text-lg font-bold text-slate-900 mb-4">O que este espaço oferece</h3>
             <div className="grid grid-cols-2 gap-3">
-              {[
-                'Wi-Fi rápido', 'Cozinha equipada', 'Ar condicionado', 'TV Smart',
-                'Toalhas e lençóis', 'Secador de cabelo', 'Ferro de engomar', 'Estacionamento gratuito'
-              ].map((item, i) => (
+              {alojamento.comodidades?.slice(0, 8).map((item, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <CheckCircle size={14} className="text-green-500" />
-                  <span className="text-sm text-slate-600">{item}</span>
+                  <span className="text-sm text-slate-600">{item.nome}</span>
                 </div>
               ))}
             </div>
@@ -372,35 +410,11 @@ const TabContent = ({ activeTab }) => {
           <h3 className="text-lg font-bold text-slate-900">Todas as comodidades</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h4 className="font-semibold text-slate-900 mb-3">Quartos</h4>
+              <h4 className="font-semibold text-slate-900 mb-3">Comodidades Gerais</h4>
               <ul className="space-y-2 text-sm text-slate-600">
-                <li>• 1 cama queen-size</li>
-                <li>• 2 camas individuais</li>
-                <li>• Roupa de cama incluída</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-slate-900 mb-3">Banheiros</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>• 2 casas de banho completas</li>
-                <li>• Toalhas incluídas</li>
-                <li>• Secador de cabelo</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-slate-900 mb-3">Cozinha</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>• Geladeira e freezer</li>
-                <li>• Microondas</li>
-                <li>• Cafeteira</li>
-                <li>• Utensílios básicos</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-slate-900 mb-3">Entretenimento</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>• Wi-Fi rápido (100 Mbps)</li>
-                <li>• TV Smart</li>
+                {alojamento.comodidades?.map((item, i) => (
+                  <li key={i}>• {item.nome}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -411,27 +425,15 @@ const TabContent = ({ activeTab }) => {
         <div className="space-y-6">
           <h3 className="text-lg font-bold text-slate-900">Regras da Casa</h3>
           <div className="space-y-4">
-            <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
-              <CheckCircle size={18} className="text-green-500 mt-0.5" />
-              <div>
-                <p className="font-semibold text-slate-900">Check-in: 15:00 - 22:00</p>
-                <p className="text-sm text-slate-500">Check-out: até às 11:00</p>
+            {alojamento.regras_casa?.map((regra, i) => (
+              <div key={i} className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
+                <CheckCircle size={18} className="text-green-500 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-slate-900">{regra.titulo}</p>
+                  <p className="text-sm text-slate-500">{regra.descricao}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
-              <CheckCircle size={18} className="text-green-500 mt-0.5" />
-              <div>
-                <p className="font-semibold text-slate-900">Não é permitido</p>
-                <p className="text-sm text-slate-500">Fumar • Festas • Animais de estimação</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
-              <CheckCircle size={18} className="text-green-500 mt-0.5" />
-              <div>
-                <p className="font-semibold text-slate-900">Silêncio após as 22:00</p>
-                <p className="text-sm text-slate-500">Respeitar os vizinhos</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       );
@@ -442,36 +444,34 @@ const TabContent = ({ activeTab }) => {
             <h3 className="text-lg font-bold text-slate-900">Avaliações dos hóspedes</h3>
             <div className="flex items-center gap-2">
               <Star size={20} className="fill-orange-400 text-orange-400" />
-              <span className="text-2xl font-bold text-slate-900">4.9</span>
-              <span className="text-slate-500">· 85 avaliações</span>
+              <span className="text-2xl font-bold text-slate-900">{alojamento.estrelas}</span>
+              <span className="text-slate-500">· {alojamento.total_avaliacoes || 0} avaliações</span>
             </div>
           </div>
           <div className="space-y-4">
-            {[
-              { nome: "Maria Santos", data: "Outubro 2024", texto: "Excelente estadia! O apartamento é muito confortável e bem localizado. Vista linda para o mar!" },
-              { nome: "Carlos Mendes", data: "Setembro 2024", texto: "Apartamento impecável, moderno e muito bem equipado. O anfitrião foi super atencioso." },
-              { nome: "Ana Rodrigues", data: "Agosto 2024", texto: "Localização perfeita, perto de tudo. Limpeza impecável. Voltarei com certeza." }
-            ].map((review, i) => (
+            {alojamento.avaliacoes?.map((review, i) => (
               <div key={i} className="border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 bg-gradient-to-br from-[#003580] to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    {review.nome.charAt(0)}
+                    {review.nome_usuario?.charAt(0) || 'A'}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-900">{review.nome}</p>
+                    <p className="text-sm font-bold text-slate-900">{review.nome_usuario}</p>
                     <div className="flex items-center gap-1">
                       <Star size={10} className="fill-orange-400 text-orange-400" />
-                      <span className="text-[10px] text-slate-500">5.0 • {review.data}</span>
+                      <span className="text-[10px] text-slate-500">{review.rating}.0 • {new Date(review.created_at).toLocaleDateString('pt-PT')}</span>
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-slate-600">{review.texto}</p>
+                <p className="text-sm text-slate-600">{review.comentario}</p>
               </div>
             ))}
           </div>
-          <button className="w-full py-3 border border-[#003580] text-[#003580] font-bold rounded-xl hover:bg-slate-50 transition-colors">
-            Ver todas as 85 avaliações
-          </button>
+          {alojamento.total_avaliacoes > 3 && (
+            <button className="w-full py-3 border border-[#003580] text-[#003580] font-bold rounded-xl hover:bg-slate-50 transition-colors">
+              Ver todas as {alojamento.total_avaliacoes} avaliações
+            </button>
+          )}
         </div>
       );
     case 4:
@@ -491,14 +491,14 @@ const TabContent = ({ activeTab }) => {
           <div className="space-y-3">
             <div className="flex items-start gap-3">
               <MapPin size={16} className="text-orange-500 mt-0.5" />
-              <span className="text-sm text-slate-600">Santa Maria, Ilha do Sal, Cabo Verde</span>
+              <span className="text-sm text-slate-600">{alojamento.endereco_completo || alojamento.localizacao}, Cabo Verde</span>
             </div>
             <div className="bg-slate-50 rounded-xl p-4">
               <p className="text-sm font-semibold text-slate-900 mb-2">Próximo de:</p>
               <ul className="space-y-2 text-sm text-slate-600">
-                <li>🏖️ Praia de Santa Maria - 2 min a pé</li>
-                <li>🛒 Mercado Municipal - 5 min a pé</li>
-                <li>✈️ Aeroporto Internacional - 20 min de carro</li>
+                {alojamento.pontos_proximos?.map((ponto, i) => (
+                  <li key={i}>{ponto}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -511,18 +511,66 @@ const TabContent = ({ activeTab }) => {
 
 // Componente InfoAlojamento principal
 export const InfoAlojamento = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [alojamento, setAlojamento] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [images, setImages] = useState([]);
 
-  const images = [
-    "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop",
-    "https://images.unsplash.com/photo-1682687220063-4742bd7fd538?w=1200&h=800&fit=crop",
-    "https://images.unsplash.com/photo-1582967788606-a171c1080cb0?w=1200&h=800&fit=crop",
-    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&h=800&fit=crop",
-    "https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?w=1200&h=800&fit=crop",
-    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&h=800&fit=crop"
-  ];
+  // Buscar dados do alojamento
+  useEffect(() => {
+    const fetchAlojamento = async () => {
+      if (!id) {
+        setError('ID do alojamento não fornecido');
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`https://welovepalop.com/api/get_alojamento_detalhes.php?id=${id}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        setAlojamento(data);
+        
+        // Processar imagens
+        if (data.imagens && data.imagens.length > 0) {
+          const imageUrls = data.imagens.map(img => img.caminho_url);
+          setImages(imageUrls);
+        } else if (data.imagem_url) {
+          setImages([data.imagem_url]);
+        } else {
+          // Imagens padrão
+          setImages([
+            "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop",
+            "https://images.unsplash.com/photo-1682687220063-4742bd7fd538?w=1200&h=800&fit=crop",
+          ]);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar alojamento:', err);
+        setError(err.message || 'Erro ao carregar dados do alojamento');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlojamento();
+  }, [id]);
 
   const handlePrevImage = () => {
     setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -544,6 +592,35 @@ export const InfoAlojamento = () => {
     setIsModalOpen(false);
   };
 
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 size={48} className="animate-spin text-[#003580] mx-auto mb-4" />
+          <p className="text-slate-600">Carregando informações do alojamento...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !alojamento) {
+    return (
+      <div className="w-full min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Erro ao carregar</h2>
+          <p className="text-slate-600 mb-4">{error || 'Alojamento não encontrado'}</p>
+          <button 
+            onClick={() => navigate(-1)}
+            className="bg-[#003580] text-white px-6 py-2 rounded-lg hover:bg-blue-900 transition"
+          >
+            Voltar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-white font-sans pb-20">
       {isModalOpen && (
@@ -557,13 +634,11 @@ export const InfoAlojamento = () => {
       )}
 
       <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500">
-        <span className="hover:text-blue-900 cursor-pointer">Início</span>
+        <span onClick={() => navigate('/')} className="hover:text-blue-900 cursor-pointer">Início</span>
         <ChevronRight size={10} />
-        <span className="hover:text-blue-900 cursor-pointer">Cabo Verde</span>
+        <span onClick={() => navigate('/alojamentos')} className="hover:text-blue-900 cursor-pointer">Alojamentos</span>
         <ChevronRight size={10} />
-        <span className="hover:text-blue-900 cursor-pointer">Ilha do Sal</span>
-        <ChevronRight size={10} />
-        <span className="text-slate-500 font-semibold truncate">Apartamento Morabeza</span>
+        <span className="text-slate-500 font-semibold truncate">{alojamento.titulo}</span>
       </nav>
 
       <div className="max-w-7xl mx-auto px-6">
@@ -576,16 +651,25 @@ export const InfoAlojamento = () => {
               onOpenModal={handleOpenModal}
               onPrev={handlePrevImage}
               onNext={handleNextImage}
+              titulo={alojamento.titulo}
+              tipo={alojamento.tipo}
             />
 
             <div className="mt-6 pt-6 border-t border-slate-100">
               <h3 className="text-sm font-bold text-slate-900 mb-4">Comodidades principais</h3>
-              <AmenitiesBar />
+              <AmenitiesBar 
+                infoBasica={alojamento.info_basica} 
+                comodidades={alojamento.comodidades} 
+              />
             </div>
           </div>
 
           <div>
-            <SidebarReserva />
+            <SidebarReserva 
+              precoPorNoite={alojamento.preco_noite}
+              estrelas={alojamento.estrelas}
+              datasBloqueadas={alojamento.datas_bloqueadas || []}
+            />
           </div>
         </div>
       </div>
@@ -594,17 +678,17 @@ export const InfoAlojamento = () => {
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-bold">Apartamento Morabeza</h1>
-              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">Apartamento</span>
+              <h1 className="text-2xl md:text-3xl font-bold">{alojamento.titulo}</h1>
+              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">{alojamento.tipo}</span>
             </div>
             <div className="flex items-center gap-4 text-sm mt-2 flex-wrap">
               <div className="flex items-center gap-1 text-slate-500">
-                <MapPin size={14} className="text-orange-500" /> Santa Maria, Ilha do Sal
+                <MapPin size={14} className="text-orange-500" /> {alojamento.localizacao}
               </div>
               <div className="flex items-center gap-1">
                 <Star size={14} className="fill-orange-400 text-orange-400" /> 
-                <span className="text-slate-900 font-bold">4.9</span> 
-                <span className="text-slate-400">(85 avaliações)</span>
+                <span className="text-slate-900 font-bold">{alojamento.estrelas}</span> 
+                <span className="text-slate-400">({alojamento.total_avaliacoes || 0} avaliações)</span>
               </div>
             </div>
           </div>
@@ -616,12 +700,16 @@ export const InfoAlojamento = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <TabContent activeTab={activeTab} />
+            <TabContent activeTab={activeTab} alojamento={alojamento} />
           </div>
 
           <div className="space-y-4">
-            <HostInfo />
-            <MapLocation />
+            <HostInfo proprietario={alojamento.proprietario} />
+            <MapLocation 
+              localizacao={alojamento.localizacao}
+              pontosProximos={alojamento.pontos_proximos}
+              endereco={alojamento.endereco_completo}
+            />
           </div>
         </div>
       </div>
@@ -633,6 +721,7 @@ export const InfoAlojamento = () => {
         .react-datepicker__day--range-start, .react-datepicker__day--range-end {
           background-color: #003580 !important; color: white !important; border-radius: 50% !important;
         }
+        .react-datepicker__day--disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
     </div>
   );
