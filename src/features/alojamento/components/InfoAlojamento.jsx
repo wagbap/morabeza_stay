@@ -7,8 +7,8 @@ import {
   ChevronRight, ChevronLeft, LayoutGrid, Camera,
   CheckCircle, ExternalLink, ChevronDown, X, Loader2
 } from 'lucide-react';
+import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 
-// Componente SliderModal para visualização em tela cheia
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
   const handleModalClick = (e) => {
     e.stopPropagation();
@@ -50,13 +50,11 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
   );
 };
 
-// Componente TabsNavegacaoAlojamentos
 const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
   const tabs = [
     { id: 0, label: 'Visão Geral' },
     { id: 1, label: 'Comodidades' },
     { id: 2, label: 'Regras da Casa' },
-    { id: 3, label: 'Avaliações' },
     { id: 4, label: 'Localização' },
   ];
 
@@ -81,7 +79,6 @@ const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
   );
 };
 
-// Componente HostInfo
 const HostInfo = ({ proprietario }) => {
   if (!proprietario) return null;
   
@@ -114,7 +111,6 @@ const HostInfo = ({ proprietario }) => {
   );
 };
 
-// Componente MapLocation
 const MapLocation = ({ localizacao, pontosProximos, endereco }) => {
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
@@ -144,18 +140,11 @@ const MapLocation = ({ localizacao, pontosProximos, endereco }) => {
   );
 };
 
-// Componente SidebarReserva
-const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [] }) => {
+const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onContinueToCheckout }) => {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [numHospedes, setNumHospedes] = useState(2);
   const [showCalendar, setShowCalendar] = useState(false);
-
-  // Filtrar datas bloqueadas
-  const isDateBlocked = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return datasBloqueadas.includes(dateStr);
-  };
 
   const onChange = (dates) => {
     const [start, end] = dates;
@@ -172,8 +161,25 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [] }) => {
 
   const totalBase = precoPorNoite * noites;
 
+  const handleContinue = () => {
+    if (!startDate || !endDate) {
+      alert("Por favor, selecione as datas de Check-in e Check-out");
+      return;
+    }
+    
+    if (onContinueToCheckout) {
+      onContinueToCheckout({
+        startDate,
+        endDate,
+        numHospedes,
+        noites,
+        totalBase
+      });
+    }
+  };
+
   return (
-    <div className="sticky top-24">
+    <div className="lg:block">
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
         <div className="flex justify-between items-end mb-5">
           <div className="text-2xl font-bold text-slate-900">
@@ -205,14 +211,14 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [] }) => {
           </div>
 
           {showCalendar && (
-            <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl bg-white border border-slate-200 p-2">
+            <div className="absolute right-0 md:-right-40 top-full mt-2 z-[100] shadow-2xl rounded-2xl bg-white border border-slate-200 p-3 max-w-[95vw] md:max-w-none overflow-x-auto">
               <DatePicker
                 selected={startDate}
                 onChange={onChange}
                 startDate={startDate}
                 endDate={endDate}
                 selectsRange
-                monthsShown={window.innerWidth > 768 ? 2 : 1}
+                monthsShown={2}
                 inline
                 minDate={new Date()}
                 excludeDates={datasBloqueadas.map(d => new Date(d))}
@@ -241,6 +247,8 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [] }) => {
                 <option value="2">2 hóspedes</option>
                 <option value="3">3 hóspedes</option>
                 <option value="4">4 hóspedes</option>
+                <option value="5">5 hóspedes</option>
+                <option value="6">6 hóspedes</option>
               </select>
             </div>
             <ChevronDown size={14} className="text-slate-400 pointer-events-none" />
@@ -265,8 +273,11 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [] }) => {
           </div>
         </div>
 
-        <button className="w-full bg-[#003580] text-white font-bold py-3 rounded-xl mb-4 mt-8 hover:bg-blue-900 transition-all shadow-lg text-sm">
-          Ver disponibilidade
+        <button 
+          onClick={handleContinue}
+          className="w-full bg-[#003580] text-white font-bold py-3 rounded-xl mb-4 mt-8 hover:bg-blue-900 transition-all shadow-lg text-sm"
+        >
+          Continuar para reserva
         </button>
 
         <div className="flex items-start gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
@@ -281,7 +292,6 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [] }) => {
   );
 };
 
-// Componente AmenitiesBar
 const AmenitiesBar = ({ infoBasica, comodidades }) => {
   const amenities = [
     { icon: Users, label: `${infoBasica?.capacidade || 4} Hóspedes`, sub: 'Máximo de pessoas', show: true },
@@ -309,7 +319,6 @@ const AmenitiesBar = ({ infoBasica, comodidades }) => {
   );
 };
 
-// Componente ImageGallery
 const ImageGallery = ({ images, mainImageIndex, onImageChange, onOpenModal, onPrev, onNext, titulo, tipo }) => {
   return (
     <div className="relative">
@@ -373,7 +382,6 @@ const ImageGallery = ({ images, mainImageIndex, onImageChange, onOpenModal, onPr
   );
 };
 
-// Componente de conteúdo das tabs
 const TabContent = ({ activeTab, alojamento }) => {
   if (!alojamento) return null;
 
@@ -385,9 +393,7 @@ const TabContent = ({ activeTab, alojamento }) => {
             <h3 className="text-lg font-bold text-slate-900 mb-4">Sobre este espaço</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
               {alojamento.descricao_detalhada || alojamento.descricao || 
-                `Este espaçoso ${alojamento.tipo_propriedade?.toLowerCase() || 'apartamento'} em ${alojamento.localizacao} oferece uma experiência única de conforto e tranquilidade. 
-                Com localização privilegiada, você estará a poucos passos das melhores atrações da região.
-                Totalmente equipado, dispõe de todos os equipamentos necessários para uma estadia inesquecível.`}
+                `Este espaçoso ${alojamento.tipo_propriedade?.toLowerCase() || 'apartamento'} em ${alojamento.localizacao} oferece uma experiência única de conforto e tranquilidade.`}
             </p>
           </div>
 
@@ -437,43 +443,6 @@ const TabContent = ({ activeTab, alojamento }) => {
           </div>
         </div>
       );
-    case 3:
-      return (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-900">Avaliações dos hóspedes</h3>
-            <div className="flex items-center gap-2">
-              <Star size={20} className="fill-orange-400 text-orange-400" />
-              <span className="text-2xl font-bold text-slate-900">{alojamento.estrelas}</span>
-              <span className="text-slate-500">· {alojamento.total_avaliacoes || 0} avaliações</span>
-            </div>
-          </div>
-          <div className="space-y-4">
-            {alojamento.avaliacoes?.map((review, i) => (
-              <div key={i} className="border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-[#003580] to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    {review.nome_usuario?.charAt(0) || 'A'}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">{review.nome_usuario}</p>
-                    <div className="flex items-center gap-1">
-                      <Star size={10} className="fill-orange-400 text-orange-400" />
-                      <span className="text-[10px] text-slate-500">{review.rating}.0 • {new Date(review.created_at).toLocaleDateString('pt-PT')}</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-sm text-slate-600">{review.comentario}</p>
-              </div>
-            ))}
-          </div>
-          {alojamento.total_avaliacoes > 3 && (
-            <button className="w-full py-3 border border-[#003580] text-[#003580] font-bold rounded-xl hover:bg-slate-50 transition-colors">
-              Ver todas as {alojamento.total_avaliacoes} avaliações
-            </button>
-          )}
-        </div>
-      );
     case 4:
       return (
         <div className="space-y-6">
@@ -509,7 +478,6 @@ const TabContent = ({ activeTab, alojamento }) => {
   }
 };
 
-// Componente InfoAlojamento principal
 export const InfoAlojamento = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -520,8 +488,21 @@ export const InfoAlojamento = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [images, setImages] = useState([]);
+  const [usuarioLogado, setUsuarioLogado] = useState(null);
 
-  // Buscar dados do alojamento
+  // Buscar usuário logado do localStorage
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setUsuarioLogado(user);
+      } catch (e) {
+        console.error('Erro ao carregar usuário:', e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const fetchAlojamento = async () => {
       if (!id) {
@@ -548,14 +529,12 @@ export const InfoAlojamento = () => {
         
         setAlojamento(data);
         
-        // Processar imagens
         if (data.imagens && data.imagens.length > 0) {
           const imageUrls = data.imagens.map(img => img.caminho_url);
           setImages(imageUrls);
         } else if (data.imagem_url) {
           setImages([data.imagem_url]);
         } else {
-          // Imagens padrão
           setImages([
             "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop",
             "https://images.unsplash.com/photo-1682687220063-4742bd7fd538?w=1200&h=800&fit=crop",
@@ -571,6 +550,42 @@ export const InfoAlojamento = () => {
 
     fetchAlojamento();
   }, [id]);
+
+  const handleContinueToCheckout = (reservaInfo) => {
+    const userLogado = localStorage.getItem('user');
+    
+    if (!userLogado) {
+      alert("Por favor, faça login com o Google primeiro.");
+      return;
+    }
+
+    if (!alojamento) {
+      alert("Erro ao carregar dados do alojamento. Tente novamente.");
+      return;
+    }
+
+    const dadosParaCheckout = {
+      id: alojamento.id,
+      titulo: alojamento.titulo,
+      imagem: images[0] || alojamento.imagem_url,
+      localizacao: alojamento.localizacao,
+      ilha: alojamento.ilha || 'Cabo Verde',
+      precoNoite: Number(alojamento.preco_noite),
+      checkIn: reservaInfo.startDate.toISOString().split('T')[0],
+      checkOut: reservaInfo.endDate.toISOString().split('T')[0],
+      hospedes: reservaInfo.numHospedes,
+        capacidade: alojamento.capacidade || reservaInfo.numHospedes,
+      noites: reservaInfo.noites,
+      totalBase: reservaInfo.totalBase,
+      taxaLimpeza: 2500,
+      taxaServico: 1200,
+      descricao: alojamento.descricao,
+      comodidades: alojamento.comodidades || [],
+      imagens_extra: alojamento.imagens_extra || []
+    };
+
+    navigate('/checkout-alojamento', { state: { reservaData: dadosParaCheckout } });
+  };
 
   const handlePrevImage = () => {
     setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -664,12 +679,15 @@ export const InfoAlojamento = () => {
             </div>
           </div>
 
-          <div>
-            <SidebarReserva 
-              precoPorNoite={alojamento.preco_noite}
-              estrelas={alojamento.estrelas}
-              datasBloqueadas={alojamento.datas_bloqueadas || []}
-            />
+          <div className="lg:self-start">
+            <div className="sticky top-24 z-30">
+              <SidebarReserva 
+                precoPorNoite={alojamento.preco_noite}
+                estrelas={alojamento.estrelas}
+                datasBloqueadas={alojamento.datas_bloqueadas || []}
+                onContinueToCheckout={handleContinueToCheckout}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -711,6 +729,17 @@ export const InfoAlojamento = () => {
               endereco={alojamento.endereco_completo}
             />
           </div>
+        </div>
+      </div>
+
+      {/* SEÇÃO DE AVALIAÇÕES - ROW SOZINHO W-FULL */}
+      <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12">
+        <div className="max-w-7xl mx-auto px-6">
+          <AvaliacoesSeccaoAlojamento 
+            alojamentoId={alojamento.id}
+            usuarioLogado={usuarioLogado}
+            onOpenLoginModal={() => alert("Por favor, faça login com o Google para avaliar.")}
+          />
         </div>
       </div>
 

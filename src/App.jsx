@@ -48,9 +48,9 @@ function App() {
 
             {/* Alojamentos */}
             <Route path="/alojamentos" element={<Alojamentos />} />
-            <Route path="/alojamento/:id" element={<PaginaDetalhesAlojamnetos />} />
+            <Route path="/alojamento/:id" element={<InfoAlojamento/>} />
 
-            <Route path="/alojamento_teste/:id" element={<InfoAlojamento />} />
+            <Route path="/alojamento_teste/:id" element={<PaginaDetalhesAlojamnetos />} />
 
             {/* Experiências */}
             <Route path="/experiencias" element={<Experiencias />} />

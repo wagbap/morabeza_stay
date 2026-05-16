@@ -1,161 +1,126 @@
-// AvaliacoesSeccao.jsx
+// AvaliacoesSeccaoAlojamento.jsx
 import React, { useState, useEffect } from 'react';
-import { Star, X, Loader2, User, Calendar, ThumbsUp, Flag, CheckCircle } from 'lucide-react';
+import { Star, User, Calendar, ThumbsUp, Flag, X, Loader2, CheckCircle } from 'lucide-react';
 
-const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLoginModal }) => {
-  const [hoverRating, setHoverRating] = useState(0);
-  const [rating, setRating] = useState(5);
-  const [comentario, setComentario] = useState('');
+const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginModal, isEmbedded = false }) => {
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [jaAvaliou, setJaAvaliou] = useState(false);
+  const [mediaRating, setMediaRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formSuccess, setFormSuccess] = useState(false);
   
-  const [categoriasNotas] = useState([
-    { label: "Limpeza", nota: 4.9 },
-    { label: "Conforto", nota: 4.7 },
-    { label: "Consumo", nota: 4.8 },
-    { label: "Atendimento", nota: 4.8 },
-    { label: "Levantamento", nota: 4.9 },
-    { label: "Custo-benefício", nota: 4.7 },
-  ]);
+  // Estado do formulário
+  const [formData, setFormData] = useState({
+    rating: 5,
+    comentario: '',
+    data_estadia: ''
+  });
 
-  const formatarData = (dataString) => {
-    if (!dataString) return '';
-    try {
-      const data = new Date(dataString);
-      if (isNaN(data.getTime())) return '';
-      return data.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
-    } catch {
-      return '';
-    }
-  };
-
-  // Verificar se usuário já avaliou
-  useEffect(() => {
-    if (usuarioLogado && avaliacoes.length > 0) {
-      const userEmail = usuarioLogado.email;
-      const jaExiste = avaliacoes.some(av => av.email_usuario === userEmail);
-      setJaAvaliou(jaExiste);
-    }
-  }, [usuarioLogado, avaliacoes]);
-
-  // Buscar avaliações do backend
+  // Buscar avaliações
   const fetchAvaliacoes = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
-      
-      const apiUrl = `/api/api_experiencia_reviews.php?experiencia_id=${experienciaId}&aprovado=1`;
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
+      const response = await fetch(`https://welovepalop.com/api/get_alojamento_avaliacoes.php?id=${alojamentoId}`);
       const data = await response.json();
       
-      if (data.success && Array.isArray(data.data)) {
-        const reviewsAprovadas = data.data.filter(review => review.aprovado === 1);
-        setAvaliacoes(reviewsAprovadas);
-        if (reviewsAprovadas.length === 0) {
-          setError('Ainda não há avaliações para esta experiência. Seja o primeiro a avaliar!');
-        }
+      if (data.success) {
+        setAvaliacoes(data.avaliacoes || []);
+        setMediaRating(Number(data.media_rating) || 0);
+        setTotalReviews(Number(data.total_reviews) || 0);
       } else {
-        setAvaliacoes([]);
-        setError('Ainda não há avaliações para esta experiência.');
+        setError(data.message || 'Erro ao carregar avaliações');
       }
     } catch (err) {
       console.error('Erro ao buscar avaliações:', err);
-      setAvaliacoes([]);
-      setError('Não foi possível carregar as avaliações. Tente novamente mais tarde.');
+      setError('Erro ao carregar avaliações');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAvaliacoes();
-  }, [experienciaId]);
+    if (alojamentoId) {
+      fetchAvaliacoes();
+    }
+  }, [alojamentoId]);
 
-  // Calcular média geral baseada nas avaliações reais
-  const mediaGeral = avaliacoes.length > 0
-    ? (avaliacoes.reduce((sum, av) => sum + (av.rating || 0), 0) / avaliacoes.length).toFixed(1)
-    : 0;
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-  // Enviar avaliação com usuário logado
-  const enviarAvaliacao = async (e) => {
+  const handleRatingClick = (rating) => {
+    setFormData(prev => ({ ...prev, rating }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
     if (!usuarioLogado) {
       if (onOpenLoginModal) {
         onOpenLoginModal();
       } else {
-        alert('Por favor, faça login com o Google para avaliar!');
+        alert('Por favor, faça login para avaliar');
       }
       return;
     }
-    
-    if (rating === 0) {
-      alert('Por favor, selecione uma nota!');
+
+    if (!formData.comentario.trim()) {
+      alert('Por favor, escreva um comentário');
       return;
     }
-    
-    if (!comentario.trim()) {
-      alert('Por favor, escreva um comentário!');
-      return;
-    }
-    
-    if (jaAvaliou) {
-      alert('Você já avaliou esta experiência! Obrigado pelo seu feedback.');
+
+    if (!formData.data_estadia) {
+      alert('Por favor, informe a data da sua estadia');
       return;
     }
 
     setSubmitting(true);
     
     try {
-      const novaAvaliacao = {
-        experiencia_id: experienciaId,
-        usuario_id: usuarioLogado.sub || usuarioLogado.id || null,
-        nome_usuario: usuarioLogado.name || usuarioLogado.nome,
-        email_usuario: usuarioLogado.email,
-        foto: usuarioLogado.picture || null,
-        rating: rating,
-        comentario: comentario,
-        data_experiencia: new Date().toISOString().split('T')[0],
-        aprovado: 1
-      };
-      
-      const response = await fetch(`/api/api_experiencia_reviews.php`, {
+      const response = await fetch('https://welovepalop.com/api/save_alojamento_avaliacao.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novaAvaliacao)
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          alojamento_id: alojamentoId,
+          usuario_id: usuarioLogado.id,
+          nome_usuario: usuarioLogado.name || usuarioLogado.full_name || usuarioLogado.nome,
+          foto: usuarioLogado.foto || usuarioLogado.picture,
+          email_usuario: usuarioLogado.email,
+          rating: formData.rating,
+          comentario: formData.comentario,
+          data_estadia: formData.data_estadia
+        })
       });
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (response.ok && data.success) {
+      if (result.success) {
         setFormSuccess(true);
-        setRating(5);
-        setComentario('');
+        setFormData({ rating: 5, comentario: '', data_estadia: '' });
         setShowForm(false);
         fetchAvaliacoes();
         setTimeout(() => setFormSuccess(false), 3000);
       } else {
-        throw new Error(data.error || 'Erro ao enviar avaliação');
+        alert(result.message || 'Erro ao enviar avaliação');
       }
-    } catch (error) {
-      console.error('Erro:', error);
+    } catch (err) {
+      console.error('Erro ao enviar avaliação:', err);
       alert('Erro ao enviar avaliação. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const formatarData = (data) => {
+    if (!data) return '';
+    const d = new Date(data);
+    return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const renderStars = (rating, size = 16) => {
@@ -180,42 +145,48 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
     );
   }
 
-  // Fallbacks de segurança para mapeamento dinâmico
-  const primeiroNomeDisplay = avaliacoes[0] ? (avaliacoes[0].nome_usuario || avaliacoes[0].nome || 'Anônimo') : 'Anônimo';
-  const primeiroComentario = avaliacoes[0] ? (avaliacoes[0].comentario || '') : '';
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-500 text-sm">{error}</p>
+        <button onClick={fetchAvaliacoes} className="mt-2 text-[#003580] text-sm underline">
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
+
+  // Fallbacks para capturar o nome correto independente do retorno da API
+  const primeiroNomeDisplay = avaliacoes[0] ? (avaliacoes[0].nome_usuario || avaliacoes[0].nome || avaliacoes[0].autor || 'Anônimo') : 'Anônimo';
+  const primeiroComentario = avaliacoes[0] ? (avaliacoes[0].comentario || avaliacoes[0].texto || '') : '';
   const primeiroRating = avaliacoes[0] ? (Number(avaliacoes[0].rating) || 5) : 5;
 
   return (
-    <div className="w-full bg-white rounded-2xl">
+    <div className={isEmbedded ? '' : 'bg-white rounded-2xl'}>
       {/* 1. TOPO DA SECÇÃO: Título Base com Média à Direita e Botão de Avaliar */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Avaliações dos hóspedes</h2>
-          <p className="text-xs text-slate-400 font-medium mt-0.5">Baseado em {avaliacoes.length} {avaliacoes.length === 1 ? 'avaliação' : 'avaliações'}</p>
+          <p className="text-xs text-slate-400 font-medium mt-0.5">Baseado em {totalReviews} {totalReviews === 1 ? 'avaliação' : 'avaliações'}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-black text-slate-900">{Number(mediaGeral).toFixed(1)}</span>
+            <span className="text-2xl font-black text-slate-900">{mediaRating.toFixed(1)}</span>
             <div className="flex flex-col justify-center">
-              {renderStars(Math.round(parseFloat(mediaGeral)), 14)}
+              {renderStars(Math.round(mediaRating), 14)}
             </div>
           </div>
           <button
             onClick={() => {
               if (!usuarioLogado && onOpenLoginModal) {
                 onOpenLoginModal();
-              } else if (!jaAvaliou) {
+              } else {
                 setShowForm(!showForm);
               }
             }}
-            disabled={jaAvaliou}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all shadow-sm ${
-              jaAvaliou 
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 shadow-none' 
-                : 'bg-[#003580] text-white hover:bg-blue-900'
-            }`}
+            className="px-4 py-2 bg-[#003580] text-white text-xs font-bold rounded-lg hover:bg-blue-900 transition-all shadow-sm"
           >
-            {showForm ? 'Cancelar' : jaAvaliou ? '✓ Avaliado' : 'Avaliar estadia'}
+            {showForm ? 'Cancelar' : 'Avaliar estadia'}
           </button>
         </div>
       </div>
@@ -223,10 +194,10 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
       {/* 2. LINHA DE SUBTÍTULO: Avaliações dos participantes com Estrela e Nota à Direita */}
       <div className="flex justify-between items-center mb-4 px-1">
         <span className="text-sm font-bold text-slate-800">
-          Avaliações dos participantes <span className="text-slate-400 font-normal text-xs">({avaliacoes.length} avaliações)</span>
+          Avaliações dos participantes <span className="text-slate-400 font-normal text-xs">({totalReviews} avaliações)</span>
         </span>
         <div className="flex items-center gap-1 text-sm font-bold text-slate-800">
-          <span className="text-orange-500 text-base">★</span> {Number(mediaGeral).toFixed(1)}
+          <span className="text-orange-500 text-base">★</span> {mediaRating.toFixed(1)}
         </div>
       </div>
 
@@ -236,27 +207,34 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
         {/* Bloco Média de Clientes */}
         <div className="lg:col-span-3 text-center lg:text-left flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0 lg:pr-6">
           <h4 className="text-sm font-bold text-slate-900 mb-4">Avaliações de clientes</h4>
-          <div className="text-6xl font-black text-[#1a2b6d] tracking-tighter mb-2">{Number(mediaGeral).toFixed(1)}</div>
+          <div className="text-6xl font-black text-[#1a2b6d] tracking-tighter mb-2">{mediaRating.toFixed(1)}</div>
           <div className="flex justify-center lg:justify-start mb-1">
-            {renderStars(Math.round(parseFloat(mediaGeral)), 16)}
+            {renderStars(Math.round(mediaRating), 16)}
           </div>
           <p className="text-[10px] font-semibold text-slate-400 mt-1">
-            Baseado em {avaliacoes.length} {avaliacoes.length === 1 ? 'avaliação' : 'avaliações'}
+            Baseado em {totalReviews} {totalReviews === 1 ? 'avaliação' : 'avaliações'}
           </p>
         </div>
 
         {/* Bloco de Critérios Horizontais */}
         <div className="lg:col-span-5 space-y-3.5 px-2">
-          {categoriasNotas.map((cat, i) => (
+          {[
+            { label: 'Limpeza', val: 4.9 },
+            { label: 'Conforto', val: 4.7 },
+            { label: 'Consumo', val: 4.8 },
+            { label: 'Atendimento', val: 4.8 },
+            { label: 'Levantamento', val: 4.9 },
+            { label: 'Custo-benefício', val: 4.7 }
+          ].map((cat, i) => (
             <div key={i} className="flex items-center justify-between text-xs font-semibold text-slate-600">
               <span className="w-24 text-slate-400 text-left font-medium">{cat.label}</span>
               <div className="flex-1 mx-4 bg-slate-100 h-1 rounded-full overflow-hidden">
                 <div 
                   className="bg-blue-600 h-full rounded-full transition-all duration-500" 
-                  style={{ width: `${(cat.nota / 5) * 100}%` }}
+                  style={{ width: `${(cat.val / 5) * 100}%` }}
                 />
               </div>
-              <span className="w-6 text-right text-slate-900 font-bold">{cat.nota.toFixed(1)}</span>
+              <span className="w-6 text-right text-slate-900 font-bold">{cat.val.toFixed(1)}</span>
             </div>
           ))}
         </div>
@@ -286,12 +264,12 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
               </p>
               <button 
                 onClick={() => {
-                  const el = document.getElementById('reviews-anchor-list-exp');
+                  const el = document.getElementById('reviews-anchor-list');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
                 }}
                 className="text-blue-600 text-xs font-bold hover:underline flex items-center text-left"
               >
-                Ver todas as avaliações ({avaliacoes.length})
+                Ver todas as avaliações ({totalReviews})
               </button>
             </>
           ) : (
@@ -302,36 +280,30 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
         </div>
       </div>
 
-      {/* Formulário de Avaliação Ocultável (Em Linha / In-Line) */}
-      {showForm && !jaAvaliou && (
+      {/* Formulário de Avaliação Ocultável */}
+      {showForm && (
         <div className="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-200">
           <div className="flex justify-between items-center mb-4">
-            <h4 className="font-bold text-slate-900">Como foi sua experiência?</h4>
+            <h4 className="font-bold text-slate-900">Como foi sua estadia?</h4>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600">
               <X size={20} />
             </button>
           </div>
           
-          <form onSubmit={enviarAvaliacao}>
+          <form onSubmit={handleSubmit}>
             <div className="mb-5">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Sua nota geral</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Sua nota</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     type="button"
-                    onMouseEnter={() => setHoverRating(star)}
-                    onMouseLeave={() => setHoverRating(0)}
-                    onClick={() => setRating(star)}
+                    onClick={() => handleRatingClick(star)}
                     className="focus:outline-none transition-transform hover:scale-110"
                   >
                     <Star
                       size={32}
-                      className={`${
-                        (hoverRating || rating) >= star 
-                          ? 'fill-orange-400 text-orange-400' 
-                          : 'fill-slate-300 text-slate-300'
-                      } transition-colors`}
+                      className={`${star <= formData.rating ? 'fill-orange-400 text-orange-400' : 'fill-slate-300 text-slate-300'} transition-colors`}
                     />
                   </button>
                 ))}
@@ -339,12 +311,26 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
             </div>
 
             <div className="mb-5">
+              <label className="block text-sm font-bold text-slate-700 mb-2">Data da sua estadia</label>
+              <input
+                type="date"
+                name="data_estadia"
+                value={formData.data_estadia}
+                onChange={handleInputChange}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full max-w-xs border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#003580]/20"
+                required
+              />
+            </div>
+
+            <div className="mb-5">
               <label className="block text-sm font-bold text-slate-700 mb-2">Seu comentário</label>
               <textarea
-                value={comentario}
-                onChange={(e) => setComentario(e.target.value)}
+                name="comentario"
+                value={formData.comentario}
+                onChange={handleInputChange}
                 rows={4}
-                placeholder="Compartilhe os detalhes da sua experiência..."
+                placeholder="Compartilhe sua experiência no alojamento..."
                 className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#003580]/20 resize-none"
                 required
               />
@@ -353,10 +339,10 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 bg-[#003580] text-white font-bold rounded-xl hover:bg-blue-900 transition-all disabled:opacity-50 flex items-center"
+              className="px-6 py-2.5 bg-[#003580] text-white font-bold rounded-xl hover:bg-blue-900 transition-all disabled:opacity-50"
             >
-              {submitting && <Loader2 size={18} className="animate-spin mr-2" />}
-              {submitting ? 'Enviando...' : 'Publicar avaliação'}
+              {submitting ? <Loader2 size={18} className="animate-spin inline mr-2" /> : null}
+              {submitting ? 'Enviando...' : 'Enviar avaliação'}
             </button>
           </form>
         </div>
@@ -371,16 +357,17 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
       )}
 
       {/* 4. LISTA CORRIDA DE COMENTÁRIOS */}
-      <div id="reviews-anchor-list-exp" className="space-y-6 mt-10">
+      <div id="reviews-anchor-list" className="space-y-6 mt-10">
         {avaliacoes.length === 0 ? (
-          <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="text-center py-12 bg-slate-50 rounded-2xl">
             <Star size={48} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">Ainda não há avaliações para esta experiência.</p>
+            <p className="text-slate-500">Ainda não há avaliações para este alojamento.</p>
           </div>
         ) : (
           avaliacoes.map((avaliacao, index) => {
-            const nomeDisplay = avaliacao.nome_usuario || avaliacao.nome || 'Anônimo';
-            const textoComentario = avaliacao.comentario || '';
+            // Mapeamento dinâmico individual de chaves do banco de dados
+            const nomeDisplay = avaliacao.nome_usuario || avaliacao.nome || avaliacao.autor || 'Anônimo';
+            const textoComentario = avaliacao.comentario || avaliacao.texto || '';
             const notaRating = Number(avaliacao.rating) || 5;
 
             return (
@@ -402,10 +389,10 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
                         <h4 className="text-sm font-bold text-slate-900">{nomeDisplay}</h4>
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
                           <Calendar size={11} className="text-slate-400" />
-                          <span>Estadia: {formatarData(avaliacao.data_experiencia)}</span>
+                          <span>Estadia: {formatarData(avaliacao.data_estadia)}</span>
                         </div>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-medium">{formatarData(avaliacao.data_experiencia)}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">{formatarData(avaliacao.created_at)}</span>
                     </div>
 
                     <div className="mt-1">
@@ -435,4 +422,4 @@ const AvaliacoesSeccao = ({ experienciaId = 1, usuarioLogado = null, onOpenLogin
   );
 };
 
-export default AvaliacoesSeccao;
+export default AvaliacoesSeccaoAlojamento;
