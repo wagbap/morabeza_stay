@@ -5,7 +5,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { 
   Users, Star, MapPin, Clock, Calendar, ChevronRight, ChevronLeft, 
   LayoutGrid, Camera, CheckCircle, ExternalLink, ChevronDown, X, 
-  Loader2, ShieldCheck, Headphones, Sun, Sunset
+  Loader2, ShieldCheck, Sun, Sunset
 } from 'lucide-react';
 import AvaliacoesSeccao from './AvaliacoesSeccaoExperiencia';
 
@@ -61,7 +61,7 @@ const TabsNavegacaoExperiencia = ({ activeTab = 0, onTabChange }) => {
   ];
 
   return (
-    <div className="border-b border-slate-200 mb-6">
+    <div className="border-b border-slate-200 mb-6 text-left">
       <div className="flex gap-6 overflow-x-auto no-scrollbar">
         {tabs.map((tab) => (
           <button
@@ -69,7 +69,7 @@ const TabsNavegacaoExperiencia = ({ activeTab = 0, onTabChange }) => {
             onClick={() => onTabChange?.(tab.id)}
             className={`pb-3 text-sm font-semibold transition-colors whitespace-nowrap ${
               activeTab === tab.id
-                ? 'text-[#003580] border-b-2 border-[#003580]'
+                ? 'text-blue-900 border-b-2 border-blue-900'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -86,7 +86,7 @@ const GuiaInfo = ({ guia }) => {
   if (!guia) return null;
   
   return (
-    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
+    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
       <div className="flex items-center gap-3 mb-4">
         <div className="relative">
           <img 
@@ -107,7 +107,7 @@ const GuiaInfo = ({ guia }) => {
           </p>
         </div>
       </div>
-      <button className="w-full py-2.5 border border-[#003580] text-[#003580] text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors">
+      <button className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors">
         Contactar guia
       </button>
     </div>
@@ -117,13 +117,13 @@ const GuiaInfo = ({ guia }) => {
 // Componente MapLocation para Experiência
 const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos }) => {
   return (
-    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
+    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
       <div className="flex justify-between items-start mb-3">
         <div>
           <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
           <p className="text-[10px] text-slate-500 font-medium mt-0.5">{ilha}, {localizacao}</p>
         </div>
-        <button className="flex items-center gap-1 text-[#003580] text-[10px] font-bold hover:underline">
+        <button className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline">
           Ver no mapa <ExternalLink size={10} />
         </button>
       </div>
@@ -135,7 +135,7 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos }) => {
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative">
-            <MapPin size={24} className="text-[#003580] fill-[#003580]" />
+            <MapPin size={24} className="text-blue-900 fill-blue-900" />
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-1 bg-black/20 blur-sm rounded-full"></div>
           </div>
         </div>
@@ -174,7 +174,7 @@ const SidebarReservaExperiencia = ({
   };
 
   return (
-    <div className="sticky top-24">
+    <div className="sticky top-24 text-left">
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
         <div className="flex justify-between items-end mb-5">
           <div className="text-2xl font-bold text-slate-900">
@@ -223,7 +223,7 @@ const SidebarReservaExperiencia = ({
               <div className="p-2 border-t border-slate-100 flex justify-end">
                 <button 
                   onClick={() => setShowCalendar(false)} 
-                  className="text-[#003580] font-bold text-[10px] uppercase"
+                  className="text-blue-900 font-bold text-[10px] uppercase"
                 >
                   Fechar
                 </button>
@@ -312,7 +312,7 @@ const SidebarReservaExperiencia = ({
             onClick={onReservar}
             className={`w-full font-black py-3 rounded-xl flex items-center justify-center gap-3 transition-all shadow-lg mt-4 text-sm ${
               statusVagas === "Disponível" 
-                ? "bg-[#003580] hover:bg-blue-900 text-white shadow-blue-200 cursor-pointer" 
+                ? "bg-blue-900 hover:bg-blue-950 text-white shadow-blue-200 cursor-pointer" 
                 : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
             }`}
           >
@@ -328,7 +328,7 @@ const SidebarReservaExperiencia = ({
           <CheckCircle className="text-green-600 mt-0.5" size={14} />
           <div>
             <h5 className="text-xs font-bold text-green-800 tracking-tight">Cancelamento gratuito</h5>
-            <p className="text-[10px] text-green-700 leading-tight">Até 24 horas antes do passeio</p>
+            <p className="text-[10px] text-green-700 leading-tight">Até 24 hours antes do passeio</p>
           </div>
         </div>
       </div>
@@ -336,65 +336,80 @@ const SidebarReservaExperiencia = ({
   );
 };
 
-// Componente ImageGallery
-const ImageGallery = ({ images, mainImageIndex, onImageChange, onOpenModal, onPrev, onNext, titulo, categoria }) => {
+// 🔥 MOSAICO PREMIUM PADRONIZADO IDENTICO À FOTO
+const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, categoria }) => {
+  const placeholder = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop";
+  const img1 = images[0] || placeholder;
+  const img2 = images[1] || placeholder;
+  const img3 = images[2] || placeholder;
+  const img4 = images[3] || placeholder;
+
   return (
-    <div className="relative">
-      <div className="relative group">
-        <div 
-          className="relative rounded-2xl overflow-hidden shadow-xl shadow-blue-900/10 cursor-pointer"
-          onClick={onOpenModal}
-        >
-          <div className="h-[320px] md:h-[420px]">
-            <img 
-              src={images[mainImageIndex]} 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-              alt={titulo} 
-            />
-          </div>
-          <div className="absolute bottom-4 left-4 bg-[#003580] text-white px-4 py-2 rounded-xl flex items-center gap-2 text-[11px] font-black uppercase shadow-lg z-10">
-            <LayoutGrid size={12} /> {categoria || 'Experiência'}
-          </div>
-          <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-medium backdrop-blur-sm z-10">
-            <Camera size={14} /> Ver fotos
-          </div>
-        </div>
-
-        <button
-          onClick={(e) => { e.stopPropagation(); onPrev(); }}
-          className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
-          aria-label="Imagem anterior"
-        >
-          <ChevronLeft size={24} />
-        </button>
-
-        <button
-          onClick={(e) => { e.stopPropagation(); onNext(); }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
-          aria-label="Próxima imagem"
-        >
-          <ChevronRight size={24} />
-        </button>
-
-        <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded-md text-xs font-medium backdrop-blur-sm z-10">
-          {mainImageIndex + 1} / {images.length}
+    <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
+      
+      {/* Lado Esquerdo - Foto Grande */}
+      <div 
+        className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm"
+        onClick={() => { onImageChange(0); onOpenModal(); }}
+      >
+        <img 
+          src={img1} 
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
+          alt={`${titulo} - Principal`} 
+        />
+        <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-md text-xs backdrop-blur-sm pointer-events-none tracking-wide font-sans">
+          1 / {images.length || 18}
         </div>
       </div>
 
-      <div className="flex gap-3 mt-4 overflow-x-auto no-scrollbar">
-        {images.map((img, idx) => (
+      {/* Lado Direito - Estrutura de Duas Linhas */}
+      <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
+        
+        {/* Linha de Cima - Foto Horizontal Ampla */}
+        <div 
+          className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
+          onClick={() => { onImageChange(1); onOpenModal(); }}
+        >
+          <img 
+            src={img2} 
+            className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
+            alt={`${titulo} - Detalhe 1`} 
+          />
+        </div>
+
+        {/* Linha de Baixo - Duas fotos pequenas lado a lado */}
+        <div className="h-1/2 flex gap-2.5">
           <div 
-            key={idx} 
-            className={`relative w-20 h-14 md:w-24 md:h-16 rounded-xl overflow-hidden transition-all duration-200 ${
-              idx === mainImageIndex 
-                ? 'ring-2 ring-[#003580] ring-offset-2 scale-105' 
-                : 'opacity-70 hover:opacity-100'
-            } shrink-0 cursor-pointer`}
-            onClick={() => onImageChange(idx)}
+            className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
+            onClick={() => { onImageChange(2); onOpenModal(); }}
           >
-            <img src={img} className="w-full h-full object-cover" alt={`Miniatura ${idx + 1}`} />
+            <img 
+              src={img3} 
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
+              alt={`${titulo} - Detalhe 2`} 
+            />
           </div>
-        ))}
+          
+          <div 
+            className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
+            onClick={() => { onImageChange(3); onOpenModal(); }}
+          >
+            <img 
+              src={img4} 
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
+              alt={`${titulo} - Detalhe 3`} 
+            />
+
+            {/* Botão flutuante pequeno exatamente como no Alojamento */}
+            <div 
+              onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
+              className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
+            >
+              <Camera size={12} className="text-slate-700" /> Ver todas as fotos
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -471,7 +486,7 @@ const TabContent = ({ activeTab, experiencia }) => {
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              <MapPin size={32} className="text-[#003580] fill-[#003580]" />
+              <MapPin size={32} className="text-blue-900 fill-blue-900" />
             </div>
           </div>
           <div className="space-y-3">
@@ -684,7 +699,7 @@ const ExperienciaDetalhes = () => {
     return (
       <div className="w-full min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={48} className="animate-spin text-[#003580] mx-auto mb-4" />
+          <Loader2 size={48} className="animate-spin text-blue-900 mx-auto mb-4" />
           <p className="text-slate-600">Carregando detalhes da experiência...</p>
         </div>
       </div>
@@ -700,7 +715,7 @@ const ExperienciaDetalhes = () => {
           <p className="text-slate-600 mb-4">{error || 'Experiência não encontrada'}</p>
           <button 
             onClick={() => navigate('/experiencias')}
-            className="bg-[#003580] text-white px-6 py-2 rounded-lg hover:bg-blue-900 transition"
+            className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition"
           >
             Voltar para experiências
           </button>
@@ -721,7 +736,7 @@ const ExperienciaDetalhes = () => {
         />
       )}
 
-      <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500">
+      <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500 text-left">
         <span onClick={() => navigate('/')} className="hover:text-blue-900 cursor-pointer">Início</span>
         <ChevronRight size={10} />
         <span onClick={() => navigate('/experiencias')} className="hover:text-blue-900 cursor-pointer">Experiências</span>
@@ -734,16 +749,13 @@ const ExperienciaDetalhes = () => {
           <div className="lg:col-span-2">
             <ImageGallery 
               images={images}
-              mainImageIndex={currentImageIndex}
               onImageChange={handleImageChange}
               onOpenModal={handleOpenModal}
-              onPrev={handlePrevImage}
-              onNext={handleNextImage}
               titulo={experiencia.titulo}
               categoria={experiencia.categoria_nome}
             />
 
-            <div className="mt-6 pt-6 border-t border-slate-100">
+            <div className="mt-6 pt-6 border-t border-slate-100 text-left">
               <h3 className="text-sm font-bold text-slate-900 mb-4">Informações principais</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="flex items-center gap-2">
@@ -798,7 +810,7 @@ const ExperienciaDetalhes = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-8">
+      <div className="max-w-7xl mx-auto px-6 mt-8 text-left">
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -819,7 +831,7 @@ const ExperienciaDetalhes = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-6">
+      <div className="max-w-7xl mx-auto px-6 mt-6 text-left">
         <TabsNavegacaoExperiencia activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -838,8 +850,7 @@ const ExperienciaDetalhes = () => {
         </div>
       </div>
 
-      {/* SEÇÃO DE AVALIAÇÕES - ROW SOZINHO W-FULL */}
-      <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12">
+      <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12 text-left">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-900">
@@ -866,7 +877,7 @@ const ExperienciaDetalhes = () => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .react-datepicker__day--selected {
-          background-color: #003580 !important;
+          background-color: #1e3a8a !important;
           color: white !important;
           border-radius: 50% !important;
         }

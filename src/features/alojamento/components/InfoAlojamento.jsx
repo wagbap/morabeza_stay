@@ -8,6 +8,7 @@ import {
   CheckCircle, ExternalLink, ChevronDown, X, Loader2
 } from 'lucide-react';
 import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
+import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
 
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
   const handleModalClick = (e) => {
@@ -67,7 +68,7 @@ const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
             onClick={() => onTabChange?.(tab.id)}
             className={`pb-3 text-sm font-semibold transition-colors whitespace-nowrap ${
               activeTab === tab.id
-                ? 'text-[#003580] border-b-2 border-[#003580]'
+                ? 'text-blue-900 border-b-2 border-blue-900'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -104,7 +105,7 @@ const HostInfo = ({ proprietario }) => {
           </p>
         </div>
       </div>
-      <button className="w-full py-2.5 border border-[#003580] text-[#003580] text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors">
+      <button className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors">
         Contactar anfitrião
       </button>
     </div>
@@ -119,7 +120,7 @@ const MapLocation = ({ localizacao, pontosProximos, endereco }) => {
           <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
           <p className="text-[10px] text-slate-500 font-medium mt-0.5">{localizacao}</p>
         </div>
-        <button className="flex items-center gap-1 text-[#003580] text-[10px] font-bold hover:underline">
+        <button className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline">
           Ver no mapa <ExternalLink size={10} />
         </button>
       </div>
@@ -131,7 +132,7 @@ const MapLocation = ({ localizacao, pontosProximos, endereco }) => {
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative">
-            <MapPin size={24} className="text-[#003580] fill-[#003580]" />
+            <MapPin size={24} className="text-blue-900 fill-blue-900" />
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-1 bg-black/20 blur-sm rounded-full"></div>
           </div>
         </div>
@@ -227,7 +228,7 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
               <div className="p-2 border-t border-slate-100 flex justify-end">
                 <button 
                   onClick={() => setShowCalendar(false)} 
-                  className="text-[#003580] font-bold text-[10px] uppercase"
+                  className="text-blue-900 font-bold text-[10px] uppercase"
                 >
                   Fechar
                 </button>
@@ -275,7 +276,7 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
 
         <button 
           onClick={handleContinue}
-          className="w-full bg-[#003580] text-white font-bold py-3 rounded-xl mb-4 mt-8 hover:bg-blue-900 transition-all shadow-lg text-sm"
+          className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl mb-4 mt-8 hover:bg-blue-950 transition-all shadow-lg text-sm"
         >
           Continuar para reserva
         </button>
@@ -319,64 +320,71 @@ const AmenitiesBar = ({ infoBasica, comodidades }) => {
   );
 };
 
-const ImageGallery = ({ images, mainImageIndex, onImageChange, onOpenModal, onPrev, onNext, titulo, tipo }) => {
+const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, tipo }) => {
+  const placeholder = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop";
+  const img1 = images[0] || placeholder;
+  const img2 = images[1] || placeholder;
+  const img3 = images[2] || placeholder;
+  const img4 = images[3] || placeholder;
+
   return (
-    <div className="relative">
-      <div className="relative group">
-        <div 
-          className="relative rounded-2xl overflow-hidden shadow-xl shadow-blue-900/10 cursor-pointer"
-          onClick={onOpenModal}
-        >
-          <div className="h-[320px] md:h-[420px]">
-            <img 
-              src={images[mainImageIndex]} 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-              alt={titulo} 
-            />
-          </div>
-          <div className="absolute bottom-4 left-4 bg-[#003580] text-white px-4 py-2 rounded-xl flex items-center gap-2 text-[11px] font-black uppercase shadow-lg z-10">
-            <LayoutGrid size={12} /> {tipo || 'Apartamento'} Premium
-          </div>
-          <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-1.5 rounded-xl flex items-center gap-2 text-xs font-medium backdrop-blur-sm z-10">
-            <Camera size={14} /> Ver fotos
-          </div>
-        </div>
-
-        <button
-          onClick={(e) => { e.stopPropagation(); onPrev(); }}
-          className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
-          aria-label="Imagem anterior"
-        >
-          <ChevronLeft size={24} />
-        </button>
-
-        <button
-          onClick={(e) => { e.stopPropagation(); onNext(); }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10"
-          aria-label="Próxima imagem"
-        >
-          <ChevronRight size={24} />
-        </button>
-
-        <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded-md text-xs font-medium backdrop-blur-sm z-10">
-          {mainImageIndex + 1} / {images.length}
+    <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
+      <div 
+        className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm"
+        onClick={() => { onImageChange(0); onOpenModal(); }}
+      >
+        <img 
+          src={img1} 
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
+          alt={`${titulo} - Principal`} 
+        />
+        <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none tracking-wide font-sans">
+          1 / {images.length || 18}
         </div>
       </div>
 
-      <div className="flex gap-3 mt-4 overflow-x-auto no-scrollbar">
-        {images.map((img, idx) => (
+      <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
+        <div 
+          className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
+          onClick={() => { onImageChange(1); onOpenModal(); }}
+        >
+          <img 
+            src={img2} 
+            className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
+            alt={`${titulo} - Quarto`} 
+          />
+        </div>
+
+        <div className="h-1/2 flex gap-2.5">
           <div 
-            key={idx} 
-            className={`relative w-20 h-14 md:w-24 md:h-16 rounded-xl overflow-hidden transition-all duration-200 ${
-              idx === mainImageIndex 
-                ? 'ring-2 ring-[#003580] ring-offset-2 scale-105' 
-                : 'opacity-70 hover:opacity-100'
-            } shrink-0 cursor-pointer`}
-            onClick={() => onImageChange(idx)}
+            className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
+            onClick={() => { onImageChange(2); onOpenModal(); }}
           >
-            <img src={img} className="w-full h-full object-cover" alt={`Miniatura ${idx + 1}`} />
+            <img 
+              src={img3} 
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
+              alt={`${titulo} - Piscina`} 
+            />
           </div>
-        ))}
+          
+          <div 
+            className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
+            onClick={() => { onImageChange(3); onOpenModal(); }}
+          >
+            <img 
+              src={img4} 
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
+              alt={`${titulo} - Cozinha`} 
+            />
+
+            <div 
+              onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
+              className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
+            >
+              <Camera size={12} className="text-slate-700" /> Ver todas as fotos
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -393,7 +401,7 @@ const TabContent = ({ activeTab, alojamento }) => {
             <h3 className="text-lg font-bold text-slate-900 mb-4">Sobre este espaço</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
               {alojamento.descricao_detalhada || alojamento.descricao || 
-                `Este espaçoso ${alojamento.tipo_propriedade?.toLowerCase() || 'apartamento'} em ${alojamento.localizacao} oferece uma experiência única de conforto e tranquilidade.`}
+                `Este espaçoso ${alojamento.tipo_propriedade?.toLowerCase() || 'apartamento'} em ${alojamento.localizacao} oferece uma experience única de conforto e tranquilidade.`}
             </p>
           </div>
 
@@ -454,7 +462,7 @@ const TabContent = ({ activeTab, alojamento }) => {
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              <MapPin size={32} className="text-[#003580] fill-[#003580]" />
+              <MapPin size={32} className="text-blue-900 fill-blue-900" />
             </div>
           </div>
           <div className="space-y-3">
@@ -490,7 +498,10 @@ export const InfoAlojamento = () => {
   const [images, setImages] = useState([]);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
 
-  // Buscar usuário logado do localStorage
+  // Estados dinâmicos de controlo do fluxo de quartos mapeados corretamente
+  const [quartoSelecionado, setQuartoSelecionado] = useState('casal');
+  const [precoNoiteDinamico, setPrecoNoiteDinamico] = useState(0);
+
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -528,6 +539,7 @@ export const InfoAlojamento = () => {
         }
         
         setAlojamento(data);
+        setPrecoNoiteDinamico(Number(data.preco_noite));
         
         if (data.imagens && data.imagens.length > 0) {
           const imageUrls = data.imagens.map(img => img.caminho_url);
@@ -551,6 +563,11 @@ export const InfoAlojamento = () => {
     fetchAlojamento();
   }, [id]);
 
+  const handleSelecaoQuarto = (idQuarto, titulo, novoPreco) => {
+    setQuartoSelecionado(idQuarto);
+    setPrecoNoiteDinamico(novoPreco);
+  };
+
   const handleContinueToCheckout = (reservaInfo) => {
     const userLogado = localStorage.getItem('user');
     
@@ -570,13 +587,13 @@ export const InfoAlojamento = () => {
       imagem: images[0] || alojamento.imagem_url,
       localizacao: alojamento.localizacao,
       ilha: alojamento.ilha || 'Cabo Verde',
-      precoNoite: Number(alojamento.preco_noite),
+      precoNoite: precoNoiteDinamico,
       checkIn: reservaInfo.startDate.toISOString().split('T')[0],
       checkOut: reservaInfo.endDate.toISOString().split('T')[0],
       hospedes: reservaInfo.numHospedes,
-        capacidade: alojamento.capacidade || reservaInfo.numHospedes,
+      capacidade: alojamento.capacidade || reservaInfo.numHospedes,
       noites: reservaInfo.noites,
-      totalBase: reservaInfo.totalBase,
+      totalBase: precoNoiteDinamico * reservaInfo.noites,
       taxaLimpeza: 2500,
       taxaServico: 1200,
       descricao: alojamento.descricao,
@@ -611,7 +628,7 @@ export const InfoAlojamento = () => {
     return (
       <div className="w-full min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={48} className="animate-spin text-[#003580] mx-auto mb-4" />
+          <Loader2 size={48} className="animate-spin text-blue-900 mx-auto mb-4" />
           <p className="text-slate-600">Carregando informações do alojamento...</p>
         </div>
       </div>
@@ -627,7 +644,7 @@ export const InfoAlojamento = () => {
           <p className="text-slate-600 mb-4">{error || 'Alojamento não encontrado'}</p>
           <button 
             onClick={() => navigate(-1)}
-            className="bg-[#003580] text-white px-6 py-2 rounded-lg hover:bg-blue-900 transition"
+            className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition"
           >
             Voltar
           </button>
@@ -648,7 +665,7 @@ export const InfoAlojamento = () => {
         />
       )}
 
-      <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500">
+      <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500 text-left">
         <span onClick={() => navigate('/')} className="hover:text-blue-900 cursor-pointer">Início</span>
         <ChevronRight size={10} />
         <span onClick={() => navigate('/alojamentos')} className="hover:text-blue-900 cursor-pointer">Alojamentos</span>
@@ -661,28 +678,32 @@ export const InfoAlojamento = () => {
           <div className="lg:col-span-2">
             <ImageGallery 
               images={images}
-              mainImageIndex={currentImageIndex}
               onImageChange={handleImageChange}
               onOpenModal={handleOpenModal}
-              onPrev={handlePrevImage}
-              onNext={handleNextImage}
               titulo={alojamento.titulo}
               tipo={alojamento.tipo}
             />
 
-            <div className="mt-6 pt-6 border-t border-slate-100">
+            <div className="mt-6 pt-6 border-t border-slate-100 text-left">
               <h3 className="text-sm font-bold text-slate-900 mb-4">Comodidades principais</h3>
               <AmenitiesBar 
                 infoBasica={alojamento.info_basica} 
                 comodidades={alojamento.comodidades} 
               />
             </div>
+
+            {/* Injetado perfeitamente na coluna da esquerda abaixo do amenities bar */}
+            <SeccaoEscolhaQuarto 
+              quartoSelecionado={quartoSelecionado}
+              onSelecaoQuarto={handleSelecaoQuarto}
+              precoNoiteBase={Number(alojamento.preco_noite)}
+            />
           </div>
 
           <div className="lg:self-start">
             <div className="sticky top-24 z-30">
               <SidebarReserva 
-                precoPorNoite={alojamento.preco_noite}
+                precoPorNoite={precoNoiteDinamico || Number(alojamento.preco_noite)}
                 estrelas={alojamento.estrelas}
                 datasBloqueadas={alojamento.datas_bloqueadas || []}
                 onContinueToCheckout={handleContinueToCheckout}
@@ -692,7 +713,7 @@ export const InfoAlojamento = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-8">
+      <div className="max-w-7xl mx-auto px-6 mt-8 text-left">
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -713,7 +734,7 @@ export const InfoAlojamento = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-6">
+      <div className="max-w-7xl mx-auto px-6 mt-6 text-left">
         <TabsNavegacaoAlojamentos activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -732,7 +753,6 @@ export const InfoAlojamento = () => {
         </div>
       </div>
 
-      {/* SEÇÃO DE AVALIAÇÕES - ROW SOZINHO W-FULL */}
       <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12">
         <div className="max-w-7xl mx-auto px-6">
           <AvaliacoesSeccaoAlojamento 
@@ -748,7 +768,7 @@ export const InfoAlojamento = () => {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .react-datepicker__day--in-range { background-color: #f1f5f9 !important; }
         .react-datepicker__day--range-start, .react-datepicker__day--range-end {
-          background-color: #003580 !important; color: white !important; border-radius: 50% !important;
+          background-color: #1e3a8a !important; color: white !important; border-radius: 50% !important;
         }
         .react-datepicker__day--disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
@@ -756,4 +776,5 @@ export const InfoAlojamento = () => {
   );
 };
 
-export default InfoAlojamento;
+// Exportação unificada sem conflitos
+export default  InfoAlojamento;
