@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, Users, MapPin, ShieldCheck, CreditCard, CheckCircle, Lock, Calendar, Clock as ClockIcon } from 'lucide-react';
 
-const ResumoReserva = ({ 
+const ResumoReservaExperiencia = ({ 
   reserva = {}, 
   totalPessoas = 0, 
   precoTotal = 0, 
@@ -206,4 +206,4 @@ const ResumoReserva = ({
   );
 };
 
-export default ResumoReserva;
+export default ResumoReservaExperiencia;

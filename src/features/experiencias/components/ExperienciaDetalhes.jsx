@@ -640,7 +640,7 @@ const ExperienciaDetalhes = () => {
       year: 'numeric'
     });
 
-    navigate('/checkout', { 
+    navigate('/checkout-experiancia', { 
       state: { 
         reservaData: {
           id: experiencia.id,

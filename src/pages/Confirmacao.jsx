@@ -5,14 +5,18 @@ import {
   Mail, Camera, ArrowRight, Printer, List, 
   ShieldCheck, Phone, HelpCircle, Copy, CheckCircle
 } from 'lucide-react';
-import ResumoReserva from '../features/experiencias/components/ResumoReservaExperiencia';
+
+// Importação dos Resumos Reutilizáveis
+import ResumoReservaExperiencia from '../features/experiencias/components/ResumoReservaExperiencia';
+import ResumoReservaAlojamento from '../features/alojamento/components/ResumoReservaAlojamento';
 
 const Confirmacao = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { reservaId, codigoReserva, reservaData, metodoPagamento, status } = location.state || {};
+  const { reservaId, codigoReserva, reservaData, metodoPagamento, tipo: tipoState, status } = location.state || {};
   
   const [userEmail, setUserEmail] = useState('');
+  const [tipo, setTipo] = useState(tipoState || 'experiencia');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -30,16 +34,19 @@ const Confirmacao = () => {
     
     // Se não tiver dados, tentar recuperar do sessionStorage
     if (!reservaData) {
-      const reservaPendente = sessionStorage.getItem('reservaConfirmada');
-      if (reservaPendente) {
-        const dados = JSON.parse(reservaPendente);
-        sessionStorage.removeItem('reservaConfirmada');
+      const cacheAlojamento = sessionStorage.getItem('reservaAlojamentoPendente');
+      const cacheExperiencia = sessionStorage.getItem('reservaPendente');
+
+      if (cacheAlojamento) {
+        setTipo('alojamento');
+      } else if (cacheExperiencia) {
+        setTipo('experiencia');
       }
     }
   }, [reservaData]);
 
-  const totalPessoas = reservaData?.participantes || 1;
-  const precoTotal = reservaData?.precoTotal || 0;
+  const totalPessoas = tipo === 'alojamento' ? (reservaData?.totalHospedes || 1) : (reservaData?.participantes || 1);
+  const precoTotal = tipo === 'alojamento' ? (reservaData?.totalGeral || 0) : (reservaData?.precoTotal || 0);
   const emailUsuario = reservaData?.email || userEmail || 'cliente@email.com';
 
   // Função para copiar código
@@ -59,7 +66,7 @@ const Confirmacao = () => {
   const getMetodoPagamentoLabel = () => {
     switch(metodoPagamento) {
       case 'cartao': return 'Cartão de Crédito/Débito';
-      case 'mpesa': return 'M-Pesa';
+      case 'paypal': return 'PayPal';
       case 'zap': return 'ZAP';
       case 'transferencia': return 'Transferência Bancária';
       default: return 'Cartão';
@@ -70,10 +77,10 @@ const Confirmacao = () => {
     <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
       <div className="max-w-7xl mx-auto">
         
-        {/* STEPPER - Passo 7 de 7 (Final) */}
+        {/* STEPPER - Passo 3 de 3 (Final) */}
         <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
           {[
-            { n: 1, label: 'Dados dos Participantes', check: true },
+            { n: 1, label: tipo === 'alojamento' ? 'Dados dos Hóspedes' : 'Dados dos Participantes', check: true },
             { n: 2, label: 'Pagamento', check: true },
             { n: 3, label: 'Confirmação', active: true },
           ].map((s, i, arr) => (
@@ -145,7 +152,7 @@ const Confirmacao = () => {
             {/* O QUE ACONTECE A SEGUIR */}
             <div className="border border-slate-100 rounded-xl p-6 mb-8 bg-white shadow-sm">
               <h3 className="text-sm font-bold text-blue-900 uppercase flex items-center gap-2 mb-6">
-                <Check size={18} className="text-blue-600" /> O que acontece a seguir?
+                <Check size={18} className="text-blue-600" /> O que acontece a segue?
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -163,8 +170,10 @@ const Confirmacao = () => {
                   <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Calendar size={20} />
                   </div>
-                  <p className="text-xs font-bold text-blue-900 mb-1">Prepare-se para o tour</p>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">Chegue 15 minutos antes do horário escolhido no ponto de encontro.</p>
+                  <p className="text-xs font-bold text-blue-900 mb-1">{tipo === 'alojamento' ? 'Prepare-se para o check-in' : 'Prepare-se para o tour'}</p>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    {tipo === 'alojamento' ? 'Verifique os horários e regras descritas no voucher.' : 'Chegue 15 minutos antes do horário escolhido no ponto de encontro.'}
+                  </p>
                 </div>
 
                 <div className="text-center">
@@ -185,10 +194,9 @@ const Confirmacao = () => {
               </h3>
               <ul className="space-y-1.5">
                 {[
-                  'Chegue 15 minutos antes do horário selecionado.',
-                  'Apresente um documento de identificação no dia do tour.',
-                  'Cancelamento gratuito até 24h antes da experiência.',
-                  'Leve protetor solar, chapéu e água.',
+                  tipo === 'alojamento' ? 'Respeite a hora de entrada e saída acordadas.' : 'Chegue 15 minutos antes do horário selecionado.',
+                  'Apresente um documento de identificação no momento do check-in.',
+                  tipo === 'alojamento' ? 'Cancelamento gratuito até 48h antes do check-in.' : 'Cancelamento gratuito até 24h antes da experiência.',
                   'Em caso de dúvidas, entre em contacto connosco.'
                 ].map((text, i) => (
                   <li key={i} className="text-[11px] text-blue-800 flex items-start gap-2">
@@ -217,7 +225,7 @@ const Confirmacao = () => {
                 onClick={() => navigate('/')}
                 className="h-[44px] px-6 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 ml-auto hover:bg-blue-700 transition shadow-md"
               >
-                Voltar para experiências <ArrowRight size={16}/>
+                Voltar para a página inicial <ArrowRight size={16}/>
               </button>
             </div>
 
@@ -229,17 +237,29 @@ const Confirmacao = () => {
             </div>
           </div>
 
-          {/* COLUNA DIREITA: RESUMO (REUTILIZANDO O COMPONENTE) */}
+          {/* COLUNA DIREITA: RESUMO */}
           <div className="lg:col-span-4">
-            <ResumoReserva 
-              reserva={reservaData || {}}
-              totalPessoas={totalPessoas}
-              precoTotal={precoTotal}
-              showPaymentInfo={true}
-              paymentStatus="paid"
-              isConfirmed={true}
-              codigoReserva={codigoReserva}
-            />
+            {tipo === 'alojamento' ? (
+              <ResumoReservaAlojamento 
+                reserva={reservaData || {}}
+                totalHospedes={totalPessoas}
+                precoTotal={precoTotal}
+                showPaymentInfo={true}
+                paymentStatus="paid"
+                isConfirmed={true}
+                codigoReserva={codigoReserva}
+              />
+            ) : (
+              <ResumoReservaExperiencia 
+                reserva={reservaData || {}}
+                totalPessoas={totalPessoas}
+                precoTotal={precoTotal}
+                showPaymentInfo={true}
+                paymentStatus="paid"
+                isConfirmed={true}
+                codigoReserva={codigoReserva}
+              />
+            )}
           </div>
         </div>
       </div>
