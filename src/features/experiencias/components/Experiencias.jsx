@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
 import { Loader2, LayoutGrid, List, Info, ArrowRight } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Componentes Importados
 import ExperiencesHero from './ExperiencesHero';
@@ -12,6 +12,7 @@ import CardExperiencia from './CardExperiencia';
 
 const Experiencias = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
 
   // Estados de Dados
@@ -25,8 +26,8 @@ const Experiencias = () => {
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [filtroDestino, setFiltroDestino] = useState(queryParams.get('localizacao') || '');
 
-  // Função principal de busca (API)
-  const buscarDados = async (queryString = '') => {
+  // Função principal de busca (API) - Envolvida em useCallback para evitar loops de re-renderização
+  const buscarDados = useCallback(async (queryString = '') => {
     try {
       setLoading(true);
       let url = 'https://welovepalop.com/api/get_experiencias.php';
@@ -36,7 +37,6 @@ const Experiencias = () => {
       if (response.data.success) {
         setExperiencias(response.data.data);
       } else {
-        // Fallback caso a estrutura mude
         setExperiencias(Array.isArray(response.data) ? response.data : []);
       }
     } catch (error) {
@@ -44,14 +44,15 @@ const Experiencias = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Efeito Inicial
-  useEffect(() => {
-    buscarDados();
   }, []);
 
-  // Lógica de Filtragem Local (Preço, Categoria e Localização do Hero)
+  // Efeito Inicial sincronizado com os parâmetros da URL atual
+  useEffect(() => {
+    const currentQuery = location.search.replace('?', '');
+    buscarDados(currentQuery);
+  }, [location.search, buscarDados]);
+
+  // Lógica de Filtragem Local (Preço, Categoria e Localização)
   useEffect(() => {
     const filtradas = experiencias.filter(exp => {
       const preco = parseFloat(exp.preco || 0);
@@ -60,20 +61,22 @@ const Experiencias = () => {
       
       const buscaSimples = filtroDestino.toLowerCase();
       const atendeDestino = !filtroDestino || 
-                           exp.localizacao?.toLowerCase().includes(buscaSimples) ||
-                           exp.ilha?.toLowerCase().includes(buscaSimples) ||
-                           exp.categoria_nome?.toLowerCase().includes(buscaSimples);
+                            exp.localizacao?.toLowerCase().includes(buscaSimples) ||
+                            exp.ilha?.toLowerCase().includes(buscaSimples) ||
+                            exp.categoria_nome?.toLowerCase().includes(buscaSimples);
 
       return atendePreco && atendeCategoria && atendeDestino;
     });
     setExperienciasFiltradas(filtradas);
   }, [experiencias, orcamento, categoriasSelecionadas, filtroDestino]);
 
-  // Handler para a SearchBar do Hero
+  // Handler atualizado para a SearchBar em Range Mode (Sincroniza a URL e dispara a API)
   const handleSearchBar = (queryString) => {
-    // Extrai o termo de busca para filtrar localmente também
     const params = new URLSearchParams(queryString);
-    setFiltroDestino(params.get('search') || '');
+    setFiltroDestino(params.get('localizacao') || '');
+    
+    // Atualiza a URL do navegador para manter o estado salvável e partilhável pelo utilizador
+    navigate(`/experiencias?${queryString}`, { replace: true });
     buscarDados(queryString);
   };
 
@@ -81,6 +84,8 @@ const Experiencias = () => {
     setOrcamento(50000);
     setCategoriasSelecionadas([]);
     setFiltroDestino('');
+    navigate('/experiencias', { replace: true });
+    buscarDados();
   };
 
   return (
@@ -100,7 +105,7 @@ const Experiencias = () => {
       <main className="max-w-[1400px] mx-auto py-16 px-6">
         {/* BREADCRUMBS */}
         <div className="text-left text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8 flex gap-2">
-          <span className="text-blue-600">Início</span> / <span>Experiências</span> 
+          <span className="text-blue-600 cursor-pointer" onClick={() => navigate('/')}>Início</span> / <span>Experiências</span> 
           {filtroDestino && <> / <span className="text-gray-900">{filtroDestino}</span></>}
         </div>
 
@@ -122,7 +127,7 @@ const Experiencias = () => {
             
             {/* HEADER DA LISTAGEM */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-              <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter">
+              <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter text-left">
                 {filtroDestino || "Explorar"}: <span className="text-blue-600 text-4xl">{experienciasFiltradas.length}</span> resultados
               </h1>
               
@@ -154,8 +159,8 @@ const Experiencias = () => {
               </div>
             ) : (
               <div className={viewMode === 'grid' 
-                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8" 
-                : "flex flex-col gap-6"
+                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 text-left" 
+                : "flex flex-col gap-6 text-left"
               }>
                 {experienciasFiltradas.length > 0 ? (
                   experienciasFiltradas.map(exp => (
@@ -177,7 +182,7 @@ const Experiencias = () => {
 
         {/* CTA FINAL (FOOTER PROMO) */}
         <div className="mt-24">
-          <div className="relative rounded-[2.5rem] overflow-hidden h-[300px] flex items-center shadow-xl">
+          <div className="relative rounded-[2.5rem] overflow-hidden h-[300px] flex items-center shadow-xl text-left">
             <img 
               src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=1200" 
               className="absolute inset-0 w-full h-full object-cover" 
@@ -188,7 +193,10 @@ const Experiencias = () => {
               <h2 className="text-3xl font-black text-gray-900 leading-tight mb-4 tracking-tighter uppercase italic">
                 Encontre o lugar perfeito para se hospedar
               </h2>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl transition-all flex items-center gap-2">
+              <button 
+                onClick={() => navigate('/alojamentos')}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl transition-all flex items-center gap-2"
+              >
                 Buscar Alojamentos <ArrowRight size={20} />
               </button>
             </div>

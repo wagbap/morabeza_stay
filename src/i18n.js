@@ -11,6 +11,8 @@ i18n
         translation: {
           welcome: "descubra cabo verde",
           subtitle: "A sua plataforma de alojamento e turismo",
+          welcome_alojamento:"Encontre Alojamento perfeito",
+          subtitle_alojamento: "Passar noites incriveis no conforto",
           menu_inicio: "Início",
           menu_alojamentos: "Alojamentos",
           menu_carros: "Carros",
@@ -56,6 +58,8 @@ i18n
         translation: {
           welcome: "discover cape verde",
           subtitle: "Your accommodation and tourism platform",
+          welcome_alojamento:"Find perfect accommodation",
+          subtitle_alojamento: "Spend amazing nights in comfort.",
           menu_inicio: "Home",
           menu_alojamentos: "Stays",
           menu_carros: "Cars",
@@ -100,6 +104,8 @@ i18n
         translation: {
           welcome: "découvrez le cap-vert",
           subtitle: "Votre plateforme d'hébergement et de tourisme",
+          welcome_alojamento:"Trouvez le logement idéal",
+          subtitle_alojamento: "Passez des nuits merveilleuses dans un confort absolu.",
           menu_inicio: "Accueil",
           menu_alojamentos: "Hébergements",
           menu_carros: "Voitures",
@@ -144,6 +150,8 @@ i18n
         translation: {
           welcome: "descubra cabo verde",
           subtitle: "Su plataforma de alojamiento y turismo",
+          welcome_alojamento:"Encuentra la logística ideal",
+          subtitle_alojamento: "Passez des nuits merveilleuses dans absoluta comodidad.",
           menu_inicio: "Inicio",
           menu_alojamentos: "Alojamientos",
           menu_carros: "Coches",

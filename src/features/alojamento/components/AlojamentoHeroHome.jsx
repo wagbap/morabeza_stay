@@ -10,7 +10,7 @@ const Hero = () => {
       {/* BACKGROUND: Imagem com brilho real, sem ser baça */}
       <div 
         className="absolute inset-0 bg-cover bg-center scale-105"
-        style={{ backgroundImage: "url('https://dynamic-media-cdn.tripadvisor.com/media/photo-o/11/dc/e9/18/hotel-riu-touareg.jpg?w=1200&h=-1&s=1')" }}
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1541417904950-b855846fe074?q=80&w=2000')" }}
       >
         {/* Overlay de contraste: Escurece apenas o necessário para o branco brilhar */}
         <div className="absolute inset-0 bg-black/30 backdrop-contrast-125"></div>
@@ -21,12 +21,12 @@ const Hero = () => {
         
         {/* TÍTULO: Letras grandes, brancas puras e com sombra forte */}
         <h1 className="text-4xl md:text-6xl font-black mb-4 uppercase italic tracking-tighter drop-shadow-[0_8px_30px_rgb(0,0,0,0.8)]">
-          {t('welcome_alojamento')}
+          {t('welcome')}
         </h1>
         
         {/* SUBTÍTULO: Branco nítido com fundo de leitura */}
         <p className="text-xl md:text-3xl font-medium tracking-wide text-white drop-shadow-lg">
-          {t('subtitle_alojamento')}
+          {t('subtitle')}
         </p>
 
         {/* Detalhe de "Vida": Linha de cor vibrante */}

@@ -2,7 +2,7 @@ import React from 'react';
 import { MapPin, Heart, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, total_avaliacoes }) => {
+const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, total_avaliacoes, slug }) => {
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/";
   
   const imagemCompleta = imagem_url 
@@ -12,6 +12,8 @@ const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, 
   const preco = Number(preco_noite) || 0;
   const rating = Number(estrelas) || 4.5;
   const reviews = total_avaliacoes || 0;
+
+    const linkTo = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
 
   return (
     <div className="relative group bg-white rounded-2xl flex flex-col h-full w-full overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-gray-100">
@@ -69,7 +71,7 @@ const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, 
       </div>
       
       {/* Link que cobre o card inteiro (para SEO e acessibilidade) */}
-      <Link to={`/alojamento/${id}`} className="absolute inset-0 z-0" aria-label={`Ver detalhes de ${titulo}`} />
+      <Link  to={linkTo} className="absolute inset-0 z-0" aria-label={`Ver detalhes de ${titulo}`} />
     </div>
   );
 };

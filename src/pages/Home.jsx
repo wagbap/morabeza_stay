@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import Hero from '../features/alojamento/components/AlojamentoHero';
+import Hero from '../features/alojamento/components/AlojamentoHeroHome';
 import SearchBar from '../features/alojamento/components/SearchBarAlojamento';
 import CategoryBar from '../components/CategoryBar';
 import TabsComponent from '../components/TabsComponent';

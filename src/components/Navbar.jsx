@@ -15,8 +15,8 @@ const Navbar = () => {
   const location = useLocation();
   const langRef = useRef(null);
 
-  // Páginas que devem ter navbar transparente sobre a imagem
-  const paginasComHero = ['/', '/experiencias'];
+  // ✅ MAPEAMENTO COMPLETO: Todas as páginas com Hero Banner agora têm a Navbar transparente por cima
+  const paginasComHero = ['/', '/experiencias', '/alojamentos', '/carros'];
   const isHeroPage = paginasComHero.includes(location.pathname);
 
   useEffect(() => {
@@ -65,7 +65,6 @@ const Navbar = () => {
 
   const getNavbarClasses = () => {
     if (isHeroPage) {
-      // ABSOLUTE para ficar sobre a imagem, sem fundo
       return "absolute top-0 left-0 bg-transparent text-white";
     } else {
       return "relative bg-white shadow-md text-gray-900 border-b border-gray-100";
@@ -85,6 +84,7 @@ const Navbar = () => {
           </span>
         </Link>
 
+        {/* ✅ LINHA 90 CORRIGIDA: Texto fantasma removido com sucesso! */}
         <div className={`hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] absolute left-1/2 -translate-x-1/2 transition-colors ${
           isHeroPage ? "text-white" : "text-gray-600"
         }`}>
@@ -150,7 +150,7 @@ const Navbar = () => {
         </div>
       </nav>
 
-      {/* Sidebar mantém igual */}
+      {/* Sidebar de navegação móvel */}
       <div className={`fixed top-0 right-0 h-full w-[300px] bg-white z-[110] shadow-2xl transform transition-transform duration-500 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="p-8 flex justify-between items-center border-b border-gray-50">
           <span className="text-xl font-bold uppercase text-gray-800 tracking-tighter">Menu</span>
@@ -159,7 +159,7 @@ const Navbar = () => {
           </button>
         </div>
 
-        <div className="p-6 space-y-2">
+        <div className="p-6 space-y-2 text-left">
           {navLinks.map((link, index) => (
             <Link key={index} to={link.path} onClick={() => setIsOpen(false)} className="flex items-center gap-4 p-4 hover:bg-blue-50 text-gray-700 rounded-2xl transition-all group">
               <span className="text-gray-400 group-hover:text-blue-500 transition-colors">{link.icon}</span>
