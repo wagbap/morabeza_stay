@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+// No topo do App.js, adicione a importação do Navigate
+
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { 
   Users, Bed, Bath, Wifi, Wind, Coffee, MapPin, Star, 
   ChevronRight, ChevronLeft, LayoutGrid, Camera,
-  CheckCircle, ExternalLink, ChevronDown, X, Loader2
+  CheckCircle, ExternalLink, ChevronDown, X, Loader2,
+  Droplet, Car, Eye, Shield, ChevronUp,   Waves,   Shirt, WashingMachine,  CalendarDays, 
+  Calendar
 } from 'lucide-react';
 import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
@@ -292,30 +296,71 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
     </div>
   );
 };
-
 const AmenitiesBar = ({ infoBasica, comodidades }) => {
-  const amenities = [
-    { icon: Users, label: `${infoBasica?.capacidade || 4} Hóspedes`, sub: 'Máximo de pessoas', show: true },
-    { icon: Bed, label: `${infoBasica?.quartos || 2} Quartos`, sub: 'Camas confortáveis', show: true },
-    { icon: Bath, label: `${infoBasica?.casas_banho || 2} Casas de banho`, sub: 'Água quente', show: true },
-    { icon: Wifi, label: 'Wi-Fi', sub: infoBasica?.wifi ? 'Rápido e gratuito' : 'Disponível', show: true },
-    { icon: Wind, label: 'Ar Condicionado', sub: infoBasica?.ar_condicionado ? 'Todos os quartos' : 'Disponível', show: true },
-    { icon: Coffee, label: 'Cozinha', sub: infoBasica?.cozinha ? 'Totalmente equipada' : 'Básica', show: true },
-  ].filter(a => a.show);
+  // Mapear ícones baseado no nome da comodidade
+  const getIconForComodidade = (nome) => {
+    const nomeLower = nome.toLowerCase();
+    
+    if (nomeLower.includes('wifi') || nomeLower.includes('wi-fi')) return Wifi;
+    if (nomeLower.includes('ar condicionado')) return Wind;
+    if (nomeLower.includes('cozinha')) return Coffee;
+    if (nomeLower.includes('tv') || nomeLower.includes('televisão')) return LayoutGrid;
+    if (nomeLower.includes('pequeno-almoço') || nomeLower.includes('café da manhã')) return Coffee;
+    if (nomeLower.includes('quarto') || nomeLower.includes('suite')) return Bed;
+    if (nomeLower.includes('banheira') || nomeLower.includes('jacuzzi')) return Bath;
+    if (nomeLower.includes('piscina')) return Droplet;
+    if (nomeLower.includes('estacionamento') || nomeLower.includes('garagem')) return Car;
+    if (nomeLower.includes('vista mar') || nomeLower.includes('vista')) return Eye;
+    if (nomeLower.includes('segurança')) return Shield;
+    if (nomeLower.includes('elevador')) return ChevronUp;
+    if (nomeLower.includes('máquina de lavar') || 
+        nomeLower.includes('lavanderia') || 
+        nomeLower.includes('lavagem') ||
+        nomeLower.includes('lava e seca') ||
+        nomeLower.includes('washing machine')) return Shirt;
+    if (nomeLower.includes('calendário') || 
+        nomeLower.includes('calendario') || 
+        nomeLower.includes('calendar') ||
+        nomeLower.includes('agenda')) return CalendarDays;
+    
+    return CheckCircle;
+  };
 
+  // 🎯 USAR APENAS COMODIDADES REAIS DA BASE DE DADOS
+  const comodidadesReais = comodidades || [];
+  
+  // Se não houver comodidades, mostrar mensagem
+  if (comodidadesReais.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-slate-500 text-sm">Nenhuma comodidade cadastrada</p>
+      </div>
+    );
+  }
+
+  // Mostrar APENAS as comodidades da base de dados
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-      {amenities.map((item, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <div className="text-slate-400 shrink-0">
-            <item.icon size={18} strokeWidth={1.5} />
+      {comodidadesReais.map((item, i) => {
+        // Determinar ícone baseado no nome
+        let IconComponent = getIconForComodidade(item.nome);
+        
+        return (
+          <div key={i} className="flex items-center gap-2">
+            <div className="text-slate-400 shrink-0">
+              <IconComponent size={18} strokeWidth={1.5} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] font-bold text-slate-900 leading-tight">
+                {item.nome.length > 25 ? item.nome.substring(0, 25) + '...' : item.nome}
+              </span>
+              <span className="text-[9px] text-slate-400 font-medium">
+                {item.descricao || 'Incluído'}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-[11px] font-bold text-slate-900 leading-tight">{item.label}</span>
-            <span className="text-[9px] text-slate-400 font-medium">{item.sub}</span>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -485,9 +530,8 @@ const TabContent = ({ activeTab, alojamento }) => {
       return null;
   }
 };
-
 export const InfoAlojamento = () => {
-  const { id } = useParams();
+  const { slug } = useParams();  // ← Alterado de 'id' para 'slug'
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -498,8 +542,8 @@ export const InfoAlojamento = () => {
   const [images, setImages] = useState([]);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
 
-  // Estados dinâmicos de controlo do fluxo de quartos mapeados corretamente
-  const [quartoSelecionado, setQuartoSelecionado] = useState('casal');
+  const [tiposQuarto, setTiposQuarto] = useState([]);
+  const [quartoSelecionado, setQuartoSelecionado] = useState(null);
   const [precoNoiteDinamico, setPrecoNoiteDinamico] = useState(0);
 
   useEffect(() => {
@@ -516,8 +560,8 @@ export const InfoAlojamento = () => {
 
   useEffect(() => {
     const fetchAlojamento = async () => {
-      if (!id) {
-        setError('ID do alojamento não fornecido');
+      if (!slug) {  // ← Alterado de 'id' para 'slug'
+        setError('Slug do alojamento não fornecido');
         setLoading(false);
         return;
       }
@@ -526,7 +570,8 @@ export const InfoAlojamento = () => {
       setError(null);
 
       try {
-        const response = await fetch(`https://welovepalop.com/api/get_alojamento_detalhes.php?id=${id}`);
+        // ← Alterado para enviar slug em vez de id
+        const response = await fetch(`https://welovepalop.com/api/get_alojamento_detalhes.php?slug=${slug}`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -540,6 +585,13 @@ export const InfoAlojamento = () => {
         
         setAlojamento(data);
         setPrecoNoiteDinamico(Number(data.preco_noite));
+        
+        if (data.tipos_quarto && data.tipos_quarto.length > 0) {
+          setTiposQuarto(data.tipos_quarto);
+          const primeiroQuarto = data.tipos_quarto[0];
+          setQuartoSelecionado(primeiroQuarto.id);
+          setPrecoNoiteDinamico(primeiroQuarto.preco_calculado);
+        }
         
         if (data.imagens && data.imagens.length > 0) {
           const imageUrls = data.imagens.map(img => img.caminho_url);
@@ -561,7 +613,7 @@ export const InfoAlojamento = () => {
     };
 
     fetchAlojamento();
-  }, [id]);
+  }, [slug]);  // ← Alterada dependência para 'slug'
 
   const handleSelecaoQuarto = (idQuarto, titulo, novoPreco) => {
     setQuartoSelecionado(idQuarto);
@@ -598,7 +650,8 @@ export const InfoAlojamento = () => {
       taxaServico: 1200,
       descricao: alojamento.descricao,
       comodidades: alojamento.comodidades || [],
-      imagens_extra: alojamento.imagens_extra || []
+      imagens_extra: alojamento.imagens_extra || [],
+      tipoQuartoId: quartoSelecionado
     };
 
     navigate('/checkout-alojamento', { state: { reservaData: dadosParaCheckout } });
@@ -692,12 +745,14 @@ export const InfoAlojamento = () => {
               />
             </div>
 
-            {/* Injetado perfeitamente na coluna da esquerda abaixo do amenities bar */}
-            <SeccaoEscolhaQuarto 
-              quartoSelecionado={quartoSelecionado}
-              onSelecaoQuarto={handleSelecaoQuarto}
-              precoNoiteBase={Number(alojamento.preco_noite)}
-            />
+            {tiposQuarto.length > 0 && (
+              <SeccaoEscolhaQuarto 
+                quartoSelecionado={quartoSelecionado}
+                onSelecaoQuarto={handleSelecaoQuarto}
+                tiposQuarto={tiposQuarto}
+                precoNoiteBase={Number(alojamento.preco_noite)}
+              />
+            )}
           </div>
 
           <div className="lg:self-start">
@@ -776,5 +831,4 @@ export const InfoAlojamento = () => {
   );
 };
 
-// Exportação unificada sem conflitos
-export default  InfoAlojamento;
+export default InfoAlojamento;

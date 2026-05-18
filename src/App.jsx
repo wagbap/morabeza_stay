@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route,Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import './i18n';
 
@@ -47,8 +47,10 @@ function App() {
             } />
 
             {/* Alojamentos */}
-            <Route path="/alojamentos" element={<Alojamentos />} />
-            <Route path="/alojamento/:id" element={<InfoAlojamento/>} />
+           <Route path="/alojamentos" element={<Alojamentos />} />
+  <Route path="/alojamentos/:slug" element={<InfoAlojamento />} />
+  <Route path="/alojamento/:slug" element={<InfoAlojamento />} />
+
 
             <Route path="/alojamento_teste/:id" element={<PaginaDetalhesAlojamnetos />} />
 

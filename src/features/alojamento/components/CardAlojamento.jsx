@@ -1,14 +1,31 @@
 import React from 'react';
-import { MapPin, Heart, Star, ArrowRight, ZapOffIcon } from 'lucide-react';
+import { MapPin, Heart, Star, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const CardAlojamento = ({ id, imagem_url, titulo, localizacao, descricao, preco_noite, tipo, estrelas, comodidades, imagens_extra, total_avaliacoes, isList }) => {
+const CardAlojamento = ({ 
+  id, 
+  slug,  // 🆕 Adicionado slug
+  imagem_url, 
+  titulo, 
+  localizacao, 
+  descricao, 
+  preco_noite, 
+  tipo, 
+  estrelas, 
+  comodidades, 
+  imagens_extra, 
+  total_avaliacoes, 
+  isList 
+}) => {
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/"; 
   
   // Garantia de carregamento da URL
   const imagemCompleta = imagem_url 
     ? (imagem_url.startsWith('http') ? imagem_url : `${BASE_URL_IMAGENS}${imagem_url}`)
     : "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=400";
+
+  // Usar slug se existir, senão usa ID
+  const linkTo = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
 
   return (
     <div className={`relative group bg-white border border-gray-100 transition-all duration-300 hover:shadow-2xl overflow-hidden ${
@@ -17,7 +34,7 @@ const CardAlojamento = ({ id, imagem_url, titulo, localizacao, descricao, preco_
         : "flex flex-col h-full w-full rounded-2xl"
     }`}>
       
-      {/* Container da Imagem - FIX: shrink-0 e h-full para carregar na lista */}
+      {/* Container da Imagem */}
       <div className={`relative overflow-hidden shrink-0 bg-gray-100 ${
         isList 
           ? "w-full md:w-[320px] lg:w-[360px] h-56 md:h-64 rounded-[32px]" 
@@ -34,12 +51,19 @@ const CardAlojamento = ({ id, imagem_url, titulo, localizacao, descricao, preco_
           {tipo || 'Alojamento'}
         </div>
 
-        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform">
+        <button 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Adicionar lógica de favoritos aqui
+          }}
+          className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform"
+        >
           <Heart size={18} strokeWidth={2.5} className="text-gray-900" />
         </button>
       </div>
 
-      {/* Conteúdo do Card - Ajuste de Texto para Minúsculas */}
+      {/* Conteúdo do Card */}
       <div className={`flex flex-col flex-1 text-left ${isList ? 'py-4 pr-4 justify-between' : 'p-4'}`}>
         
         <div>
@@ -50,15 +74,31 @@ const CardAlojamento = ({ id, imagem_url, titulo, localizacao, descricao, preco_
             </span>
           </div>
 
-          {/* Título: font-black mantido, mas removido o uppercase */}
-         <h3 className="text-lg font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors line-clamp-2">
+          {/* Título */}
+          <h3 className="text-lg font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-2 group-hover:text-blue-600 transition-colors">
             {titulo}
           </h3>
           
           {isList && (
             <p className="text-gray-400 text-sm font-medium mb-4 line-clamp-2 leading-relaxed">
-               {descricao}
+              {descricao || `Maravilhoso ${tipo || 'alojamento'} localizado em ${localizacao}. Perfeito para suas férias em Cabo Verde.`}
             </p>
+          )}
+
+          {/* Comodidades principais (opcional) */}
+          {comodidades && comodidades.length > 0 && !isList && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {comodidades.slice(0, 3).map((comodidade, index) => (
+                <span key={index} className="text-[9px] text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
+                  {comodidade.nome}
+                </span>
+              ))}
+              {comodidades.length > 3 && (
+                <span className="text-[9px] text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
+                  +{comodidades.length - 3}
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -66,20 +106,22 @@ const CardAlojamento = ({ id, imagem_url, titulo, localizacao, descricao, preco_
         <div className={`flex items-center justify-between ${!isList ? 'mt-auto border-t border-gray-50 pt-3' : ''}`}>
           
           <div className="flex flex-col gap-1">
-             <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg w-fit">
-                <Star size={14} className="fill-orange-400 text-orange-400" />
-                <span className="text-xs font-black text-gray-800">
-                  {Number(estrelas || 4.8).toFixed(1)}
-                </span>
-                <span className="text-[10px] text-gray-400 font-bold">({total_avaliacoes || 0})</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className={`${isList ? 'text-2xl' : 'text-xl'} font-black text-[#1a2b6d]`}>
-                  {Number(preco_noite).toLocaleString('pt-PT')}
-                </span>
-                <span className="text-[10px] font-black text-gray-500 uppercase">CVE</span>
-                <span className="text-xs font-semibold text-gray-400">/ noite</span>
-              </div>
+            <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg w-fit">
+              <Star size={14} className="fill-orange-400 text-orange-400" />
+              <span className="text-xs font-black text-gray-800">
+                {Number(estrelas || 4.8).toFixed(1)}
+              </span>
+              <span className="text-[10px] text-gray-400 font-bold">
+                ({total_avaliacoes || 0})
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className={`${isList ? 'text-2xl' : 'text-xl'} font-black text-[#1a2b6d]`}>
+                {Number(preco_noite).toLocaleString('pt-PT')}
+              </span>
+              <span className="text-[10px] font-black text-gray-500 uppercase">CVE</span>
+              <span className="text-xs font-semibold text-gray-400">/ noite</span>
+            </div>
           </div>
 
           {isList && (
@@ -90,9 +132,11 @@ const CardAlojamento = ({ id, imagem_url, titulo, localizacao, descricao, preco_
         </div>
       </div>
       
+      {/* Link usando SLUG ou ID */}
       <Link 
-        to={`/alojamento/${id}`} 
+        to={linkTo}
         className="absolute inset-0 z-0" 
+        aria-label={`Ver detalhes de ${titulo}`}
       />
     </div>
   );
