@@ -16,6 +16,7 @@ import Alojamentos from './features/alojamento/components/Alojamentos';
 import Carros from './features/carros/components/Carros';
 import Experiencias from './features/experiencias/components/Experiencias';
 import ExperienciaDetalhes from './features/experiencias/components/ExperienciaDetalhes';
+import CarrosDetalhes from './features/carros/components/CarrosDetalhes';
 import PaginaMapa from './features/alojamento/components/MapaInterativoAlojamentos';
 import CheckoutExperiancia from './features/experiencias/components/CheckoutExperiencia';
 import CheckoutAlojamento from './features/alojamento/components/CheckoutAlojamento';
@@ -48,18 +49,20 @@ function App() {
 
             {/* Alojamentos */}
            <Route path="/alojamentos" element={<Alojamentos />} />
-  <Route path="/alojamentos/:slug" element={<InfoAlojamento />} />
-  <Route path="/alojamento/:slug" element={<InfoAlojamento />} />
+           <Route path="/alojamentos/:slug" element={<InfoAlojamento />} />
+           <Route path="/alojamento/:slug" element={<InfoAlojamento />} />
+           <Route path="/alojamento_teste/:id" element={<PaginaDetalhesAlojamnetos />} />
 
-
-            <Route path="/alojamento_teste/:id" element={<PaginaDetalhesAlojamnetos />} />
+           {/* Carros */}
+           <Route path="/carros" element={<Carros />} />
+           <Route path="/carros/:slug" element={<CarrosDetalhes />} />
+           <Route path="/carro/:slug" element={<CarrosDetalhes />} />
 
             {/* Experiências */}
             <Route path="/experiencias" element={<Experiencias />} />
             <Route path="/experiencia/:slug" element={<ExperienciaDetalhes />} />
 
             {/* Outros */}
-            <Route path="/carros" element={<Carros />} />
             <Route path="/mapa" element={<PaginaMapa />} />
             <Route path="/checkout-experiancia" element={<CheckoutExperiancia />} />
             <Route path="/checkout-alojamento" element={<CheckoutAlojamento />} />
