@@ -1,3 +1,4 @@
+// Confirmacao.jsx - Com suporte para Carros
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -9,6 +10,7 @@ import {
 // Importação dos Resumos Reutilizáveis
 import ResumoReservaExperiencia from '../features/experiencias/components/ResumoReservaExperiencia';
 import ResumoReservaAlojamento from '../features/alojamento/components/ResumoReservaAlojamento';
+import ResumoReservaCarro from '../features/carros/components/ResumoReservaCarro';
 
 const Confirmacao = () => {
   const location = useLocation();
@@ -36,17 +38,27 @@ const Confirmacao = () => {
     if (!reservaData) {
       const cacheAlojamento = sessionStorage.getItem('reservaAlojamentoPendente');
       const cacheExperiencia = sessionStorage.getItem('reservaPendente');
+      const cacheCarro = sessionStorage.getItem('reservaCarroPendente');
 
       if (cacheAlojamento) {
         setTipo('alojamento');
       } else if (cacheExperiencia) {
         setTipo('experiencia');
+      } else if (cacheCarro) {
+        setTipo('carro');
       }
     }
   }, [reservaData]);
 
-  const totalPessoas = tipo === 'alojamento' ? (reservaData?.totalHospedes || 1) : (reservaData?.participantes || 1);
-  const precoTotal = tipo === 'alojamento' ? (reservaData?.totalGeral || 0) : (reservaData?.precoTotal || 0);
+  // Calcular valores baseado no tipo
+  const totalPessoas = tipo === 'alojamento' 
+    ? (reservaData?.totalHospedes || 1) 
+    : (tipo === 'carro' ? 1 : (reservaData?.participantes || 1));
+    
+  const precoTotal = tipo === 'alojamento' 
+    ? (reservaData?.totalGeral || 0) 
+    : (tipo === 'carro' ? (reservaData?.totalGeral || 0) : (reservaData?.precoTotal || 0));
+    
   const emailUsuario = reservaData?.email || userEmail || 'cliente@email.com';
 
   // Função para copiar código
@@ -73,6 +85,50 @@ const Confirmacao = () => {
     }
   };
 
+  // Textos dinâmicos baseado no tipo
+  const getStep1Label = () => {
+    if (tipo === 'alojamento') return 'Dados dos Hóspedes';
+    if (tipo === 'carro') return 'Dados do Condutor';
+    return 'Dados dos Participantes';
+  };
+
+  const getInfoMessages = () => {
+    if (tipo === 'alojamento') {
+      return [
+        'Respeite a hora de entrada e saída acordadas.',
+        'Apresente um documento de identificação no momento do check-in.',
+        'Cancelamento gratuito até 48h antes do check-in.',
+        'Em caso de dúvidas, entre em contacto connosco.'
+      ];
+    } else if (tipo === 'carro') {
+      return [
+        'Apresente a carta de condução e documento de identificação no momento do levantamento.',
+        'Verifique as condições do veículo antes de sair.',
+        'Cancelamento gratuito até 48h antes do levantamento.',
+        'Devolva o veículo com o depósito de combustível combinado.'
+      ];
+    } else {
+      return [
+        'Chegue 15 minutos antes do horário selecionado.',
+        'Apresente um documento de identificação no momento do check-in.',
+        'Cancelamento gratuito até 24h antes da experiência.',
+        'Em caso de dúvidas, entre em contacto connosco.'
+      ];
+    }
+  };
+
+  const getPrepareMessage = () => {
+    if (tipo === 'alojamento') return 'Prepare-se para o check-in';
+    if (tipo === 'carro') return 'Prepare-se para o levantamento';
+    return 'Prepare-se para o tour';
+  };
+
+  const getDetailMessage = () => {
+    if (tipo === 'alojamento') return 'Verifique os horários e regras descritas no voucher.';
+    if (tipo === 'carro') return 'Verifique os documentos necessários e horário de levantamento.';
+    return 'Chegue 15 minutos antes do horário escolhido no ponto de encontro.';
+  };
+
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
       <div className="max-w-7xl mx-auto">
@@ -80,7 +136,7 @@ const Confirmacao = () => {
         {/* STEPPER - Passo 3 de 3 (Final) */}
         <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
           {[
-            { n: 1, label: tipo === 'alojamento' ? 'Dados dos Hóspedes' : 'Dados dos Participantes', check: true },
+            { n: 1, label: getStep1Label(), check: true },
             { n: 2, label: 'Pagamento', check: true },
             { n: 3, label: 'Confirmação', active: true },
           ].map((s, i, arr) => (
@@ -127,7 +183,7 @@ const Confirmacao = () => {
                   <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-1">Código da reserva</p>
                   <div className="flex items-center gap-3 flex-wrap">
                     <h2 className="text-2xl md:text-3xl font-bold text-blue-900 tracking-tight font-mono">
-                      {codigoReserva || 'CV240524-8723'}
+                      {codigoReserva || 'RES-XXXXXX'}
                     </h2>
                     <button 
                       onClick={handleCopyCode}
@@ -140,7 +196,7 @@ const Confirmacao = () => {
                     Enviámos os detalhes da sua reserva para <span className="font-bold text-blue-800">{emailUsuario}</span>
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Guarde este código para futuras consultas e para apresentar no dia do passeio.
+                    Guarde este código para futuras consultas e para apresentar no dia.
                   </p>
                   <p className="text-[10px] text-green-600 mt-2 flex items-center gap-1">
                     <Mail size={10} /> Um email de confirmação foi enviado para o seu endereço.
@@ -152,7 +208,7 @@ const Confirmacao = () => {
             {/* O QUE ACONTECE A SEGUIR */}
             <div className="border border-slate-100 rounded-xl p-6 mb-8 bg-white shadow-sm">
               <h3 className="text-sm font-bold text-blue-900 uppercase flex items-center gap-2 mb-6">
-                <Check size={18} className="text-blue-600" /> O que acontece a segue?
+                <Check size={18} className="text-blue-600" /> O que acontece a seguir?
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -170,9 +226,9 @@ const Confirmacao = () => {
                   <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Calendar size={20} />
                   </div>
-                  <p className="text-xs font-bold text-blue-900 mb-1">{tipo === 'alojamento' ? 'Prepare-se para o check-in' : 'Prepare-se para o tour'}</p>
+                  <p className="text-xs font-bold text-blue-900 mb-1">{getPrepareMessage()}</p>
                   <p className="text-[10px] text-slate-500 leading-relaxed">
-                    {tipo === 'alojamento' ? 'Verifique os horários e regras descritas no voucher.' : 'Chegue 15 minutos antes do horário escolhido no ponto de encontro.'}
+                    {getDetailMessage()}
                   </p>
                 </div>
 
@@ -180,8 +236,12 @@ const Confirmacao = () => {
                   <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Camera size={20} />
                   </div>
-                  <p className="text-xs font-bold text-blue-900 mb-1">Aproveite a experiência!</p>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">Descubra a história e a cultura local.</p>
+                  <p className="text-xs font-bold text-blue-900 mb-1">
+                    {tipo === 'carro' ? 'Aproveite o veículo!' : 'Aproveite a experiência!'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    {tipo === 'carro' ? 'Explore Cabo Verde com conforto e segurança.' : 'Descubra a história e a cultura local.'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -193,12 +253,7 @@ const Confirmacao = () => {
                 Informações importantes
               </h3>
               <ul className="space-y-1.5">
-                {[
-                  tipo === 'alojamento' ? 'Respeite a hora de entrada e saída acordadas.' : 'Chegue 15 minutos antes do horário selecionado.',
-                  'Apresente um documento de identificação no momento do check-in.',
-                  tipo === 'alojamento' ? 'Cancelamento gratuito até 48h antes do check-in.' : 'Cancelamento gratuito até 24h antes da experiência.',
-                  'Em caso de dúvidas, entre em contacto connosco.'
-                ].map((text, i) => (
+                {getInfoMessages().map((text, i) => (
                   <li key={i} className="text-[11px] text-blue-800 flex items-start gap-2">
                     <Check size={11} className="text-blue-500 shrink-0 mt-0.5" /> 
                     <span>{text}</span>
@@ -237,12 +292,21 @@ const Confirmacao = () => {
             </div>
           </div>
 
-          {/* COLUNA DIREITA: RESUMO */}
+          {/* COLUNA DIREITA: RESUMO DA RESERVA */}
           <div className="lg:col-span-4">
             {tipo === 'alojamento' ? (
               <ResumoReservaAlojamento 
                 reserva={reservaData || {}}
                 totalHospedes={totalPessoas}
+                precoTotal={precoTotal}
+                showPaymentInfo={true}
+                paymentStatus="paid"
+                isConfirmed={true}
+                codigoReserva={codigoReserva}
+              />
+            ) : tipo === 'carro' ? (
+              <ResumoReservaCarro 
+                reserva={reservaData || {}}
                 precoTotal={precoTotal}
                 showPaymentInfo={true}
                 paymentStatus="paid"

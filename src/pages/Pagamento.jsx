@@ -1,3 +1,4 @@
+// Pagamento.jsx - Versão COMPLETA com suporte para Experiências, Alojamentos e Carros
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -10,6 +11,7 @@ import { Elements, useStripe, useElements, CardElement } from '@stripe/react-str
 // Importação dos Resumos
 import ResumoReservaExperiencia from '../features/experiencias/components/ResumoReservaExperiencia';
 import ResumoReservaAlojamento from '../features/alojamento/components/ResumoReservaAlojamento';
+import ResumoReservaCarro from '../features/carros/components/ResumoReservaCarro';
 import PayPalButton from './PayPalButton';
 
 const stripePromise = loadStripe('pk_test_51Q2vbsBGBgdae3VE253hWrzJikRaIK6tYOlWOeCKkFt6GArcJUZrNoaBc21vXz1F0sxPc3ErEqskwvQFf2EIDov200ZtBcleBd');
@@ -33,65 +35,100 @@ const PagamentoContent = () => {
     window.scrollTo(0, 0);
     
     // Se não veio por state, tenta recuperar do sessionStorage baseado no tipo
-    if (!reservaData) {
+    if (!reservaData || Object.keys(reservaData).length === 0) {
       const cacheAlojamento = sessionStorage.getItem('reservaAlojamentoPendente');
       const cacheExperiencia = sessionStorage.getItem('reservaPendente');
+      const cacheCarro = sessionStorage.getItem('reservaCarroPendente');
 
       if (cacheAlojamento) {
-        const dados = JSON.parse(cacheAlojamento);
-        setReserva(dados.reservaData);
-        setTipo('alojamento');
+        try {
+          const dados = JSON.parse(cacheAlojamento);
+          setReserva(dados.reservaData || {});
+          setTipo('alojamento');
+        } catch (e) { console.error('Erro ao parse cacheAlojamento:', e); }
       } else if (cacheExperiencia) {
-        const dados = JSON.parse(cacheExperiencia);
-        setReserva(dados.reservaData);
-        setTipo('experiencia');
-      } else {
-        navigate('/');
+        try {
+          const dados = JSON.parse(cacheExperiencia);
+          setReserva(dados.reservaData || {});
+          setTipo('experiencia');
+        } catch (e) { console.error('Erro ao parse cacheExperiencia:', e); }
+      } else if (cacheCarro) {
+        try {
+          const dados = JSON.parse(cacheCarro);
+          setReserva(dados.reservaData || {});
+          setTipo('carro');
+        } catch (e) { console.error('Erro ao parse cacheCarro:', e); }
       }
+    } else if (tipoState === 'carro') {
+      setTipo('carro');
+    } else if (tipoState === 'alojamento') {
+      setTipo('alojamento');
+    } else if (tipoState === 'experiencia') {
+      setTipo('experiencia');
     }
-  }, [reservaData, navigate]);
+  }, [reservaData, tipoState]);
 
   const enviarEmailsConfirmacao = async (dadosAPI) => {
     try {
       console.log('📧 Iniciando envio de emails...');
-      const keyStorage = tipo === 'alojamento' ? 'reservaAlojamentoPendente' : 'reservaPendente';
+      
+      let keyStorage;
+      if (tipo === 'alojamento') keyStorage = 'reservaAlojamentoPendente';
+      else if (tipo === 'carro') keyStorage = 'reservaCarroPendente';
+      else keyStorage = 'reservaPendente';
+      
       const cache = sessionStorage.getItem(keyStorage);
-      if (!cache) return;
+      if (!cache) {
+        console.log('⚠️ Nenhum cache encontrado para:', keyStorage);
+        return;
+      }
 
       const dados = JSON.parse(cache);
       const { reservaData: rD, participantePrincipal, participantesAdicionais } = dados;
 
-      const dataFormatada = tipo === 'alojamento' 
-        ? `${rD.checkIn} até ${rD.checkOut}`
-        : (rD.data || rD.entrada || new Date().toLocaleDateString('pt-PT'));
+      if (!participantePrincipal) {
+        console.error('❌ participantePrincipal não encontrado no cache');
+        return;
+      }
 
-      const horarioFormatado = tipo === 'alojamento'
-        ? `${rD.noites} noites`
-        : `${rD.periodo || ''} ${rD.horario || ''}`.trim();
+      let dataFormatada, horarioFormatado, quantidadeLabel;
+      
+      if (tipo === 'alojamento') {
+        dataFormatada = `${rD?.checkIn || ''} até ${rD?.checkOut || ''}`;
+        horarioFormatado = `${rD?.noites || 0} noites`;
+        quantidadeLabel = rD?.totalHospedes || 1;
+      } else if (tipo === 'carro') {
+        dataFormatada = `${rD?.checkIn || ''} até ${rD?.checkOut || ''}`;
+        horarioFormatado = `${rD?.dias || 0} dias • Levantamento: ${participantePrincipal?.hora_levantamento || '10:00'}`;
+        quantidadeLabel = 1;
+      } else {
+        dataFormatada = rD?.data || rD?.entrada || new Date().toLocaleDateString('pt-PT');
+        horarioFormatado = `${rD?.periodo || ''} ${rD?.horario || ''}`.trim();
+        quantidadeLabel = rD?.participantes || 1;
+      }
 
-      // 🔥 CORREÇÃO DA CHAVE: Alterado de 'font_cliente' para 'nome_cliente' para bater certo com a validação do PHP
       const emailPayload = {
-        email_cliente: participantePrincipal.email,
-        nome_cliente: participantePrincipal.nome_completo,
+        email_cliente: participantePrincipal.email || '',
+        nome_cliente: participantePrincipal.nome_completo || 'Cliente',
         phone_cliente: participantePrincipal.phone || '',
-        codigo_reserva: dadosAPI.codigo_reserva,
-        reserva_id: String(dadosAPI.reserva_id),
-        experiencia: rD.titulo,
+        codigo_reserva: dadosAPI?.codigo_reserva || '',
+        reserva_id: String(dadosAPI?.reserva_id || ''),
+        experiencia: rD?.titulo || 'Reserva Morabeza Stay',
         data: dataFormatada,
         horario: horarioFormatado,
-        quantidade_pessoas: tipo === 'alojamento' ? (rD.totalHospedes || 1) : (rD.participantes || 1),
-        preco_total: tipo === 'alojamento' ? rD.totalGeral : rD.precoTotal,
+        quantidade_pessoas: quantidadeLabel,
+        preco_total: tipo === 'alojamento' ? (rD?.totalGeral || 0) : (tipo === 'carro' ? (rD?.totalGeral || 0) : (rD?.precoTotal || 0)),
         metodo_pagamento: metodoPagamento,
         status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
         participante_principal: {
-          nome_completo: participantePrincipal.nome_completo,
-          email: participantePrincipal.email,
+          nome_completo: participantePrincipal.nome_completo || '',
+          email: participantePrincipal.email || '',
           phone: participantePrincipal.phone || ''
         },
         participantes_adicionais: (participantesAdicionais || []).map(p => ({
-          nome_completo: p.nome_completo || '',
-          email: p.email || '',
-          phone: p.phone || ''
+          nome_completo: p?.nome_completo || '',
+          email: p?.email || '',
+          phone: p?.phone || ''
         }))
       };
 
@@ -100,50 +137,113 @@ const PagamentoContent = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(emailPayload)
       });
+      console.log('✅ Emails enviados com sucesso');
     } catch (err) {
       console.error('❌ Erro ao enviar e-mails:', err);
     }
   };
 
   const salvarReservaNoBackend = async (dadosTransacao) => {
-    const keyStorage = tipo === 'alojamento' ? 'reservaAlojamentoPendente' : 'reservaPendente';
+    let keyStorage;
+    if (tipo === 'alojamento') keyStorage = 'reservaAlojamentoPendente';
+    else if (tipo === 'carro') keyStorage = 'reservaCarroPendente';
+    else keyStorage = 'reservaPendente';
+    
     const cache = sessionStorage.getItem(keyStorage);
     if (!cache) throw new Error("Os dados da sua sessão de reserva expiraram.");
 
     const dados = JSON.parse(cache);
-    const { reservaData: rD, participantePrincipal: pP, participantesAdicionais: pA, usuario } = dados;
+    const { reservaData: rD, participantePrincipal, participantesAdicionais, usuario } = dados;
 
-    const payload = {
-      category: tipo === 'alojamento' ? 'Alojamento' : 'Experiencia',
-      usuario: {
-        email: pP.email,
-        nome_completo: pP.nome_completo,
-        phone: pP.phone,
-        google_id: usuario?.google_id || null
-      },
-      reserva: tipo === 'alojamento' ? {
-        alojamento_id: rD.id,
-        data_checkin: rD.checkIn,
-        data_checkout: rD.checkOut,
-        quantidade_hospedes: rD.totalHospedes,
-        preco_total: rD.totalGeral,
-        noites: rD.noites
-      } : {
-        experiencia_id: rD.id,
-        data_participacao: rD.dataISO,
-        horario: `${rD.periodo || ''} ${rD.horario || ''}`.trim(),
-        quantidade_pessoas: rD.participantes,
-        preco_total: rD.precoTotal
-      },
-      participante_principal: { ...pP },
-      participantes_adicionais: pA.map(p => ({ ...p })),
-      metodo_pagamento: metodoPagamento,
-      status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
-      transaction_id: dadosTransacao?.id || dadosTransacao?.paypal_capture_id || null,
-      paypal_order_id: dadosTransacao?.paypal_order_id || null,
-      paypal_capture_id: dadosTransacao?.paypal_capture_id || null,
-      stripe_id: dadosTransacao?.id || null
-    };
+    if (!participantePrincipal) {
+      throw new Error("Dados do participante principal não encontrados");
+    }
+
+    let payload;
+    
+    if (tipo === 'alojamento') {
+      payload = {
+        category: 'Alojamento',
+        usuario: {
+          email: participantePrincipal.email || '',
+          nome_completo: participantePrincipal.nome_completo || '',
+          phone: participantePrincipal.phone || '',
+          google_id: usuario?.google_id || null
+        },
+        reserva: {
+          alojamento_id: rD?.id,
+          data_checkin: rD?.checkIn,
+          data_checkout: rD?.checkOut,
+          quantidade_hospedes: rD?.totalHospedes,
+          preco_total: rD?.totalGeral,
+          noites: rD?.noites
+        },
+        participante_principal: { ...participantePrincipal },
+        participantes_adicionais: (participantesAdicionais || []).map(p => ({ ...p })),
+        metodo_pagamento: metodoPagamento,
+        status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
+        transaction_id: dadosTransacao?.id || dadosTransacao?.paypal_capture_id || null,
+        paypal_order_id: dadosTransacao?.paypal_order_id || null,
+        paypal_capture_id: dadosTransacao?.paypal_capture_id || null,
+        stripe_id: dadosTransacao?.id || null
+      };
+    } else if (tipo === 'carro') {
+      payload = {
+        category: 'Carro',
+        usuario: {
+          email: participantePrincipal.email || '',
+          nome_completo: participantePrincipal.nome_completo || '',
+          phone: participantePrincipal.phone || '',
+          google_id: usuario?.google_id || null
+        },
+        reserva: {
+          id: rD?.id,
+          checkIn: rD?.checkIn,
+          checkOut: rD?.checkOut,
+          dias: rD?.dias,
+          preco_total: rD?.totalGeral,
+          carro_id: rD?.id
+        },
+        participante_principal: {
+          ...participantePrincipal,
+          hora_levantamento: participantePrincipal.hora_levantamento || '10:00',
+          carta_conducao_nome: participantePrincipal.carta_conducao_nome || '',
+          observacoes: participantePrincipal.observacoes || ''
+        },
+        participantes_adicionais: [],
+        metodo_pagamento: metodoPagamento,
+        status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
+        transaction_id: dadosTransacao?.id || dadosTransacao?.paypal_capture_id || null,
+        paypal_order_id: dadosTransacao?.paypal_order_id || null,
+        paypal_capture_id: dadosTransacao?.paypal_capture_id || null,
+        stripe_id: dadosTransacao?.id || null
+      };
+    } else {
+      payload = {
+        category: 'Experiencia',
+        usuario: {
+          email: participantePrincipal.email || '',
+          nome_completo: participantePrincipal.nome_completo || '',
+          phone: participantePrincipal.phone || '',
+          google_id: usuario?.google_id || null
+        },
+        reserva: {
+          experiencia_id: rD?.id,
+          data_participacao: rD?.dataISO,
+          horario: `${rD?.periodo || ''} ${rD?.horario || ''}`.trim(),
+          quantidade_pessoas: rD?.participantes,
+          preco_total: rD?.precoTotal
+        },
+        participante_principal: { ...participantePrincipal },
+        participantes_adicionais: (participantesAdicionais || []).map(p => ({ ...p })),
+        metodo_pagamento: metodoPagamento,
+        status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
+        transaction_id: dadosTransacao?.id || dadosTransacao?.paypal_capture_id || null,
+        paypal_order_id: dadosTransacao?.paypal_order_id || null,
+        paypal_capture_id: dadosTransacao?.paypal_capture_id || null,
+        stripe_id: dadosTransacao?.id || null
+      };
+    }
 
     const response = await fetch('https://welovepalop.com/api/checkout_api.php', {
       method: 'POST',
@@ -196,7 +296,11 @@ const PagamentoContent = () => {
           return;
         }
 
-        const totalPagar = tipo === 'alojamento' ? reserva.totalGeral : reserva.precoTotal;
+        let totalPagar;
+        if (tipo === 'alojamento') totalPagar = reserva?.totalGeral || 0;
+        else if (tipo === 'carro') totalPagar = reserva?.totalGeral || 0;
+        else totalPagar = reserva?.precoTotal || 0;
+        
         const taxaConversao = 110.265;
         let valorEmEUR = totalPagar / taxaConversao;
 
@@ -249,13 +353,17 @@ const PagamentoContent = () => {
   };
 
   const finalizeSucesso = (data) => {
-    const keyStorage = tipo === 'alojamento' ? 'reservaAlojamentoPendente' : 'reservaPendente';
+    let keyStorage;
+    if (tipo === 'alojamento') keyStorage = 'reservaAlojamentoPendente';
+    else if (tipo === 'carro') keyStorage = 'reservaCarroPendente';
+    else keyStorage = 'reservaPendente';
+    
     sessionStorage.removeItem(keyStorage);
     
     navigate('/confirmacao', { 
       state: { 
-        reservaId: data.reserva_id,
-        codigoReserva: data.codigo_reserva,
+        reservaId: data?.reserva_id,
+        codigoReserva: data?.codigo_reserva,
         reservaData: reserva,
         metodoPagamento,
         tipo,
@@ -265,24 +373,41 @@ const PagamentoContent = () => {
   };
 
   const getPayPalReservationData = () => {
-    const keyStorage = tipo === 'alojamento' ? 'reservaAlojamentoPendente' : 'reservaPendente';
+    let keyStorage;
+    if (tipo === 'alojamento') keyStorage = 'reservaAlojamentoPendente';
+    else if (tipo === 'carro') keyStorage = 'reservaCarroPendente';
+    else keyStorage = 'reservaPendente';
+    
     const cache = sessionStorage.getItem(keyStorage);
     if (cache) {
-      const dados = JSON.parse(cache);
-      return {
-        titulo: reserva.titulo,
-        reserva_id: reserva.id,
-        email_cliente: dados.participantePrincipal?.email,
-        nome_cliente: dados.participantePrincipal?.nome_completo,
-        phone_cliente: dados.participantePrincipal?.phone
-      };
+      try {
+        const dados = JSON.parse(cache);
+        return {
+          titulo: reserva?.titulo || 'Reserva',
+          reserva_id: reserva?.id,
+          email_cliente: dados.participantePrincipal?.email || '',
+          nome_cliente: dados.participantePrincipal?.nome_completo || 'Cliente',
+          phone_cliente: dados.participantePrincipal?.phone || ''
+        };
+      } catch (e) {
+        return { titulo: reserva?.titulo || 'Reserva', nome_cliente: 'Cliente', email_cliente: '' };
+      }
     }
-    return { titulo: reserva.titulo, nome_cliente: 'Cliente', email_cliente: '' };
+    return { titulo: reserva?.titulo || 'Reserva', nome_cliente: 'Cliente', email_cliente: '' };
   };
 
   const isPayPalAmountValid = () => {
-    const totalPagar = tipo === 'alojamento' ? (reserva.totalGeral || 0) : (reserva.precoTotal || 0);
+    let totalPagar;
+    if (tipo === 'alojamento') totalPagar = reserva?.totalGeral || 0;
+    else if (tipo === 'carro') totalPagar = reserva?.totalGeral || 0;
+    else totalPagar = reserva?.precoTotal || 0;
     return (totalPagar / 110.265) >= 0.50;
+  };
+
+  const getTituloStepper = () => {
+    if (tipo === 'alojamento') return 'Dados dos hóspedes';
+    if (tipo === 'carro') return 'Dados do condutor';
+    return 'Dados dos participantes';
   };
 
   return (
@@ -291,7 +416,7 @@ const PagamentoContent = () => {
         {/* STEPPER */}
         <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
           {[
-            { n: 1, label: tipo === 'alojamento' ? 'Dados dos hóspedes' : 'Dados dos participantes', check: true },
+            { n: 1, label: getTituloStepper(), check: true },
             { n: 2, label: 'Pagamento', active: true },
             { n: 3, label: 'Confirmação' },
           ].map((s, i, arr) => (
@@ -393,7 +518,7 @@ const PagamentoContent = () => {
                           </div>
                         ) : (
                           <PayPalButton
-                            amount={tipo === 'alojamento' ? reserva.totalGeral : reserva.precoTotal}
+                            amount={tipo === 'alojamento' || tipo === 'carro' ? (reserva?.totalGeral || 0) : (reserva?.precoTotal || 0)}
                             currency="CVE"
                             reservationData={getPayPalReservationData()}
                             onSuccess={handlePayPalSuccess}
@@ -453,6 +578,13 @@ const PagamentoContent = () => {
               <ResumoReservaAlojamento 
                 reserva={reserva}
                 totalHospedes={reserva?.totalHospedes}
+                precoTotal={reserva?.totalGeral}
+                showPaymentInfo={true}
+                paymentStatus="pending"
+              />
+            ) : tipo === 'carro' ? (
+              <ResumoReservaCarro 
+                reserva={reserva}
                 precoTotal={reserva?.totalGeral}
                 showPaymentInfo={true}
                 paymentStatus="pending"

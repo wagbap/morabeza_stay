@@ -20,8 +20,10 @@ import CarrosDetalhes from './features/carros/components/CarrosDetalhes';
 import PaginaMapa from './features/alojamento/components/MapaInterativoAlojamentos';
 import CheckoutExperiancia from './features/experiencias/components/CheckoutExperiencia';
 import CheckoutAlojamento from './features/alojamento/components/CheckoutAlojamento';
+import CheckoutCarro from './features/carros/components/CheckoutCarro';
 import Pagamento from './pages/Pagamento';
 import Confirmacao from './pages/Confirmacao';
+
 
 
 import PaginaDetalhesAlojamnetos from './features/alojamento/components/PaginaDetalhesAlojamnetos';
@@ -66,6 +68,7 @@ function App() {
             <Route path="/mapa" element={<PaginaMapa />} />
             <Route path="/checkout-experiancia" element={<CheckoutExperiancia />} />
             <Route path="/checkout-alojamento" element={<CheckoutAlojamento />} />
+            <Route path="/checkout-carro" element={<CheckoutCarro />} />
             <Route path="/pagamento" element={<Pagamento />} />
             <Route path="/confirmacao" element={<Confirmacao />} />
           </Routes>
