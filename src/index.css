@@ -25,4 +25,53 @@ nav {
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}/* Animações para os marcadores */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.map-marker-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Estilo para o popup do Mapbox */
+.mapboxgl-popup-content {
+  border-radius: 16px !important;
+  padding: 0 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+.mapboxgl-popup-close-button {
+  font-size: 16px !important;
+  padding: 8px 10px !important;
+  color: #64748b !important;
+  background: transparent !important;
+}
+
+.mapboxgl-popup-close-button:hover {
+  color: #ef4444 !important;
+  background: transparent !important;
+}
+
+/* Scrollbar personalizada para sidebar */
+.max-h-calc\(100vh-120px\)::-webkit-scrollbar {
+  width: 4px;
+}
+
+.max-h-calc\(100vh-120px\)::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.max-h-calc\(100vh-120px\)::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 4px;
 }

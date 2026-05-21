@@ -9,7 +9,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import CardAlojamento from './CardAlojamento';
 import FiltrosLateralAlojamento from './FiltrosLateralAlojamento'; 
 import SearchBar from './SearchBarAlojamento';
-import MapaInterativo from '../../experiencias/components/MapaInterativoExperiencia';
 import AlojamentoHero from './AlojamentoHero'; // ✅ Import adicionado!
 
 const Alojamentos = () => {
@@ -185,11 +184,7 @@ const Alojamentos = () => {
         </div>
       </main>
 
-      <MapaInterativo 
-        isOpen={mapaAberto} 
-        onClose={() => setMapaAberto(false)} 
-        dadosAlojamentos={alojamentos} 
-      />
+
     </div>
   );
 };

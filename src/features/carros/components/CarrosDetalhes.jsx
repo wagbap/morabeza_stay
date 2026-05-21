@@ -1,15 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { 
   Users, Gauge, Fuel, MapPin, Star, ChevronRight, ChevronLeft, 
   Camera, CheckCircle, ExternalLink, ChevronDown, 
   X, Loader2, Calendar, Paintbrush, Info, CalendarDays,
-  ShieldCheck, Infinity, ShieldAlert, Key
+  ShieldCheck, Infinity, ShieldAlert, Key, Maximize2, Navigation
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import AvaliacoesSeccaoCarro from './AvaliacoesSeccaoCarro';
+
+// Token do Mapbox
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // Componente SliderModal para visualização em tela cheia
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
@@ -53,12 +58,12 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
   );
 };
 
-// Componente TabsNavegacaoCarros
+// Componente TabsNavegacaoCarros (apenas 3 abas: Visão Geral, Especificações, Localização)
 const TabsNavegacaoCarros = ({ activeTab = 0, onTabChange }) => {
   const tabs = [
     { id: 0, label: 'Visão Geral' },
     { id: 1, label: 'Especificações' },
-    { id: 4, label: 'Localização' },
+    { id: 2, label: 'Localização' },
   ];
 
   return (
@@ -110,30 +115,44 @@ const EspecificacoesBar = ({ caracteristicas }) => {
   );
 };
 
-// Barra horizontal de vantagens adicionais idêntica ao design enviado
-const InclusoesCarroBar = ({ localizacao }) => {
-  const inclusoes = [
-    { icon: CheckCircle, titulo: 'Cancelamento', valor: 'Gratuito', colorClass: 'text-green-600' },
-    { icon: ShieldCheck, titulo: 'Seguro básico', valor: 'Incluído', colorClass: 'text-green-600' },
-    { icon: Infinity, titulo: 'Quilometragem', valor: 'Ilimitada', colorClass: 'text-green-600' },
-    { icon: ShieldAlert, titulo: 'Assistência 24/7', valor: 'Incluída', colorClass: 'text-green-600' },
-    { icon: Key, titulo: 'Levantamento', valor: localizacao || 'Aeroporto da Praia', colorClass: 'text-slate-500' },
-    { icon: Fuel, titulo: 'Combustível', valor: 'Cheio a cheio', colorClass: 'text-slate-500' },
+// Componente InclusoesCarroBar
+const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
+  const dadosExibicao = inclusoes && inclusoes.length > 0 ? inclusoes : [
+    { titulo: 'Cancelamento', valor: 'Gratuito', icone: 'CheckCircle', cor_classe: 'text-green-600' },
+    { titulo: 'Seguro básico', valor: 'Incluído', icone: 'ShieldCheck', cor_classe: 'text-green-600' },
+    { titulo: 'Quilometragem', valor: 'Ilimitada', icone: 'Infinity', cor_classe: 'text-green-600' },
+    { titulo: 'Assistência 24/7', valor: 'Incluída', icone: 'ShieldAlert', cor_classe: 'text-green-600' },
+    { titulo: 'Levantamento', valor: localizacao || 'Aeroporto da Praia', icone: 'Key', cor_classe: 'text-slate-500' },
+    { titulo: 'Combustível', valor: 'Cheio a cheio', icone: 'Fuel', cor_classe: 'text-slate-500' }
   ];
+
+  const iconesMapeados = {
+    CheckCircle: CheckCircle,
+    ShieldCheck: ShieldCheck,
+    Infinity: Infinity,
+    ShieldAlert: ShieldAlert,
+    Key: Key,
+    Fuel: Fuel
+  };
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
-      {inclusoes.map((item, i) => (
-        <div key={i} className="flex items-center gap-2 border-r last:border-r-0 border-slate-100 pr-1 text-left">
-          <div className="text-slate-400 shrink-0">
-            <item.icon size={18} strokeWidth={1.5} />
+      {dadosExibicao.map((item, i) => {
+        const IconComponent = iconesMapeados[item.icone] || CheckCircle;
+        const corClasse = item.cor_classe || 'text-slate-500';
+
+        return (
+          <div key={i} className="flex items-center gap-2 border-r last:border-r-0 border-slate-100 pr-1 text-left">
+            <div className="text-slate-400 shrink-0">
+              <IconComponent size={18} strokeWidth={1.5} />
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[10px] font-semibold text-slate-500 leading-tight">{item.titulo}</span>
+              <span className={`text-[10px] font-bold ${corClasse} mt-0.5`}>{item.valor}</span>
+            </div>
           </div>
-          <div className="flex flex-col text-left">
-            <span className="text-[10px] font-semibold text-slate-500 leading-tight">{item.titulo}</span>
-            <span className={`text-[10px] font-bold ${item.colorClass} mt-0.5`}>{item.valor}</span>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -206,6 +225,213 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
         </div>
       </div>
     </div>
+  );
+};
+
+// Componente MapLocationCarro - CORRIGIDO (agora dentro do mesmo arquivo)
+const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) => {
+  const navigate = useNavigate();
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [isMapaInterativoOpen, setIsMapaInterativoOpen] = useState(false);
+  
+  const temCoordenadas = latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude));
+  
+  const textoLocalizacao = `${ilha || 'Cabo Verde'}, ${localizacao || 'Localização não informada'}`;
+  const cidadeNome = localizacao || ilha || 'Cabo Verde';
+  
+  const abrirPaginaMapa = () => {
+    if (carroId) {
+      navigate(`/mapa-carros?foco=${carroId}`);
+    } else {
+      navigate('/mapa-carros');
+    }
+  };
+  
+  const abrirMapaInterativo = () => {
+    setIsMapaInterativoOpen(true);
+  };
+  
+  const getPontosProximos = () => {
+    const localLower = (localizacao || '').toLowerCase();
+    const ilhaLower = (ilha || '').toLowerCase();
+    
+    const pontosMap = {
+      'praia': ['Praia de Santa Maria', 'Mirage Beach Club', 'Aeroporto Internacional'],
+      'santa maria': ['Praia de Santa Maria', 'Mirage Beach Club', 'Ponta Preta'],
+      'mindelo': ['Porto Grande', 'Centro Cultural', 'Praça Estrela'],
+      'palmeira': ['Porto da Palmeira', 'Farol da Ponta do Sinó', 'Praia Grande'],
+      'tarrafal': ['Praia de Tarrafal', 'Chã de Tanque', 'Monte Graciosa'],
+      'sal rei': ['Praia de Sal Rei', 'Deserto de Viana', 'Morro de Areia'],
+    };
+    
+    for (const [key, pontos] of Object.entries(pontosMap)) {
+      if (localLower.includes(key)) {
+        return pontos;
+      }
+    }
+    
+    const pontosIlha = {
+      'sal': ['Praia de Santa Maria', 'Salinas', 'Palmeira'],
+      'santiago': ['Praia de Tarrafal', 'Cidade Velha', 'Serra Malagueta'],
+      'são vicente': ['Porto Grande', 'Centro de Mindelo', 'Praia Laginha'],
+      'santo antão': ['Porto Novo', 'Ribeira Grande', 'Miradouro'],
+      'fogo': ['Chã das Caldeiras', 'Mosteiros', 'São Filipe'],
+      'boa vista': ['Praia de Santa Mónica', 'Sal Rei', 'Deserto de Viana'],
+    };
+    
+    if (ilhaLower && pontosIlha[ilhaLower]) {
+      return pontosIlha[ilhaLower];
+    }
+    
+    return ['Centro da cidade', 'Zona Hoteleira', 'Posto de combustível'];
+  };
+  
+  const pontosProximos = getPontosProximos();
+  
+  useEffect(() => {
+    if (!temCoordenadas || !mapContainer.current || map.current) return;
+    if (!MAPBOX_TOKEN) {
+      console.error('Mapbox token não configurado');
+      return;
+    }
+    
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [lng, lat],
+      zoom: 12,
+      interactive: false,
+      attributionControl: false
+    });
+    
+    map.current.on('load', () => {
+      setMapLoaded(true);
+      
+      new mapboxgl.Marker({
+        color: '#1e3a8a',
+        scale: 1.2
+      })
+        .setLngLat([lng, lat])
+        .addTo(map.current);
+    });
+    
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [temCoordenadas, latitude, longitude]);
+  
+  return (
+    <>
+      <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
+            <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={abrirMapaInterativo}
+              className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
+            >
+              Mapa Ilhas <ExternalLink size={10} />
+            </button>
+            <button 
+              onClick={abrirPaginaMapa}
+              className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
+            >
+              Ver Mapa <ExternalLink size={10} />
+            </button>
+          </div>
+        </div>
+        
+        {temCoordenadas && MAPBOX_TOKEN ? (
+          <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+            <div 
+              ref={mapContainer} 
+              className="relative w-full h-[160px] bg-slate-100"
+              style={{ cursor: 'pointer' }}
+              onClick={abrirPaginaMapa}
+            />
+            
+            {!mapLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+            
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <button 
+                onClick={abrirPaginaMapa}
+                className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
+              >
+                <MapPin size={14} className="fill-white" />
+                Ver localização
+              </button>
+            </div>
+            
+            <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md pointer-events-none">
+              <div className="flex items-center gap-1">
+                <MapPin size={10} className="text-red-500" />
+                <span className="text-[9px] font-bold text-slate-700">{cidadeNome}</span>
+              </div>
+            </div>
+            
+            <button 
+              onClick={abrirPaginaMapa}
+              className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
+              title="Expandir mapa"
+            >
+              <Maximize2 size={14} className="text-slate-600" />
+            </button>
+          </div>
+        ) : (
+          <div 
+            onClick={abrirPaginaMapa}
+            className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100 cursor-pointer group"
+          >
+            <img 
+              src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop" 
+              alt="Mapa ilustrativo" 
+              className="w-full h-full object-cover opacity-80 transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-300">
+              <div className="relative bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform group-hover:scale-110">
+                <MapPin size={24} className="text-blue-900 fill-blue-900" />
+              </div>
+            </div>
+            <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 text-[9px] font-bold text-blue-900 shadow-sm">
+              📍 {textoLocalizacao}
+            </div>
+          </div>
+        )}
+        
+        {pontosProximos && pontosProximos.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-slate-100">
+            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 Próximo de:</p>
+            <ul className="space-y-1">
+              {pontosProximos.slice(0, 3).map((ponto, i) => (
+                <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">
+                  <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
+                  {ponto}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+  
+    </>
   );
 };
 
@@ -366,37 +592,8 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
   );
 };
 
-// Componente MapLocationCarro
-const MapLocationCarro = ({ localizacao, ilha }) => {
-  return (
-    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
-          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{ilha}, {localizacao}</p>
-        </div>
-        <button className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline">
-          Ver no mapa <ExternalLink size={10} />
-        </button>
-      </div>
-      <div className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100">
-        <img 
-          src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop" 
-          alt="Mapa" 
-          className="w-full h-full object-cover opacity-80"
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative">
-            <MapPin size={24} className="text-blue-900 fill-blue-900" />
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-1 bg-black/20 blur-sm rounded-full"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // Componente de conteúdo das tabs
+// Altere o TabContent dentro de CarrosDetalhes.jsx para incluir o mapa na aba correspondente:
 const TabContent = ({ activeTab, carro }) => {
   if (!carro) return null;
 
@@ -416,22 +613,10 @@ const TabContent = ({ activeTab, carro }) => {
           <div className="border-t border-slate-100 pt-6">
             <h3 className="text-lg font-bold text-slate-900 mb-4">Características principais</h3>
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-green-500" />
-                <span className="text-sm text-slate-600">Ar condicionado</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-green-500" />
-                <span className="text-sm text-slate-600">Direção assistida</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-green-500" />
-                <span className="text-sm text-slate-600">Vidros elétricos</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-green-500" />
-                <span className="text-sm text-slate-600">Sistema de som</span>
-              </div>
+              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">Ar condicionado</span></div>
+              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">Direção assistida</span></div>
+              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">Vidros elétricos</span></div>
+              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">Sistema de som</span></div>
             </div>
           </div>
         </div>
@@ -482,41 +667,23 @@ const TabContent = ({ activeTab, carro }) => {
           </div>
         </div>
       );
-    case 4:
+    case 2: // Modificado para exibir o mapa real em vez da imagem do unsplash
       return (
         <div className="space-y-6 text-left">
-          <h3 className="text-lg font-bold text-slate-900">Localização para levantamento</h3>
-          <div className="relative w-full h-[300px] rounded-xl overflow-hidden bg-slate-100">
-            <img 
-              src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=800&h=400&fit=crop" 
-              alt="Mapa" 
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <MapPin size={32} className="text-blue-900 fill-blue-900" />
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <MapPin size={16} className="text-orange-500 mt-0.5" />
-              <span className="text-sm text-slate-600">{carro.ilha}, {carro.localizacao}, Cabo Verde</span>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-sm font-semibold text-slate-900 mb-2">Como funciona o levantamento:</p>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>📍 Ponto de encontro será informado após a reserva</li>
-                <li>🆔 Documento de identificação obrigatório</li>
-                <li>🚗 Carta de condução válida</li>
-              </ul>
-            </div>
-          </div>
+          <h3 className="text-lg font-bold text-slate-900">Localização de Levantamento</h3>
+          <MapLocationCarro 
+            localizacao={carro.localizacao}
+            ilha={carro.ilha}
+            latitude={carro.latitude}
+            longitude={carro.longitude}
+            carroId={carro.id}
+          />
         </div>
       );
     default:
       return null;
   }
 };
-
 // Componente principal CarrosDetalhes
 export const CarrosDetalhes = () => {
   const { slug } = useParams();
@@ -667,7 +834,7 @@ export const CarrosDetalhes = () => {
           <h2 className="text-xl font-bold text-slate-800 mb-2">Erro ao carregar</h2>
           <p className="text-slate-600 mb-4">{error || 'Veículo não encontrado'}</p>
           <button 
-            onClick={() => navigate('/carros')}
+            onClick={() => navigate('/carros')} 
             className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition"
           >
             Voltar para veículos
@@ -710,23 +877,26 @@ export const CarrosDetalhes = () => {
               onOpenModal={handleOpenModal}
               titulo={carro.titulo}
             />
-
+            
             <div className="mt-6 pt-6 border-t border-slate-100 text-left space-y-6">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 mb-4">Especificações do veículo</h3>
                 <EspecificacoesBar caracteristicas={carro.caracteristicas} />
               </div>
               
-              <InclusoesCarroBar localizacao={carro.localizacao} />
+              <InclusoesCarroBar 
+                inclusoes={carro.inclusoes} 
+                localizacao={carro.localizacao} 
+              />
             </div>
           </div>
 
           <div className="lg:self-start">
             <div className="sticky top-24 z-30">
               <SidebarReservaCarro 
-                precoDia={Number(carro.preco_dia)}
-                estrelas={carro.estrelas}
-                totalReviews={carro.total_avaliacoes}
+                precoDia={Number(carro.preco_dia)} 
+                estrelas={carro.estrelas} 
+                totalReviews={carro.total_avaliacoes} 
                 onContinueToCheckout={handleContinueToCheckout}
               />
             </div>
@@ -739,7 +909,9 @@ export const CarrosDetalhes = () => {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl md:text-3xl font-bold">{carro.titulo}</h1>
-              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">{carro.tipo || 'SUV'}</span>
+              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">
+                {carro.tipo || 'SUV'}
+              </span>
             </div>
             <div className="flex items-center gap-4 text-sm mt-2 flex-wrap">
               <div className="flex items-center gap-1 text-slate-500">
@@ -757,16 +929,19 @@ export const CarrosDetalhes = () => {
 
       <div className="max-w-7xl mx-auto px-6 mt-6 text-left">
         <TabsNavegacaoCarros activeTab={activeTab} onTabChange={setActiveTab} />
-
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <TabContent activeTab={activeTab} carro={carro} />
           </div>
-
+          
           <div className="space-y-4">
             <MapLocationCarro 
               localizacao={carro.localizacao}
               ilha={carro.ilha}
+              latitude={carro.latitude}
+              longitude={carro.longitude}
+              carroId={carro.id}
             />
           </div>
         </div>
@@ -775,7 +950,7 @@ export const CarrosDetalhes = () => {
       <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12">
         <div className="max-w-7xl mx-auto px-6">
           <AvaliacoesSeccaoCarro 
-            carroId={carro.id}
+            carroId={carro.id} 
             usuarioLogado={usuarioLogado}
             onOpenLoginModal={() => alert("Por favor, faça login com o Google para avaliar.")}
           />
@@ -787,7 +962,9 @@ export const CarrosDetalhes = () => {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .react-datepicker__day--in-range { background-color: #f1f5f9 !important; }
         .react-datepicker__day--range-start, .react-datepicker__day--range-end {
-          background-color: #1e3a8a !important; color: white !important; border-radius: 50% !important;
+          background-color: #1e3a8a !important;
+          color: white !important;
+          border-radius: 50% !important;
         }
         .react-datepicker__day--disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>

@@ -1,18 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-// No topo do App.js, adicione a importação do Navigate
-
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { 
   Users, Bed, Bath, Wifi, Wind, Coffee, MapPin, Star, 
   ChevronRight, ChevronLeft, LayoutGrid, Camera,
   CheckCircle, ExternalLink, ChevronDown, X, Loader2,
-  Droplet, Car, Eye, Shield, ChevronUp,   Waves,   Shirt, WashingMachine,  CalendarDays, 
-  Calendar
+  Droplet, Car, Eye, Shield, ChevronUp, Shirt, WashingMachine, 
+  CalendarDays, Calendar, Maximize2, Navigation
 } from 'lucide-react';
 import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
+
+// Token do Mapbox
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
   const handleModalClick = (e) => {
@@ -116,31 +119,183 @@ const HostInfo = ({ proprietario }) => {
   );
 };
 
-const MapLocation = ({ localizacao, pontosProximos, endereco }) => {
+// Componente MapLocation COM MAPBOX REAL
+const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitude, alojamentoId }) => {
+  const navigate = useNavigate();
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  
+  // Verificar se temos coordenadas válidas
+  const temCoordenadas = latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude));
+  
+  const textoLocalizacao = endereco || localizacao || 'Localização não informada';
+  const cidadeNome = textoLocalizacao.split(',').shift();
+  
+  // Função para abrir a página de mapa
+  const abrirPaginaMapa = () => {
+    if (alojamentoId) {
+      navigate(`/mapa?foco=${alojamentoId}`);
+    } else {
+      navigate('/mapa');
+    }
+  };
+  
+  // Inicializar o mapa quando tivermos coordenadas
+  useEffect(() => {
+    if (!temCoordenadas || !mapContainer.current || map.current) return;
+    if (!MAPBOX_TOKEN) {
+      console.error('Mapbox token não configurado');
+      return;
+    }
+    
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [lng, lat],
+      zoom: 14,
+      interactive: false,
+      attributionControl: false
+    });
+    
+    map.current.on('load', () => {
+      setMapLoaded(true);
+      
+      // Adicionar marcador
+      new mapboxgl.Marker({
+        color: '#1e3a8a',
+        scale: 1.2
+      })
+        .setLngLat([lng, lat])
+        .addTo(map.current);
+    });
+    
+    // Cleanup
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [temCoordenadas, latitude, longitude]);
+  
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
+      {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-3">
         <div>
           <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
-          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{localizacao}</p>
+          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
         </div>
-        <button className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline">
-          Ver no mapa <ExternalLink size={10} />
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => {
+              if (temCoordenadas) {
+                window.open(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`, '_blank');
+              } else {
+                window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(textoLocalizacao)}`, '_blank');
+              }
+            }}
+            className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
+          >
+            Google Maps <ExternalLink size={10} />
+          </button>
+          <button 
+            onClick={abrirPaginaMapa}
+            className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
+          >
+            Ver Mapa <ExternalLink size={10} />
+          </button>
+        </div>
       </div>
-      <div className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100">
-        <img 
-          src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop" 
-          alt="Mapa" 
-          className="w-full h-full object-cover opacity-80"
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative">
-            <MapPin size={24} className="text-blue-900 fill-blue-900" />
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-1 bg-black/20 blur-sm rounded-full"></div>
+      
+      {/* MAPA REAL COM MAPBOX */}
+      {temCoordenadas && MAPBOX_TOKEN ? (
+        <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+          {/* Container do Mapa */}
+          <div 
+            ref={mapContainer} 
+            className="relative w-full h-[160px] bg-slate-100"
+            style={{ cursor: 'pointer' }}
+            onClick={abrirPaginaMapa}
+          />
+          
+          {/* Loading overlay */}
+          {!mapLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+          
+          {/* Overlay com botão central */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <button 
+              onClick={abrirPaginaMapa}
+              className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
+            >
+              <MapPin size={14} className="fill-white" />
+              Ver mapa
+            </button>
+          </div>
+          
+          {/* Badge de endereço */}
+          <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md pointer-events-none">
+            <div className="flex items-center gap-1">
+              <MapPin size={10} className="text-red-500" />
+              <span className="text-[9px] font-bold text-slate-700">{cidadeNome}</span>
+            </div>
+          </div>
+          
+          {/* Botão de zoom */}
+          <button 
+            onClick={abrirPaginaMapa}
+            className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
+            title="Expandir mapa"
+          >
+            <Maximize2 size={14} className="text-slate-600" />
+          </button>
+        </div>
+      ) : (
+        /* FALLBACK - Quando não há coordenadas */
+        <div 
+          onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(textoLocalizacao)}`, '_blank')}
+          className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100 cursor-pointer group"
+        >
+          <img 
+            src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop" 
+            alt="Mapa ilustrativo" 
+            className="w-full h-full object-cover opacity-80 transition-transform duration-300 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-300">
+            <div className="relative bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform group-hover:scale-110">
+              <MapPin size={24} className="text-blue-900 fill-blue-900" />
+            </div>
+          </div>
+          <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 text-[9px] font-bold text-blue-900 shadow-sm">
+            📍 {textoLocalizacao}
           </div>
         </div>
-      </div>
+      )}
+      
+      {/* Pontos Próximos */}
+      {pontosProximos && pontosProximos.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-slate-100">
+          <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 Próximo de:</p>
+          <ul className="space-y-1">
+            {pontosProximos.slice(0, 3).map((ponto, i) => (
+              <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">
+                <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
+                {ponto}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
@@ -296,8 +451,8 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
     </div>
   );
 };
+
 const AmenitiesBar = ({ infoBasica, comodidades }) => {
-  // Mapear ícones baseado no nome da comodidade
   const getIconForComodidade = (nome) => {
     const nomeLower = nome.toLowerCase();
     
@@ -313,23 +468,14 @@ const AmenitiesBar = ({ infoBasica, comodidades }) => {
     if (nomeLower.includes('vista mar') || nomeLower.includes('vista')) return Eye;
     if (nomeLower.includes('segurança')) return Shield;
     if (nomeLower.includes('elevador')) return ChevronUp;
-    if (nomeLower.includes('máquina de lavar') || 
-        nomeLower.includes('lavanderia') || 
-        nomeLower.includes('lavagem') ||
-        nomeLower.includes('lava e seca') ||
-        nomeLower.includes('washing machine')) return Shirt;
-    if (nomeLower.includes('calendário') || 
-        nomeLower.includes('calendario') || 
-        nomeLower.includes('calendar') ||
-        nomeLower.includes('agenda')) return CalendarDays;
+    if (nomeLower.includes('máquina de lavar') || nomeLower.includes('lavanderia')) return Shirt;
+    if (nomeLower.includes('calendário') || nomeLower.includes('calendario')) return CalendarDays;
     
     return CheckCircle;
   };
 
-  // 🎯 USAR APENAS COMODIDADES REAIS DA BASE DE DADOS
   const comodidadesReais = comodidades || [];
   
-  // Se não houver comodidades, mostrar mensagem
   if (comodidadesReais.length === 0) {
     return (
       <div className="text-center py-4">
@@ -338,11 +484,9 @@ const AmenitiesBar = ({ infoBasica, comodidades }) => {
     );
   }
 
-  // Mostrar APENAS as comodidades da base de dados
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
       {comodidadesReais.map((item, i) => {
-        // Determinar ícone baseado no nome
         let IconComponent = getIconForComodidade(item.nome);
         
         return (
@@ -446,7 +590,7 @@ const TabContent = ({ activeTab, alojamento }) => {
             <h3 className="text-lg font-bold text-slate-900 mb-4">Sobre este espaço</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
               {alojamento.descricao_detalhada || alojamento.descricao || 
-                `Este espaçoso ${alojamento.tipo_propriedade?.toLowerCase() || 'apartamento'} em ${alojamento.localizacao} oferece uma experience única de conforto e tranquilidade.`}
+                `Este espaçoso ${alojamento.tipo_propriedade?.toLowerCase() || 'apartamento'} em ${alojamento.localizacao} oferece uma experiência única de conforto e tranquilidade.`}
             </p>
           </div>
 
@@ -530,8 +674,9 @@ const TabContent = ({ activeTab, alojamento }) => {
       return null;
   }
 };
+
 export const InfoAlojamento = () => {
-  const { slug } = useParams();  // ← Alterado de 'id' para 'slug'
+  const { slug } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -560,7 +705,7 @@ export const InfoAlojamento = () => {
 
   useEffect(() => {
     const fetchAlojamento = async () => {
-      if (!slug) {  // ← Alterado de 'id' para 'slug'
+      if (!slug) {
         setError('Slug do alojamento não fornecido');
         setLoading(false);
         return;
@@ -570,7 +715,6 @@ export const InfoAlojamento = () => {
       setError(null);
 
       try {
-        // ← Alterado para enviar slug em vez de id
         const response = await fetch(`https://welovepalop.com/api/get_alojamento_detalhes.php?slug=${slug}`);
         
         if (!response.ok) {
@@ -613,7 +757,7 @@ export const InfoAlojamento = () => {
     };
 
     fetchAlojamento();
-  }, [slug]);  // ← Alterada dependência para 'slug'
+  }, [slug]);
 
   const handleSelecaoQuarto = (idQuarto, titulo, novoPreco) => {
     setQuartoSelecionado(idQuarto);
@@ -803,6 +947,9 @@ export const InfoAlojamento = () => {
               localizacao={alojamento.localizacao}
               pontosProximos={alojamento.pontos_proximos}
               endereco={alojamento.endereco_completo}
+              latitude={alojamento.latitude}
+              longitude={alojamento.longitude}
+              alojamentoId={alojamento.id}
             />
           </div>
         </div>

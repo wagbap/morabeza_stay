@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import { 
   Users, Star, MapPin, Clock, Calendar, ChevronRight, ChevronLeft, 
   LayoutGrid, Camera, CheckCircle, ExternalLink, ChevronDown, X, 
-  Loader2, ShieldCheck, Sun, Sunset
+  Loader2, ShieldCheck, Sun, Sunset, Maximize2, Navigation
 } from 'lucide-react';
 import AvaliacoesSeccao from './AvaliacoesSeccaoExperiencia';
+
+
+// Token do Mapbox
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // Componente SliderModal para visualização em tela cheia
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
@@ -114,33 +120,196 @@ const GuiaInfo = ({ guia }) => {
   );
 };
 
-// Componente MapLocation para Experiência
-const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos }) => {
+// Componente MapLocation para Experiência COM MAPBOX REAL
+const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentosData }) => {
+  const navigate = useNavigate();
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [isMapaInterativoOpen, setIsMapaInterativoOpen] = useState(false);
+  
+  // Verificar se temos coordenadas (para experiências, usar coordenadas da ilha)
+  // Como experiências podem não ter coordenadas exatas, usamos coordenadas da ilha
+  const getCoordenadasPorIlha = (nomeIlha) => {
+    const coordenadas = {
+      'Santo Antão': { lat: 17.0667, lng: -25.1667 },
+      'São Vicente': { lat: 16.8333, lng: -24.9833 },
+      'Santa Luzia': { lat: 16.75, lng: -24.75 },
+      'São Nicolau': { lat: 16.6167, lng: -24.2667 },
+      'Sal': { lat: 16.7167, lng: -22.9167 },
+      'Boa Vista': { lat: 16.1, lng: -22.8 },
+      'Maio': { lat: 15.1333, lng: -23.2167 },
+      'Santiago': { lat: 15.0667, lng: -23.5833 },
+      'Fogo': { lat: 14.9167, lng: -24.3333 },
+      'Brava': { lat: 14.8667, lng: -24.7 }
+    };
+    return coordenadas[nomeIlha] || { lat: 15.0667, lng: -23.5833 };
+  };
+  
+  const coordenadas = getCoordenadasPorIlha(ilha);
+  const temCoordenadas = coordenadas && coordenadas.lat && coordenadas.lng;
+  
+  const textoLocalizacao = `${ilha}, ${localizacao}`;
+  const cidadeNome = ilha;
+  
+  // Função para abrir a página de mapa
+  const abrirPaginaMapa = () => {
+    navigate('/mapa-experiencias');
+  };
+  
+  const abrirMapaInterativo = () => {
+    setIsMapaInterativoOpen(true);
+  };
+  
+  // Inicializar o mapa quando tivermos coordenadas
+  useEffect(() => {
+    if (!temCoordenadas || !mapContainer.current || map.current) return;
+    if (!MAPBOX_TOKEN) {
+      console.error('Mapbox token não configurado');
+      return;
+    }
+    
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [coordenadas.lng, coordenadas.lat],
+      zoom: 10,
+      interactive: false,
+      attributionControl: false
+    });
+    
+    map.current.on('load', () => {
+      setMapLoaded(true);
+      
+      // Adicionar marcador
+      new mapboxgl.Marker({
+        color: '#1e3a8a',
+        scale: 1.2
+      })
+        .setLngLat([coordenadas.lng, coordenadas.lat])
+        .addTo(map.current);
+    });
+    
+    // Cleanup
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [temCoordenadas, coordenadas]);
+  
   return (
-    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
-          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{ilha}, {localizacao}</p>
-        </div>
-        <button className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline">
-          Ver no mapa <ExternalLink size={10} />
-        </button>
-      </div>
-      <div className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100">
-        <img 
-          src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop" 
-          alt="Mapa" 
-          className="w-full h-full object-cover opacity-80"
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative">
-            <MapPin size={24} className="text-blue-900 fill-blue-900" />
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-1 bg-black/20 blur-sm rounded-full"></div>
+    <>
+      <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
+            <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={abrirMapaInterativo}
+              className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
+            >
+              Mapa Ilhas <ExternalLink size={10} />
+            </button>
+            <button 
+              onClick={abrirPaginaMapa}
+              className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
+            >
+              Ver Mapa <ExternalLink size={10} />
+            </button>
           </div>
         </div>
+        
+        {/* MAPA REAL COM MAPBOX */}
+        {temCoordenadas && MAPBOX_TOKEN ? (
+          <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+            {/* Container do Mapa */}
+            <div 
+              ref={mapContainer} 
+              className="relative w-full h-[160px] bg-slate-100"
+              style={{ cursor: 'pointer' }}
+              onClick={abrirPaginaMapa}
+            />
+            
+            {/* Loading overlay */}
+            {!mapLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+            
+            {/* Overlay com botão central */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <button 
+                onClick={abrirPaginaMapa}
+                className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
+              >
+                <MapPin size={14} className="fill-white" />
+                Ver localização
+              </button>
+            </div>
+            
+            {/* Badge de endereço */}
+            <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md pointer-events-none">
+              <div className="flex items-center gap-1">
+                <MapPin size={10} className="text-red-500" />
+                <span className="text-[9px] font-bold text-slate-700">{cidadeNome}</span>
+              </div>
+            </div>
+            
+            {/* Botão de zoom */}
+            <button 
+              onClick={abrirPaginaMapa}
+              className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
+              title="Expandir mapa"
+            >
+              <Maximize2 size={14} className="text-slate-600" />
+            </button>
+          </div>
+        ) : (
+          /* FALLBACK - Quando não há coordenadas */
+          <div 
+            onClick={abrirPaginaMapa}
+            className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100 cursor-pointer group"
+          >
+            <img 
+              src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop" 
+              alt="Mapa ilustrativo" 
+              className="w-full h-full object-cover opacity-80 transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-300">
+              <div className="relative bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform group-hover:scale-110">
+                <MapPin size={24} className="text-blue-900 fill-blue-900" />
+              </div>
+            </div>
+            <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 text-[9px] font-bold text-blue-900 shadow-sm">
+              📍 {textoLocalizacao}
+            </div>
+          </div>
+        )}
+        
+        {pontosProximos && pontosProximos.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-slate-100">
+            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 Próximo de:</p>
+            <ul className="space-y-1">
+              {pontosProximos.slice(0, 3).map((ponto, i) => (
+                <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">
+                  <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
+                  {ponto}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
-    </div>
+
+
+    </>
   );
 };
 
@@ -328,7 +497,7 @@ const SidebarReservaExperiencia = ({
           <CheckCircle className="text-green-600 mt-0.5" size={14} />
           <div>
             <h5 className="text-xs font-bold text-green-800 tracking-tight">Cancelamento gratuito</h5>
-            <p className="text-[10px] text-green-700 leading-tight">Até 24 hours antes do passeio</p>
+            <p className="text-[10px] text-green-700 leading-tight">Até 24 horas antes do passeio</p>
           </div>
         </div>
       </div>
@@ -336,7 +505,7 @@ const SidebarReservaExperiencia = ({
   );
 };
 
-// 🔥 MOSAICO PREMIUM PADRONIZADO IDENTICO À FOTO
+// Mosaico Premium
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, categoria }) => {
   const placeholder = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop";
   const img1 = images[0] || placeholder;
@@ -400,7 +569,6 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, categoria })
               alt={`${titulo} - Detalhe 3`} 
             />
 
-            {/* Botão flutuante pequeno exatamente como no Alojamento */}
             <div 
               onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
               className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
@@ -518,6 +686,7 @@ const ExperienciaDetalhes = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [images, setImages] = useState([]);
+  const [alojamentos, setAlojamentos] = useState([]);
   
   // Estados para reserva
   const [dataPasseio, setDataPasseio] = useState(new Date().toISOString().split('T')[0]);
@@ -536,6 +705,20 @@ const ExperienciaDetalhes = () => {
         console.error('Erro ao carregar usuário:', e);
       }
     }
+  }, []);
+
+  // Buscar alojamentos para o mapa
+  useEffect(() => {
+    const fetchAlojamentos = async () => {
+      try {
+        const response = await fetch('https://welovepalop.com/api/get_alojamentos.php');
+        const data = await response.json();
+        setAlojamentos(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Erro ao buscar alojamentos para o mapa:', err);
+      }
+    };
+    fetchAlojamentos();
   }, []);
 
   // Buscar dados da experiência
@@ -845,6 +1028,7 @@ const ExperienciaDetalhes = () => {
               localizacao={experiencia.localizacao}
               ilha={experiencia.ilha}
               pontosProximos={experiencia.pontos_proximos}
+              alojamentosData={alojamentos}
             />
           </div>
         </div>
