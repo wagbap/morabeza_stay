@@ -1,10 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Heart, Star, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CardExperiencia = ({ 
   id, 
-  slug, // Adicionado aqui
+  slug,
   imagem_principal, 
   titulo, 
   localizacao, 
@@ -15,6 +16,7 @@ const CardExperiencia = ({
   duracao, 
   isList 
 }) => {
+  const { t } = useTranslation();
   
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/"; 
   
@@ -29,14 +31,12 @@ const CardExperiencia = ({
         : "flex flex-col h-full w-full rounded-[32px]"
     }`}>
       
-      {/* 1. LINK INVISÍVEL (Cobre o card todo, exceto botões) */}
       <Link 
         to={`/experiencia/${slug}`} 
         className="absolute inset-0 z-10" 
-        aria-label={`Ver detalhes de ${titulo}`}
+        aria-label={`${t('ver_detalhes_de')} ${titulo}`}
       />
 
-      {/* CONTAINER DA IMAGEM */}
       <div className={`relative overflow-hidden shrink-0 bg-gray-100 ${
         isList 
           ? "w-full md:w-[320px] lg:w-[360px] h-56 md:h-64 rounded-[32px]" 
@@ -49,18 +49,15 @@ const CardExperiencia = ({
           loading="lazy"
         />
         
-        {/* Badge de Categoria - z-20 para ficar acima do link se necessário, mas z-10 aqui basta */}
         <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-lg z-20">
-          {categoria_nome || 'Experiência'}
+          {categoria_nome || t('experiencia')}
         </div>
 
-        {/* Botão Heart - z-20 para ser clicável por cima do Link */}
         <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-20 hover:scale-110 transition-transform active:scale-95">
           <Heart size={18} strokeWidth={2.5} />
         </button>
       </div>
 
-      {/* CONTEÚDO DO CARD */}
       <div className={`flex flex-col flex-1 text-left ${isList ? 'py-4 pr-4 justify-between' : 'p-5'}`}>
         
         <div>
@@ -84,7 +81,6 @@ const CardExperiencia = ({
           </h3>
         </div>
 
-        {/* FOOTER */}
         <div className={`flex items-center justify-between ${!isList ? 'mt-auto border-t border-gray-50 pt-4' : ''}`}>
           
           <div className="flex flex-col gap-1">
@@ -99,14 +95,14 @@ const CardExperiencia = ({
                 <span className={`${isList ? 'text-2xl' : 'text-xl'} font-black text-[#1a2b6d]`}>
                   {Number(preco).toLocaleString('pt-PT')}
                 </span>
-                <span className="text-[10px] font-black text-gray-500 uppercase">CVE</span>
-                <span className="text-xs font-semibold text-gray-400">/pessoa</span>
+                <span className="text-[10px] font-black text-gray-500 uppercase">{t('cve')}</span>
+                <span className="text-xs font-semibold text-gray-400">{t('por_pessoa')}</span>
               </div>
           </div>
 
           {isList && (
             <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-100 z-20">
-              Reservar agora <ArrowRight size={14} />
+              {t('reserve_agora')} <ArrowRight size={14} />
             </div>
           )}
         </div>

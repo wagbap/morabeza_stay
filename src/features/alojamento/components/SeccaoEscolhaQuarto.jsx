@@ -1,12 +1,14 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Users, Bed } from 'lucide-react';
 
 const SeccaoEscolhaQuarto = ({ quartoSelecionado, onSelecaoQuarto, tiposQuarto }) => {
+  const { t } = useTranslation();
   const placeholder = "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?q=80&w=200";
 
   return (
     <div className="mt-6 mb-4 text-left">
-      <h3 className="text-sm font-bold text-slate-900 mb-3">Escolha o seu quarto</h3>
+      <h3 className="text-sm font-bold text-slate-900 mb-3">{t('escolha_quarto')}</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {tiposQuarto.map((q, idx) => {
@@ -34,7 +36,7 @@ const SeccaoEscolhaQuarto = ({ quartoSelecionado, onSelecaoQuarto, tiposQuarto }
                 />
                 {idx === 0 && (
                   <div className="absolute top-1 left-1 bg-emerald-600 text-white text-[7px] font-bold px-1 py-0.5 rounded-sm uppercase tracking-wide scale-90 origin-top-left">
-                    Mais escolhido
+                    {t('mais_escolhido')}
                   </div>
                 )}
               </div>
@@ -59,10 +61,10 @@ const SeccaoEscolhaQuarto = ({ quartoSelecionado, onSelecaoQuarto, tiposQuarto }
                   <h4 className="text-[11px] font-bold text-slate-900 leading-tight truncate">{q.nome}</h4>
                   <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-slate-400 font-medium">
                     <span className="flex items-center gap-1.5 text-slate-500">
-                      <Users size={11} className="text-slate-400" /> {q.capacidade_quarto || 2} hóspedes
+                      <Users size={11} className="text-slate-400" /> {q.capacidade_quarto || 2} {t('hospedes')}
                     </span>
                     <span className="flex items-center gap-1.5 text-slate-500">
-                      <Bed size={11} className="text-slate-400" /> {q.camas || 1} {Number(q.camas) === 1 ? 'cama' : 'camas'}
+                      <Bed size={11} className="text-slate-400" /> {q.camas || 1} {Number(q.camas) === 1 ? t('cama') : t('camas')}
                     </span>
                   </div>
                 </div>
@@ -70,7 +72,7 @@ const SeccaoEscolhaQuarto = ({ quartoSelecionado, onSelecaoQuarto, tiposQuarto }
                 {/* Preço Dinâmico CVE */}
                 <div className="flex items-baseline gap-0.5 leading-none">
                   <span className="text-xs font-black text-slate-900">{precoCalculado.toLocaleString('pt-PT')} CVE</span>
-                  <span className="text-[9px] font-semibold text-slate-400">/noite</span>
+                  <span className="text-[9px] font-semibold text-slate-400">{t('por_noite_curto')}</span>
                 </div>
 
               </div>

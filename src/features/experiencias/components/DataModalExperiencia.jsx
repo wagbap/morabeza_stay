@@ -5,20 +5,22 @@ const DataModal = ({ onClose, onSelectData, experienciaTitulo, currentDate }) =>
   const [selectedDate, setSelectedDate] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
+  // Valores fixos em português (não precisam de tradução)
   const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
                  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   
   const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  const diasSemanaCompletos = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
   
   // Inicializar com a data atual se existir
   useEffect(() => {
     if (currentDate && typeof currentDate === 'string') {
-      // Tentar parsear a data atual
       const dateMatch = currentDate.match(/(\d+) de (\w+) de (\d+)/);
       if (dateMatch) {
         const day = parseInt(dateMatch[1]);
-        const monthIndex = meses.findIndex(m => m === dateMatch[2]);
+        const monthName = dateMatch[2];
         const year = parseInt(dateMatch[3]);
+        const monthIndex = meses.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
         if (monthIndex !== -1) {
           setSelectedDate(new Date(year, monthIndex, day));
           setCurrentMonth(new Date(year, monthIndex, 1));
@@ -70,10 +72,9 @@ const DataModal = ({ onClose, onSelectData, experienciaTitulo, currentDate }) =>
   const handleConfirm = () => {
     if (selectedDate) {
       const formattedDate = formatDate(selectedDate);
-      const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
       onSelectData({
         full: formattedDate,
-        weekday: weekdays[selectedDate.getDay()],
+        weekday: diasSemanaCompletos[selectedDate.getDay()],
         day: selectedDate.getDate(),
         month: meses[selectedDate.getMonth()],
         year: selectedDate.getFullYear(),
@@ -86,7 +87,7 @@ const DataModal = ({ onClose, onSelectData, experienciaTitulo, currentDate }) =>
   
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl relative animate-in fade-in zoom-in duration-200">
+      <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl relative">
         <button onClick={onClose} className="absolute top-6 right-6 text-slate-400 hover:text-slate-900 z-10">
           <X size={24} />
         </button>
@@ -156,7 +157,7 @@ const DataModal = ({ onClose, onSelectData, experienciaTitulo, currentDate }) =>
                     </div>
                     <div>
                       <p className="text-slate-400 text-xs font-bold">
-                        {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][selectedDate.getDay()]}
+                        {diasSemanaCompletos[selectedDate.getDay()]}
                       </p>
                       <p className="text-blue-900 font-black text-xl">
                         {selectedDate.getDate()} de {meses[selectedDate.getMonth()]} de {selectedDate.getFullYear()}

@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
 const SidebarFiltros = ({ onFiltrar, onLimpar, filtrosAtuais }) => {
+  const { t } = useTranslation();
   const [priceRange, setPriceRange] = useState([filtrosAtuais.precoMin, filtrosAtuais.precoMax]);
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState(filtrosAtuais.categorias);
 
   // Categorias reais da API
-  const categorias = ['Aventura', 'Cultural', 'Gastronomia', 'Natureza', 'Relax'];
+  const categorias = [
+    t('aventura'), 
+    t('cultural'), 
+    t('gastronomia'), 
+    t('natureza'), 
+    t('relax')
+  ];
 
   useEffect(() => {
     setPriceRange([filtrosAtuais.precoMin, filtrosAtuais.precoMax]);
@@ -15,7 +23,7 @@ const SidebarFiltros = ({ onFiltrar, onLimpar, filtrosAtuais }) => {
   }, [filtrosAtuais]);
 
   const handlePriceChange = (val) => {
-    console.log('Preço alterado:', val); // Debug
+    console.log('Preço alterado:', val);
     setPriceRange(val);
     const novosFiltros = {
       precoMin: val[0],
@@ -26,7 +34,7 @@ const SidebarFiltros = ({ onFiltrar, onLimpar, filtrosAtuais }) => {
   };
 
   const handleCategoriaChange = (categoria) => {
-    console.log('Categoria clicada:', categoria); // Debug
+    console.log('Categoria clicada:', categoria);
     let novasCategorias;
     if (categoriasSelecionadas.includes(categoria)) {
       novasCategorias = categoriasSelecionadas.filter(c => c !== categoria);
@@ -34,7 +42,7 @@ const SidebarFiltros = ({ onFiltrar, onLimpar, filtrosAtuais }) => {
       novasCategorias = [...categoriasSelecionadas, categoria];
     }
     
-    console.log('Categorias selecionadas:', novasCategorias); // Debug
+    console.log('Categorias selecionadas:', novasCategorias);
     setCategoriasSelecionadas(novasCategorias);
     
     const novosFiltros = {
@@ -46,7 +54,7 @@ const SidebarFiltros = ({ onFiltrar, onLimpar, filtrosAtuais }) => {
   };
 
   const handleLimparFiltros = () => {
-    console.log('Limpar filtros clicado'); // Debug
+    console.log('Limpar filtros clicado');
     setPriceRange([0, 10000]);
     setCategoriasSelecionadas([]);
     onLimpar();
@@ -54,11 +62,11 @@ const SidebarFiltros = ({ onFiltrar, onLimpar, filtrosAtuais }) => {
 
   return (
     <div className="w-full md:w-64 space-y-10 pr-6">
-      <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mb-6">Filtrar</h3>
+      <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] mb-6">{t('filtrar')}</h3>
 
       {/* PREÇO POR DIA */}
       <div>
-        <h4 className="text-sm font-black text-gray-900 mb-6 italic uppercase tracking-tighter">Preço por dia</h4>
+        <h4 className="text-sm font-black text-gray-900 mb-6 italic uppercase tracking-tighter">{t('preco_por_dia')}</h4>
         <div className="px-2">
           <Slider
             range
@@ -82,7 +90,7 @@ const SidebarFiltros = ({ onFiltrar, onLimpar, filtrosAtuais }) => {
 
       {/* CATEGORIAS */}
       <div>
-        <h4 className="text-sm font-black text-gray-900 mb-4 italic uppercase tracking-tighter">Categoria</h4>
+        <h4 className="text-sm font-black text-gray-900 mb-4 italic uppercase tracking-tighter">{t('categoria')}</h4>
         <div className="space-y-3">
           {categorias.map((cat) => (
             <label key={cat} className="flex items-center gap-3 cursor-pointer group">
@@ -102,7 +110,7 @@ const SidebarFiltros = ({ onFiltrar, onLimpar, filtrosAtuais }) => {
         onClick={handleLimparFiltros}
         className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-colors"
       >
-        Limpar filtros
+        {t('limpar_filtros')}
       </button>
     </div>
   );

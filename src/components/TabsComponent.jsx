@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Home, Car, Palmtree, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
 import 'swiper/css';
@@ -10,12 +11,13 @@ import CardExperienciaTab from '../features/experiencias/components/CardExperien
 import { Link } from 'react-router-dom';
 
 const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('alojamentos');
 
   const tabs = [
-    { id: 'alojamentos', label: 'Alojamentos', icon: <Home size={14} />, data: alojamentos || [], link: '/alojamentos' },
-    { id: 'carros', label: 'Carros', icon: <Car size={14} />, data: carros || [], link: '/carros' },
-    { id: 'experiencias', label: 'Experiências', icon: <Palmtree size={14} />, data: experiencias || [], link: '/experiencias' }
+    { id: 'alojamentos', label: t('alojamentos'), icon: <Home size={14} />, data: alojamentos || [], link: '/alojamentos' },
+    { id: 'carros', label: t('carros'), icon: <Car size={14} />, data: carros || [], link: '/carros' },
+    { id: 'experiencias', label: t('experiencias'), icon: <Palmtree size={14} />, data: experiencias || [], link: '/experiencias' }
   ];
 
   const currentTab = tabs.find(t => t.id === activeTab);
@@ -54,13 +56,13 @@ const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
       {/* 2. TÍTULO E VER TODOS - Alinhados */}
       <div className="flex justify-between items-center mb-4 px-1">
         <h2 className="text-sm md:text-xl font-black text-[#1a2b6d]">
-          {currentTab.label} em destaque
+          {t('em_destaque', { categoria: currentTab.label })}
         </h2>
         <Link 
           to={currentTab.link} 
           className="flex items-center gap-1 text-blue-700 font-bold text-[9px] md:text-xs hover:underline"
         >
-          Ver todos <ArrowRight size={12} />
+          {t('ver_todos')} <ArrowRight size={12} />
         </Link>
       </div>
 

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { Calendar, MapPin } from 'lucide-react';
 
 const SearchBarCarros = ({ onBuscar }) => {
+  const { t } = useTranslation();
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [destino, setDestino] = useState('');
@@ -52,29 +54,29 @@ const SearchBarCarros = ({ onBuscar }) => {
           <div className="flex items-center gap-3 w-full text-left">
             <MapPin size={22} className="text-blue-500 group-hover:scale-110 transition-transform" />
             <div className="flex flex-col w-full">
-              <label className="text-[9px] uppercase font-black text-gray-400 tracking-[0.2em]">Local de Levantamento</label>
+              <label className="text-[9px] uppercase font-black text-gray-400 tracking-[0.2em]">{t('local_levantamento')}</label>
               <select 
                 value={destino}
                 onChange={(e) => setDestino(e.target.value)}
                 className="bg-transparent outline-none w-full text-sm font-bold text-gray-800 cursor-pointer appearance-none pt-0.5"
               >
-                <option value="">Todas as localizações</option>
-                <option value="Praia">Cidade da Praia</option>
-                <option value="Aeroporto">Aeroporto Nelson Mandela</option>
-                <option value="Tarrafal">Tarrafal</option>
-                <option value="Assomada">Assomada</option>
-                <option value="Cidade Velha">Cidade Velha</option>
+                <option value="">{t('todas_localizacoes')}</option>
+                <option value="Praia">{t('cidade_praia')}</option>
+                <option value="Aeroporto">{t('aeroporto_nelson_mandela')}</option>
+                <option value="Tarrafal">{t('tarrafal')}</option>
+                <option value="Assomada">{t('assomada')}</option>
+                <option value="Cidade Velha">{t('cidade_velha')}</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* DATA DE LEVANTAMENTO E DEVOLUÇÃO (RANGE MODE - IGUAL AO ALOJAMENTO) */}
+        {/* DATA DE LEVANTAMENTO E DEVOLUÇÃO */}
         <div className="flex-[2] flex items-center px-6 py-4 border-b md:border-b-0 md:border-r border-gray-100 hover:bg-gray-50 transition-colors">
           <div className="flex items-center gap-3 w-full text-left">
             <Calendar size={22} className="text-blue-500" />
             <div className="flex flex-col w-full">
-              <label className="text-[9px] uppercase font-black text-gray-400 tracking-[0.2em]">Levantamento — Devolução</label>
+              <label className="text-[9px] uppercase font-black text-gray-400 tracking-[0.2em]">{t('levantamento_devolucao')}</label>
               <DatePicker
                 selected={startDate}
                 onChange={onChange}
@@ -82,7 +84,7 @@ const SearchBarCarros = ({ onBuscar }) => {
                 endDate={endDate}
                 selectsRange
                 monthsShown={2}
-                placeholderText="Escolher data"
+                placeholderText={t('escolher_data')}
                 dateFormat="dd/MM/yyyy"
                 className="bg-transparent outline-none w-full text-sm font-bold text-gray-800 cursor-pointer pt-0.5"
                 isClearable={true}
@@ -98,7 +100,7 @@ const SearchBarCarros = ({ onBuscar }) => {
             onClick={handleBuscar}
             className="w-full md:h-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-14 rounded-xl text-xs transition-all uppercase tracking-[0.2em] shadow-lg shadow-blue-200 active:scale-95"
           >
-            BUSCAR VEÍCULO
+            {t('buscar_veiculo')}
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 // MapaCarros.jsx - Totalmente compatível com o novo formato do PHP
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Map, Marker, NavigationControl, Popup } from 'react-map-gl';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, ChevronRight, Gauge } from 'lucide-react';
@@ -8,10 +9,10 @@ import axios from 'axios';
 // Importar o CSS do Mapbox
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-// Token do Mapbox
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const MapaCarros = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [carros, setCarros] = useState([]);
@@ -56,10 +57,8 @@ const MapaCarros = () => {
     const carregarDados = async () => {
       try {
         setLoading(true);
-        // Puxa o endpoint do PHP que você corrigiu
         const res = await axios.get('https://welovepalop.com/api/get_carro_detalhes.php');
         
-        // Trata se a resposta vem encapsulada em .data.data ou direto
         let dados = [];
         if (res.data && res.data.success && res.data.data) {
           dados = Array.isArray(res.data.data) ? res.data.data : [res.data.data];
@@ -71,7 +70,6 @@ const MapaCarros = () => {
 
         setCarros(dados);
         
-        // Se tiver uma ID em foco na URL, abre o card dela de imediato
         if (focoId) {
           const focoCarro = dados.find(c => parseInt(c.id, 10) === focoId);
           if (focoCarro) {
@@ -89,7 +87,6 @@ const MapaCarros = () => {
             }
           }
         } else if (dados.length > 0) {
-          // Centraliza no primeiro carro válido do array
           const primeiroValido = dados[0];
           const lat = parseFloat(primeiroValido.latitude);
           const lng = parseFloat(primeiroValido.longitude);
@@ -107,7 +104,6 @@ const MapaCarros = () => {
     carregarDados();
   }, [focoId]);
 
-  // Função ao clicar na barra lateral para centralizar e abrir o Card
   const handleSelecionarCarro = (carro) => {
     const lat = parseFloat(carro.latitude);
     const lng = parseFloat(carro.longitude);
@@ -123,17 +119,15 @@ const MapaCarros = () => {
     }
   };
 
-  // Agrupar veículos por ilha na listagem lateral
   const carrosPorIlha = useMemo(() => {
     return carros.reduce((acc, carro) => {
-      const ilha = carro.ilha || 'Outras';
+      const ilha = carro.ilha || t('outras');
       if (!acc[ilha]) acc[ilha] = [];
       acc[ilha].push(carro);
       return acc;
     }, {});
-  }, [carros]);
+  }, [carros, t]);
 
-  // Renderização e memorização estrita dos Marcadores de Preço
   const marcadores = useMemo(() => {
     return carros.map((carro) => {
       const lat = parseFloat(carro.latitude);
@@ -151,7 +145,6 @@ const MapaCarros = () => {
           longitude={lng} 
           anchor="bottom"
           onClick={e => {
-            // ESSENCIAL: Impede que o clique no marcador feche o popup imediatamente
             e.originalEvent.stopPropagation();
             setSelectedCarro(carro);
           }}
@@ -162,12 +155,12 @@ const MapaCarros = () => {
               ${isSelected ? 'bg-black text-white scale-110 z-50' : 'bg-blue-600 text-white hover:bg-blue-700'}
             `}
           >
-            {preco.toLocaleString()} CVE
+            {preco.toLocaleString()} {t('cve')}
           </div>
         </Marker>
       );
     });
-  }, [carros, selectedCarro]);
+  }, [carros, selectedCarro, t]);
 
   return (
     <div className="w-screen h-screen relative bg-slate-100 overflow-hidden">
@@ -178,15 +171,15 @@ const MapaCarros = () => {
           onClick={() => navigate(-1)}
           className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest transition-all border border-gray-100"
         >
-          <ArrowLeft size={18} /> Voltar
+          <ArrowLeft size={18} /> {t('voltar')}
         </button>
       </div>
 
       {/* Sidebar de Veículos */}
       <div className="absolute top-6 right-6 z-50 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="p-4 bg-blue-900 text-white text-left">
-          <h3 className="font-black text-sm uppercase tracking-wider">Frota de Veículos</h3>
-          <p className="text-[10px] text-blue-200 mt-1">{carros.length} carros disponíveis</p>
+          <h3 className="font-black text-sm uppercase tracking-wider">{t('frota_veiculos')}</h3>
+          <p className="text-[10px] text-blue-200 mt-1">{carros.length} {t('carros_disponiveis')}</p>
         </div>
         <div className="max-h-[calc(100vh-120px)] overflow-y-auto text-left">
           {Object.entries(carrosPorIlha).map(([ilha, lista]) => (
@@ -223,12 +216,12 @@ const MapaCarros = () => {
                         <span className="text-[8px] text-slate-400">•</span>
                         <div className="flex items-center gap-0.5">
                           <Gauge size={9} className="text-slate-400" />
-                          <span className="text-[8px] text-slate-500">{carroItem.transmissao || 'Manual'}</span>
+                          <span className="text-[8px] text-slate-500">{carroItem.transmissao || t('manual')}</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-[10px] font-bold text-blue-600">
-                          {Number(carroItem.preco_dia).toLocaleString()} CVE <span className="text-[8px] text-slate-400 font-normal">/dia</span>
+                          {Number(carroItem.preco_dia).toLocaleString()} {t('cve')} <span className="text-[8px] text-slate-400 font-normal">{t('por_dia')}</span>
                         </span>
                         <span className="text-[8px] text-slate-400 uppercase bg-slate-100 px-1 rounded">{carroItem.tipo || 'SUV'}</span>
                       </div>
@@ -244,7 +237,7 @@ const MapaCarros = () => {
       {loading && (
         <div className="absolute inset-0 z-40 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="font-black text-[10px] uppercase tracking-[0.2em] text-blue-600">Carregando mapa de frotas...</p>
+          <p className="font-black text-[10px] uppercase tracking-[0.2em] text-blue-600">{t('carregando_mapa_frotas')}</p>
         </div>
       )}
 
@@ -299,12 +292,12 @@ const MapaCarros = () => {
               <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-1">
                 <div>
                   <span className="text-blue-600 font-black text-xs">
-                    {Number(selectedCarro.preco_dia).toLocaleString()} CVE
+                    {Number(selectedCarro.preco_dia).toLocaleString()} {t('cve')}
                   </span>
-                  <span className="text-[8px] font-normal text-slate-400"> /dia</span>
+                  <span className="text-[8px] font-normal text-slate-400"> {t('por_dia')}</span>
                 </div>
                 <span className="text-[9px] font-black uppercase text-blue-600 flex items-center gap-0.5">
-                  Alugar <ChevronRight size={10} />
+                  {t('alugar')} <ChevronRight size={10} />
                 </span>
               </div>
             </div>

@@ -1,20 +1,22 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { MapPin, Star, Clock, Heart } from 'lucide-react';
 
 const CardExperienciaTab = ({ experiencia }) => {
+  const { t } = useTranslation();
   const dados = experiencia || {};
   
   if (!dados.id && !experiencia) return null;
 
   const id = dados.id;
   const slug = dados.slug || `experiencia-${id}`;
-  const titulo = dados.titulo || "Experiência";
+  const titulo = dados.titulo || t('experiencia');
   const imagem = dados.imagem_principal || dados.imagem_url || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400";
-  const localizacao = dados.localizacao || dados.ilha || "Cabo Verde";
+  const localizacao = dados.localizacao || dados.ilha || t('cabo_verde');
   const preco = Number(dados.preco || dados.preco_pessoa) || 0;
-  const duracao = dados.duracao || "Flexível";
-  const categoria = dados.categoria_nome || "Experiência";
+  const duracao = dados.duracao || t('flexivel');
+  const categoria = dados.categoria_nome || t('experiencia');
   const rating = Number(dados.rating || dados.estrelas) || 4.5;
   const totalReviews = dados.total_reviews || dados.total_avaliacoes || 0;
 
@@ -78,8 +80,8 @@ const CardExperienciaTab = ({ experiencia }) => {
             <span className="text-xl font-extrabold text-[#1a2b6d]">
               {preco.toLocaleString('pt-PT')}
             </span>
-            <span className="text-[10px] font-bold text-gray-500 uppercase">CVE</span>
-            <span className="text-xs font-semibold text-gray-400">/ pessoa</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">{t('cve')}</span>
+            <span className="text-xs font-semibold text-gray-400">{t('por_pessoa')}</span>
           </div>
         </div>
       </div>

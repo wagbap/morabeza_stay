@@ -61,6 +61,8 @@ const Navbar = () => {
     { code: 'fr', label: 'Français' },
     { code: 'es', label: 'Español' },
     { code: 'de', label: 'Deutsch' },
+    { code: 'ir', label: 'Italiano' },
+    { code: 'cv', label: 'Cabo-verdiano' },
   ];
 
   const getNavbarClasses = () => {

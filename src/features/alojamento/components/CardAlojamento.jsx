@@ -1,10 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Heart, Star, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CardAlojamento = ({ 
   id, 
-  slug,  // 🆕 Adicionado slug
+  slug,
   imagem_url, 
   titulo, 
   localizacao, 
@@ -17,14 +18,13 @@ const CardAlojamento = ({
   total_avaliacoes, 
   isList 
 }) => {
+  const { t } = useTranslation();
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/"; 
   
-  // Garantia de carregamento da URL
   const imagemCompleta = imagem_url 
     ? (imagem_url.startsWith('http') ? imagem_url : `${BASE_URL_IMAGENS}${imagem_url}`)
     : "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=400";
 
-  // Usar slug se existir, senão usa ID
   const linkTo = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
 
   return (
@@ -34,7 +34,6 @@ const CardAlojamento = ({
         : "flex flex-col h-full w-full rounded-2xl"
     }`}>
       
-      {/* Container da Imagem */}
       <div className={`relative overflow-hidden shrink-0 bg-gray-100 ${
         isList 
           ? "w-full md:w-[320px] lg:w-[360px] h-56 md:h-64 rounded-[32px]" 
@@ -48,14 +47,13 @@ const CardAlojamento = ({
         />
         
         <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-lg z-10">
-          {tipo || 'Alojamento'}
+          {tipo || t('alojamento')}
         </div>
 
         <button 
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // Adicionar lógica de favoritos aqui
           }}
           className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform"
         >
@@ -63,7 +61,6 @@ const CardAlojamento = ({
         </button>
       </div>
 
-      {/* Conteúdo do Card */}
       <div className={`flex flex-col flex-1 text-left ${isList ? 'py-4 pr-4 justify-between' : 'p-4'}`}>
         
         <div>
@@ -74,18 +71,16 @@ const CardAlojamento = ({
             </span>
           </div>
 
-          {/* Título */}
           <h3 className="text-lg font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-2 group-hover:text-blue-600 transition-colors">
             {titulo}
           </h3>
           
           {isList && (
             <p className="text-gray-400 text-sm font-medium mb-4 line-clamp-2 leading-relaxed">
-              {descricao || `Maravilhoso ${tipo || 'alojamento'} localizado em ${localizacao}. Perfeito para suas férias em Cabo Verde.`}
+              {descricao || t('descricao_padrao_alojamento', { tipo: tipo || t('alojamento'), localizacao })}
             </p>
           )}
 
-          {/* Comodidades principais (opcional) */}
           {comodidades && comodidades.length > 0 && !isList && (
             <div className="flex flex-wrap gap-2 mb-3">
               {comodidades.slice(0, 3).map((comodidade, index) => (
@@ -102,7 +97,6 @@ const CardAlojamento = ({
           )}
         </div>
 
-        {/* Footer do card */}
         <div className={`flex items-center justify-between ${!isList ? 'mt-auto border-t border-gray-50 pt-3' : ''}`}>
           
           <div className="flex flex-col gap-1">
@@ -119,24 +113,23 @@ const CardAlojamento = ({
               <span className={`${isList ? 'text-2xl' : 'text-xl'} font-black text-[#1a2b6d]`}>
                 {Number(preco_noite).toLocaleString('pt-PT')}
               </span>
-              <span className="text-[10px] font-black text-gray-500 uppercase">CVE</span>
-              <span className="text-xs font-semibold text-gray-400">/ noite</span>
+              <span className="text-[10px] font-black text-gray-500 uppercase">{t('cve')}</span>
+              <span className="text-xs font-semibold text-gray-400">{t('por_noite_curto')}</span>
             </div>
           </div>
 
           {isList && (
             <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-100">
-              Ver detalhes <ArrowRight size={14} />
+              {t('ver_detalhes')} <ArrowRight size={14} />
             </div>
           )}
         </div>
       </div>
       
-      {/* Link usando SLUG ou ID */}
       <Link 
         to={linkTo}
         className="absolute inset-0 z-0" 
-        aria-label={`Ver detalhes de ${titulo}`}
+        aria-label={`${t('ver_detalhes_de')} ${titulo}`}
       />
     </div>
   );

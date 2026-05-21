@@ -1,8 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Heart, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, tipo, estrelas, total_avaliacoes, slug }) => {
+  const { t } = useTranslation();
   const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/";
   
   const imagemCompleta = imagem_url 
@@ -13,13 +15,12 @@ const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, 
   const rating = Number(estrelas) || 4.5;
   const reviews = total_avaliacoes || 0;
 
-    const linkTo = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
+  const linkTo = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
 
   return (
     <div className="relative group bg-white rounded-2xl flex flex-col h-full w-full overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-gray-100">
       
       {/* Container da Imagem */}
-  {/* Container da Imagem - Apenas arredondado no topo */}
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-2xl"> 
         <img 
           src={imagemCompleta} 
@@ -27,25 +28,24 @@ const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, 
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
         />
         
-        {/* Ícone de Coração Customizado - Posição e estilo exatos como na imagem de referência */}
         <button className="absolute top-4 right-4 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-lg z-10 hover:scale-110 transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-300">
           <Heart size={20} strokeWidth={2.5} className="text-gray-900" />
         </button>
       </div>
 
-      {/* Conteúdo do Card - Estilo menor e mais clean, como na imagem */}
+      {/* Conteúdo do Card */}
       <div className="p-4 md:p-5 flex flex-col flex-1 text-left">
-        {/* Localização com MapPin Azul */}
+        {/* Localização */}
         <div className="flex items-center gap-1.5 text-[#1a2b6d] mb-1.5">
           <MapPin size={16} className="text-blue-500" /> 
           <span className="text-xs font-semibold opacity-90 truncate">
-            {localizacao || "Praia, Santiago"}
+            {localizacao || t('praia_santiago')}
           </span>
         </div>
 
-        {/* Título do Alojamento */}
+        {/* Título */}
         <h3 className="text-lg font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors">
-          {titulo || "Nome do Alojamento"}
+          {titulo || t('nome_alojamento')}
         </h3>
 
         {/* Rating, Reviews e Tipo */}
@@ -57,21 +57,20 @@ const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, 
           </div>
           <span className="text-gray-300">•</span>
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide truncate">
-            {tipo || 'Alojamento inteiro'}
+            {tipo || t('alojamento_inteiro')}
           </span>
         </div>
 
-        {/* Preço por Noite */}
+        {/* Preço */}
         <div className="mt-auto flex items-baseline gap-1.5">
           <span className="text-2xl font-extrabold text-[#1a2b6d]">
-            ${preco}
+            {preco.toLocaleString('pt-PT')}
           </span>
-          <span className="text-sm font-semibold text-gray-500">/ noite</span>
+          <span className="text-sm font-semibold text-gray-500">{t('por_noite_curto')}</span>
         </div>
       </div>
       
-      {/* Link que cobre o card inteiro (para SEO e acessibilidade) */}
-      <Link  to={linkTo} className="absolute inset-0 z-0" aria-label={`Ver detalhes de ${titulo}`} />
+      <Link to={linkTo} className="absolute inset-0 z-0" aria-label={`${t('ver_detalhes_de')} ${titulo}`} />
     </div>
   );
 };

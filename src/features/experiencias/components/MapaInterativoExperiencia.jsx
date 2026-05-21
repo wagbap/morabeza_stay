@@ -1,5 +1,6 @@
 // MapaExperiencias.jsx - UI IDÊNTICO ao PaginaMapa (Alojamentos)
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Map, Marker, NavigationControl, Popup } from 'react-map-gl';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, ChevronRight, Clock } from 'lucide-react';
@@ -8,10 +9,10 @@ import axios from 'axios';
 // Importar o CSS do Mapbox
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-// Token do Mapbox - Configure no .env
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const MapaExperiencias = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [experiencias, setExperiencias] = useState([]);
@@ -19,7 +20,7 @@ const MapaExperiencias = () => {
   const [loading, setLoading] = useState(true);
   const [focoId, setFocoId] = useState(null);
 
-  // Coordenadas por ilha
+  // Coordenadas por ilha (nomes em inglês para compatibilidade)
   const coordenadasPorIlha = {
     'Santo Antão': { lat: 17.0667, lng: -25.1667 },
     'São Vicente': { lat: 16.8333, lng: -24.9833 },
@@ -35,7 +36,6 @@ const MapaExperiencias = () => {
     'Brava': { lat: 14.8667, lng: -24.7 }
   };
 
-  // Extrair parâmetro de foco da URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const foco = params.get('foco');
@@ -59,7 +59,6 @@ const MapaExperiencias = () => {
         const dados = res.data?.data || (Array.isArray(res.data) ? res.data : []);
         setExperiencias(dados);
         
-        // Se tiver foco, centralizar na experiência específica
         if (focoId) {
           const focoExp = dados.find(e => e.id === focoId);
           if (focoExp && focoExp.ilha) {
@@ -75,7 +74,6 @@ const MapaExperiencias = () => {
             }
           }
         } else {
-          // Focar na primeira experiência válida
           const foco = dados.find(e => e.ilha && coordenadasPorIlha[e.ilha]);
           if (foco) {
             const coords = coordenadasPorIlha[foco.ilha];
@@ -96,7 +94,6 @@ const MapaExperiencias = () => {
     carregarDados();
   }, [focoId]);
 
-  // Função para centralizar na experiência
   const centralizarNaExperiencia = (exp) => {
     if (exp.ilha && coordenadasPorIlha[exp.ilha]) {
       const coords = coordenadasPorIlha[exp.ilha];
@@ -110,15 +107,13 @@ const MapaExperiencias = () => {
     }
   };
 
-  // Agrupar experiências por ilha para a sidebar
   const experienciasPorIlha = experiencias.reduce((acc, exp) => {
-    const ilha = exp.ilha || 'Outras';
+    const ilha = exp.ilha || t('outras');
     if (!acc[ilha]) acc[ilha] = [];
     acc[ilha].push(exp);
     return acc;
   }, {});
 
-  // Memorizar marcadores
   const marcadores = useMemo(() => 
     experiencias.map((exp) => {
       const coords = coordenadasPorIlha[exp.ilha];
@@ -126,7 +121,6 @@ const MapaExperiencias = () => {
 
       const isSelected = selectedExperiencia?.id === exp.id;
       const preco = Number(exp.preco || 0);
-      const rating = Number(exp.rating_formatado || exp.rating || 5);
 
       return (
         <Marker 
@@ -145,7 +139,7 @@ const MapaExperiencias = () => {
               ${isSelected ? 'bg-black text-white scale-110' : 'bg-blue-600 text-white hover:bg-blue-700'}
             `}
           >
-            {preco.toLocaleString()} CVE
+            {preco.toLocaleString()} {t('cve')}
           </div>
         </Marker>
       );
@@ -158,21 +152,19 @@ const MapaExperiencias = () => {
   return (
     <div className="w-screen h-screen relative bg-slate-100 overflow-hidden">
       
-      {/* Botão Voltar */}
       <div className="absolute top-6 left-6 z-50">
         <button 
           onClick={() => navigate(-1)}
           className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest transition-all border border-gray-100"
         >
-          <ArrowLeft size={18} /> Voltar
+          <ArrowLeft size={18} /> {t('voltar')}
         </button>
       </div>
 
-      {/* Sidebar com lista de experiências por ilha */}
       <div className="absolute top-6 right-6 z-50 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="p-4 bg-blue-900 text-white">
-          <h3 className="font-black text-sm uppercase tracking-wider">Experiências Disponíveis</h3>
-          <p className="text-[10px] text-blue-200 mt-1">{experiencias.length} experiências encontradas</p>
+          <h3 className="font-black text-sm uppercase tracking-wider">{t('experiencias_disponiveis')}</h3>
+          <p className="text-[10px] text-blue-200 mt-1">{experiencias.length} {t('experiencias_encontradas')}</p>
         </div>
         <div className="max-h-[calc(100vh-120px)] overflow-y-auto">
           {Object.entries(experienciasPorIlha).map(([ilha, lista]) => (
@@ -209,14 +201,14 @@ const MapaExperiencias = () => {
                         <span className="text-[8px] text-slate-400">•</span>
                         <div className="flex items-center gap-0.5">
                           <Clock size={8} className="text-slate-400" />
-                          <span className="text-[8px] text-slate-500">{exp.duracao}</span>
+                          <span className="text-[8px] text-slate-500">{exp.duracao || t('flexivel')}</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-[10px] font-bold text-blue-600">
-                          {Number(exp.preco).toLocaleString()} CVE
+                          {Number(exp.preco).toLocaleString()} {t('cve')}
                         </span>
-                        <span className="text-[8px] text-slate-400 uppercase">{exp.categoria_nome || 'Experiência'}</span>
+                        <span className="text-[8px] text-slate-400 uppercase">{exp.categoria_nome || t('experiencia')}</span>
                       </div>
                     </div>
                   </div>
@@ -230,7 +222,7 @@ const MapaExperiencias = () => {
       {loading && (
         <div className="absolute inset-0 z-40 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="font-black text-[10px] uppercase tracking-[0.2em] text-blue-600">Carregando mapa...</p>
+          <p className="font-black text-[10px] uppercase tracking-[0.2em] text-blue-600">{t('carregando_mapa')}</p>
         </div>
       )}
 
@@ -271,7 +263,7 @@ const MapaExperiencias = () => {
                   <Star size={10} className="fill-yellow-400 text-yellow-400" /> {selectedExperiencia.rating_formatado || '5.0'}
                 </div>
                 <div className="absolute bottom-2 left-2 bg-blue-600/90 text-white text-[8px] font-black px-2 py-0.5 rounded-full">
-                  {selectedExperiencia.categoria_nome || 'Experiência'}
+                  {selectedExperiencia.categoria_nome || t('experiencia')}
                 </div>
               </div>
               
@@ -285,12 +277,12 @@ const MapaExperiencias = () => {
               <div className="flex items-center justify-between border-t border-gray-100 pt-2">
                 <div>
                   <span className="text-blue-600 font-black text-xs">
-                    {Number(selectedExperiencia.preco).toLocaleString()} CVE
+                    {Number(selectedExperiencia.preco).toLocaleString()} {t('cve')}
                   </span>
-                  <span className="text-[8px] font-normal text-slate-400">/pessoa</span>
+                  <span className="text-[8px] font-normal text-slate-400">{t('por_pessoa')}</span>
                 </div>
                 <span className="text-[9px] font-black uppercase text-blue-600 flex items-center gap-1">
-                  Ver detalhes <ChevronRight size={10} />
+                  {t('ver_detalhes')} <ChevronRight size={10} />
                 </span>
               </div>
             </div>

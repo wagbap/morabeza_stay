@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Calendar, Users, MapPin, Star, ShieldCheck, CreditCard, CheckCircle, Lock, Clock as ClockIcon } from 'lucide-react';
 
 const ResumoReservaAlojamento = ({ 
@@ -10,11 +11,10 @@ const ResumoReservaAlojamento = ({
   isConfirmed = false,
   codigoReserva = null
 }) => {
+  const { t } = useTranslation();
   
-  // Determinar se pode alterar (apenas antes do pagamento)
   const podeAlterar = !showPaymentInfo || paymentStatus !== 'paid';
   
-  // Função segura para formatar números
   const formatNumber = (value) => {
     if (value === undefined || value === null) return '0';
     return Number(value).toLocaleString('pt-PT');
@@ -22,23 +22,23 @@ const ResumoReservaAlojamento = ({
   
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm sticky top-6">
-      <h2 className="text-lg font-bold text-blue-900 mb-5">Resumo da reserva</h2>
+      <h2 className="text-lg font-bold text-blue-900 mb-5">{t('resumo_reserva')}</h2>
       
       <div className="flex gap-4 mb-6">
         <img 
           src={reserva?.imagem || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'} 
           className="w-20 h-20 rounded-xl object-cover" 
-          alt={reserva?.titulo || 'Alojamento'}
+          alt={reserva?.titulo || t('alojamento')}
           onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'}
         />
         <div className="flex-1">
           <h4 className="text-sm font-bold text-blue-900">{reserva?.titulo || 'Morabeza Stay'}</h4>
           <div className="mt-2 space-y-1 text-[10px] font-semibold text-slate-400">
-            <p className="flex items-center gap-1.5"><MapPin size={11}/> {reserva?.localizacao || 'Cabo Verde'}</p>
-            <p className="flex items-center gap-1.5"><Users size={11}/> Capacidade: {reserva?.maxPessoas || 10} pessoas</p>
+            <p className="flex items-center gap-1.5"><MapPin size={11}/> {reserva?.localizacao || t('cabo_verde')}</p>
+            <p className="flex items-center gap-1.5"><Users size={11}/> {t('capacidade')}: {reserva?.maxPessoas || 10} {t('pessoas')}</p>
             <div className="flex items-center gap-1 mt-1 text-amber-500">
               <Star size={11} fill="currentColor"/>
-              <span className="text-[10px] font-bold text-slate-500">4.8 Avaliações</span>
+              <span className="text-[10px] font-bold text-slate-500">4.8 {t('avaliacoes')}</span>
             </div>
           </div>
         </div>
@@ -49,7 +49,7 @@ const ResumoReservaAlojamento = ({
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Lock size={14} className="text-blue-600" />
-            <span className="text-[10px] font-bold text-blue-800">Código da reserva</span>
+            <span className="text-[10px] font-bold text-blue-800">{t('codigo_reserva')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono font-bold text-blue-900">{codigoReserva}</span>
@@ -57,7 +57,7 @@ const ResumoReservaAlojamento = ({
               onClick={() => navigator.clipboard.writeText(codigoReserva)}
               className="text-[9px] text-blue-600 underline"
             >
-              Copiar
+              {t('copiar')}
             </button>
           </div>
         </div>
@@ -85,12 +85,12 @@ const ResumoReservaAlojamento = ({
             <p className={`text-sm font-bold ${
               paymentStatus === 'paid' ? 'text-green-800' : 'text-yellow-800'
             }`}>
-              {paymentStatus === 'paid' ? '✓ Pagamento confirmado!' : '⏳ Aguardando pagamento'}
+              {paymentStatus === 'paid' ? t('pagamento_confirmado') : t('aguardando_pagamento')}
             </p>
             <p className="text-[11px] text-slate-600 mt-0.5">
               {paymentStatus === 'paid' 
-                ? 'Sua reserva está confirmada. Apresente o código acima no check-in.' 
-                : 'A reserva será confirmada automaticamente após a confirmação do pagamento.'}
+                ? t('reserva_confirmada_checkin') 
+                : t('reserva_confirmada_apos_pagamento')}
             </p>
           </div>
         </div>
@@ -102,18 +102,18 @@ const ResumoReservaAlojamento = ({
           <div>
             <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <Calendar size={12} className="text-blue-500" />
-              Check-in
+              {t('checkin')}
             </p>
-            <p className="text-slate-500 text-[11px] mt-0.5">{reserva?.checkIn || 'Não selecionada'}</p>
+            <p className="text-slate-500 text-[11px] mt-0.5">{reserva?.checkIn || t('nao_selecionada')}</p>
           </div>
           {podeAlterar && (
             <span className="text-blue-600 text-[9px] font-bold bg-blue-50 px-2 py-0.5 rounded-full">
-              Pendente
+              {t('pendente')}
             </span>
           )}
           {!podeAlterar && (
             <span className="text-green-600 text-[9px] font-bold bg-green-50 px-2 py-0.5 rounded-full">
-              Confirmado
+              {t('confirmado')}
             </span>
           )}
         </div>
@@ -123,9 +123,9 @@ const ResumoReservaAlojamento = ({
           <div>
             <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <Calendar size={12} className="text-blue-500" />
-              Check-out
+              {t('checkout')}
             </p>
-            <p className="text-slate-500 text-[11px] mt-0.5">{reserva?.checkOut || 'Não selecionada'}</p>
+            <p className="text-slate-500 text-[11px] mt-0.5">{reserva?.checkOut || t('nao_selecionada')}</p>
           </div>
         </div>
 
@@ -134,10 +134,10 @@ const ResumoReservaAlojamento = ({
           <div>
             <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <ClockIcon size={12} className="text-blue-500" />
-              Estadia
+              {t('estadia')}
             </p>
             <p className="text-slate-500 text-[11px] mt-0.5">
-              {reserva?.noites || 0} {reserva?.noites === 1 ? 'noite' : 'noites'}
+              {reserva?.noites || 0} {reserva?.noites === 1 ? t('noite') : t('noites')}
             </p>
           </div>
         </div>
@@ -147,15 +147,15 @@ const ResumoReservaAlojamento = ({
           <div>
             <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
               <Users size={12} className="text-blue-500" />
-              Hóspedes
+              {t('hospedes')}
             </p>
             <p className="text-slate-500 text-[11px] mt-0.5">
-              {totalHospedes || 1} {totalHospedes === 1 ? 'hóspede' : 'hóspedes'}
+              {totalHospedes || 1} {totalHospedes === 1 ? t('hospede') : t('hospedes')}
             </p>
           </div>
           {!podeAlterar && (
             <span className="text-green-600 text-[9px] font-bold bg-green-50 px-2 py-0.5 rounded-full">
-              Confirmado
+              {t('confirmado')}
             </span>
           )}
         </div>
@@ -163,30 +163,30 @@ const ResumoReservaAlojamento = ({
         {/* Preços */}
         <div className="pt-3 space-y-1">
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500">Preço por noite</span>
+            <span className="text-slate-500">{t('preco_por_noite')}</span>
             <span className="font-bold text-blue-900">{formatNumber(reserva?.precoNoite)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500">Subtotal ({reserva?.noites || 0} noites)</span>
+            <span className="text-slate-500">{t('subtotal_noites', { noites: reserva?.noites || 0 })}</span>
             <span className="font-bold text-blue-900">{formatNumber(reserva?.subtotal)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500">Taxa de limpeza</span>
+            <span className="text-slate-500">{t('taxa_limpeza')}</span>
             <span className="font-bold text-blue-900">{formatNumber(reserva?.taxaLimpeza)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500">Taxa de serviço</span>
+            <span className="text-slate-500">{t('taxa_servico_curto')}</span>
             <span className="font-bold text-blue-900">{formatNumber(reserva?.taxaServico)} CVE</span>
           </div>
         </div>
 
         {/* Total */}
         <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-          <span className="text-base font-bold text-blue-900">Total</span>
+          <span className="text-base font-bold text-blue-900">{t('total')}</span>
           <div className="text-right">
             <span className="text-xl font-bold text-blue-600">{formatNumber(precoTotal)} CVE</span>
             {paymentStatus === 'paid' && (
-              <p className="text-[9px] text-green-600 font-bold">✓ Pago</p>
+              <p className="text-[9px] text-green-600 font-bold">✓ {t('pago')}</p>
             )}
           </div>
         </div>
@@ -195,9 +195,9 @@ const ResumoReservaAlojamento = ({
         <div className="bg-green-50 p-3 rounded-xl flex gap-2 mt-3 border border-green-100">
           <ShieldCheck className="text-green-600 shrink-0" size={18} />
           <div>
-            <p className="text-[9px] font-bold text-green-800">Cancelamento gratuito</p>
+            <p className="text-[9px] font-bold text-green-800">{t('cancelamento_gratis')}</p>
             <p className="text-[8px] text-green-700 leading-tight mt-0.5">
-              Cancelamento gratuito até 48 horas antes do check-in
+              {t('cancelamento_prazo_checkout')}
             </p>
           </div>
         </div>
@@ -206,11 +206,11 @@ const ResumoReservaAlojamento = ({
         <div className="bg-[#F0F7FF] p-3 rounded-xl flex gap-2">
           <Lock className="text-blue-600 shrink-0" size={16} />
           <div>
-            <p className="text-[9px] font-bold text-blue-900">Reserva 100% segura</p>
+            <p className="text-[9px] font-bold text-blue-900">{t('reserva_100_segura')}</p>
             <p className="text-[8px] text-blue-700 leading-tight mt-0.5">
               {paymentStatus === 'paid' 
-                ? 'Sua reserva está garantida. Apresente o código no check-in do alojamento.'
-                : 'Seus dados estão protegidos e a reserva será confirmada após o pagamento.'}
+                ? t('reserva_garantida_codigo')
+                : t('dados_protegidos_reserva')}
             </p>
           </div>
         </div>

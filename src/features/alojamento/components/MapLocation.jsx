@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ExternalLink, MapPin, Navigation, Maximize2 } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitude, alojamentoId }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const mapContainer = React.useRef(null);
   const map = React.useRef(null);
@@ -16,7 +18,7 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
   // Token do Mapbox
   const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
   
-  const textoLocalizacao = endereco || localizacao || 'Localização não informada';
+  const textoLocalizacao = endereco || localizacao || t('localizacao_nao_informada');
   const cidadeNome = textoLocalizacao.split(',').shift();
   
   // Inicializar o mapa quando tivermos coordenadas
@@ -37,26 +39,21 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [lng, lat],
       zoom: 14,
-      interactive: false, // Desativa interação para não conflitar com o clique
+      interactive: false,
       attributionControl: false
     });
     
     map.current.on('load', () => {
       setMapLoaded(true);
       
-      // Adicionar marcador
       new mapboxgl.Marker({
         color: '#1e3a8a',
         scale: 1.2
       })
         .setLngLat([lng, lat])
         .addTo(map.current);
-      
-      // Adicionar controle de zoom (opcional, mas pode remover)
-      // map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
     });
     
-    // Cleanup
     return () => {
       if (map.current) {
         map.current.remove();
@@ -79,7 +76,7 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
       {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-3">
         <div>
-          <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
+          <h4 className="text-sm font-bold text-slate-900 leading-tight">{t('localizacao')}</h4>
           <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
         </div>
       </div>
@@ -87,7 +84,6 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
       {/* MAPA REAL COM MAPBOX */}
       {temCoordenadas && MAPBOX_TOKEN ? (
         <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-          {/* Container do Mapa */}
           <div 
             ref={mapContainer} 
             className="relative w-full h-[200px] bg-slate-100"
@@ -95,27 +91,22 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
             onClick={abrirPaginaMapa}
           />
           
-          {/* Loading overlay */}
           {!mapLoaded && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
               <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
           
-          {/* Overlay com botão central - APENAS "Ver mapa" */}
-          <div 
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-          >
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <button 
               onClick={abrirPaginaMapa}
               className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
             >
               <MapPin size={14} className="fill-white" />
-              Ver mapa completo
+              {t('ver_mapa_completo')}
             </button>
           </div>
           
-          {/* Badge de endereço */}
           <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md pointer-events-none">
             <div className="flex items-center gap-1">
               <MapPin size={10} className="text-red-500" />
@@ -123,17 +114,15 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
             </div>
           </div>
           
-          {/* Botão de zoom (abre mapa completo) */}
           <button 
             onClick={abrirPaginaMapa}
             className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
-            title="Expandir mapa"
+            title={t('expandir_mapa')}
           >
             <Maximize2 size={14} className="text-slate-600" />
           </button>
         </div>
       ) : (
-        /* FALLBACK - Quando não há coordenadas ou token */
         <div 
           onClick={abrirPaginaMapa}
           className="relative w-full h-[140px] rounded-xl overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 border border-slate-100 cursor-pointer group"
@@ -141,7 +130,7 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <MapPin size={32} className="text-blue-600 mb-2 opacity-50" />
             <p className="text-[10px] text-slate-500 text-center px-4">
-              {temCoordenadas ? 'Configure a chave do Mapbox' : 'Coordenadas não disponíveis'}
+              {temCoordenadas ? t('configurar_mapbox') : t('coordenadas_indisponiveis')}
             </p>
             <p className="text-[8px] text-slate-400 mt-1">{textoLocalizacao}</p>
           </div>
@@ -160,7 +149,7 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
           className="text-blue-600 text-[10px] font-bold hover:underline transition-colors flex items-center justify-center gap-1 w-full py-1"
         >
           <Navigation size={12} />
-          Ver mapa interativo
+          {t('ver_mapa_interativo')}
           <ExternalLink size={10} />
         </button>
       </div>
@@ -168,7 +157,7 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
       {/* Pontos Próximos */}
       {pontosProximos && pontosProximos.length > 0 && (
         <div className="mt-4 pt-3 border-t border-slate-100">
-          <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 Próximo de:</p>
+          <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 {t('proximo_de')}:</p>
           <ul className="space-y-1">
             {pontosProximos.slice(0, 3).map((ponto, i) => (
               <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">

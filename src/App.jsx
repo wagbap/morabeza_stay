@@ -27,8 +27,15 @@ import Pagamento from './pages/Pagamento';
 import Confirmacao from './pages/Confirmacao';
 
 
+import ReactDOM from 'react-dom/client';
+import './i18n'; // Importa a configuração do i18n
 
-import PaginaDetalhesAlojamnetos from './features/alojamento/components/PaginaDetalhesAlojamnetos';
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
 import InfoAlojamento from './features/alojamento/components/InfoAlojamento';
 
 function App() {
@@ -55,7 +62,6 @@ function App() {
            <Route path="/alojamentos" element={<Alojamentos />} />
            <Route path="/alojamentos/:slug" element={<InfoAlojamento />} />
            <Route path="/alojamento/:slug" element={<InfoAlojamento />} />
-           <Route path="/alojamento_teste/:id" element={<PaginaDetalhesAlojamnetos />} />
 
            {/* Carros */}
            <Route path="/carros" element={<Carros />} />

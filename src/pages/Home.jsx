@@ -24,7 +24,7 @@ const Home = ({ alojamentos, carros, experiencias, loading }) => {
       <main className="max-w-7xl mx-auto py-20 px-6 text-left">
         <div className="flex flex-col mb-12">
           <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
-            {t('menu_alojamentos') || 'Alojamentos'}
+            {t('menu_alojamentos')}
           </h2>
           <div className="h-1.5 w-20 bg-blue-600 mt-2"></div>
         </div>
@@ -38,7 +38,7 @@ const Home = ({ alojamentos, carros, experiencias, loading }) => {
         <section className="mb-24 mt-20">
           <div className="flex flex-col mb-8 text-left">
             <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic">
-              Adicione ainda mais conforto à sua estadia
+              {t('adicione_conforto_estadia')}
             </h2>
           </div>
 
@@ -49,7 +49,7 @@ const Home = ({ alojamentos, carros, experiencias, loading }) => {
           </div>
         </section>
 
-        {loading && <div className="py-10 text-center opacity-30 font-black uppercase text-xs">Carregando Morabeza...</div>}
+        {loading && <div className="py-10 text-center opacity-30 font-black uppercase text-xs">{t('carregando_morabeza')}</div>}
       </main>
     </>
   );

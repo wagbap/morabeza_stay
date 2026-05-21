@@ -1,8 +1,11 @@
 // MapaInterativo.jsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 const MapaInterativo = ({ isOpen, onClose, dadosAlojamentos }) => {
+  const { t } = useTranslation();
+  
   if (!isOpen) return null;
   
   return (
@@ -14,8 +17,8 @@ const MapaInterativo = ({ isOpen, onClose, dadosAlojamentos }) => {
         <X size={24} />
       </button>
       <div className="text-white text-center">
-        <h2 className="text-2xl font-bold mb-4">Mapa Interativo das Ilhas</h2>
-        <p className="text-slate-400">Mapa completo em desenvolvimento...</p>
+        <h2 className="text-2xl font-bold mb-4">{t('mapa_interativo_titulo')}</h2>
+        <p className="text-slate-400">{t('mapa_desenvolvimento')}</p>
       </div>
     </div>
   );

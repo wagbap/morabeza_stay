@@ -1,11 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Star, MapPin, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-
 const CardExperienciaRow = ({ dados }) => {
-   const navigate = useNavigate();
-
+  const { t } = useTranslation();
+  const navigate = useNavigate();
 
   if (!dados) return null;
 
@@ -22,7 +22,7 @@ const CardExperienciaRow = ({ dados }) => {
         {/* Badge da Categoria */}
         <div className="absolute top-4 left-4">
           <span className="bg-blue-100 text-blue-600 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-sm">
-            {dados.categoria_nome}
+            {dados.categoria_nome || t('experiencia')}
           </span>
         </div>
       </div>
@@ -37,22 +37,22 @@ const CardExperienciaRow = ({ dados }) => {
           </div>
 
           <p className="text-gray-500 text-sm line-clamp-2 mb-6 font-medium">
-            {dados.descricao_curta}
+            {dados.descricao_curta || t('descricao_padrao_experiencia')}
           </p>
 
           <div className="flex flex-wrap items-center gap-6 mb-6">
             {/* Preço */}
             <div>
               <p className="text-2xl font-black text-gray-900 leading-none">
-                {dados.preco} CVE <span className="text-xs text-gray-400 font-bold">/pessoa</span>
+                {Number(dados.preco).toLocaleString('pt-PT')} {t('cve')} <span className="text-xs text-gray-400 font-bold">{t('por_pessoa')}</span>
               </p>
             </div>
 
             {/* Rating */}
             <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-xl">
               <Star className="w-4 h-4 fill-orange-400 text-orange-400" />
-              <span className="text-orange-600 font-black text-sm">{dados.rating_formatado}</span>
-              <span className="text-gray-400 text-xs font-bold">({dados.total_reviews})</span>
+              <span className="text-orange-600 font-black text-sm">{dados.rating_formatado || '5.0'}</span>
+              <span className="text-gray-400 text-xs font-bold">({dados.total_reviews || 0})</span>
             </div>
           </div>
         </div>
@@ -61,16 +61,16 @@ const CardExperienciaRow = ({ dados }) => {
         <div className="flex items-center justify-between pt-6 border-t border-gray-50">
           <div className="flex items-center gap-2 text-gray-400">
             <MapPin className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase tracking-wider">{dados.localizacao}</span>
+            <span className="text-xs font-bold uppercase tracking-wider">{dados.localizacao || t('cabo_verde')}</span>
           </div>
           
-         <button 
+          <button 
             onClick={() => navigate(`/experiencia/${dados.slug}`)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-3 rounded-2xl transition-all flex items-center gap-2 group text-sm uppercase italic"
           >
-            Ver detalhes
+            {t('ver_detalhes')}
             <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-        </button>
+          </button>
         </div>
       </div>
     </div>

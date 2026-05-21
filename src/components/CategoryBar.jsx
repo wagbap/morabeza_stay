@@ -8,22 +8,22 @@ const CategoryBar = () => {
   const itensNavegacao = [
     {
       id: 'alojamentos',
-      titulo: t('nav_alojamentos', 'Alojamentos'),
-      subtitulo: t('nav_alojamentos_sub', 'CASAS E HOTÉIS'),
+      titulo: t('nav_alojamentos'),
+      subtitulo: t('nav_alojamentos_sub'),
       imagem: 'https://res.cloudinary.com/dpsrmzvsl/image/upload/v1773745742/caad9150-74a1-473c-b289-1047965ad67c_vqmzz8.png', 
       link: '/alojamentos'
     },
     {
       id: 'carros',
-      titulo: t('nav_carros', 'Aluguer de Carros'),
-      subtitulo: t('nav_carros_sub', 'RENT-A-CAR'),
+      titulo: t('nav_carros'),
+      subtitulo: t('nav_carros_sub'),
       imagem: 'https://res.cloudinary.com/dpsrmzvsl/image/upload/v1773745949/caad9150-74a1-473c-b289-1047965ad67c_1_o7vxh9.png',
       link: '/carros'
     },
     {
       id: 'experiencias',
-      titulo: t('nav_experiencias', 'Experiências'),
-      subtitulo: t('nav_experiencias_sub', 'PASSEIOS & TOURS'),
+      titulo: t('nav_experiencias'),
+      subtitulo: t('nav_experiencias_sub'),
       imagem: 'https://res.cloudinary.com/dpsrmzvsl/image/upload/v1773746453/1_2_qd2khd.png',
       link: '/experiencias'
     }
@@ -38,13 +38,13 @@ const CategoryBar = () => {
             key={item.id}
             to={item.link}
             className="flex items-center gap-5 p-6 md:p-8 hover:bg-gray-50 transition-all group text-left outline-none"
-            aria-label={`Ver ${item.titulo}`}
+            aria-label={t('ver', { item: item.titulo })}
           >
             {/* Círculo para a Imagem */}
             <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-blue-50/50 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
               <img 
                 src={item.imagem} 
-                alt="" // Alt vazio aqui porque o texto ao lado já descreve o link
+                alt="" 
                 className="w-8 h-8 md:w-10 md:h-10 object-contain"
                 loading="lazy"
               />

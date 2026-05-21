@@ -1,22 +1,24 @@
 // src/features/carros/components/ResumoReservaCarro.jsx
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Calendar, ShieldCheck, Lock, CreditCard, Check, Info, Clock } from 'lucide-react';
 
 const ResumoReservaCarro = ({ reserva, precoTotal, showPaymentInfo = false, paymentStatus = null }) => {
+  const { t } = useTranslation();
+  
   const formatNumber = (value) => {
     if (value === undefined || value === null) return '0';
     return Number(value).toLocaleString('pt-PT');
   };
   
   const formatarData = (data) => {
-    if (!data) return 'Não selecionada';
+    if (!data) return t('nao_selecionada');
     const d = new Date(data);
     return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // Dados do carro
-  const titulo = reserva?.titulo || 'Veículo não informado';
-  const localizacao = reserva?.localizacao || 'Cabo Verde';
+  const titulo = reserva?.titulo || t('veiculo_nao_informado');
+  const localizacao = reserva?.localizacao || t('cabo_verde');
   const imagem = reserva?.imagem || 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=200';
   const checkIn = reserva?.checkIn;
   const checkOut = reserva?.checkOut;
@@ -28,7 +30,7 @@ const ResumoReservaCarro = ({ reserva, precoTotal, showPaymentInfo = false, paym
 
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm sticky top-6 text-left">
-      <h2 className="text-lg font-bold text-blue-900 mb-5">Resumo da reserva</h2>
+      <h2 className="text-lg font-bold text-blue-900 mb-5">{t('resumo_reserva')}</h2>
       
       <div className="flex gap-4 mb-6">
         <img 
@@ -67,12 +69,12 @@ const ResumoReservaCarro = ({ reserva, precoTotal, showPaymentInfo = false, paym
             <p className={`text-sm font-bold ${
               paymentStatus === 'paid' ? 'text-green-800' : 'text-yellow-800'
             }`}>
-              {paymentStatus === 'paid' ? '✓ Pagamento confirmado!' : '⏳ Aguardando pagamento'}
+              {paymentStatus === 'paid' ? t('pagamento_confirmado') : t('aguardando_pagamento')}
             </p>
             <p className="text-[11px] text-slate-600 mt-0.5">
               {paymentStatus === 'paid' 
-                ? 'Sua reserva está confirmada.' 
-                : 'A reserva será confirmada após o pagamento.'}
+                ? t('reserva_confirmada_curto')
+                : t('reserva_confirmada_apos_pagamento_curto')}
             </p>
           </div>
         </div>
@@ -80,49 +82,49 @@ const ResumoReservaCarro = ({ reserva, precoTotal, showPaymentInfo = false, paym
 
       <div className="space-y-4 border-t border-slate-100 pt-5">
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">Levantamento</span>
+          <span className="text-xs text-slate-600 font-medium">{t('levantamento')}</span>
           <span className="text-xs font-bold text-blue-900">{formatarData(checkIn)} - {horaLevantamento}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">Devolução</span>
+          <span className="text-xs text-slate-600 font-medium">{t('devolucao')}</span>
           <span className="text-xs font-bold text-blue-900">{formatarData(checkOut)} - {horaLevantamento}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">Dias</span>
-          <span className="text-xs font-bold text-blue-900">{dias} {dias === 1 ? 'dia' : 'dias'}</span>
+          <span className="text-xs text-slate-600 font-medium">{t('dias')}</span>
+          <span className="text-xs font-bold text-blue-900">{dias} {dias === 1 ? t('dia') : t('dias')}</span>
         </div>
         
         <div className="pt-3 space-y-2 border-t border-slate-100">
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">Preço por dia</span>
+            <span className="text-slate-500">{t('preco_por_dia')}</span>
             <span className="text-slate-800">{formatNumber(precoDia)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">Subtotal ({dias} dias)</span>
+            <span className="text-slate-500">{t('subtotal_dias', { dias })}</span>
             <span className="text-slate-800">{formatNumber(subtotal)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500 flex items-center gap-1">Taxa de serviço (10%) <Info size={11} className="text-slate-400" /></span>
+            <span className="text-slate-500 flex items-center gap-1">{t('taxa_servico_10')} <Info size={11} className="text-slate-400" /></span>
             <span className="text-slate-800">{formatNumber(taxaServico)} CVE</span>
           </div>
         </div>
 
         <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-          <span className="text-base font-bold text-blue-900">Total</span>
+          <span className="text-base font-bold text-blue-900">{t('total')}</span>
           <span className="text-xl font-bold text-blue-600">{formatNumber(precoTotal)} CVE</span>
         </div>
 
         <div className="bg-green-50 p-3 rounded-xl flex gap-2 mt-3 border border-green-100">
           <ShieldCheck className="text-green-600 shrink-0" size={18} />
           <div>
-            <p className="text-[9px] font-bold text-green-800">Cancelamento gratuito</p>
-            <p className="text-[8px] text-green-700 font-medium">Até 48 horas antes do levantamento</p>
+            <p className="text-[9px] font-bold text-green-800">{t('cancelamento_gratis')}</p>
+            <p className="text-[8px] text-green-700 font-medium">{t('cancelamento_prazo_carro_curto')}</p>
           </div>
         </div>
 
         <div className="bg-[#F0F7FF] p-3 rounded-xl flex gap-2 border border-blue-50">
           <Lock className="text-blue-600 shrink-0" size={16} />
-          <p className="text-[8px] text-blue-700 font-medium">Seus dados estão protegidos e seguros através de encriptação segura de ponta a ponta.</p>
+          <p className="text-[8px] text-blue-700 font-medium">{t('dados_protegidos')}</p>
         </div>
       </div>
     </div>

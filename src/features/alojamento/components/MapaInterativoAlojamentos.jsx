@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Map, Marker, NavigationControl, Popup } from 'react-map-gl';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, ChevronRight, MapPin } from 'lucide-react';
@@ -10,6 +11,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const PaginaMapa = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [alojamentos, setAlojamentos] = useState([]);
@@ -99,7 +101,6 @@ const PaginaMapa = () => {
           longitude={lng} 
           anchor="bottom"
           onClick={e => {
-            // ESSENCIAL: Evita bolhas de propagação que fecham o card na mesma hora
             e.originalEvent.stopPropagation();
             setSelectedHotel(hotel);
           }}
@@ -125,15 +126,15 @@ const PaginaMapa = () => {
           onClick={() => navigate(-1)}
           className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest border border-gray-100"
         >
-          <ArrowLeft size={18} /> Voltar
+          <ArrowLeft size={18} /> {t('voltar')}
         </button>
       </div>
 
       {/* Sidebar lateral */}
       <div className="absolute top-6 right-6 z-50 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="p-4 bg-blue-900 text-white text-left">
-          <h3 className="font-black text-sm uppercase tracking-wider">Alojamentos</h3>
-          <p className="text-[10px] text-blue-200 mt-1">{alojamentos.length} propriedades listadas</p>
+          <h3 className="font-black text-sm uppercase tracking-wider">{t('alojamentos')}</h3>
+          <p className="text-[10px] text-blue-200 mt-1">{alojamentos.length} {t('propriedades_listadas')}</p>
         </div>
         <div className="max-h-[calc(100vh-120px)] overflow-y-auto text-left">
           {alojamentos.map((hotel) => (
@@ -175,7 +176,7 @@ const PaginaMapa = () => {
       {loading && (
         <div className="absolute inset-0 z-40 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="font-black text-[10px] uppercase text-blue-600 tracking-wider">Carregando coordenadas dos hotéis...</p>
+          <p className="font-black text-[10px] uppercase text-blue-600 tracking-wider">{t('carregando_coordenadas')}</p>
         </div>
       )}
 
@@ -225,10 +226,10 @@ const PaginaMapa = () => {
               
               <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-1">
                 <span className="text-blue-600 font-black text-xs">
-                  {Number(selectedHotel.preco_noite).toLocaleString()} CVE <span className="text-[8px] font-normal text-slate-400">/noite</span>
+                  {Number(selectedHotel.preco_noite).toLocaleString()} CVE <span className="text-[8px] font-normal text-slate-400">{t('por_noite_curto')}</span>
                 </span>
                 <span className="text-[9px] font-black uppercase text-blue-600 flex items-center gap-0.5">
-                  Ver <ChevronRight size={10} />
+                  {t('ver')} <ChevronRight size={10} />
                 </span>
               </div>
             </div>

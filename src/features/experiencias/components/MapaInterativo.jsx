@@ -1,24 +1,24 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Monitor } from 'lucide-react';
 
 const MapaInterativo = ({ isOpen, onClose, dadosAlojamentos }) => {
+  const { t } = useTranslation();
+  
   if (!isOpen) return null;
 
-  // Definição das 10 ilhas com posições geográficas aproximadas 🗺️
+  // Definição das 10 ilhas com posições geográficas aproximadas (nomes em português para referência)
   const ilhas = [
-    // Barlavento (Norte)
-    { id: 'santo_antao', nome: 'Santo Antão', top: '15%', left: '10%' },
-    { id: 'sao_vicente', nome: 'São Vicente', top: '22%', left: '22%' },
-    { id: 'santa_luzia', nome: 'Santa Luzia', top: '25%', left: '32%' },
-    { id: 'sao_nicolau', nome: 'São Nicolau', top: '30%', left: '45%' },
-    { id: 'sal', nome: 'Sal', top: '22%', left: '78%' },
-    { id: 'boa_vista', nome: 'Boa Vista', top: '42%', left: '82%' },
-    
-    // Sotavento (Sul)
-    { id: 'maio', nome: 'Maio', top: '68%', left: '75%' },
-    { id: 'santiago', nome: 'Santiago', top: '78%', left: '60%' },
-    { id: 'fogo', nome: 'Fogo', top: '82%', left: '35%' },
-    { id: 'brava', nome: 'Brava', top: '85%', left: '20%' },
+    { id: 'santo_antao', nome: t('santo_antao'), top: '15%', left: '10%' },
+    { id: 'sao_vicente', nome: t('sao_vicente'), top: '22%', left: '22%' },
+    { id: 'santa_luzia', nome: t('santa_luzia'), top: '25%', left: '32%' },
+    { id: 'sao_nicolau', nome: t('sao_nicolau'), top: '30%', left: '45%' },
+    { id: 'sal', nome: t('sal'), top: '22%', left: '78%' },
+    { id: 'boa_vista', nome: t('boa_vista'), top: '42%', left: '82%' },
+    { id: 'maio', nome: t('maio'), top: '68%', left: '75%' },
+    { id: 'santiago', nome: t('santiago'), top: '78%', left: '60%' },
+    { id: 'fogo', nome: t('fogo'), top: '82%', left: '35%' },
+    { id: 'brava', nome: t('brava'), top: '85%', left: '20%' },
   ];
 
   const contarPorIlha = (nomeIlha) => {
@@ -37,7 +37,6 @@ const MapaInterativo = ({ isOpen, onClose, dadosAlojamentos }) => {
     <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="relative w-full max-w-6xl aspect-video bg-[#f8fafc] rounded-[40px] border border-gray-200 overflow-hidden shadow-2xl">
         
-        {/* Botão de Fechar */}
         <button 
           onClick={onClose} 
           className="absolute top-8 right-8 z-50 p-3 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-all"
@@ -45,7 +44,6 @@ const MapaInterativo = ({ isOpen, onClose, dadosAlojamentos }) => {
           <X size={24} />
         </button>
 
-        {/* Textura suave de fundo */}
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/ocean-texture.png')]"></div>
 
         <div className="relative w-full h-full p-12">
@@ -57,14 +55,12 @@ const MapaInterativo = ({ isOpen, onClose, dadosAlojamentos }) => {
                 className="absolute flex flex-col items-center group transition-all"
                 style={{ top: ilha.top, left: ilha.left }}
               >
-                {/* Círculo azul com o número de opções */}
                 {total > 0 && (
                   <div className="mb-2 bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center justify-center shadow-lg min-w-[24px]">
                     {total}
                   </div>
                 )}
                 
-                {/* Ícone Estilo "Monitor" */}
                 <div className={`bg-white p-2 rounded-lg border-2 shadow-md transition-all duration-300 ${
                   total > 0 
                     ? 'border-blue-600 group-hover:bg-blue-600 group-hover:border-blue-700' 
@@ -88,9 +84,9 @@ const MapaInterativo = ({ isOpen, onClose, dadosAlojamentos }) => {
         </div>
 
         <div className="absolute bottom-10 left-12 border-l-4 border-blue-600 pl-4">
-          <h2 className="text-gray-900 font-black uppercase tracking-[0.2em] text-sm">Arquipélago de Cabo Verde</h2>
+          <h2 className="text-gray-900 font-black uppercase tracking-[0.2em] text-sm">{t('arquipelago_cabo_verde')}</h2>
           <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">
-            Mapa Interativo | {getTotalAlojamentos()} alojamentos disponíveis
+            {t('mapa_interativo')} | {getTotalAlojamentos()} {t('alojamentos_disponiveis')}
           </p>
         </div>
       </div>

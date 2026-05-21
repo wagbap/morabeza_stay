@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserPlus, Edit2, Save, X, Plus, Trash2, Loader } from 'lucide-react';
 
 const ParticipantesAnterioresTabela = ({ 
@@ -16,11 +17,13 @@ const ParticipantesAnterioresTabela = ({
   adicionarParticipanteAnterior,
   deletarParticipante
 }) => {
+  const { t } = useTranslation();
+
   if (carregandoDados) {
     return (
       <div className="mt-10 p-8 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center gap-3">
         <Loader size={20} className="animate-spin text-blue-600" />
-        <p className="text-sm text-slate-500">Carregando seus participantes anteriores...</p>
+        <p className="text-sm text-slate-500">{t('carregando_participantes_anteriores')}</p>
       </div>
     );
   }
@@ -29,8 +32,8 @@ const ParticipantesAnterioresTabela = ({
     return (
       <div className="mt-10 p-6 bg-slate-50 border border-slate-200 rounded-xl text-center">
         <UserPlus size={32} className="mx-auto mb-3 text-slate-300" />
-        <p className="text-sm text-slate-500">Nenhum participante encontrado em reservas anteriores</p>
-        <p className="text-xs text-slate-400 mt-1">Adicione participantes acima e eles ficarão salvos para próximas reservas</p>
+        <p className="text-sm text-slate-500">{t('nenhum_participante_encontrado')}</p>
+        <p className="text-xs text-slate-400 mt-1">{t('adicione_participantes_acima')}</p>
       </div>
     );
   }
@@ -42,18 +45,18 @@ const ParticipantesAnterioresTabela = ({
           <div className="flex items-center gap-2">
             <UserPlus size={18} className="text-blue-600" />
             <h3 className="text-sm font-bold text-blue-800">
-              Participantes de reservas anteriores ({participantesAnteriores.length})
+              {t('participantes_reservas_anteriores')} ({participantesAnteriores.length})
             </h3>
           </div>
           <button 
             onClick={() => buscarDadosUsuario(user?.email, user?.google_id)}
             className="text-[10px] text-blue-600 hover:text-blue-800 font-bold"
           >
-            Atualizar
+            {t('atualizar')}
           </button>
         </div>
         <p className="text-[10px] text-slate-500 mt-1">
-          ✏️ Editar | ➕ Adicionar à reserva atual | ❌ Remover permanentemente
+          ✏️ {t('editar')} | ➕ {t('adicionar_reserva_atual')} | ❌ {t('remover_permanentemente')}
         </p>
       </div>
       
@@ -61,11 +64,11 @@ const ParticipantesAnterioresTabela = ({
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
             <tr>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Nome</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Idade</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Nacionalidade</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Tipo</th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">Ações</th>
+              <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">{t('nome')}</th>
+              <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">{t('idade')}</th>
+              <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">{t('nacionalidade')}</th>
+              <th className="text-left px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">{t('tipo')}</th>
+              <th className="text-center px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider">{t('acoes')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -87,9 +90,9 @@ const ParticipantesAnterioresTabela = ({
                         onChange={(e) => setEditForm({...editForm, idade: e.target.value})}
                         className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
                       >
-                        <option value="adulto">Adulto</option>
-                        <option value="crianca">Criança</option>
-                        <option value="bebe">Bebê</option>
+                        <option value="adulto">{t('adulto')}</option>
+                        <option value="crianca">{t('crianca')}</option>
+                        <option value="bebe">{t('bebe')}</option>
                       </select>
                     </td>
                     <td className="px-4 py-2">
@@ -98,18 +101,18 @@ const ParticipantesAnterioresTabela = ({
                         onChange={(e) => setEditForm({...editForm, nacionalidade: e.target.value})}
                         className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
                       >
-                        <option>Cabo Verde</option>
-                        <option>Portugal</option>
-                        <option>Brasil</option>
-                        <option>Angola</option>
-                        <option>Outra</option>
+                        <option>{t('cabo_verde')}</option>
+                        <option>{t('portugal')}</option>
+                        <option>{t('brasil')}</option>
+                        <option>{t('angola')}</option>
+                        <option>{t('outra')}</option>
                       </select>
                     </td>
                     <td className="px-4 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         p.tipo === 'principal' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {p.tipo === 'principal' ? 'Principal' : 'Acompanhante'}
+                        {p.tipo === 'principal' ? t('principal') : t('acompanhante')}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-center">
@@ -117,14 +120,14 @@ const ParticipantesAnterioresTabela = ({
                         <button
                           onClick={() => salvarEdicao(p)}
                           className="w-7 h-7 rounded-full bg-green-100 hover:bg-green-200 text-green-600 transition-all flex items-center justify-center"
-                          title="Salvar"
+                          title={t('salvar')}
                         >
                           <Save size={14} />
                         </button>
                         <button
                           onClick={cancelarEdicao}
                           className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all flex items-center justify-center"
-                          title="Cancelar"
+                          title={t('cancelar')}
                         >
                           <X size={14} />
                         </button>
@@ -140,7 +143,7 @@ const ParticipantesAnterioresTabela = ({
                         p.idade === 'crianca' ? 'bg-yellow-100 text-yellow-700' : 
                         'bg-blue-100 text-blue-700'
                       }`}>
-                        {p.idade === 'adulto' ? 'Adulto' : p.idade === 'crianca' ? 'Criança' : 'Bebê'}
+                        {p.idade === 'adulto' ? t('adulto') : p.idade === 'crianca' ? t('crianca') : t('bebe')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-600">{p.nacionalidade}</td>
@@ -148,7 +151,7 @@ const ParticipantesAnterioresTabela = ({
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         p.tipo === 'principal' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {p.tipo === 'principal' ? 'Principal' : 'Acompanhante'}
+                        {p.tipo === 'principal' ? t('principal') : t('acompanhante')}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -156,14 +159,14 @@ const ParticipantesAnterioresTabela = ({
                         <button
                           onClick={() => iniciarEdicao(p)}
                           className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 transition-all flex items-center justify-center"
-                          title="Editar"
+                          title={t('editar')}
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           onClick={() => adicionarParticipanteAnterior(p)}
                           className="w-7 h-7 rounded-full bg-green-50 hover:bg-green-100 text-green-600 transition-all flex items-center justify-center"
-                          title="Adicionar à reserva"
+                          title={t('adicionar_reserva')}
                         >
                           <Plus size={14} />
                         </button>
@@ -171,7 +174,7 @@ const ParticipantesAnterioresTabela = ({
                           onClick={() => deletarParticipante(p)}
                           disabled={deletandoParticipante === p.nome_completo}
                           className="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-500 transition-all flex items-center justify-center disabled:opacity-50"
-                          title="Remover permanentemente"
+                          title={t('remover_permanentemente')}
                         >
                           {deletandoParticipante === p.nome_completo ? (
                             <Loader size={12} className="animate-spin" />

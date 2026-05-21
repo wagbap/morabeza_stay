@@ -1,8 +1,10 @@
 // AvaliacoesSeccaoAlojamento.jsx
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Star, User, Calendar, ThumbsUp, Flag, X, Loader2, CheckCircle } from 'lucide-react';
 
 const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginModal, isEmbedded = false }) => {
+  const { t } = useTranslation();
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,14 +14,12 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
   const [submitting, setSubmitting] = useState(false);
   const [formSuccess, setFormSuccess] = useState(false);
   
-  // Estado do formulário
   const [formData, setFormData] = useState({
     rating: 5,
     comentario: '',
     data_estadia: ''
   });
 
-  // Buscar avaliações
   const fetchAvaliacoes = async () => {
     setLoading(true);
     try {
@@ -31,11 +31,11 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
         setMediaRating(Number(data.media_rating) || 0);
         setTotalReviews(Number(data.total_reviews) || 0);
       } else {
-        setError(data.message || 'Erro ao carregar avaliações');
+        setError(data.message || t('erro_carregar_avaliacoes'));
       }
     } catch (err) {
       console.error('Erro ao buscar avaliações:', err);
-      setError('Erro ao carregar avaliações');
+      setError(t('erro_carregar_avaliacoes'));
     } finally {
       setLoading(false);
     }
@@ -63,18 +63,18 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
       if (onOpenLoginModal) {
         onOpenLoginModal();
       } else {
-        alert('Por favor, faça login para avaliar');
+        alert(t('login_para_avaliar'));
       }
       return;
     }
 
     if (!formData.comentario.trim()) {
-      alert('Por favor, escreva um comentário');
+      alert(t('escreva_comentario'));
       return;
     }
 
     if (!formData.data_estadia) {
-      alert('Por favor, informe a data da sua estadia');
+      alert(t('informe_data_estadia'));
       return;
     }
 
@@ -107,11 +107,11 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
         fetchAvaliacoes();
         setTimeout(() => setFormSuccess(false), 3000);
       } else {
-        alert(result.message || 'Erro ao enviar avaliação');
+        alert(result.message || t('erro_enviar_avaliacao'));
       }
     } catch (err) {
       console.error('Erro ao enviar avaliação:', err);
-      alert('Erro ao enviar avaliação. Tente novamente.');
+      alert(t('erro_enviar_avaliacao'));
     } finally {
       setSubmitting(false);
     }
@@ -150,24 +150,35 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
       <div className="text-center py-8">
         <p className="text-red-500 text-sm">{error}</p>
         <button onClick={fetchAvaliacoes} className="mt-2 text-[#003580] text-sm underline">
-          Tentar novamente
+          {t('tentar_novamente')}
         </button>
       </div>
     );
   }
 
-  // Fallbacks para capturar o nome correto independente do retorno da API
-  const primeiroNomeDisplay = avaliacoes[0] ? (avaliacoes[0].nome_usuario || avaliacoes[0].nome || avaliacoes[0].autor || 'Anônimo') : 'Anônimo';
+  const primeiroNomeDisplay = avaliacoes[0] ? (avaliacoes[0].nome_usuario || avaliacoes[0].nome || avaliacoes[0].autor || t('anonimo')) : t('anonimo');
   const primeiroComentario = avaliacoes[0] ? (avaliacoes[0].comentario || avaliacoes[0].texto || '') : '';
   const primeiroRating = avaliacoes[0] ? (Number(avaliacoes[0].rating) || 5) : 5;
 
+  // Categorias de avaliação traduzidas
+  const categoriasAvaliacao = [
+    { label: t('limpeza'), val: 4.9 },
+    { label: t('conforto'), val: 4.7 },
+    { label: t('consumo'), val: 4.8 },
+    { label: t('atendimento'), val: 4.8 },
+    { label: t('levantamento'), val: 4.9 },
+    { label: t('custo_beneficio'), val: 4.7 }
+  ];
+
   return (
     <div className={isEmbedded ? '' : 'bg-white rounded-2xl'}>
-      {/* 1. TOPO DA SECÇÃO: Título Base com Média à Direita e Botão de Avaliar */}
+      {/* 1. TOPO DA SECÇÃO */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Avaliações dos hóspedes</h2>
-          <p className="text-xs text-slate-400 font-medium mt-0.5">Baseado em {totalReviews} {totalReviews === 1 ? 'avaliação' : 'avaliações'}</p>
+          <h2 className="text-xl font-bold text-slate-900">{t('avaliacoes_hospedes')}</h2>
+          <p className="text-xs text-slate-400 font-medium mt-0.5">
+            {t('baseado_em')} {totalReviews} {totalReviews === 1 ? t('avaliacao') : t('avaliacoes')}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -186,15 +197,15 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
             }}
             className="px-4 py-2 bg-[#003580] text-white text-xs font-bold rounded-lg hover:bg-blue-900 transition-all shadow-sm"
           >
-            {showForm ? 'Cancelar' : 'Avaliar estadia'}
+            {showForm ? t('cancelar') : t('avaliar_estadia')}
           </button>
         </div>
       </div>
 
-      {/* 2. LINHA DE SUBTÍTULO: Avaliações dos participantes com Estrela e Nota à Direita */}
+      {/* 2. LINHA DE SUBTÍTULO */}
       <div className="flex justify-between items-center mb-4 px-1">
         <span className="text-sm font-bold text-slate-800">
-          Avaliações dos participantes <span className="text-slate-400 font-normal text-xs">({totalReviews} avaliações)</span>
+          {t('avaliacoes_participantes')} <span className="text-slate-400 font-normal text-xs">({totalReviews} {t('avaliacoes')})</span>
         </span>
         <div className="flex items-center gap-1 text-sm font-bold text-slate-800">
           <span className="text-orange-500 text-base">★</span> {mediaRating.toFixed(1)}
@@ -204,28 +215,19 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
       {/* 3. PAINEL DE NOTAS PROFISSIONAL */}
       <div className="border border-slate-200 rounded-3xl p-8 bg-white shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center mb-8">
         
-        {/* Bloco Média de Clientes */}
         <div className="lg:col-span-3 text-center lg:text-left flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0 lg:pr-6">
-          <h4 className="text-sm font-bold text-slate-900 mb-4">Avaliações de clientes</h4>
+          <h4 className="text-sm font-bold text-slate-900 mb-4">{t('avaliacoes_clientes')}</h4>
           <div className="text-6xl font-black text-[#1a2b6d] tracking-tighter mb-2">{mediaRating.toFixed(1)}</div>
           <div className="flex justify-center lg:justify-start mb-1">
             {renderStars(Math.round(mediaRating), 16)}
           </div>
           <p className="text-[10px] font-semibold text-slate-400 mt-1">
-            Baseado em {totalReviews} {totalReviews === 1 ? 'avaliação' : 'avaliações'}
+            {t('baseado_em')} {totalReviews} {totalReviews === 1 ? t('avaliacao') : t('avaliacoes')}
           </p>
         </div>
 
-        {/* Bloco de Critérios Horizontais */}
         <div className="lg:col-span-5 space-y-3.5 px-2">
-          {[
-            { label: 'Limpeza', val: 4.9 },
-            { label: 'Conforto', val: 4.7 },
-            { label: 'Consumo', val: 4.8 },
-            { label: 'Atendimento', val: 4.8 },
-            { label: 'Levantamento', val: 4.9 },
-            { label: 'Custo-benefício', val: 4.7 }
-          ].map((cat, i) => (
+          {categoriasAvaliacao.map((cat, i) => (
             <div key={i} className="flex items-center justify-between text-xs font-semibold text-slate-600">
               <span className="w-24 text-slate-400 text-left font-medium">{cat.label}</span>
               <div className="flex-1 mx-4 bg-slate-100 h-1 rounded-full overflow-hidden">
@@ -239,7 +241,6 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
           ))}
         </div>
 
-        {/* Card Lateral do Último Comentário em Destaque */}
         <div className="lg:col-span-4 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-full min-h-[190px]">
           {avaliacoes.length > 0 ? (
             <>
@@ -252,7 +253,7 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
                   />
                   <div>
                     <h5 className="text-xs font-bold text-slate-900">{primeiroNomeDisplay}</h5>
-                    <p className="text-[10px] text-slate-400 font-medium">maio de 2026</p>
+                    <p className="text-[10px] text-slate-400 font-medium">{t('maio_2026')}</p>
                   </div>
                 </div>
                 <div className="bg-emerald-50 text-emerald-600 text-xs font-bold px-2 py-1 rounded-lg">
@@ -269,22 +270,22 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
                 }}
                 className="text-blue-600 text-xs font-bold hover:underline flex items-center text-left"
               >
-                Ver todas as avaliações ({totalReviews})
+                {t('ver_todas_avaliacoes')} ({totalReviews})
               </button>
             </>
           ) : (
             <div className="text-center py-8 text-slate-400 text-xs my-auto">
-              Nenhuma avaliação disponível.
+              {t('nenhuma_avaliacao_disponivel')}
             </div>
           )}
         </div>
       </div>
 
-      {/* Formulário de Avaliação Ocultável */}
+      {/* Formulário de Avaliação */}
       {showForm && (
         <div className="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-200">
           <div className="flex justify-between items-center mb-4">
-            <h4 className="font-bold text-slate-900">Como foi sua estadia?</h4>
+            <h4 className="font-bold text-slate-900">{t('como_foi_estadia')}</h4>
             <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600">
               <X size={20} />
             </button>
@@ -292,7 +293,7 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
           
           <form onSubmit={handleSubmit}>
             <div className="mb-5">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Sua nota</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">{t('sua_nota')}</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -311,7 +312,7 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
             </div>
 
             <div className="mb-5">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Data da sua estadia</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">{t('data_estadia')}</label>
               <input
                 type="date"
                 name="data_estadia"
@@ -324,13 +325,13 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
             </div>
 
             <div className="mb-5">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Seu comentário</label>
+              <label className="block text-sm font-bold text-slate-700 mb-2">{t('seu_comentario')}</label>
               <textarea
                 name="comentario"
                 value={formData.comentario}
                 onChange={handleInputChange}
                 rows={4}
-                placeholder="Compartilhe sua experiência no alojamento..."
+                placeholder={t('compartilhe_experiencia')}
                 className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#003580]/20 resize-none"
                 required
               />
@@ -342,7 +343,7 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
               className="px-6 py-2.5 bg-[#003580] text-white font-bold rounded-xl hover:bg-blue-900 transition-all disabled:opacity-50"
             >
               {submitting ? <Loader2 size={18} className="animate-spin inline mr-2" /> : null}
-              {submitting ? 'Enviando...' : 'Enviar avaliação'}
+              {submitting ? t('enviando') : t('enviar_avaliacao')}
             </button>
           </form>
         </div>
@@ -352,21 +353,20 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
       {formSuccess && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
           <CheckCircle className="text-green-500" size={20} />
-          <p className="text-green-700 text-sm">Avaliação enviada com sucesso! Obrigado por compartilhar sua experiência.</p>
+          <p className="text-green-700 text-sm">{t('avaliacao_enviada_sucesso')}</p>
         </div>
       )}
 
-      {/* 4. LISTA CORRIDA DE COMENTÁRIOS */}
+      {/* 4. LISTA DE COMENTÁRIOS */}
       <div id="reviews-anchor-list" className="space-y-6 mt-10">
         {avaliacoes.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 rounded-2xl">
             <Star size={48} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">Ainda não há avaliações para este alojamento.</p>
+            <p className="text-slate-500">{t('sem_avaliacoes_ainda')}</p>
           </div>
         ) : (
           avaliacoes.map((avaliacao, index) => {
-            // Mapeamento dinâmico individual de chaves do banco de dados
-            const nomeDisplay = avaliacao.nome_usuario || avaliacao.nome || avaliacao.autor || 'Anônimo';
+            const nomeDisplay = avaliacao.nome_usuario || avaliacao.nome || avaliacao.autor || t('anonimo');
             const textoComentario = avaliacao.comentario || avaliacao.texto || '';
             const notaRating = Number(avaliacao.rating) || 5;
 
@@ -389,7 +389,7 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
                         <h4 className="text-sm font-bold text-slate-900">{nomeDisplay}</h4>
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
                           <Calendar size={11} className="text-slate-400" />
-                          <span>Estadia: {formatarData(avaliacao.data_estadia)}</span>
+                          <span>{t('estadia')}: {formatarData(avaliacao.data_estadia)}</span>
                         </div>
                       </div>
                       <span className="text-[10px] text-slate-400 font-medium">{formatarData(avaliacao.created_at)}</span>
@@ -404,11 +404,11 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
                     <div className="flex items-center gap-4 mt-3">
                       <button className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 font-semibold transition">
                         <ThumbsUp size={11} />
-                        <span>Útil</span>
+                        <span>{t('util')}</span>
                       </button>
                       <button className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 font-semibold transition">
                         <Flag size={11} />
-                        <span>Reportar</span>
+                        <span>{t('reportar')}</span>
                       </button>
                     </div>
                   </div>

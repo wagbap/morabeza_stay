@@ -13,14 +13,13 @@ const FiltrosLateraisCarros = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  // 1. Categorias focadas em Veículos (Mantendo a mesma estrutura de objetos)
   const listaCategorias = [
-    { id: 'Económico', label: t('economico', 'Económico'), icon: <Car size={16} /> },
-    { id: 'SUV', label: t('suv', 'SUV / 4x4'), icon: <Shield size={16} /> },
-    { id: 'Familiar', label: t('familiar', 'Familiar (+5 lug)'), icon: <Users size={16} /> },
-    { id: 'Eletrico', label: t('eletrico', 'Híbrido / Elétrico'), icon: <Zap size={16} /> },
-    { id: 'Automatico', label: t('automatico', 'Automático'), icon: <Gauge size={16} /> },
-    { id: 'Manual', label: t('manual', 'Manual'), icon: <Settings size={16} /> },
+    { id: 'Económico', label: t('economico'), icon: <Car size={16} /> },
+    { id: 'SUV', label: t('suv'), icon: <Shield size={16} /> },
+    { id: 'Familiar', label: t('familiar'), icon: <Users size={16} /> },
+    { id: 'Eletrico', label: t('eletrico_categoria'), icon: <Zap size={16} /> },
+    { id: 'Automatico', label: t('automatico'), icon: <Gauge size={16} /> },
+    { id: 'Manual', label: t('manual'), icon: <Settings size={16} /> },
   ];
 
   const handleTipoChange = (tipoId) => {
@@ -40,11 +39,11 @@ const FiltrosLateraisCarros = ({
         <img 
           src="https://images.unsplash.com/photo-1449960232330-79ba99d70d41?q=80&w=400" 
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-          alt="Mapa de Levantamento" 
+          alt={t('mapa_levantamento_alt')} 
         />
         <div className="absolute inset-0 bg-blue-900/30 flex items-center justify-center transition-colors group-hover:bg-blue-900/40">
           <div className="bg-white text-blue-700 px-4 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2">
-            <Map size={14} /> {t('pontos_levantamento', 'Pontos de Levantamento')}
+            <Map size={14} /> {t('pontos_levantamento')}
           </div>
         </div>
       </div>
@@ -55,10 +54,10 @@ const FiltrosLateraisCarros = ({
         {/* Título e Contador */}
         <div className="flex justify-between items-center mb-6 border-b border-gray-50 pb-4">
           <h3 className="font-black text-gray-900 uppercase text-[10px] tracking-[0.2em]">
-            {t('refinar_frota', 'Refinar Frota')}
+            {t('refinar_frota')}
           </h3>
           <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] font-black">
-            {totalEncontrados} {t('veiculos', 'Veículos')}
+            {totalEncontrados} {t('veiculos')}
           </span>
         </div>
 
@@ -66,10 +65,10 @@ const FiltrosLateraisCarros = ({
         <div className="mb-8">
           <div className="flex justify-between items-baseline mb-4">
             <label className="font-black text-gray-900 uppercase text-[10px] tracking-tight">
-              {t('preco_diaria', 'Preço por dia')}
+              {t('preco_diaria')}
             </label>
             <span className="text-blue-600 font-black text-xs">
-              Até {orcamento.toLocaleString('pt-PT')} CVE
+              {t('ate')} {orcamento.toLocaleString('pt-PT')} CVE
             </span>
           </div>
           <input 
@@ -90,7 +89,7 @@ const FiltrosLateraisCarros = ({
         {/* Filtro de Categorias de Carros 🚗 */}
         <div className="space-y-4">
           <label className="block font-black text-gray-900 uppercase text-[10px] tracking-tight mb-2">
-            {t('tipo_veiculo', 'Tipo de Veículo')}
+            {t('tipo_veiculo')}
           </label>
           <div className="space-y-3">
             {listaCategorias.map(tipo => (
@@ -120,7 +119,7 @@ const FiltrosLateraisCarros = ({
             onClick={() => { setOrcamento(30000); setTiposSelecionados([]); }}
             className="w-full mt-8 pt-4 border-t border-gray-50 text-gray-400 hover:text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
           >
-            <X size={14} /> {t('limpar_filtros', 'Remover Filtros')}
+            <X size={14} /> {t('remover_filtros')}
           </button>
         )}
       </div>

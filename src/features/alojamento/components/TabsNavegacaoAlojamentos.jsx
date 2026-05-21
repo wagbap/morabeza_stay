@@ -1,13 +1,16 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
-export const TabsNavegacaoAlojamentos = ({ activeTab = 0 }) => {
+export const TabsNavegacaoAlojamentos = ({ activeTab = 0, totalAvaliacoes = 120 }) => {
+  const { t } = useTranslation();
+  
   const tabs = [
-    'Descrição', 
-    'Comodidades', 
-    'Avaliações (120)', 
-    'Localização', 
-    'Regras da casa', 
-    'Anfitrião'
+    t('descricao'), 
+    t('comodidades'), 
+    `${t('avaliacoes')} (${totalAvaliacoes})`, 
+    t('localizacao'), 
+    t('regras_casa'), 
+    t('anfitriao')
   ];
 
   return (
@@ -35,16 +38,13 @@ export const TabsNavegacaoAlojamentos = ({ activeTab = 0 }) => {
       </div>
 
       {/* CONTEÚDO DA ABA (FORA DO MAP) */}
-      {/* Aqui você renderiza o conteúdo baseado na aba ativa. Exemplo com a aba 0 (Descrição) */}
       {activeTab === 0 && (
         <div className="max-w-3xl animate-in fade-in duration-500">
           <p className="text-slate-600 text-sm leading-relaxed mb-4">
-            Apartamento moderno e acolhedor com vista deslumbrante para o mar, localizado na melhor zona da Praia. 
-            Perfeito para famílias, casais ou viajantes a negócios. Desfrute de uma estadia confortável com 
-            todas as comodidades necessárias para se sentir em casa.
+            {t('descricao_padrao_alojamento_long')}
           </p>
           <button className="text-[#003580] text-xs font-bold underline hover:text-blue-800 transition-colors">
-            Ler mais
+            {t('ler_mais')}
           </button>
         </div>
       )}

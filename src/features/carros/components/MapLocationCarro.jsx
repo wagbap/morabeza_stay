@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, MapPin, Maximize2 } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
@@ -8,6 +9,7 @@ import MapaInterativoCarros from './MapaInterativoCarros';
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -30,7 +32,6 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
     return coordenadas[nomeIlha] || { lat: 15.0667, lng: -23.5833 };
   };
   
-  // Tratamento rigoroso de tipos para evitar que strings vazias quebrem o Mapbox
   const validLat = latitude && !isNaN(parseFloat(latitude)) ? parseFloat(latitude) : null;
   const validLng = longitude && !isNaN(parseFloat(longitude)) ? parseFloat(longitude) : null;
   const temCoordenadasExatas = validLat !== null && validLng !== null;
@@ -39,11 +40,11 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
     ? { lat: validLat, lng: validLng }
     : getCoordenadasPorIlha(ilha);
   
-  const textoLocalizacao = `${ilha || 'Cabo Verde'}, ${localizacao || 'Localização não informada'}`;
-  const cidadeNome = localizacao || ilha || 'Cabo Verde';
+  const textoLocalizacao = `${ilha || t('cabo_verde')}, ${localizacao || t('localizacao_nao_informada')}`;
+  const cidadeNome = localizacao || ilha || t('cabo_verde');
   
   const abrirPaginaMapa = (e) => {
-    e.stopPropagation(); // Evita dupla execução caso cliques propaguem
+    e.stopPropagation();
     if (carroId) {
       navigate(`/mapa-carros?foco=${carroId}`);
     } else {
@@ -63,7 +64,6 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
       return;
     }
     
-    // Destruir mapa existente antes de criar um novo (evita vazamento de memória e bugs de render)
     if (map.current) {
       map.current.remove();
       map.current = null;
@@ -104,12 +104,12 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
     const ilhaLower = (ilha || '').toLowerCase();
     
     const pontosMap = {
-      'praia': ['Aeroporto Nelson Mandela', 'Porto da Praia', 'Platô Centro Histórico'],
-      'santa maria': ['Praia de Santa Maria', 'Ponta Sinó', 'Zona Hoteleira de Santa Maria'],
-      'mindelo': ['Porto Grande', 'Praia da Laginha', 'Rua de Lisboa'],
-      'palmeira': ['Porto da Palmeira', 'Pedra de Lume', 'Espargos Centro'],
-      'tarrafal': ['Baía de Tarrafal', 'Mercado Municipal', 'Monte Graciosa'],
-      'sal rei': ['Porto de Sal Rei', 'Praia de Chaves', 'Praia do Estoril'],
+      'praia': [t('aeroporto_nelson_mandela'), t('porto_praia'), t('plato_centro_historico')],
+      'santa maria': [t('praia_santa_maria'), t('ponta_sino'), t('zona_hoteleira_santa_maria')],
+      'mindelo': [t('porto_grande_mindelo'), t('praia_laginha'), t('rua_lisboa')],
+      'palmeira': [t('porto_palmeira'), t('pedra_lume'), t('espargos_centro')],
+      'tarrafal': [t('baia_tarrafal'), t('mercado_municipal'), t('monte_graciosa')],
+      'sal rei': [t('porto_sal_rei'), t('praia_chaves'), t('praia_estoril')],
     };
     
     for (const [key, pontos] of Object.entries(pontosMap)) {
@@ -117,17 +117,17 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
     }
     
     const pontosIlha = {
-      'sal': ['Aeroporto Amílcar Cabral', 'Santa Maria', 'Espargos'],
-      'santiago': ['Cidade da Praia', 'Assomada', 'Tarrafal'],
-      'são vicente': ['Mindelo', 'Monte Verde', 'Baía das Gatas'],
-      'santo antão': ['Porto Novo', 'Ribeira Grande', 'Paul'],
-      'fogo': ['São Filipe', 'Chã das Caldeiras', 'Mosteiros'],
-      'boa vista': ['Sal Rei', 'Rabil', 'Povoação Velha'],
+      'sal': [t('aeroporto_amilcar_cabral'), t('santa_maria'), t('espargos')],
+      'santiago': [t('cidade_praia'), t('assomada'), t('tarrafal')],
+      'são vicente': [t('mindelo'), t('monte_verde'), t('baia_gatas')],
+      'santo antão': [t('porto_novo'), t('ribeira_grande'), t('paul')],
+      'fogo': [t('sao_filipe'), t('cha_caldeiras'), t('mosteiros')],
+      'boa vista': [t('sal_rei'), t('rabil'), t('povoacao_velha')],
     };
     
     if (ilhaLower && pontosIlha[ilhaLower]) return pontosIlha[ilhaLower];
     
-    return ['Aeroporto da Ilha', 'Centro Comercial / Cidade', 'Estação Central de Recolha'];
+    return [t('aeroporto_ilha'), t('centro_comercial_cidade'), t('estacao_central_recolha')];
   };
   
   const pontosProximos = getPontosProximos();
@@ -137,7 +137,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left w-full">
         <div className="flex justify-between items-start mb-3 gap-2">
           <div>
-            <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização de Levantamento</h4>
+            <h4 className="text-sm font-bold text-slate-900 leading-tight">{t('localizacao_levantamento')}</h4>
             <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
           </div>
           <div className="flex gap-2 shrink-0">
@@ -145,13 +145,13 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
               onClick={abrirMapaInterativo}
               className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
             >
-              Mapa Ilhas <ExternalLink size={10} />
+              {t('mapa_ilhas')} <ExternalLink size={10} />
             </button>
             <button 
               onClick={abrirPaginaMapa}
               className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
             >
-              Ver Mapa <ExternalLink size={10} />
+              {t('ver_mapa')} <ExternalLink size={10} />
             </button>
           </div>
         </div>
@@ -176,7 +176,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
                 className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
               >
                 <MapPin size={14} className="fill-white" />
-                Ver no mapa grande
+                {t('ver_no_mapa_grande')}
               </button>
             </div>
             
@@ -190,7 +190,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
             <button 
               onClick={abrirPaginaMapa}
               className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
-              title="Expandir mapa"
+              title={t('expandir_mapa')}
             >
               <Maximize2 size={14} className="text-slate-600" />
             </button>
@@ -202,7 +202,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
           >
             <img 
               src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop" 
-              alt="Mapa de contingência" 
+              alt={t('mapa_contingencia')} 
               className="w-full h-full object-cover opacity-80 transition-transform duration-300 group-hover:scale-105"
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/5 group-hover:bg-black/20 transition-all duration-300">
@@ -215,7 +215,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
         
         {pontosProximos.length > 0 && (
           <div className="mt-4 pt-3 border-t border-slate-100">
-            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 Locais úteis para entrega:</p>
+            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 {t('locais_uteis_entrega')}</p>
             <ul className="space-y-1">
               {pontosProximos.slice(0, 3).map((ponto, i) => (
                 <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">

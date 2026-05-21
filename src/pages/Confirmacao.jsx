@@ -1,5 +1,6 @@
 // Confirmacao.jsx - Com suporte para Carros
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Check, Calendar, Clock, MapPin, Users, 
@@ -13,6 +14,7 @@ import ResumoReservaAlojamento from '../features/alojamento/components/ResumoRes
 import ResumoReservaCarro from '../features/carros/components/ResumoReservaCarro';
 
 const Confirmacao = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { reservaId, codigoReserva, reservaData, metodoPagamento, tipo: tipoState, status } = location.state || {};
@@ -23,7 +25,6 @@ const Confirmacao = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     
-    // Recuperar email do usuário logado
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       try {
@@ -34,7 +35,6 @@ const Confirmacao = () => {
       }
     }
     
-    // Se não tiver dados, tentar recuperar do sessionStorage
     if (!reservaData) {
       const cacheAlojamento = sessionStorage.getItem('reservaAlojamentoPendente');
       const cacheExperiencia = sessionStorage.getItem('reservaPendente');
@@ -50,7 +50,6 @@ const Confirmacao = () => {
     }
   }, [reservaData]);
 
-  // Calcular valores baseado no tipo
   const totalPessoas = tipo === 'alojamento' 
     ? (reservaData?.totalHospedes || 1) 
     : (tipo === 'carro' ? 1 : (reservaData?.participantes || 1));
@@ -61,73 +60,85 @@ const Confirmacao = () => {
     
   const emailUsuario = reservaData?.email || userEmail || 'cliente@email.com';
 
-  // Função para copiar código
   const handleCopyCode = () => {
     if (codigoReserva) {
       navigator.clipboard.writeText(codigoReserva);
-      alert('✅ Código da reserva copiado!');
+      alert(t('codigo_copiado'));
     }
   };
 
-  // Função para imprimir
   const handlePrint = () => {
     window.print();
   };
 
-  // Formatar método de pagamento para exibição
   const getMetodoPagamentoLabel = () => {
     switch(metodoPagamento) {
-      case 'cartao': return 'Cartão de Crédito/Débito';
-      case 'paypal': return 'PayPal';
-      case 'zap': return 'ZAP';
-      case 'transferencia': return 'Transferência Bancária';
-      default: return 'Cartão';
+      case 'cartao': return t('cartao_credito_debito');
+      case 'paypal': return t('paypal');
+      case 'zap': return t('zap');
+      case 'transferencia': return t('transferencia_bancaria');
+      default: return t('cartao');
     }
   };
 
-  // Textos dinâmicos baseado no tipo
   const getStep1Label = () => {
-    if (tipo === 'alojamento') return 'Dados dos Hóspedes';
-    if (tipo === 'carro') return 'Dados do Condutor';
-    return 'Dados dos Participantes';
+    if (tipo === 'alojamento') return t('dados_hospedes');
+    if (tipo === 'carro') return t('dados_condutor');
+    return t('dados_participantes');
   };
 
   const getInfoMessages = () => {
     if (tipo === 'alojamento') {
       return [
-        'Respeite a hora de entrada e saída acordadas.',
-        'Apresente um documento de identificação no momento do check-in.',
-        'Cancelamento gratuito até 48h antes do check-in.',
-        'Em caso de dúvidas, entre em contacto connosco.'
+        t('info_alojamento_1'),
+        t('info_alojamento_2'),
+        t('info_alojamento_3'),
+        t('info_alojamento_4')
       ];
     } else if (tipo === 'carro') {
       return [
-        'Apresente a carta de condução e documento de identificação no momento do levantamento.',
-        'Verifique as condições do veículo antes de sair.',
-        'Cancelamento gratuito até 48h antes do levantamento.',
-        'Devolva o veículo com o depósito de combustível combinado.'
+        t('info_carro_1'),
+        t('info_carro_2'),
+        t('info_carro_3'),
+        t('info_carro_4')
       ];
     } else {
       return [
-        'Chegue 15 minutos antes do horário selecionado.',
-        'Apresente um documento de identificação no momento do check-in.',
-        'Cancelamento gratuito até 24h antes da experiência.',
-        'Em caso de dúvidas, entre em contacto connosco.'
+        t('info_experiencia_1'),
+        t('info_experiencia_2'),
+        t('info_experiencia_3'),
+        t('info_experiencia_4')
       ];
     }
   };
 
   const getPrepareMessage = () => {
-    if (tipo === 'alojamento') return 'Prepare-se para o check-in';
-    if (tipo === 'carro') return 'Prepare-se para o levantamento';
-    return 'Prepare-se para o tour';
+    if (tipo === 'alojamento') return t('prepare_checkin');
+    if (tipo === 'carro') return t('prepare_levantamento');
+    return t('prepare_tour');
   };
 
   const getDetailMessage = () => {
-    if (tipo === 'alojamento') return 'Verifique os horários e regras descritas no voucher.';
-    if (tipo === 'carro') return 'Verifique os documentos necessários e horário de levantamento.';
-    return 'Chegue 15 minutos antes do horário escolhido no ponto de encontro.';
+    if (tipo === 'alojamento') return t('detalhe_alojamento');
+    if (tipo === 'carro') return t('detalhe_carro');
+    return t('detalhe_experiencia');
   };
+
+  const getEnjoyMessage = () => {
+    if (tipo === 'carro') return t('aproveite_veiculo');
+    return t('aproveite_experiencia');
+  };
+
+  const getExploreMessage = () => {
+    if (tipo === 'carro') return t('explore_cabo_verde_carro');
+    return t('descubra_historia_cultura');
+  };
+
+  const steps = [
+    { n: 1, label: getStep1Label(), check: true },
+    { n: 2, label: t('step_pagamento'), check: true },
+    { n: 3, label: t('step_confirmacao'), active: true },
+  ];
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
@@ -135,11 +146,7 @@ const Confirmacao = () => {
         
         {/* STEPPER - Passo 3 de 3 (Final) */}
         <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
-          {[
-            { n: 1, label: getStep1Label(), check: true },
-            { n: 2, label: 'Pagamento', check: true },
-            { n: 3, label: 'Confirmação', active: true },
-          ].map((s, i, arr) => (
+          {steps.map((s, i, arr) => (
             <React.Fragment key={i}>
               <div className="flex flex-col items-center min-w-[100px]">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-2 ${
@@ -165,10 +172,10 @@ const Confirmacao = () => {
                 <Check size={32} strokeWidth={3} />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-blue-900">Reserva confirmada!</h1>
-                <p className="text-slate-500">A sua reserva foi realizada com sucesso.</p>
+                <h1 className="text-3xl font-bold text-blue-900">{t('reserva_confirmada')}</h1>
+                <p className="text-slate-500">{t('reserva_sucesso')}</p>
                 <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                  <CheckCircle size={12} /> Pagamento confirmado via {getMetodoPagamentoLabel()}
+                  <CheckCircle size={12} /> {t('pagamento_confirmado_via')} {getMetodoPagamentoLabel()}
                 </p>
               </div>
             </div>
@@ -180,7 +187,7 @@ const Confirmacao = () => {
                   <List size={24} />
                 </div>
                 <div className="flex-1">
-                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-1">Código da reserva</p>
+                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-1">{t('codigo_reserva')}</p>
                   <div className="flex items-center gap-3 flex-wrap">
                     <h2 className="text-2xl md:text-3xl font-bold text-blue-900 tracking-tight font-mono">
                       {codigoReserva || 'RES-XXXXXX'}
@@ -189,17 +196,17 @@ const Confirmacao = () => {
                       onClick={handleCopyCode}
                       className="text-[11px] bg-white border border-green-200 px-3 py-1.5 rounded-lg text-green-600 font-bold flex items-center gap-1 hover:bg-green-50 transition"
                     >
-                      <Copy size={12} /> Copiar
+                      <Copy size={12} /> {t('copiar')}
                     </button>
                   </div>
                   <p className="text-sm text-slate-600 mt-3">
-                    Enviámos os detalhes da sua reserva para <span className="font-bold text-blue-800">{emailUsuario}</span>
+                    {t('enviamos_detalhes_para')} <span className="font-bold text-blue-800">{emailUsuario}</span>
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Guarde este código para futuras consultas e para apresentar no dia.
+                    {t('guardar_codigo_futuras')}
                   </p>
                   <p className="text-[10px] text-green-600 mt-2 flex items-center gap-1">
-                    <Mail size={10} /> Um email de confirmação foi enviado para o seu endereço.
+                    <Mail size={10} /> {t('email_confirmacao_enviado')}
                   </p>
                 </div>
               </div>
@@ -208,7 +215,7 @@ const Confirmacao = () => {
             {/* O QUE ACONTECE A SEGUIR */}
             <div className="border border-slate-100 rounded-xl p-6 mb-8 bg-white shadow-sm">
               <h3 className="text-sm font-bold text-blue-900 uppercase flex items-center gap-2 mb-6">
-                <Check size={18} className="text-blue-600" /> O que acontece a seguir?
+                <Check size={18} className="text-blue-600" /> {t('oque_acontece_seguir')}
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -216,9 +223,9 @@ const Confirmacao = () => {
                   <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Mail size={20} />
                   </div>
-                  <p className="text-xs font-bold text-blue-900 mb-1">Email de confirmação</p>
+                  <p className="text-xs font-bold text-blue-900 mb-1">{t('email_confirmacao')}</p>
                   <p className="text-[10px] text-slate-500 leading-relaxed">
-                    Enviámos todos os detalhes da sua reserva para <span className="font-medium text-blue-600">{emailUsuario}</span>
+                    {t('enviamos_detalhes_reserva_para')} <span className="font-medium text-blue-600">{emailUsuario}</span>
                   </p>
                 </div>
 
@@ -236,11 +243,9 @@ const Confirmacao = () => {
                   <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Camera size={20} />
                   </div>
-                  <p className="text-xs font-bold text-blue-900 mb-1">
-                    {tipo === 'carro' ? 'Aproveite o veículo!' : 'Aproveite a experiência!'}
-                  </p>
+                  <p className="text-xs font-bold text-blue-900 mb-1">{getEnjoyMessage()}</p>
                   <p className="text-[10px] text-slate-500 leading-relaxed">
-                    {tipo === 'carro' ? 'Explore Cabo Verde com conforto e segurança.' : 'Descubra a história e a cultura local.'}
+                    {getExploreMessage()}
                   </p>
                 </div>
               </div>
@@ -250,7 +255,7 @@ const Confirmacao = () => {
             <div className="bg-blue-50/30 border border-blue-100 rounded-xl p-5 mb-8">
               <h3 className="text-xs font-bold text-blue-900 flex items-center gap-2 mb-3">
                 <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">i</div>
-                Informações importantes
+                {t('informacoes_importantes')}
               </h3>
               <ul className="space-y-1.5">
                 {getInfoMessages().map((text, i) => (
@@ -268,27 +273,27 @@ const Confirmacao = () => {
                 onClick={() => navigate('/minhas-reservas')}
                 className="h-[44px] px-5 border border-slate-200 rounded-lg text-sm font-bold text-blue-900 flex items-center gap-2 hover:bg-slate-50 transition"
               >
-                <List size={16}/> Ver minhas reservas
+                <List size={16}/> {t('ver_minhas_reservas')}
               </button>
               <button 
                 onClick={handlePrint}
                 className="h-[44px] px-5 border border-slate-200 rounded-lg text-sm font-bold text-blue-900 flex items-center gap-2 hover:bg-slate-50 transition"
               >
-                <Printer size={16}/> Imprimir
+                <Printer size={16}/> {t('imprimir')}
               </button>
               <button 
                 onClick={() => navigate('/')}
                 className="h-[44px] px-6 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 ml-auto hover:bg-blue-700 transition shadow-md"
               >
-                Voltar para a página inicial <ArrowRight size={16}/>
+                {t('voltar_inicio')} <ArrowRight size={16}/>
               </button>
             </div>
 
             {/* BANNER SEGURANÇA RODAPÉ */}
             <div className="mt-6 bg-orange-50/40 border border-orange-100 p-3 rounded-xl flex items-center gap-3">
               <ShieldCheck className="text-orange-400 shrink-0" size={18} />
-              <span className="text-[9px] font-bold text-orange-800 uppercase tracking-tight">Reserva 100% segura</span>
-              <span className="text-[9px] text-orange-600">Os seus dados estão protegidos.</span>
+              <span className="text-[9px] font-bold text-orange-800 uppercase tracking-tight">{t('reserva_100_segura')}</span>
+              <span className="text-[9px] text-orange-600">{t('dados_protegidos_short')}</span>
             </div>
           </div>
 

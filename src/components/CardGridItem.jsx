@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MapPin, Heart, Star, Users, Fuel, Clock } from 'lucide-react';
 
 const CardGridItem = ({ item }) => {
+  const { t } = useTranslation();
+  
   if (!item) return null;
 
   // Lógica de Identificação
@@ -11,15 +14,21 @@ const CardGridItem = ({ item }) => {
 
   // Normalização de Dados
   const id = item.id;
-  const titulo = item.titulo || "Sem título";
+  const titulo = item.titulo || t('sem_titulo');
   const imagem = item.imagem_url || item.imagem_principal || "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=400";
   const preco = Number(item.preco_noite || item.preco_dia || item.preco || 0);
   const rating = Number(item.estrelas || item.rating || 4.8).toFixed(1);
   const reviews = item.total_reviews || item.reviews || "0";
-  const localizacao = item.localizacao || item.ilha || "Cabo Verde";
+  const localizacao = item.localizacao || item.ilha || t('cabo_verde');
 
   // Prefixo de rota dinâmico
   const rotaBase = isCarro ? 'carro' : isExperiencia ? 'experiencia' : 'alojamento';
+
+  // Texto do badge
+  const badgeTexto = item.categoria_nome || item.tipo || (isCarro ? t('aluguer') : t('alojamento_tipo'));
+
+  // Texto do período
+  const periodoTexto = isCarro ? t('por_dia') : isExperiencia ? t('por_pessoa') : t('por_noite_curto');
 
   return (
     <div className="relative group bg-white rounded-2xl flex flex-col h-full w-full overflow-hidden transition-all duration-300 border border-gray-100 hover:shadow-2xl">
@@ -34,7 +43,7 @@ const CardGridItem = ({ item }) => {
         
         {/* Badge de Categoria/Tipo */}
         <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider shadow-lg z-10">
-          {item.categoria_nome || item.tipo || (isCarro ? "Aluguer" : "Alojamento")}
+          {badgeTexto}
         </div>
 
         {/* Botão Heart Padrão (Círculo Branco) */}
@@ -85,9 +94,9 @@ const CardGridItem = ({ item }) => {
             <span className="text-xl font-extrabold text-[#1a2b6d]">
               {preco.toLocaleString('pt-PT')}
             </span>
-            <span className="text-[10px] font-bold text-gray-500 uppercase">CVE</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">{t('cve')}</span>
             <span className="text-[10px] font-semibold text-gray-400 truncate">
-              {isCarro ? '/ dia' : isExperiencia ? '/ pessoa' : '/ noite'}
+              {periodoTexto}
             </span>
           </div>
         </div>

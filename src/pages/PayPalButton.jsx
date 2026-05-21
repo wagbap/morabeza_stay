@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 
 const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData }) => {
+    const { t } = useTranslation();
     const [isLoading, setIsLoading] = useState(true);
     const [convertedAmount, setConvertedAmount] = useState(null);
     const TAXA_CONVERSAO = 110.265;
@@ -29,7 +31,7 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     amount: amount,
-                    currency: currency,  // Envia 'CVE' para a API converter
+                    currency: currency,
                     reservation_data: reservationData
                 })
             });
@@ -83,7 +85,7 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
         return (
             <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-xs text-slate-500 mt-2">Carregando PayPal...</p>
+                <p className="text-xs text-slate-500 mt-2">{t('carregando_paypal')}</p>
             </div>
         );
     }
@@ -93,13 +95,13 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
     if (currency === 'CVE' && valorEur < 0.50) {
         return (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                <p className="text-sm font-bold text-yellow-800">⚠️ Valor mínimo não atingido</p>
+                <p className="text-sm font-bold text-yellow-800">⚠️ {t('valor_minimo_nao_atingido')}</p>
                 <p className="text-xs text-yellow-700 mt-1">
-                    O PayPal exige um valor mínimo de €0.50 EUR.<br />
-                    Seu total: {amount} CVE (≈ €{valorEur.toFixed(2)})
+                    {t('paypal_valor_minimo')}<br />
+                    {t('seu_total')}: {amount} CVE (≈ €{valorEur.toFixed(2)})
                 </p>
                 <p className="text-xs text-yellow-700 mt-2">
-                    Por favor, escolha outro método de pagamento.
+                    {t('escolha_outro_metodo')}
                 </p>
             </div>
         );
@@ -109,7 +111,7 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
     // NÃO ACEITA CVE! Por isso forçamos 'EUR' aqui
     const paypalOptions = {
         clientId: clientId,
-        currency: 'EUR',  // ← FIXO: PayPal só aceita EUR
+        currency: 'EUR',
         intent: 'capture',
         locale: 'pt_PT'
     };
@@ -121,7 +123,7 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
                     createOrder={createOrder}
                     onApprove={onApprove}
                     onError={handleError}
-                    onCancel={() => handleError(new Error('Pagamento cancelado pelo usuário'))}
+                    onCancel={() => handleError(new Error(t('pagamento_cancelado')))}
                     style={{
                         layout: 'vertical',
                         color: 'blue',
@@ -132,7 +134,7 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
                     }}
                 />
                 <p className="text-[10px] text-slate-500 text-center mt-2">
-                    Será cobrado €{valorEur} EUR ({amount} CVE)
+                    {t('sera_cobrado', { valorEur: valorEur, amount: amount })}
                 </p>
             </div>
         </PayPalScriptProvider>

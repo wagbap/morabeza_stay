@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Check, ArrowLeft, Loader, AlertCircle, ChevronRight, Calendar, Users, Home, ShieldCheck, Lock
@@ -7,27 +8,29 @@ import DataModal from './DataModalExperiencia';
 import HorarioModal from './HorarioModalExperiencia';
 
 const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrincipal }) => {
+  const { t } = useTranslation();
+  
   return (
     <div className="mb-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm text-left">
       <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
         <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-sans">1</span>
-        Participante Principal
+        {t('participante_principal')}
       </h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Nome completo *</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{t('nome_completo')} *</label>
           <input 
             type="text"
             value={participantePrincipal.nome_completo}
             onChange={(e) => updateParticipantePrincipal('nome_completo', e.target.value)}
             className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900"
-            placeholder="Como no documento de identificação"
+            placeholder={t('placeholder_nome_documento')}
           />
         </div>
         
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Email *</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{t('email')} *</label>
           <input 
             type="email"
             value={participantePrincipal.email}
@@ -38,7 +41,7 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
         </div>
         
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Telefone *</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{t('telefone')} *</label>
           <input 
             type="tel"
             value={participantePrincipal.phone}
@@ -49,20 +52,20 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
         </div>
         
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">País / Nacionalidade *</label>
+          <label className="text-xs font-bold text-slate-700 block mb-1">{t('pais_nacionalidade')} *</label>
           <select 
             value={participantePrincipal.nacionalidade}
             onChange={(e) => updateParticipantePrincipal('nacionalidade', e.target.value)}
             className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
           >
-            <option value="Cabo Verde">Cabo Verde</option>
-            <option value="Portugal">Portugal</option>
-            <option value="Brasil">Brasil</option>
-            <option value="Angola">Angola</option>
-            <option value="Moçambique">Moçambique</option>
-            <option value="Estados Unidos">Estados Unidos</option>
-            <option value="França">França</option>
-            <option value="Outro">Outro</option>
+            <option value="Cabo Verde">{t('cabo_verde')}</option>
+            <option value="Portugal">{t('portugal')}</option>
+            <option value="Brasil">{t('brasil')}</option>
+            <option value="Angola">{t('angola')}</option>
+            <option value="Moçambique">{t('mocambique')}</option>
+            <option value="Estados Unidos">{t('estados_unidos')}</option>
+            <option value="França">{t('franca')}</option>
+            <option value="Outro">{t('outro')}</option>
           </select>
         </div>
       </div>
@@ -71,23 +74,25 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
 };
 
 const ParticipantesAdicionais = ({ participantes, addParticipante, removeParticipante, updateParticipante, maxPessoas }) => {
+  const { t } = useTranslation();
+  
   return (
     <div className="mb-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm text-left">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-bold text-blue-900 flex items-center gap-2">
           <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-sans">2</span>
-          Participantes Adicionais
+          {t('participantes_adicionais')}
         </h3>
         <button 
           onClick={addParticipante}
           className="text-blue-600 text-sm font-bold flex items-center gap-1 hover:underline"
         >
-          + Adicionar participante
+          + {t('adicionar_participante')}
         </button>
       </div>
       
       {participantes.length === 0 ? (
-        <p className="text-slate-400 text-sm text-center py-4">Nenhum participante adicional adicionado</p>
+        <p className="text-slate-400 text-sm text-center py-4">{t('nenhum_participante_adicional')}</p>
       ) : (
         <div className="space-y-4">
           {participantes.map((p, idx) => (
@@ -96,14 +101,14 @@ const ParticipantesAdicionais = ({ participantes, addParticipante, removePartici
                 onClick={() => removeParticipante(p.id)}
                 className="absolute top-4 right-4 text-red-500 hover:text-red-700 text-xs font-bold"
               >
-                Remover
+                {t('remover')}
               </button>
-              <h4 className="font-bold text-sm text-slate-700 mb-3">Participante {idx + 2}</h4>
+              <h4 className="font-bold text-sm text-slate-700 mb-3">{t('participante')} {idx + 2}</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="md:col-span-1">
                   <input 
                     type="text"
-                    placeholder="Nome completo"
+                    placeholder={t('nome_completo')}
                     value={p.nome_completo}
                     onChange={(e) => updateParticipante(p.id, 'nome_completo', e.target.value)}
                     className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
@@ -115,8 +120,8 @@ const ParticipantesAdicionais = ({ participantes, addParticipante, removePartici
                     onChange={(e) => updateParticipante(p.id, 'idade', e.target.value)}
                     className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
                   >
-                    <option value="adulto">Adulto</option>
-                    <option value="crianca">Criança (0-12 anos)</option>
+                    <option value="adulto">{t('adulto')}</option>
+                    <option value="crianca">{t('crianca_0_12')}</option>
                   </select>
                 </div>
                 <div>
@@ -125,14 +130,14 @@ const ParticipantesAdicionais = ({ participantes, addParticipante, removePartici
                     onChange={(e) => updateParticipante(p.id, 'nacionalidade', e.target.value)}
                     className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
                   >
-                    <option value="Cabo Verde">Cabo Verde</option>
-                    <option value="Portugal">Portugal</option>
-                    <option value="Brasil">Brasil</option>
-                    <option value="Angola">Angola</option>
-                    <option value="Moçambique">Moçambique</option>
-                    <option value="Estados Unidos">Estados Unidos</option>
-                    <option value="França">França</option>
-                    <option value="Outro">Outro</option>
+                    <option value="Cabo Verde">{t('cabo_verde')}</option>
+                    <option value="Portugal">{t('portugal')}</option>
+                    <option value="Brasil">{t('brasil')}</option>
+                    <option value="Angola">{t('angola')}</option>
+                    <option value="Moçambique">{t('mocambique')}</option>
+                    <option value="Estados Unidos">{t('estados_unidos')}</option>
+                    <option value="França">{t('franca')}</option>
+                    <option value="Outro">{t('outro')}</option>
                   </select>
                 </div>
               </div>
@@ -149,11 +154,13 @@ const ParticipantesAnterioresTabela = ({
   deletandoParticipante, user, buscarDadosUsuario, iniciarEdicao, salvarEdicao,
   cancelarEdicao, adicionarParticipanteAnterior, deletarParticipante 
 }) => {
+  const { t } = useTranslation();
+  
   if (carregandoDados) {
     return (
       <div className="flex justify-center items-center py-8 bg-white border border-slate-200 rounded-2xl shadow-sm mb-8">
         <Loader size={24} className="animate-spin text-blue-600" />
-        <span className="ml-2 text-sm text-slate-500 font-medium">A carregar os seus dados...</span>
+        <span className="ml-2 text-sm text-slate-500 font-medium">{t('carregando_dados')}</span>
       </div>
     );
   }
@@ -164,9 +171,9 @@ const ParticipantesAnterioresTabela = ({
     <div className="mb-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm text-left">
       <h3 className="text-lg font-bold text-blue-900 mb-2 flex items-center gap-2">
         <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-sans">3</span>
-        Participantes de reservas anteriores
+        {t('participantes_reservas_anteriores')}
       </h3>
-      <p className="text-xs text-slate-500 mb-4 font-medium">Clique em um participante para adicioná-lo rapidamente à reserva atual</p>
+      <p className="text-xs text-slate-500 mb-4 font-medium">{t('clique_participante_adicionar')}</p>
       
       <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
         {participantesAnteriores.map((p) => (
@@ -178,7 +185,7 @@ const ParticipantesAnterioresTabela = ({
                   value={editForm.nome_completo}
                   onChange={(e) => setEditForm(prev => ({ ...prev, nome_completo: e.target.value }))}
                   className="w-full border border-slate-200 rounded-lg p-2 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-                  placeholder="Nome completo"
+                  placeholder={t('nome_completo')}
                 />
                 <div className="flex flex-wrap gap-2">
                   <select 
@@ -186,26 +193,26 @@ const ParticipantesAnterioresTabela = ({
                     onChange={(e) => setEditForm(prev => ({ ...prev, idade: e.target.value }))}
                     className="border border-slate-200 rounded-lg p-2 text-sm text-slate-900 bg-white"
                   >
-                    <option value="adulto">Adulto</option>
-                    <option value="crianca">Criança</option>
+                    <option value="adulto">{t('adulto')}</option>
+                    <option value="crianca">{t('crianca')}</option>
                   </select>
                   <select 
                     value={editForm.nacionalidade}
                     onChange={(e) => setEditForm(prev => ({ ...prev, nacionalidade: e.target.value }))}
                     className="border border-slate-200 rounded-lg p-2 text-sm text-slate-900 bg-white flex-1 min-w-[120px]"
                   >
-                    <option value="Cabo Verde">Cabo Verde</option>
-                    <option value="Portugal">Portugal</option>
-                    <option value="Brasil">Brasil</option>
-                    <option value="Angola">Angola</option>
-                    <option value="Moçambique">Moçambique</option>
-                    <option value="Estados Unidos">Estados Unidos</option>
-                    <option value="França">França</option>
-                    <option value="Outro">Outro</option>
+                    <option value="Cabo Verde">{t('cabo_verde')}</option>
+                    <option value="Portugal">{t('portugal')}</option>
+                    <option value="Brasil">{t('brasil')}</option>
+                    <option value="Angola">{t('angola')}</option>
+                    <option value="Moçambique">{t('mocambique')}</option>
+                    <option value="Estados Unidos">{t('estados_unidos')}</option>
+                    <option value="França">{t('franca')}</option>
+                    <option value="Outro">{t('outro')}</option>
                   </select>
                   <div className="flex gap-1 ml-auto">
-                    <button onClick={() => salvarEdicao(p)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">Salvar</button>
-                    <button onClick={cancelarEdicao} className="px-3 py-1 bg-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-300">Cancelar</button>
+                    <button onClick={() => salvarEdicao(p)} className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">{t('salvar')}</button>
+                    <button onClick={cancelarEdicao} className="px-3 py-1 bg-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-300">{t('cancelar')}</button>
                   </div>
                 </div>
               </div>
@@ -214,9 +221,9 @@ const ParticipantesAnterioresTabela = ({
                 <div>
                   <p className="font-bold text-slate-800 text-sm">{p.nome_completo}</p>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400 mt-0.5 font-medium">
-                    <span>{p.idade === 'adulto' ? '👤 Adulto' : '👶 Criança'}</span>
-                    <span>📍 {p.nacionalidade || 'Cabo Verde'}</span>
-                    <span>📊 Usado {p.vezes_utilizado || 1}x</span>
+                    <span>{p.idade === 'adulto' ? `👤 ${t('adulto')}` : `👶 ${t('crianca')}`}</span>
+                    <span>📍 {p.nacionalidade || t('cabo_verde')}</span>
+                    <span>📊 {t('usado')} {p.vezes_utilizado || 1}x</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -224,12 +231,12 @@ const ParticipantesAnterioresTabela = ({
                     onClick={() => adicionarParticipanteAnterior(p)}
                     className="text-blue-600 text-xs font-bold px-3 py-1.5 border border-blue-200 rounded-lg bg-white hover:bg-blue-50 transition-colors"
                   >
-                    + Adicionar
+                    + {t('adicionar')}
                   </button>
                   <button 
                     onClick={() => iniciarEdicao(p)}
                     className="text-slate-400 hover:text-blue-600 text-sm p-1"
-                    title="Editar"
+                    title={t('editar')}
                   >
                     ✏️
                   </button>
@@ -237,7 +244,7 @@ const ParticipantesAnterioresTabela = ({
                     onClick={() => deletarParticipante(p)}
                     disabled={deletandoParticipante === p.nome_completo}
                     className="text-slate-400 hover:text-red-600 text-sm p-1 disabled:opacity-50"
-                    title="Remover permanentemente"
+                    title={t('remover_permanentemente')}
                   >
                     {deletandoParticipante === p.nome_completo ? '⌛' : '🗑️'}
                   </button>
@@ -252,13 +259,15 @@ const ParticipantesAnterioresTabela = ({
 };
 
 const ResumoReservaExperiencia = ({ reserva, totalPessoas, precoTotal, setDataModalOpen, setHorarioModalOpen }) => {
+  const { t } = useTranslation();
+  
   const formatNumber = (value) => {
     if (value === undefined || value === null) return '0';
     return Number(value).toLocaleString('pt-PT');
   };
 
   const formatarData = (data) => {
-    if (!data || data === 'Selecionar data') return 'Não selecionada';
+    if (!data || data === 'Selecionar data') return t('nao_selecionada');
     const d = new Date(data);
     if (isNaN(d.getTime())) return data;
     return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -266,30 +275,30 @@ const ResumoReservaExperiencia = ({ reserva, totalPessoas, precoTotal, setDataMo
 
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm sticky top-6 text-left">
-      <h2 className="text-lg font-bold text-blue-900 mb-5">Resumo da reserva</h2>
+      <h2 className="text-lg font-bold text-blue-900 mb-5">{t('resumo_reserva')}</h2>
       
       <div className="flex gap-4 mb-6">
         <img 
           src={reserva?.imagem || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=200'} 
           className="w-20 h-20 rounded-xl object-cover shrink-0" 
-          alt={reserva?.titulo || 'Experiência'}
+          alt={reserva?.titulo || t('experiencia')}
           onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=200'}
         />
         <div className="flex-1">
-          <h4 className="text-sm font-bold text-blue-900 leading-tight">{reserva?.titulo || 'Experiência Morabeza'}</h4>
-          <p className="text-[10px] text-slate-500 mt-1 font-medium">{reserva?.localizacao || 'Cabo Verde'}</p>
+          <h4 className="text-sm font-bold text-blue-900 leading-tight">{reserva?.titulo || t('experiencia_morabeza')}</h4>
+          <p className="text-[10px] text-slate-500 mt-1 font-medium">{reserva?.localizacao || t('cabo_verde')}</p>
           <div className="flex gap-3 mt-2">
             <button 
               onClick={() => setDataModalOpen && setDataModalOpen(true)}
               className="text-[10px] text-blue-600 underline font-bold"
             >
-              Alterar data
+              {t('alterar_data')}
             </button>
             <button 
               onClick={() => setHorarioModalOpen && setHorarioModalOpen(true)}
               className="text-[10px] text-blue-600 underline font-bold"
             >
-              Alterar horário
+              {t('alterar_horario')}
             </button>
           </div>
         </div>
@@ -297,56 +306,57 @@ const ResumoReservaExperiencia = ({ reserva, totalPessoas, precoTotal, setDataMo
 
       <div className="space-y-4 border-t border-slate-100 pt-5">
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">Data do passeio</span>
+          <span className="text-xs text-slate-600 font-medium">{t('data_passeio')}</span>
           <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.data)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">Horário</span>
-          <span className="text-xs font-bold text-blue-900">{reserva?.horario || 'Não selecionado'} ({reserva?.periodo})</span>
+          <span className="text-xs text-slate-600 font-medium">{t('horario')}</span>
+          <span className="text-xs font-bold text-blue-900">{reserva?.horario || t('nao_selecionado')} ({reserva?.periodo})</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">Duração</span>
+          <span className="text-xs text-slate-600 font-medium">{t('duracao')}</span>
           <span className="text-xs font-bold text-blue-900">{reserva?.duracao}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">Participantes</span>
-          <span className="text-xs font-bold text-blue-900">{totalPessoas || 1} pessoas</span>
+          <span className="text-xs text-slate-600 font-medium">{t('participantes')}</span>
+          <span className="text-xs font-bold text-blue-900">{totalPessoas || 1} {t('pessoas')}</span>
         </div>
         
         <div className="pt-3 space-y-2 border-t border-slate-100">
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">Preço por pessoa</span>
+            <span className="text-slate-500">{t('preco_por_pessoa')}</span>
             <span className="text-slate-800">{formatNumber(reserva?.precoPorPessoa)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">Subtotal ({totalPessoas}x pessoas)</span>
+            <span className="text-slate-500">{t('subtotal_participantes', { total: totalPessoas })}</span>
             <span className="text-slate-800">{formatNumber(reserva?.precoPorPessoa * totalPessoas)} CVE</span>
           </div>
         </div>
 
         <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-          <span className="text-base font-bold text-blue-900">Total</span>
+          <span className="text-base font-bold text-blue-900">{t('total')}</span>
           <span className="text-xl font-bold text-blue-600">{formatNumber(precoTotal)} CVE</span>
         </div>
 
         <div className="bg-green-50 p-3 rounded-xl flex gap-2 mt-3 border border-green-100">
           <ShieldCheck className="text-green-600 shrink-0" size={18} />
           <div>
-            <p className="text-[9px] font-bold text-green-800">Cancelamento gratuito</p>
-            <p className="text-[8px] text-green-700 font-medium">Até 24 horas antes da experiência</p>
+            <p className="text-[9px] font-bold text-green-800">{t('cancelamento_gratis')}</p>
+            <p className="text-[8px] text-green-700 font-medium">{t('cancelamento_prazo_experiencia_curto')}</p>
           </div>
         </div>
 
         <div className="bg-[#F0F7FF] p-3 rounded-xl flex gap-2 border border-blue-50">
           <Lock className="text-blue-600 shrink-0" size={16} />
-          <p className="text-[8px] text-blue-700 font-medium">Seus dados estão protegidos e seguros através de encriptação segura de ponta a ponta.</p>
+          <p className="text-[8px] text-blue-700 font-medium">{t('dados_protegidos')}</p>
         </div>
       </div>
     </div>
   );
 };
 
-const CheckoutExperriencia = () => {
+const CheckoutExperiencia = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { reservaData, dataSelecionada, horarioSelecionado, periodoSelecionado } = location.state || {};
@@ -367,9 +377,9 @@ const CheckoutExperriencia = () => {
     titulo: reservaData?.titulo || '',
     imagem: reservaData?.imagem || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=200',
     localizacao: reservaData?.localizacao || '',
-    data: dataSelecionada || reservaData?.entrada || 'Selecionar data',
+    data: dataSelecionada || reservaData?.entrada || t('selecionar_data'),
     dataISO: reservaData?.dataISO || null,
-    periodo: periodoSelecionado || reservaData?.periodo || 'Manhã',
+    periodo: periodoSelecionado || reservaData?.periodo || t('manha'),
     horario: horarioSelecionado || reservaData?.horario || '08:00',
     precoBase: reservaData?.precoTotal || 0,
     duracao: reservaData?.duracao || '3 - 4 horas',
@@ -415,7 +425,7 @@ const CheckoutExperriencia = () => {
   };
 
   const deletarParticipante = async (participante) => {
-    if (!window.confirm(`Tem certeza que deseja remover "${participante.nome_completo}"?`)) return;
+    if (!window.confirm(t('confirmar_remover_participante', { nome: participante.nome_completo }))) return;
     setDeletandoParticipante(participante.nome_completo);
     try {
       const response = await fetch('https://welovepalop.com/api/checkout_api.php', {
@@ -445,7 +455,7 @@ const CheckoutExperriencia = () => {
 
   const salvarEdicao = async (participanteOriginal) => {
     if (!editForm.nome_completo.trim()) {
-      setError('O nome do participante não pode estar vazio');
+      setError(t('erro_nome_vazio'));
       return;
     }
     setDeletandoParticipante(participanteOriginal.nome_completo);
@@ -498,7 +508,7 @@ const CheckoutExperriencia = () => {
   const adicionarParticipanteAnterior = (participante) => {
     const jaExiste = participantes.some(p => p.nome_completo === participante.nome_completo);
     if (jaExiste) {
-      setError(`"${participante.nome_completo}" já foi adicionado à reserva atual`);
+      setError(t('erro_participante_ja_adicionado', { nome: participante.nome_completo }));
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -529,7 +539,7 @@ const CheckoutExperriencia = () => {
         console.error('Erro ao parsear usuário:', e);
       }
     } else {
-      alert('Por favor, faça login para continuar');
+      alert(t('login_necessario_continuar'));
       navigate('/');
     }
     window.scrollTo(0, 0);
@@ -553,7 +563,7 @@ const CheckoutExperriencia = () => {
 
   const addParticipante = () => {
     if (participantes.length + 1 >= reserva.maxPessoas) {
-      setError(`Máximo de ${reserva.maxPessoas} participantes permitidos`);
+      setError(t('erro_max_participantes', { max: reserva.maxPessoas }));
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -575,32 +585,32 @@ const CheckoutExperriencia = () => {
   const validateForm = () => {
     setError('');
     if (!participantePrincipal.nome_completo.trim()) {
-      setError('Nome completo do participante principal é obrigatório');
+      setError(t('erro_nome_obrigatorio'));
       return false;
     }
     if (!participantePrincipal.email.trim()) {
-      setError('Email do participante principal é obrigatório');
+      setError(t('erro_email_obrigatorio'));
       return false;
     }
     if (!participantePrincipal.phone.trim()) {
-      setError('Telefone do participante principal é obrigatório');
+      setError(t('erro_telefone_obrigatorio'));
       return false;
     }
     if (!participantePrincipal.nacionalidade.trim()) {
-      setError('Nacionalidade do participante principal é obrigatória');
+      setError(t('erro_nacionalidade_obrigatoria'));
       return false;
     }
-    if (reserva.data === 'Selecionar data' || !reserva.dataISO) {
-      setError('Por favor, selecione uma data para o passeio');
+    if (reserva.data === t('selecionar_data') || !reserva.dataISO) {
+      setError(t('erro_data_obrigatoria'));
       return false;
     }
     if (!reserva.horario || reserva.horario === '') {
-      setError('Por favor, selecione um horário para o passeio');
+      setError(t('erro_horario_obrigatorio'));
       return false;
     }
     for (let i = 0; i < participantes.length; i++) {
       if (!participantes[i].nome_completo.trim()) {
-        setError(`Nome do participante ${i + 2} é obrigatório`);
+        setError(t('erro_nome_participante_adicional', { numero: i + 2 }));
         return false;
       }
     }
@@ -610,14 +620,13 @@ const CheckoutExperriencia = () => {
   const handleSubmit = () => {
     if (!validateForm()) return;
     if (!user || !user.email) {
-      setError('Usuário não está logado.');
+      setError(t('erro_usuario_nao_logado'));
       return;
     }
 
     const totalPessoas = participantes.length + 1;
     const precoTotal = reserva.precoPorPessoa * totalPessoas;
 
-    // 🔥 FLUXO CORRIGIDO: Apenas salva o modelo no Cache e avança sem disparar o POST para a BD
     const dadosReserva = {
       reservaData: {
         ...reserva,
@@ -653,22 +662,24 @@ const CheckoutExperriencia = () => {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <Loader size={40} className="animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-slate-500 font-medium">Carregando dados da reserva...</p>
+          <p className="text-slate-500 font-medium">{t('carregando_dados_reserva')}</p>
         </div>
       </div>
     );
   }
+
+  const steps = [
+    { n: 1, label: t('step_dados_participantes'), active: true },
+    { n: 2, label: t('step_pagamento'), active: false },
+    { n: 3, label: t('step_confirmacao'), active: false }
+  ];
 
   return (
     <>
       <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
-            {[
-              { n: 1, label: 'Dados dos participantes', active: true },
-              { n: 2, label: 'Pagamento', active: false },
-              { n: 3, label: 'Confirmação', active: false }
-            ].map((s, i, arr) => (
+            {steps.map((s, i, arr) => (
               <React.Fragment key={i}>
                 <div className="flex flex-col items-center min-w-[120px]">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-2 ${s.active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'border border-slate-200 text-slate-400'}`}>
@@ -690,14 +701,14 @@ const CheckoutExperriencia = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8">
-              <h1 className="text-2xl font-bold text-blue-900 mb-2 text-left">Dados dos participantes</h1>
-              <p className="text-slate-500 text-sm mb-6 text-left font-medium">Preencha os dados para todos os participantes.</p>
+              <h1 className="text-2xl font-bold text-blue-900 mb-2 text-left">{t('dados_participantes')}</h1>
+              <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('preencha_dados_participantes')}</p>
 
               <div className="bg-[#F0F7FF] border border-blue-100 rounded-lg p-4 flex gap-3 mb-8 text-left">
                 <div className="w-5 h-5 rounded-full border border-blue-600 flex items-center justify-center text-blue-600 text-[10px] font-bold italic shrink-0 font-sans">i</div>
                 <div>
-                  <p className="text-sm font-bold text-blue-900">Informação importante</p>
-                  <p className="text-xs text-blue-700 font-medium">O nome informado deve ser exatamente igual ao documento oficial de identificação.</p>
+                  <p className="text-sm font-bold text-blue-900">{t('informacao_importante')}</p>
+                  <p className="text-xs text-blue-700 font-medium">{t('info_nome_documento')}</p>
                 </div>
               </div>
 
@@ -735,14 +746,14 @@ const CheckoutExperriencia = () => {
                   onClick={() => navigate(-1)} 
                   className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all text-slate-700 shadow-sm"
                 >
-                  <ArrowLeft size={18}/> Voltar
+                  <ArrowLeft size={18}/> {t('voltar')}
                 </button>
                 <button 
                   onClick={handleSubmit}
                   disabled={loading}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
                 >
-                  Continuar para pagamento <ChevronRight size={18}/>
+                  {t('continuar_pagamento')} <ChevronRight size={18}/>
                 </button>
               </div>
             </div>
@@ -783,4 +794,4 @@ const CheckoutExperriencia = () => {
   );
 };
 
-export default CheckoutExperriencia;
+export default CheckoutExperiencia;

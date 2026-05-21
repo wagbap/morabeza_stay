@@ -1,7 +1,10 @@
-import React, { memo } from 'react'; // Adicionamos memo
+import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const CardPromocionalBanner = () => {
+  const { t } = useTranslation();
+  
   const bgImage = "https://res.cloudinary.com/dpsrmzvsl/image/upload/v1776894197/trekking-nas-montanhas-caminhada-da-montanha-os-turistas-com-trouxas-caminham-na-maneira-rochosa-perto-do-rio-natureza-selvagem-126682866_bank6i.webp";
 
   return (
@@ -11,7 +14,7 @@ const CardPromocionalBanner = () => {
       <img 
         src={bgImage} 
         className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-        alt="Trekking na Serra Malagueta Santiago Cabo Verde"
+        alt={t('alt_trekking')}
         loading="lazy"
       />
 
@@ -19,22 +22,22 @@ const CardPromocionalBanner = () => {
       
       <div className="relative z-10 p-8 md:p-10 flex flex-col h-full text-left justify-center max-w-[320px]">
         <h3 className="text-2xl md:text-3xl font-black text-white lg:text-gray-900 leading-tight mb-2 tracking-tighter uppercase italic">
-          Passeios Populares
+          {t('passeios_populares')}
         </h3>
         
         <div className="inline-block bg-green-500 lg:bg-green-100 text-white lg:text-green-700 text-[10px] font-black px-4 py-1.5 rounded-lg uppercase tracking-widest mb-4 w-fit shadow-sm">
-          Trekking & Natureza
+          {t('trekking_natureza')}
         </div>
         
         <p className="text-gray-100 lg:text-gray-600 text-xs font-bold leading-relaxed mb-8">
-          Descubra a deslumbrante Serra Malagueta com guias locais e vistas espetaculares de Santiago.
+          {t('descricao_serra_malagueta')}
         </p>
         
         <Link 
           to="/experiencias"
           className="bg-[#22C55E] hover:bg-green-600 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-between transition-all active:scale-95 shadow-lg shadow-green-500/20 uppercase text-[10px] tracking-[0.2em] w-full"
         >
-          <span>Explorar Passeios</span>
+          <span>{t('explorar_passeios')}</span>
           <span className="text-xl leading-none ml-2">›</span>
         </Link>
       </div>
@@ -42,5 +45,4 @@ const CardPromocionalBanner = () => {
   );
 };
 
-// Exportamos com memo para performance máxima
 export default memo(CardPromocionalBanner);

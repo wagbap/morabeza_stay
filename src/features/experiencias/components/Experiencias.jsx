@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
 import { Loader2, LayoutGrid, List, Info, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // Componentes Importados
@@ -11,6 +12,7 @@ import FiltroLateralExperiencia from './FiltroLateralExperiencia';
 import CardExperiencia from './CardExperiencia';
 
 const Experiencias = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
@@ -26,7 +28,7 @@ const Experiencias = () => {
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [filtroDestino, setFiltroDestino] = useState(queryParams.get('localizacao') || '');
 
-  // Função principal de busca (API) - Envolvida em useCallback para evitar loops de re-renderização
+  // Função principal de busca (API)
   const buscarDados = useCallback(async (queryString = '') => {
     try {
       setLoading(true);
@@ -52,7 +54,7 @@ const Experiencias = () => {
     buscarDados(currentQuery);
   }, [location.search, buscarDados]);
 
-  // Lógica de Filtragem Local (Preço, Categoria e Localização)
+  // Lógica de Filtragem Local
   useEffect(() => {
     const filtradas = experiencias.filter(exp => {
       const preco = parseFloat(exp.preco || 0);
@@ -70,12 +72,11 @@ const Experiencias = () => {
     setExperienciasFiltradas(filtradas);
   }, [experiencias, orcamento, categoriasSelecionadas, filtroDestino]);
 
-  // Handler atualizado para a SearchBar em Range Mode (Sincroniza a URL e dispara a API)
+  // Handler para a SearchBar
   const handleSearchBar = (queryString) => {
     const params = new URLSearchParams(queryString);
     setFiltroDestino(params.get('localizacao') || '');
     
-    // Atualiza a URL do navegador para manter o estado salvável e partilhável pelo utilizador
     navigate(`/experiencias?${queryString}`, { replace: true });
     buscarDados(queryString);
   };
@@ -91,7 +92,7 @@ const Experiencias = () => {
   return (
     <div className="bg-[#f8f9fc] min-h-screen">
       <Helmet>
-        <title>MorabezaStay | Experiências {filtroDestino && `em ${filtroDestino}`}</title>
+        <title>MorabezaStay | {t('experiencias')} {filtroDestino && `${t('em')} ${filtroDestino}`}</title>
       </Helmet>
 
       {/* SEÇÃO HERO + BUSCA INTEGRADA */}
@@ -105,7 +106,7 @@ const Experiencias = () => {
       <main className="max-w-[1400px] mx-auto py-16 px-6">
         {/* BREADCRUMBS */}
         <div className="text-left text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8 flex gap-2">
-          <span className="text-blue-600 cursor-pointer" onClick={() => navigate('/')}>Início</span> / <span>Experiências</span> 
+          <span className="text-blue-600 cursor-pointer" onClick={() => navigate('/')}>{t('inicio')}</span> / <span>{t('experiencias')}</span> 
           {filtroDestino && <> / <span className="text-gray-900">{filtroDestino}</span></>}
         </div>
 
@@ -128,12 +129,12 @@ const Experiencias = () => {
             {/* HEADER DA LISTAGEM */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
               <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter text-left">
-                {filtroDestino || "Explorar"}: <span className="text-blue-600 text-4xl">{experienciasFiltradas.length}</span> resultados
+                {filtroDestino || t('explorar')}: <span className="text-blue-600 text-4xl">{experienciasFiltradas.length}</span> {t('resultados')}
               </h1>
               
               <div className="flex items-center gap-2 bg-white p-1.5 rounded-full shadow-sm border border-gray-100">
                 <button className="bg-blue-600 text-white px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-                  Mais Relevantes
+                  {t('mais_relevantes')}
                 </button>
                 <div className="w-px h-6 bg-gray-100 mx-1"></div>
                 <button 
@@ -155,7 +156,7 @@ const Experiencias = () => {
             {loading ? (
               <div className="flex flex-col items-center justify-center py-32">
                 <Loader2 size={40} className="animate-spin mb-4 text-blue-600 opacity-20" />
-                <p className="font-black uppercase tracking-widest text-[10px] text-gray-400">A carregar aventuras...</p>
+                <p className="font-black uppercase tracking-widest text-[10px] text-gray-400">{t('carregando_aventuras')}</p>
               </div>
             ) : (
               <div className={viewMode === 'grid' 
@@ -169,9 +170,9 @@ const Experiencias = () => {
                 ) : (
                   <div className="col-span-full py-24 text-center bg-white rounded-[40px] border-2 border-dashed border-gray-100 flex flex-col items-center gap-4">
                     <Info size={40} className="text-gray-300" />
-                    <p className="text-gray-400 font-bold">Não encontramos o que procura.</p>
+                    <p className="text-gray-400 font-bold">{t('nenhuma_experiencia_encontrada')}</p>
                     <button onClick={limparFiltros} className="text-blue-600 font-black text-[10px] underline uppercase">
-                      Limpar todos os filtros
+                      {t('limpar_todos_filtros')}
                     </button>
                   </div>
                 )}
@@ -186,18 +187,18 @@ const Experiencias = () => {
             <img 
               src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=1200" 
               className="absolute inset-0 w-full h-full object-cover" 
-              alt="Background"
+              alt={t('background_promocional')}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent"></div>
             <div className="relative z-10 p-12 max-w-lg">
               <h2 className="text-3xl font-black text-gray-900 leading-tight mb-4 tracking-tighter uppercase italic">
-                Encontre o lugar perfeito para se hospedar
+                {t('encontre_lugar_perfeito')}
               </h2>
               <button 
                 onClick={() => navigate('/alojamentos')}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl transition-all flex items-center gap-2"
               >
-                Buscar Alojamentos <ArrowRight size={20} />
+                {t('buscar_alojamentos')} <ArrowRight size={20} />
               </button>
             </div>
           </div>

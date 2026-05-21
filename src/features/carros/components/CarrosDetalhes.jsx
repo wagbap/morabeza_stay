@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import mapboxgl from 'mapbox-gl';
@@ -13,11 +14,11 @@ import {
 import { Helmet } from 'react-helmet-async';
 import AvaliacoesSeccaoCarro from './AvaliacoesSeccaoCarro';
 
-// Token do Mapbox
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-// Componente SliderModal para visualização em tela cheia
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
+  const { t } = useTranslation();
+  
   const handleModalClick = (e) => {
     e.stopPropagation();
   };
@@ -27,21 +28,21 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
       <button 
         onClick={onClose}
         className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label="Fechar"
+        aria-label={t('fechar') || "Fechar"}
       >
         <X size={24} />
       </button>
       <button 
         onClick={(e) => { e.stopPropagation(); onPrev(); }}
         className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label="Imagem anterior"
+        aria-label={t('imagem_anterior') || "Imagem anterior"}
       >
         <ChevronLeft size={24} />
       </button>
       <button 
         onClick={(e) => { e.stopPropagation(); onNext(); }}
         className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label="Próxima imagem"
+        aria-label={t('proxima_imagem') || "Próxima imagem"}
       >
         <ChevronRight size={24} />
       </button>
@@ -58,12 +59,12 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
   );
 };
 
-// Componente TabsNavegacaoCarros (apenas 3 abas: Visão Geral, Especificações, Localização)
 const TabsNavegacaoCarros = ({ activeTab = 0, onTabChange }) => {
+  const { t } = useTranslation();
+  
   const tabs = [
-    { id: 0, label: 'Visão Geral' },
-    { id: 1, label: 'Especificações' },
-    { id: 2, label: 'Localização' },
+    { id: 0, label: t('visao_geral') || 'Visão Geral' },
+    { id: 1, label: t('especificacoes') || 'Especificações' }
   ];
 
   return (
@@ -87,15 +88,16 @@ const TabsNavegacaoCarros = ({ activeTab = 0, onTabChange }) => {
   );
 };
 
-// Componente EspecificacoesBar
 const EspecificacoesBar = ({ caracteristicas }) => {
+  const { t } = useTranslation();
+  
   const specs = [
-    { icon: Gauge, label: caracteristicas?.transmissao || 'Manual', sub: 'Transmissão' },
-    { icon: Fuel, label: caracteristicas?.combustivel || 'Gasolina', sub: 'Combustível' },
-    { icon: Users, label: `${caracteristicas?.passageiros || 5} passageiros`, sub: 'Capacidade' },
-    { icon: Calendar, label: caracteristicas?.ano || '2024', sub: 'Ano Fabrico' },
-    { icon: Info, label: caracteristicas?.quilometragem || '0 km', sub: 'Quilometragem' },
-    { icon: Paintbrush, label: caracteristicas?.cor || 'Não informada', sub: 'Cor Exterior' },
+    { icon: Gauge, label: caracteristicas?.transmissao || t('manual') || 'Manual', sub: t('transmissao') || 'Transmissão' },
+    { icon: Fuel, label: caracteristicas?.combustivel || t('gasolina') || 'Gasolina', sub: t('combustivel') || 'Combustível' },
+    { icon: Users, label: `${caracteristicas?.passageiros || 5} ${t('passageiros') || 'passageiros'}`, sub: t('capacidade') || 'Capacidade' },
+    { icon: Calendar, label: caracteristicas?.ano || '2024', sub: t('ano_fabrico') || 'Ano Fabrico' },
+    { icon: Info, label: caracteristicas?.quilometragem || '0 km', sub: t('quilometragem') || 'Quilometragem' },
+    { icon: Paintbrush, label: caracteristicas?.cor || t('nao_informada') || 'Não informada', sub: t('cor_exterior') || 'Cor Exterior' },
   ];
 
   return (
@@ -115,15 +117,16 @@ const EspecificacoesBar = ({ caracteristicas }) => {
   );
 };
 
-// Componente InclusoesCarroBar
 const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
+  const { t } = useTranslation();
+  
   const dadosExibicao = inclusoes && inclusoes.length > 0 ? inclusoes : [
-    { titulo: 'Cancelamento', valor: 'Gratuito', icone: 'CheckCircle', cor_classe: 'text-green-600' },
-    { titulo: 'Seguro básico', valor: 'Incluído', icone: 'ShieldCheck', cor_classe: 'text-green-600' },
-    { titulo: 'Quilometragem', valor: 'Ilimitada', icone: 'Infinity', cor_classe: 'text-green-600' },
-    { titulo: 'Assistência 24/7', valor: 'Incluída', icone: 'ShieldAlert', cor_classe: 'text-green-600' },
-    { titulo: 'Levantamento', valor: localizacao || 'Aeroporto da Praia', icone: 'Key', cor_classe: 'text-slate-500' },
-    { titulo: 'Combustível', valor: 'Cheio a cheio', icone: 'Fuel', cor_classe: 'text-slate-500' }
+    { titulo: t('cancelamento') || 'Cancelamento', valor: t('gratuito') || 'Gratuito', icone: 'CheckCircle', cor_classe: 'text-green-600' },
+    { titulo: t('seguro_basico') || 'Seguro básico', valor: t('incluido') || 'Incluído', icone: 'ShieldCheck', cor_classe: 'text-green-600' },
+    { titulo: t('quilometragem') || 'Quilometragem', valor: t('ilimitada') || 'Ilimitada', icone: 'Infinity', cor_classe: 'text-green-600' },
+    { titulo: t('assistencia_24h') || 'Assistência 24/7', valor: t('incluida') || 'Incluída', icone: 'ShieldAlert', cor_classe: 'text-green-600' },
+    { titulo: t('levantamento') || 'Levantamento', valor: localizacao || t('aeroporto_praia') || 'Aeroporto da Praia', icone: 'Key', cor_classe: 'text-slate-500' },
+    { titulo: t('combustivel') || 'Combustível', valor: t('cheio_cheio') || 'Cheio a cheio', icone: 'Fuel', cor_classe: 'text-slate-500' }
   ];
 
   const iconesMapeados = {
@@ -157,8 +160,8 @@ const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
   );
 };
 
-// Componente ImageGallery
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
+  const { t } = useTranslation();
   const placeholder = "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=600&h=400&fit=crop";
   const img1 = images[0] || placeholder;
   const img2 = images[1] || placeholder;
@@ -219,7 +222,7 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
               onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
               className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
             >
-              <Camera size={12} className="text-slate-700" /> Ver todas as fotos
+              <Camera size={12} className="text-slate-700" /> {t('ver_todas_fotos') || 'Ver todas as fotos'}
             </div>
           </div>
         </div>
@@ -228,8 +231,8 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   );
 };
 
-// Componente MapLocationCarro - CORRIGIDO (agora dentro do mesmo arquivo)
 const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -238,8 +241,8 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
   
   const temCoordenadas = latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude));
   
-  const textoLocalizacao = `${ilha || 'Cabo Verde'}, ${localizacao || 'Localização não informada'}`;
-  const cidadeNome = localizacao || ilha || 'Cabo Verde';
+  const textoLocalizacao = `${ilha || t('cabo_verde') || 'Cabo Verde'}, ${localizacao || (t('localizacao_nao_informada') || 'Localização não informada')}`;
+  const cidadeNome = localizacao || ilha || (t('cabo_verde') || 'Cabo Verde');
   
   const abrirPaginaMapa = () => {
     if (carroId) {
@@ -258,12 +261,12 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
     const ilhaLower = (ilha || '').toLowerCase();
     
     const pontosMap = {
-      'praia': ['Praia de Santa Maria', 'Mirage Beach Club', 'Aeroporto Internacional'],
-      'santa maria': ['Praia de Santa Maria', 'Mirage Beach Club', 'Ponta Preta'],
-      'mindelo': ['Porto Grande', 'Centro Cultural', 'Praça Estrela'],
-      'palmeira': ['Porto da Palmeira', 'Farol da Ponta do Sinó', 'Praia Grande'],
-      'tarrafal': ['Praia de Tarrafal', 'Chã de Tanque', 'Monte Graciosa'],
-      'sal rei': ['Praia de Sal Rei', 'Deserto de Viana', 'Morro de Areia'],
+      'praia': [t('praia_santa_maria') || 'Praia de Santa Maria', t('mirage_beach') || 'Mirage Beach Club', t('aeroporto') || 'Aeroporto Internacional'],
+      'santa maria': [t('praia_santa_maria') || 'Praia de Santa Maria', t('mirage_beach') || 'Mirage Beach Club', t('ponta_preta') || 'Ponta Preta'],
+      'mindelo': [t('porto_grande') || 'Porto Grande', t('centro_cultural') || 'Centro Cultural', t('praca_estrela') || 'Praça Estrela'],
+      'palmeira': [t('porto_palmeira') || 'Porto da Palmeira', t('farol') || 'Farol da Ponta do Sinó', t('praia_grande') || 'Praia Grande'],
+      'tarrafal': [t('praia_tarrafal') || 'Praia de Tarrafal', t('cha_tanque') || 'Chã de Tanque', t('monte_graciosa') || 'Monte Graciosa'],
+      'sal rei': [t('praia_sal_rei') || 'Praia de Sal Rei', t('deserto_viana') || 'Deserto de Viana', t('morro_areia') || 'Morro de Areia'],
     };
     
     for (const [key, pontos] of Object.entries(pontosMap)) {
@@ -273,19 +276,19 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
     }
     
     const pontosIlha = {
-      'sal': ['Praia de Santa Maria', 'Salinas', 'Palmeira'],
-      'santiago': ['Praia de Tarrafal', 'Cidade Velha', 'Serra Malagueta'],
-      'são vicente': ['Porto Grande', 'Centro de Mindelo', 'Praia Laginha'],
-      'santo antão': ['Porto Novo', 'Ribeira Grande', 'Miradouro'],
-      'fogo': ['Chã das Caldeiras', 'Mosteiros', 'São Filipe'],
-      'boa vista': ['Praia de Santa Mónica', 'Sal Rei', 'Deserto de Viana'],
+      'sal': [t('praia_santa_maria') || 'Praia de Santa Maria', t('salinas') || 'Salinas', t('palmeira') || 'Palmeira'],
+      'santiago': [t('praia_tarrafal') || 'Praia de Tarrafal', t('cidade_velha') || 'Cidade Velha', t('serra_malagueta') || 'Serra Malagueta'],
+      'são vicente': [t('porto_grande') || 'Porto Grande', t('centro_mindelo') || 'Centro de Mindelo', t('praia_laginha') || 'Praia Laginha'],
+      'santo antão': [t('porto_novo') || 'Porto Novo', t('ribeira_grande') || 'Ribeira Grande', t('miradouro') || 'Miradouro'],
+      'fogo': [t('cha_caldeiras') || 'Chã das Caldeiras', t('mosteiros') || 'Mosteiros', t('sao_filipe') || 'São Filipe'],
+      'boa vista': [t('praia_santa_monica') || 'Praia de Santa Mónica', t('sal_rei') || 'Sal Rei', t('deserto_viana') || 'Deserto de Viana'],
     };
     
     if (ilhaLower && pontosIlha[ilhaLower]) {
       return pontosIlha[ilhaLower];
     }
     
-    return ['Centro da cidade', 'Zona Hoteleira', 'Posto de combustível'];
+    return [t('centro_cidade') || 'Centro da cidade', t('zona_hoteleira') || 'Zona Hoteleira', t('posto_combustivel') || 'Posto de combustível'];
   };
   
   const pontosProximos = getPontosProximos();
@@ -335,7 +338,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
         <div className="flex justify-between items-start mb-3">
           <div>
-            <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
+            <h4 className="text-sm font-bold text-slate-900 leading-tight">{t('localizacao') || 'Localização'}</h4>
             <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
           </div>
           <div className="flex gap-2">
@@ -343,13 +346,13 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
               onClick={abrirMapaInterativo}
               className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
             >
-              Mapa Ilhas <ExternalLink size={10} />
+              {t('mapa_ilhas') || 'Mapa Ilhas'} <ExternalLink size={10} />
             </button>
             <button 
               onClick={abrirPaginaMapa}
               className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
             >
-              Ver Mapa <ExternalLink size={10} />
+              {t('ver_mapa') || 'Ver Mapa'} <ExternalLink size={10} />
             </button>
           </div>
         </div>
@@ -375,7 +378,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
                 className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
               >
                 <MapPin size={14} className="fill-white" />
-                Ver localização
+                {t('ver_localizacao') || 'Ver localização'}
               </button>
             </div>
             
@@ -389,7 +392,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
             <button 
               onClick={abrirPaginaMapa}
               className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
-              title="Expandir mapa"
+              title={t('expandir_mapa') || "Expandir mapa"}
             >
               <Maximize2 size={14} className="text-slate-600" />
             </button>
@@ -417,7 +420,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
         
         {pontosProximos && pontosProximos.length > 0 && (
           <div className="mt-4 pt-3 border-t border-slate-100">
-            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 Próximo de:</p>
+            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 {t('proximo_de') || 'Próximo de'}:</p>
             <ul className="space-y-1">
               {pontosProximos.slice(0, 3).map((ponto, i) => (
                 <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">
@@ -429,14 +432,12 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
           </div>
         )}
       </div>
-
-  
     </>
   );
 };
 
-// Componente SidebarReservaCarro
 const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToCheckout }) => {
+  const { t } = useTranslation();
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -460,7 +461,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
 
   const handleContinue = () => {
     if (!startDate || !endDate) {
-      alert("Por favor, selecione as datas de Levantamento e Devolução");
+      alert(t('selecione_datas_carro') || "Por favor, selecione as datas de Levantamento e Devolução");
       return;
     }
     
@@ -487,7 +488,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
         <div className="flex justify-between items-end mb-5">
           <div className="text-2xl font-black text-slate-900">
             {precoDia.toLocaleString()} CVE 
-            <span className="text-xs font-medium text-slate-400"> / dia</span>
+            <span className="text-xs font-medium text-slate-400"> / {t('dia') || 'dia'}</span>
           </div>
           <div className="flex items-center gap-1 text-xs font-bold text-slate-900">
             <Star size={14} className="fill-orange-500 text-orange-500" /> {Number(estrelas).toFixed(1)} <span className="text-slate-400 font-normal">({totalReviews})</span>
@@ -500,15 +501,15 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
             onClick={() => setShowCalendar(!showCalendar)}
           >
             <div className="flex-1 border-r border-slate-200 pr-2">
-              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Levantamento</label>
+              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">{t('levantamento') || 'Levantamento'}</label>
               <div className="text-xs font-bold text-slate-800">
-                {startDate ? formatarData(startDate) : 'Selecionar data'}
+                {startDate ? formatarData(startDate) : (t('selecionar_data') || 'Selecionar data')}
               </div>
             </div>
             <div className="flex-1 pl-3">
-              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Devolução</label>
+              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">{t('devolucao') || 'Devolução'}</label>
               <div className="text-xs font-bold text-slate-800">
-                {endDate ? formatarData(endDate) : 'Selecionar data'}
+                {endDate ? formatarData(endDate) : (t('selecionar_data') || 'Selecionar data')}
               </div>
             </div>
           </div>
@@ -535,10 +536,10 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays size={16} className="text-blue-600" />
-                <span className="text-xs font-bold text-blue-800">Período:</span>
+                <span className="text-xs font-bold text-blue-800">{t('periodo') || 'Período'}:</span>
               </div>
               <span className="text-sm font-black text-blue-600">
-                {dias} {dias === 1 ? 'dia' : 'dias'}
+                {dias} {dias === 1 ? (t('dia') || 'dia') : (t('dias') || 'dias')}
               </span>
             </div>
             <p className="text-[10px] text-blue-600 mt-1">
@@ -549,17 +550,17 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
 
         <div className="pt-4 border-t border-slate-100 space-y-2.5 text-xs font-medium text-slate-600">
           <div className="flex justify-between">
-            <span>Preço por dia ({dias} {dias === 1 ? 'dia' : 'dias'})</span>
+            <span>{t('preco_por_dia') || 'Preço por dia'} ({dias} {dias === 1 ? (t('dia') || 'dia') : (t('dias') || 'dias')})</span>
             <span className="font-bold text-slate-900">{subtotal.toLocaleString()} CVE</span>
           </div>
           
           <div className="flex justify-between">
-            <span className="flex items-center gap-1">Taxa de serviço Morabeza Stay (10%) <Info size={11} className="text-slate-400" /></span>
+            <span className="flex items-center gap-1">{t('taxa_servico') || 'Taxa de serviço Morabeza Stay'} (10%) <Info size={11} className="text-slate-400" /></span>
             <span className="font-bold text-slate-900">{taxaServico.toLocaleString()} CVE</span>
           </div>
           
           <div className="flex justify-between pt-3 border-t border-slate-200 text-sm font-black text-slate-900">
-            <span>Total pago</span>
+            <span>{t('total_pago') || 'Total pago'}</span>
             <span className="text-blue-600 text-base font-black">
               {totalGeral.toLocaleString()} CVE
             </span>
@@ -576,15 +577,15 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
           }`}
         >
           {startDate && endDate 
-            ? `Reservar por ${dias} ${dias === 1 ? 'dia' : 'dias'}`
-            : 'Selecione as datas para continuar'}
+            ? `${t('reservar_por') || 'Reservar por'} ${dias} ${dias === 1 ? (t('dia') || 'dia') : (t('dias') || 'dias')}`
+            : (t('selecione_datas_continuar') || 'Selecione as datas para continuar')}
         </button>
 
         <div className="flex items-start gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
           <CheckCircle className="text-green-600 mt-0.5" size={14} />
           <div>
-            <h5 className="text-[11px] font-bold text-green-800">Cancelamento gratuito</h5>
-            <p className="text-[10px] text-green-700 leading-tight">Até 48 horas antes do levantamento</p>
+            <h5 className="text-[11px] font-bold text-green-800">{t('cancelamento_gratis') || 'Cancelamento gratuito'}</h5>
+            <p className="text-[10px] text-green-700 leading-tight">{t('cancelamento_prazo_carro') || 'Até 48 horas antes do levantamento'}</p>
           </div>
         </div>
       </div>
@@ -592,9 +593,9 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
   );
 };
 
-// Componente de conteúdo das tabs
-// Altere o TabContent dentro de CarrosDetalhes.jsx para incluir o mapa na aba correspondente:
 const TabContent = ({ activeTab, carro }) => {
+  const { t } = useTranslation();
+  
   if (!carro) return null;
 
   switch(activeTab) {
@@ -602,21 +603,21 @@ const TabContent = ({ activeTab, carro }) => {
       return (
         <div className="space-y-6 text-left">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Sobre este veículo</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-4">{t('sobre_veiculo') || 'Sobre este veículo'}</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
               {carro.descricao || carro.descricao_curta || 
-                `Veículo ${carro.titulo} disponível para aluguer em ${carro.localizacao}, ${carro.ilha}. 
-                Perfeito para explorar a ilha com conforto e segurança.`}
+                `${t('veiculo_disponivel') || 'Veículo'} ${carro.titulo} ${t('disponivel_aluguer') || 'disponível para aluguer em'} ${carro.localizacao}, ${carro.ilha}. 
+                ${t('perfeito_explorar') || 'Perfeito para explorar a ilha com conforto e segurança.'}`}
             </p>
           </div>
 
           <div className="border-t border-slate-100 pt-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Características principais</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-4">{t('caracteristicas_principais') || 'Características principais'}</h3>
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">Ar condicionado</span></div>
-              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">Direção assistida</span></div>
-              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">Vidros elétricos</span></div>
-              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">Sistema de som</span></div>
+              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">{t('ar_condicionado') || 'Ar condicionado'}</span></div>
+              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">{t('direcao_assistida') || 'Direção assistida'}</span></div>
+              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">{t('vidros_eletricos') || 'Vidros elétricos'}</span></div>
+              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">{t('sistema_som') || 'Sistema de som'}</span></div>
             </div>
           </div>
         </div>
@@ -624,68 +625,57 @@ const TabContent = ({ activeTab, carro }) => {
     case 1:
       return (
         <div className="space-y-6 text-left">
-          <h3 className="text-lg font-bold text-slate-900">Especificações técnicas</h3>
+          <h3 className="text-lg font-bold text-slate-900">{t('especificacoes_tecnicas') || 'Especificações técnicas'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-slate-50 rounded-xl p-4">
-              <h4 className="font-semibold text-slate-900 mb-3">Informações gerais</h4>
+              <h4 className="font-semibold text-slate-900 mb-3">{t('informacoes_gerais') || 'Informações gerais'}</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">Tipo de veículo</span>
+                  <span className="text-slate-500">{t('tipo_veiculo') || 'Tipo de veículo'}</span>
                   <span className="font-medium text-slate-900">{carro.tipo || 'SUV'}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">Ano de fabrico</span>
+                  <span className="text-slate-500">{t('ano_fabrico') || 'Ano de fabrico'}</span>
                   <span className="font-medium text-slate-900">{carro.ano || '2024'}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">Transmissão</span>
-                  <span className="font-medium text-slate-900">{carro.transmissao || 'Manual'}</span>
+                  <span className="text-slate-500">{t('transmissao') || 'Transmissão'}</span>
+                  <span className="font-medium text-slate-900">{carro.transmissao || t('manual') || 'Manual'}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">Combustível</span>
-                  <span className="font-medium text-slate-900">{carro.combustivel || 'Gasolina'}</span>
+                  <span className="text-slate-500">{t('combustivel') || 'Combustível'}</span>
+                  <span className="font-medium text-slate-900">{carro.combustivel || t('gasolina') || 'Gasolina'}</span>
                 </div>
               </div>
             </div>
             <div className="bg-slate-50 rounded-xl p-4">
-              <h4 className="font-semibold text-slate-900 mb-3">Capacidade e dimensões</h4>
+              <h4 className="font-semibold text-slate-900 mb-3">{t('capacidade_dimensoes') || 'Capacidade e dimensões'}</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">Passageiros</span>
-                  <span className="font-medium text-slate-900">{carro.passageiros || 5} pessoas</span>
+                  <span className="text-slate-500">{t('passageiros') || 'Passageiros'}</span>
+                  <span className="font-medium text-slate-900">{carro.passageiros || 5} {t('pessoas') || 'pessoas'}</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">Quilometragem</span>
+                  <span className="text-slate-500">{t('quilometragem') || 'Quilometragem'}</span>
                   <span className="font-medium text-slate-900">{carro.quilometragem ? Number(carro.quilometragem).toLocaleString() : '0'} km</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">Cor exterior</span>
-                  <span className="font-medium text-slate-900">{carro.cor || 'Não informada'}</span>
+                  <span className="text-slate-500">{t('cor_exterior') || 'Cor exterior'}</span>
+                  <span className="font-medium text-slate-900">{carro.cor || t('nao_informada') || 'Não informada'}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
       );
-    case 2: // Modificado para exibir o mapa real em vez da imagem do unsplash
-      return (
-        <div className="space-y-6 text-left">
-          <h3 className="text-lg font-bold text-slate-900">Localização de Levantamento</h3>
-          <MapLocationCarro 
-            localizacao={carro.localizacao}
-            ilha={carro.ilha}
-            latitude={carro.latitude}
-            longitude={carro.longitude}
-            carroId={carro.id}
-          />
-        </div>
-      );
+    
     default:
       return null;
   }
 };
-// Componente principal CarrosDetalhes
+
 export const CarrosDetalhes = () => {
+  const { t } = useTranslation();
   const { slug } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
@@ -712,7 +702,7 @@ export const CarrosDetalhes = () => {
   useEffect(() => {
     const fetchCarro = async () => {
       if (!slug) {
-        setError('Slug do veículo não fornecido');
+        setError(t('slug_nao_fornecido') || 'Slug do veículo não fornecido');
         setLoading(false);
         return;
       }
@@ -747,29 +737,29 @@ export const CarrosDetalhes = () => {
             ]);
           }
         } else {
-          throw new Error(data.error || 'Erro ao carregar dados do veículo');
+          throw new Error(data.error || (t('erro_carregar_veiculo') || 'Erro ao carregar dados do veículo'));
         }
       } catch (err) {
         console.error('Erro ao buscar veículo:', err);
-        setError(err.message || 'Erro ao carregar dados do veículo');
+        setError(err.message || (t('erro_carregar_veiculo') || 'Erro ao carregar dados do veículo'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchCarro();
-  }, [slug]);
+  }, [slug, t]);
 
   const handleContinueToCheckout = (reservaInfo) => {
     const userLogado = localStorage.getItem('user');
     
     if (!userLogado) {
-      alert("Por favor, faça login com o Google primeiro.");
+      alert(t('login_necessario') || "Por favor, faça login com o Google primeiro.");
       return;
     }
 
     if (!carro) {
-      alert("Erro ao carregar dados do veículo. Tente novamente.");
+      alert(t('erro_veiculo') || "Erro ao carregar dados do veículo. Tente novamente.");
       return;
     }
 
@@ -820,7 +810,7 @@ export const CarrosDetalhes = () => {
       <div className="w-full min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <Loader2 size={48} className="animate-spin text-blue-900 mx-auto mb-4" />
-          <p className="text-slate-600">Carregando informações do veículo...</p>
+          <p className="text-slate-600">{t('carregando_veiculo') || 'Carregando informações do veículo...'}</p>
         </div>
       </div>
     );
@@ -831,13 +821,13 @@ export const CarrosDetalhes = () => {
       <div className="w-full min-h-screen bg-white flex items-center justify-center text-center">
         <div>
           <div className="text-red-500 text-xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Erro ao carregar</h2>
-          <p className="text-slate-600 mb-4">{error || 'Veículo não encontrado'}</p>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{t('erro_carregar_titulo') || 'Erro ao carregar'}</h2>
+          <p className="text-slate-600 mb-4">{error || (t('veiculo_nao_encontrado') || 'Veículo não encontrado')}</p>
           <button 
             onClick={() => navigate('/carros')} 
             className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition"
           >
-            Voltar para veículos
+            {t('voltar_veiculos') || 'Voltar para veículos'}
           </button>
         </div>
       </div>
@@ -861,9 +851,9 @@ export const CarrosDetalhes = () => {
       )}
 
       <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500 text-left">
-        <span onClick={() => navigate('/')} className="hover:text-blue-900 cursor-pointer">Início</span>
+        <span onClick={() => navigate('/')} className="hover:text-blue-900 cursor-pointer">{t('inicio') || 'Início'}</span>
         <ChevronRight size={10} />
-        <span onClick={() => navigate('/carros')} className="hover:text-blue-900 cursor-pointer">Veículos</span>
+        <span onClick={() => navigate('/carros')} className="hover:text-blue-900 cursor-pointer">{t('veiculos') || 'Veículos'}</span>
         <ChevronRight size={10} />
         <span className="text-slate-500 font-semibold truncate">{carro.titulo}</span>
       </nav>
@@ -880,7 +870,7 @@ export const CarrosDetalhes = () => {
             
             <div className="mt-6 pt-6 border-t border-slate-100 text-left space-y-6">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 mb-4">Especificações do veículo</h3>
+                <h3 className="text-sm font-bold text-slate-900 mb-4">{t('especificacoes_veiculo') || 'Especificações do veículo'}</h3>
                 <EspecificacoesBar caracteristicas={carro.caracteristicas} />
               </div>
               
@@ -920,7 +910,7 @@ export const CarrosDetalhes = () => {
               <div className="flex items-center gap-1">
                 <Star size={14} className="fill-orange-400 text-orange-400" /> 
                 <span className="text-slate-900 font-bold">{Number(carro.estrelas).toFixed(1)}</span> 
-                <span className="text-slate-400">({carro.total_avaliacoes || 0} avaliações)</span>
+                <span className="text-slate-400">({carro.total_avaliacoes || 0} {t('avaliacoes') || 'avaliações'})</span>
               </div>
             </div>
           </div>
@@ -952,7 +942,7 @@ export const CarrosDetalhes = () => {
           <AvaliacoesSeccaoCarro 
             carroId={carro.id} 
             usuarioLogado={usuarioLogado}
-            onOpenLoginModal={() => alert("Por favor, faça login com o Google para avaliar.")}
+            onOpenLoginModal={() => alert(t('login_para_avaliar') || "Por favor, faça login com o Google para avaliar.")}
           />
         </div>
       </div>

@@ -1,8 +1,10 @@
 // DataModalAlojamento.jsx
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentCheckIn, currentCheckOut }) => {
+  const { t } = useTranslation();
   const [checkIn, setCheckIn] = useState(currentCheckIn || '');
   const [checkOut, setCheckOut] = useState(currentCheckOut || '');
   
@@ -12,7 +14,6 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
     const newCheckIn = e.target.value;
     setCheckIn(newCheckIn);
     
-    // Se check-out for anterior ao novo check-in, limpar check-out
     if (checkOut && newCheckIn && checkOut <= newCheckIn) {
       setCheckOut('');
     }
@@ -24,12 +25,12 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
   
   const handleConfirm = () => {
     if (!checkIn || !checkOut) {
-      alert('Por favor, selecione as datas de Check-in e Check-out');
+      alert(t('selecione_datas_checkin_checkout'));
       return;
     }
     
     if (new Date(checkOut) <= new Date(checkIn)) {
-      alert('A data de Check-out deve ser posterior à data de Check-in');
+      alert(t('checkout_posterior_checkin'));
       return;
     }
     
@@ -58,7 +59,7 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 className="text-xl font-bold text-[#1a2b6d]">Selecionar datas</h3>
+              <h3 className="text-xl font-bold text-[#1a2b6d]">{t('selecionar_datas')}</h3>
               <p className="text-xs text-slate-500 mt-1">{alojamentoTitulo}</p>
             </div>
             <button 
@@ -73,7 +74,7 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
             {/* Check-in */}
             <div>
               <label className="text-[10px] font-black text-[#1a2b6d] uppercase tracking-widest block mb-2">
-                Check-in
+                {t('checkin')}
               </label>
               <div className="relative">
                 <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -90,7 +91,7 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
             {/* Check-out */}
             <div>
               <label className="text-[10px] font-black text-[#1a2b6d] uppercase tracking-widest block mb-2">
-                Check-out
+                {t('checkout')}
               </label>
               <div className="relative">
                 <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -111,7 +112,7 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
                   📅 {new Date(checkIn).toLocaleDateString('pt-PT')} → {new Date(checkOut).toLocaleDateString('pt-PT')}
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  {Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))} noites
+                  {Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24))} {t('noites')}
                 </p>
               </div>
             )}
@@ -122,13 +123,13 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
                 onClick={onClose}
                 className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
               >
-                Cancelar
+                {t('cancelar')}
               </button>
               <button 
                 onClick={handleConfirm}
                 className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
               >
-                Confirmar datas
+                {t('confirmar_datas')}
               </button>
             </div>
           </div>

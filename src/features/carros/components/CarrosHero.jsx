@@ -1,27 +1,109 @@
+// CardCarro.jsx - Versão com slug
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import { MapPin, Heart, Calendar, Users, Fuel, Gauge, Star } from 'lucide-react';
 
-const CarrosHero = () => {
+const CardCarro = (props) => {
+  const { t } = useTranslation();
+  const carro = props.carro || props;
+
+  if (!carro || (!carro.id && !props.id)) return null;
+
+  const linkTo = carro.slug ? `/carros/${carro.slug}` : `/carros/${carro.id}`;
+
+  const imagemCompleta = carro.imagem_url 
+    ? (carro.imagem_url.startsWith('http') ? carro.imagem_url : `https://welovepalop.com/api/uploads/${carro.imagem_url}`)
+    : "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?q=80&w=400";
+
+  const getBadgeText = () => {
+    if (carro.combustivel === 'Elétrico' || carro.combustivel === 'Eletrico') {
+      return `⚡ ${t('eletrico')}`;
+    }
+    return carro.tipo || t('carro');
+  };
+
   return (
-    <div className="relative h-[450px] w-full overflow-hidden">
-      {/* Imagem focada em estrada/viagem para o contexto de carros */}
-      <img 
-        src="https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?q=80&w=2000" 
-        className="absolute inset-0 w-full h-full object-cover"
-        alt="Aluguer de Carros Cabo Verde"
-      />
+    <div className="relative group bg-white rounded-[2.5rem] flex flex-col h-full w-full overflow-hidden transition-all duration-300 border border-gray-100 hover:shadow-2xl hover:shadow-gray-100">
       
-      <div className="absolute inset-0 bg-gradient-to-b from-blue-900/60 to-blue-900/20 backdrop-blur-[1px]"></div>
+      {/* Container da Imagem */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-[2.5rem]">
+        <img 
+          src={imagemCompleta} 
+          alt={carro.titulo} 
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+        />
+        
+        {/* Badge de Tipo */}
+        <div className="absolute bottom-4 left-4 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-lg z-10">
+          {getBadgeText()}
+        </div>
 
-      <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
-        <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter uppercase italic">
-          Aluguer de Carros em Santiago
-        </h1>
-        <p className="text-white/90 text-lg md:text-xl max-w-2xl font-medium">
-          Encontre o carro ideial para explorar a ilha em conforto
-        </p>
+        {/* Ícone de Coração */}
+        <button className="absolute top-4 right-4 p-2.5 bg-white/90 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-20 hover:scale-110 transition-transform active:scale-95">
+          <Heart size={18} strokeWidth={2.5} />
+        </button>
       </div>
+
+      {/* Conteúdo do Card */}
+      <div className="p-6 flex flex-col flex-1 text-left">
+        
+        {/* Localização */}
+        <div className="flex items-center gap-1.5 text-[#1a2b6d] mb-2">
+          <MapPin size={14} className="text-blue-500" /> 
+          <span className="text-[11px] font-bold opacity-70 uppercase tracking-tight">
+            {carro.localizacao || carro.ilha || t('cabo_verde')}
+          </span>
+        </div>
+
+        {/* Título */}
+        <h3 className="text-lg font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-1 group-hover:text-blue-600 transition-colors line-clamp-2">
+          {carro.titulo}
+        </h3>
+
+        {/* Info Grid */}
+        <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-6 pt-4 border-t border-gray-50">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Calendar size={14} className="text-gray-400" />
+            <span className="text-[11px] font-bold">{carro.ano || '2023'}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-500">
+            <Users size={14} className="text-gray-400" />
+            <span className="text-[11px] font-bold">{carro.passageiros || '5'} {t('lugares')}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-500">
+            <Fuel size={14} className="text-gray-400" />
+            <span className="text-[11px] font-bold truncate">{carro.combustivel || t('diesel')}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-500">
+            <Gauge size={14} className="text-gray-400" />
+            <span className="text-[11px] font-bold">{carro.transmissao || t('manual')}</span>
+          </div>
+        </div>
+
+        {/* Preço e Avaliação */}
+        <div className="mt-auto flex items-center justify-between">
+          <div className="flex items-center gap-1 bg-orange-50 px-2.5 py-1 rounded-lg">
+            <Star size={14} className="fill-orange-400 text-orange-400" />
+            <span className="text-xs font-black text-gray-800">{carro.estrelas || '5.0'}</span>
+          </div>
+
+          <div className="flex flex-col items-end">
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-[#1a2b6d]">
+                {Number(carro.preco_dia || 0).toLocaleString('pt-PT')}
+              </span>
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('cve')}</span>
+            </div>
+            <span className="text-[10px] font-bold text-gray-400 uppercase">{t('por_dia')}</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Link de Navegação com slug */}
+      <Link to={linkTo} state={{ carro }} className="absolute inset-0 z-0" />
     </div>
   );
 };
 
-export default CarrosHero;
+export default CardCarro;

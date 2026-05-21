@@ -9,7 +9,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import CardAlojamento from './CardAlojamento';
 import FiltrosLateralAlojamento from './FiltrosLateralAlojamento'; 
 import SearchBar from './SearchBarAlojamento';
-import AlojamentoHero from './AlojamentoHero'; // ✅ Import adicionado!
+import AlojamentoHero from './AlojamentoHero';
 
 const Alojamentos = () => {
   const { t } = useTranslation();
@@ -20,7 +20,7 @@ const Alojamentos = () => {
   // Estados de Dados
   const [alojamentos, setAlojamentos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
+  const [viewMode, setViewMode] = useState('grid');
   
   // Estados de Filtro
   const [orcamento, setOrcamento] = useState(30000);
@@ -44,7 +44,7 @@ const Alojamentos = () => {
     fetchDados();
   }, []);
 
-  // Lógica de Filtragem Local (Preço, Tipo e Destino)
+  // Lógica de Filtragem Local
   const alojamentosFiltrados = alojamentos.filter(casa => {
     const atendePreco = Number(casa.preco_noite || 0) <= orcamento;
     const atendeTipo = tiposSelecionados.length === 0 || tiposSelecionados.includes(casa.tipo);
@@ -62,13 +62,11 @@ const Alojamentos = () => {
   return (
     <div className="bg-[#f8f9fc] min-h-screen">
       <Helmet>
-        <title>MorabezaStay | Alojamentos {filtroDestino && `em ${filtroDestino}`}</title>
+        <title>MorabezaStay | {t('alojamentos')} {filtroDestino && `${t('em')} ${filtroDestino}`}</title>
       </Helmet>
 
-      {/* SEÇÃO HERO DO ALOJAMENTO (IGUAL À EXPERIÊNCIA) */}
       <AlojamentoHero />
 
-      {/* BARRA DE PROCURA INTEGRADA INTEGRADA AO FLUXO */}
       <div className="relative -mt-12 z-40 px-4 flex justify-center">
         <div className="w-full max-w-6xl">
           <SearchBar />
@@ -78,7 +76,7 @@ const Alojamentos = () => {
       <main className="max-w-[1400px] mx-auto py-16 px-4 md:px-6">
         {/* BREADCRUMBS */}
         <div className="text-left text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8 flex gap-2">
-          <span className="text-blue-600 cursor-pointer" onClick={() => navigate('/')}>Início</span> / <span>Alojamentos</span>
+          <span className="text-blue-600 cursor-pointer" onClick={() => navigate('/')}>{t('inicio')}</span> / <span>{t('alojamentos')}</span>
           {filtroDestino && <> / <span className="text-gray-900">{filtroDestino}</span></>}
         </div>
 
@@ -102,12 +100,12 @@ const Alojamentos = () => {
             {/* HEADER DA LISTAGEM */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
               <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter text-left">
-                {filtroDestino || "Explorar"}: <span className="text-blue-600 text-4xl">{alojamentosFiltrados.length}</span> opções
+                {filtroDestino || t('explorar')}: <span className="text-blue-600 text-4xl">{alojamentosFiltrados.length}</span> {t('opcoes')}
               </h1>
               
               <div className="flex items-center gap-2 bg-white p-1.5 rounded-full shadow-sm border border-gray-100 self-end md:self-auto">
                 <button className="bg-blue-600 text-white px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-                  Sugestões
+                  {t('sugestoes')}
                 </button>
                 <div className="w-px h-6 bg-gray-100 mx-1"></div>
                 <button 
@@ -128,14 +126,14 @@ const Alojamentos = () => {
             {/* AVISO DE PREÇO FINAL */}
             <div className="bg-blue-50 border border-blue-100 text-blue-800 p-4 rounded-xl mb-8 flex items-center gap-3 text-sm font-medium text-left">
               <Info size={18} className="text-blue-600" />
-              Preços finais com taxas incluídas.
+              {t('precos_finais_com_taxas')}
             </div>
 
             {/* GRID OU LISTA COM CARREGAMENTO PADRONIZADO */}
             {loading ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <Loader2 size={40} className="animate-spin mb-4 text-blue-600 opacity-20" />
-                <p className="font-black uppercase tracking-widest text-[10px] text-gray-400">A sincronizar espaços...</p>
+                <p className="font-black uppercase tracking-widest text-[10px] text-gray-400">{t('sincronizar_espacos')}</p>
               </div>
             ) : (
               <div className={viewMode === 'grid' 
@@ -149,9 +147,9 @@ const Alojamentos = () => {
                 ) : (
                   <div className="col-span-full py-24 text-center bg-white rounded-[40px] border-2 border-dashed border-gray-100 flex flex-col items-center gap-4">
                     <Info size={40} className="text-gray-300" />
-                    <p className="text-gray-400 font-bold uppercase text-xs">Nenhum alojamento encontrado.</p>
+                    <p className="text-gray-400 font-bold uppercase text-xs">{t('nenhum_alojamento_encontrado')}</p>
                     <button onClick={limparFiltros} className="text-blue-600 font-black text-[10px] underline uppercase">
-                      Limpar Filtros
+                      {t('limpar_filtros')}
                     </button>
                   </div>
                 )}
@@ -166,25 +164,23 @@ const Alojamentos = () => {
             <img 
               src="https://images.unsplash.com/photo-1539635278303-d4002c07eae3?auto=format&fit=crop&q=80&w=1200" 
               className="absolute inset-0 w-full h-full object-cover" 
-              alt="Aventuras Cabo Verde"
+              alt={t('aventuras_cabo_verde')}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent"></div>
             <div className="relative z-10 p-12 max-w-lg">
               <h2 className="text-3xl font-black text-gray-900 leading-tight mb-4 tracking-tighter uppercase italic">
-                Viva aventuras inesquecíveis nas ilhas
+                {t('viva_aventuras_inesqueciveis')}
               </h2>
               <button 
                 onClick={() => navigate('/experiencias')}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl transition-all flex items-center gap-2"
               >
-                Buscar Experiências <ArrowRight size={20} />
+                {t('buscar_experiencias')} <ArrowRight size={20} />
               </button>
             </div>
           </div>
         </div>
       </main>
-
-
     </div>
   );
 };

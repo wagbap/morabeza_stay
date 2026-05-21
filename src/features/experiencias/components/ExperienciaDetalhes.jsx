@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import mapboxgl from 'mapbox-gl';
@@ -11,12 +12,11 @@ import {
 } from 'lucide-react';
 import AvaliacoesSeccao from './AvaliacoesSeccaoExperiencia';
 
-
-// Token do Mapbox
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-// Componente SliderModal para visualização em tela cheia
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
+  const { t } = useTranslation();
+  
   const handleModalClick = (e) => {
     e.stopPropagation();
   };
@@ -26,21 +26,21 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
       <button 
         onClick={onClose}
         className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label="Fechar"
+        aria-label={t('fechar') || "Fechar"}
       >
         <X size={24} />
       </button>
       <button 
         onClick={(e) => { e.stopPropagation(); onPrev(); }}
         className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label="Imagem anterior"
+        aria-label={t('imagem_anterior') || "Imagem anterior"}
       >
         <ChevronLeft size={24} />
       </button>
       <button 
         onClick={(e) => { e.stopPropagation(); onNext(); }}
         className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label="Próxima imagem"
+        aria-label={t('proxima_imagem') || "Próxima imagem"}
       >
         <ChevronRight size={24} />
       </button>
@@ -57,13 +57,14 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
   );
 };
 
-// Componente TabsNavegacaoExperiencia
 const TabsNavegacaoExperiencia = ({ activeTab = 0, onTabChange }) => {
+  const { t } = useTranslation();
+  
   const tabs = [
-    { id: 0, label: 'Visão Geral' },
-    { id: 1, label: 'Inclusões' },
-    { id: 2, label: 'Requisitos' },
-    { id: 3, label: 'Localização' },
+    { id: 0, label: t('visao_geral') || 'Visão Geral' },
+    { id: 1, label: t('inclusoes') || 'Inclusões' },
+    { id: 2, label: t('requisitos') || 'Requisitos' },
+    { id: 3, label: t('localizacao') || 'Localização' },
   ];
 
   return (
@@ -87,8 +88,9 @@ const TabsNavegacaoExperiencia = ({ activeTab = 0, onTabChange }) => {
   );
 };
 
-// Componente GuiaInfo
 const GuiaInfo = ({ guia }) => {
+  const { t } = useTranslation();
+  
   if (!guia) return null;
   
   return (
@@ -107,29 +109,27 @@ const GuiaInfo = ({ guia }) => {
           )}
         </div>
         <div>
-          <h4 className="text-sm font-bold text-slate-900 leading-tight">Guia: {guia.nome}</h4>
+          <h4 className="text-sm font-bold text-slate-900 leading-tight">{t('guia') || 'Guia'}: {guia.nome}</h4>
           <p className="text-[10px] text-slate-500 font-medium">
-            {guia.guia_certificado ? 'Guia Certificado • ' : ''}{guia.idiomas || 'Português/Inglês'}
+            {guia.guia_certificado ? (t('guia_certificado') || 'Guia Certificado') + ' • ' : ''}{guia.idiomas || (t('portugues_ingles') || 'Português/Inglês')}
           </p>
         </div>
       </div>
       <button className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors">
-        Contactar guia
+        {t('contactar_guia') || 'Contactar guia'}
       </button>
     </div>
   );
 };
 
-// Componente MapLocation para Experiência COM MAPBOX REAL
 const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentosData }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isMapaInterativoOpen, setIsMapaInterativoOpen] = useState(false);
   
-  // Verificar se temos coordenadas (para experiências, usar coordenadas da ilha)
-  // Como experiências podem não ter coordenadas exatas, usamos coordenadas da ilha
   const getCoordenadasPorIlha = (nomeIlha) => {
     const coordenadas = {
       'Santo Antão': { lat: 17.0667, lng: -25.1667 },
@@ -152,7 +152,6 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
   const textoLocalizacao = `${ilha}, ${localizacao}`;
   const cidadeNome = ilha;
   
-  // Função para abrir a página de mapa
   const abrirPaginaMapa = () => {
     navigate('/mapa-experiencias');
   };
@@ -161,7 +160,6 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
     setIsMapaInterativoOpen(true);
   };
   
-  // Inicializar o mapa quando tivermos coordenadas
   useEffect(() => {
     if (!temCoordenadas || !mapContainer.current || map.current) return;
     if (!MAPBOX_TOKEN) {
@@ -183,7 +181,6 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
     map.current.on('load', () => {
       setMapLoaded(true);
       
-      // Adicionar marcador
       new mapboxgl.Marker({
         color: '#1e3a8a',
         scale: 1.2
@@ -192,7 +189,6 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
         .addTo(map.current);
     });
     
-    // Cleanup
     return () => {
       if (map.current) {
         map.current.remove();
@@ -206,7 +202,7 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
         <div className="flex justify-between items-start mb-3">
           <div>
-            <h4 className="text-sm font-bold text-slate-900 leading-tight">Localização</h4>
+            <h4 className="text-sm font-bold text-slate-900 leading-tight">{t('localizacao') || 'Localização'}</h4>
             <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
           </div>
           <div className="flex gap-2">
@@ -214,21 +210,19 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
               onClick={abrirMapaInterativo}
               className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
             >
-              Mapa Ilhas <ExternalLink size={10} />
+              {t('mapa_ilhas') || 'Mapa Ilhas'} <ExternalLink size={10} />
             </button>
             <button 
               onClick={abrirPaginaMapa}
               className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
             >
-              Ver Mapa <ExternalLink size={10} />
+              {t('ver_mapa') || 'Ver Mapa'} <ExternalLink size={10} />
             </button>
           </div>
         </div>
         
-        {/* MAPA REAL COM MAPBOX */}
         {temCoordenadas && MAPBOX_TOKEN ? (
           <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-            {/* Container do Mapa */}
             <div 
               ref={mapContainer} 
               className="relative w-full h-[160px] bg-slate-100"
@@ -236,25 +230,22 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
               onClick={abrirPaginaMapa}
             />
             
-            {/* Loading overlay */}
             {!mapLoaded && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
                 <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
             
-            {/* Overlay com botão central */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <button 
                 onClick={abrirPaginaMapa}
                 className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
               >
                 <MapPin size={14} className="fill-white" />
-                Ver localização
+                {t('ver_localizacao') || 'Ver localização'}
               </button>
             </div>
             
-            {/* Badge de endereço */}
             <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md pointer-events-none">
               <div className="flex items-center gap-1">
                 <MapPin size={10} className="text-red-500" />
@@ -262,17 +253,15 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
               </div>
             </div>
             
-            {/* Botão de zoom */}
             <button 
               onClick={abrirPaginaMapa}
               className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
-              title="Expandir mapa"
+              title={t('expandir_mapa') || "Expandir mapa"}
             >
               <Maximize2 size={14} className="text-slate-600" />
             </button>
           </div>
         ) : (
-          /* FALLBACK - Quando não há coordenadas */
           <div 
             onClick={abrirPaginaMapa}
             className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100 cursor-pointer group"
@@ -295,7 +284,7 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
         
         {pontosProximos && pontosProximos.length > 0 && (
           <div className="mt-4 pt-3 border-t border-slate-100">
-            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 Próximo de:</p>
+            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 {t('proximo_de') || 'Próximo de'}:</p>
             <ul className="space-y-1">
               {pontosProximos.slice(0, 3).map((ponto, i) => (
                 <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">
@@ -307,13 +296,10 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
           </div>
         )}
       </div>
-
-
     </>
   );
 };
 
-// Componente SidebarReservaExperiencia
 const SidebarReservaExperiencia = ({ 
   precoBase, 
   rating, 
@@ -329,6 +315,7 @@ const SidebarReservaExperiencia = ({
   precoVigente,
   onReservar 
 }) => {
+  const { t } = useTranslation();
   const [showCalendar, setShowCalendar] = useState(false);
   
   const minDate = new Date().toISOString().split('T')[0];
@@ -348,7 +335,7 @@ const SidebarReservaExperiencia = ({
         <div className="flex justify-between items-end mb-5">
           <div className="text-2xl font-bold text-slate-900">
             {precoVigente.toLocaleString()} CVE 
-            <span className="text-sm font-normal text-slate-500"> / pessoa</span>
+            <span className="text-sm font-normal text-slate-500"> / {t('pessoa') || 'pessoa'}</span>
           </div>
           <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
             <Star size={14} className="fill-orange-500 text-orange-500" /> {rating}
@@ -357,7 +344,7 @@ const SidebarReservaExperiencia = ({
 
         {precoVigente !== precoBase && (
           <div className="mb-4 p-2 bg-orange-50 rounded-lg border border-orange-200 text-center">
-            <span className="text-[10px] font-bold text-orange-600 uppercase">Preço Especial!</span>
+            <span className="text-[10px] font-bold text-orange-600 uppercase">{t('preco_especial') || 'Preço Especial!'}</span>
           </div>
         )}
 
@@ -367,9 +354,9 @@ const SidebarReservaExperiencia = ({
             onClick={() => setShowCalendar(!showCalendar)}
           >
             <div className="flex-1 p-2.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Data do passeio</label>
+              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">{t('data_passeio') || 'Data do passeio'}</label>
               <div className="text-xs font-bold text-slate-900">
-                {dataPasseio ? formatarData(dataPasseio) : 'Selecionar data'}
+                {dataPasseio ? formatarData(dataPasseio) : (t('selecionar_data') || 'Selecionar data')}
               </div>
             </div>
           </div>
@@ -394,16 +381,15 @@ const SidebarReservaExperiencia = ({
                   onClick={() => setShowCalendar(false)} 
                   className="text-blue-900 font-bold text-[10px] uppercase"
                 >
-                  Fechar
+                  {t('fechar') || 'Fechar'}
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* PERÍODO */}
         <div className="space-y-3 mb-4">
-          <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">Período</label>
+          <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">{t('periodo') || 'Período'}</label>
           <div className="grid grid-cols-3 gap-3">
             {periodosUI.map((p) => {
               const isSelected = periodo === p.label;
@@ -421,7 +407,7 @@ const SidebarReservaExperiencia = ({
                   {p.label === 'Manhã' && <Sun size={16} className={isSelected ? 'text-yellow-500' : 'text-slate-300'} />}
                   {p.label === 'Meio dia' && <Sun size={16} className={isSelected ? 'text-orange-500' : 'text-slate-300'} />}
                   {p.label === 'Tarde' && <Sunset size={16} className={isSelected ? 'text-red-400' : 'text-slate-300'} />}
-                  <span className={`text-[11px] font-bold mt-1 ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>{p.label}</span>
+                  <span className={`text-[11px] font-bold mt-1 ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>{t(p.label.toLowerCase()) || p.label}</span>
                   <span className={`text-[8px] font-medium ${isSelected ? 'text-blue-400' : 'text-slate-400'}`}>{p.timeRange}</span>
                 </button>
               );
@@ -429,9 +415,8 @@ const SidebarReservaExperiencia = ({
           </div>
         </div>
 
-        {/* HORÁRIOS ESPECÍFICOS */}
         <div className="mb-4">
-          <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">Horário</label>
+          <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">{t('horario') || 'Horário'}</label>
           <div className="grid grid-cols-3 gap-2 text-[10px] font-black uppercase tracking-widest">
             {horariosDisponiveis.length > 0 ? (
               horariosDisponiveis.map(h => (
@@ -449,30 +434,29 @@ const SidebarReservaExperiencia = ({
               ))
             ) : (
               <div className="col-span-3 text-[9px] text-slate-400 py-3 text-center bg-slate-50 rounded-xl border border-dashed">
-                Indisponível
+                {t('indisponivel') || 'Indisponível'}
               </div>
             )}
           </div>
         </div>
 
-        {/* STATUS DE DISPONIBILIDADE */}
         <div className="w-full py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl mb-4">
           <p className="text-[11px] font-bold text-slate-500 tracking-tight flex items-center gap-2">
             <span className={statusVagas === "Disponível" ? "text-green-600" : "text-red-500"}>
               {statusVagas === "Disponível" ? "✓" : "⚠️"}
             </span>
-            Disponibilidade: <span className={statusVagas === "Disponível" ? "text-green-600" : "text-red-500"}>{statusVagas}</span>
+            {t('disponibilidade') || 'Disponibilidade'}: <span className={statusVagas === "Disponível" ? "text-green-600" : "text-red-500"}>{t(statusVagas.toLowerCase()) || statusVagas}</span>
           </p>
         </div>
 
         <div className="pt-6 border-t border-slate-100 space-y-3 mt-6">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-bold text-slate-600">Preço por pessoa</span>
+            <span className="text-sm font-bold text-slate-600">{t('preco_por_pessoa') || 'Preço por pessoa'}</span>
             <span className="text-lg font-bold text-blue-600">{precoVigente.toLocaleString()} CVE</span>
           </div>
           
           <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-            <span className="text-sm font-bold text-slate-600">Total (por pessoa)</span>
+            <span className="text-sm font-bold text-slate-600">{t('total_por_pessoa') || 'Total (por pessoa)'}</span>
             <span className="text-xl font-bold text-blue-600">{precoVigente.toLocaleString()} CVE</span>
           </div>
 
@@ -485,19 +469,19 @@ const SidebarReservaExperiencia = ({
                 : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
             }`}
           >
-            <Calendar size={16}/> {statusVagas === "Disponível" ? "Reservar agora" : statusVagas}
+            <Calendar size={16}/> {statusVagas === "Disponível" ? (t('reservar_agora') || 'Reservar agora') : t(statusVagas.toLowerCase()) || statusVagas}
           </button>
           
           <p className="text-[9px] text-slate-400 text-center mt-3">
-            O número de participantes será definido no próximo passo
+            {t('participantes_proximo_passo') || 'O número de participantes será definido no próximo passo'}
           </p>
         </div>
 
         <div className="flex items-start gap-2 p-3 bg-green-50 rounded-xl border border-green-100 mt-4">
           <CheckCircle className="text-green-600 mt-0.5" size={14} />
           <div>
-            <h5 className="text-xs font-bold text-green-800 tracking-tight">Cancelamento gratuito</h5>
-            <p className="text-[10px] text-green-700 leading-tight">Até 24 horas antes do passeio</p>
+            <h5 className="text-xs font-bold text-green-800 tracking-tight">{t('cancelamento_gratis') || 'Cancelamento gratuito'}</h5>
+            <p className="text-[10px] text-green-700 leading-tight">{t('cancelamento_prazo_experiencia') || 'Até 24 horas antes do passeio'}</p>
           </div>
         </div>
       </div>
@@ -505,8 +489,8 @@ const SidebarReservaExperiencia = ({
   );
 };
 
-// Mosaico Premium
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, categoria }) => {
+  const { t } = useTranslation();
   const placeholder = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop";
   const img1 = images[0] || placeholder;
   const img2 = images[1] || placeholder;
@@ -515,8 +499,6 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, categoria })
 
   return (
     <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
-      
-      {/* Lado Esquerdo - Foto Grande */}
       <div 
         className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm"
         onClick={() => { onImageChange(0); onOpenModal(); }}
@@ -531,10 +513,7 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, categoria })
         </div>
       </div>
 
-      {/* Lado Direito - Estrutura de Duas Linhas */}
       <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
-        
-        {/* Linha de Cima - Foto Horizontal Ampla */}
         <div 
           className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
           onClick={() => { onImageChange(1); onOpenModal(); }}
@@ -546,7 +525,6 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, categoria })
           />
         </div>
 
-        {/* Linha de Baixo - Duas fotos pequenas lado a lado */}
         <div className="h-1/2 flex gap-2.5">
           <div 
             className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
@@ -573,18 +551,18 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo, categoria })
               onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
               className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
             >
-              <Camera size={12} className="text-slate-700" /> Ver todas as fotos
+              <Camera size={12} className="text-slate-700" /> {t('ver_todas_fotos') || 'Ver todas as fotos'}
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
 };
 
-// Componente de conteúdo das tabs
 const TabContent = ({ activeTab, experiencia }) => {
+  const { t } = useTranslation();
+  
   if (!experiencia) return null;
 
   switch(activeTab) {
@@ -592,24 +570,24 @@ const TabContent = ({ activeTab, experiencia }) => {
       return (
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Sobre esta experiência</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-4">{t('sobre_experiencia') || 'Sobre esta experiência'}</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
               {experiencia.descricao_longa || experiencia.descricao_curta || 
-                `Viva uma experiência única em ${experiencia.ilha}, ${experiencia.localizacao}. 
-                Uma aventura inesquecível que combina natureza, cultura e momentos especiais.`}
+                `${t('viva_experiencia') || 'Viva uma experiência única em'} ${experiencia.ilha}, ${experiencia.localizacao}. 
+                ${t('aventura_inesquecivel') || 'Uma aventura inesquecível que combina natureza, cultura e momentos especiais.'}`}
             </p>
           </div>
 
           <div className="border-t border-slate-100 pt-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Duração e horários</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-4">{t('duracao_horarios') || 'Duração e horários'}</h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-blue-500" />
-                <span className="text-sm text-slate-600">Duração: {experiencia.duracao}</span>
+                <span className="text-sm text-slate-600">{t('duracao') || 'Duração'}: {experiencia.duracao}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users size={14} className="text-blue-500" />
-                <span className="text-sm text-slate-600">Máximo: {experiencia.max_pessoas} pessoas</span>
+                <span className="text-sm text-slate-600">{t('maximo_pessoas') || 'Máximo'}: {experiencia.max_pessoas} {t('pessoas') || 'pessoas'}</span>
               </div>
             </div>
           </div>
@@ -618,7 +596,7 @@ const TabContent = ({ activeTab, experiencia }) => {
     case 1:
       return (
         <div className="space-y-6">
-          <h3 className="text-lg font-bold text-slate-900">O que está incluído</h3>
+          <h3 className="text-lg font-bold text-slate-900">{t('o_que_incluido') || 'O que está incluído'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {experiencia.inclusoes?.map((item, i) => (
               <div key={i} className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl">
@@ -632,7 +610,7 @@ const TabContent = ({ activeTab, experiencia }) => {
     case 2:
       return (
         <div className="space-y-6">
-          <h3 className="text-lg font-bold text-slate-900">Requisitos importantes</h3>
+          <h3 className="text-lg font-bold text-slate-900">{t('requisitos_importantes') || 'Requisitos importantes'}</h3>
           <div className="space-y-4">
             {experiencia.requisitos?.map((req, i) => (
               <div key={i} className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
@@ -646,7 +624,7 @@ const TabContent = ({ activeTab, experiencia }) => {
     case 3:
       return (
         <div className="space-y-6">
-          <h3 className="text-lg font-bold text-slate-900">Localização e ponto de encontro</h3>
+          <h3 className="text-lg font-bold text-slate-900">{t('localizacao_ponto_encontro') || 'Localização e ponto de encontro'}</h3>
           <div className="relative w-full h-[300px] rounded-xl overflow-hidden bg-slate-100">
             <img 
               src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=800&h=400&fit=crop" 
@@ -660,11 +638,11 @@ const TabContent = ({ activeTab, experiencia }) => {
           <div className="space-y-3">
             <div className="flex items-start gap-3">
               <MapPin size={16} className="text-orange-500 mt-0.5" />
-              <span className="text-sm text-slate-600">{experiencia.ilha}, {experiencia.localizacao}, Cabo Verde</span>
+              <span className="text-sm text-slate-600">{experiencia.ilha}, {experiencia.localizacao}, {t('cabo_verde') || 'Cabo Verde'}</span>
             </div>
             <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-sm font-semibold text-slate-900 mb-2">Ponto de encontro:</p>
-              <p className="text-sm text-slate-600">{experiencia.ponto_encontro || 'A ser informado após a confirmação da reserva'}</p>
+              <p className="text-sm font-semibold text-slate-900 mb-2">{t('ponto_encontro') || 'Ponto de encontro'}:</p>
+              <p className="text-sm text-slate-600">{experiencia.ponto_encontro || (t('ponto_encontro_informado') || 'A ser informado após a confirmação da reserva')}</p>
             </div>
           </div>
         </div>
@@ -674,8 +652,8 @@ const TabContent = ({ activeTab, experiencia }) => {
   }
 };
 
-// Componente ExperienciaDetalhes principal
 const ExperienciaDetalhes = () => {
+  const { t } = useTranslation();
   const { slug } = useParams();
   const navigate = useNavigate();
   
@@ -688,13 +666,11 @@ const ExperienciaDetalhes = () => {
   const [images, setImages] = useState([]);
   const [alojamentos, setAlojamentos] = useState([]);
   
-  // Estados para reserva
   const [dataPasseio, setDataPasseio] = useState(new Date().toISOString().split('T')[0]);
   const [periodo, setPeriodo] = useState("Manhã");
   const [horario, setHorario] = useState("");
   const [usuarioLogado, setUsuarioLogado] = useState(null);
 
-  // Buscar usuário logado
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -707,7 +683,6 @@ const ExperienciaDetalhes = () => {
     }
   }, []);
 
-  // Buscar alojamentos para o mapa
   useEffect(() => {
     const fetchAlojamentos = async () => {
       try {
@@ -721,7 +696,6 @@ const ExperienciaDetalhes = () => {
     fetchAlojamentos();
   }, []);
 
-  // Buscar dados da experiência
   useEffect(() => {
     const fetchDados = async () => {
       try {
@@ -741,7 +715,6 @@ const ExperienciaDetalhes = () => {
           if (dados) {
             setExperiencia(dados);
             
-            // Processar imagens
             if (dados.imagens && dados.imagens.length > 0) {
               const imageUrls = dados.imagens.map(img => img.caminho_url);
               setImages(imageUrls);
@@ -751,10 +724,10 @@ const ExperienciaDetalhes = () => {
               setImages(["https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop"]);
             }
           } else {
-            setError('Experiência não encontrada');
+            setError(t('experiencia_nao_encontrada') || 'Experiência não encontrada');
           }
         } else {
-          throw new Error(result.message || 'Erro ao carregar dados');
+          throw new Error(result.message || (t('erro_carregar_dados') || 'Erro ao carregar dados'));
         }
       } catch (error) {
         console.error("Erro ao carregar detalhes:", error);
@@ -764,13 +737,12 @@ const ExperienciaDetalhes = () => {
       }
     };
     fetchDados();
-  }, [slug]);
+  }, [slug, t]);
 
-  // Definição dos períodos visuais
   const periodosUI = [
-    { label: 'Manhã', range: [8, 11], timeRange: '08:00 - 11:00', temHorarios: true },
-    { label: 'Meio dia', range: [12, 14], timeRange: '12:00 - 14:00', temHorarios: true },
-    { label: 'Tarde', range: [15, 17], timeRange: '15:00 - 17:00', temHorarios: true }
+    { label: t('manha') || 'Manhã', range: [8, 11], timeRange: '08:00 - 11:00', temHorarios: true },
+    { label: t('meio_dia') || 'Meio dia', range: [12, 14], timeRange: '12:00 - 14:00', temHorarios: true },
+    { label: t('tarde') || 'Tarde', range: [15, 17], timeRange: '15:00 - 17:00', temHorarios: true }
   ];
 
   const getHorariosFiltrados = () => {
@@ -778,7 +750,7 @@ const ExperienciaDetalhes = () => {
     
     try {
       const todosHorarios = JSON.parse(experiencia.horarios_json);
-      const configPeriodo = periodosUI.find(p => p.label === periodo);
+      const configPeriodo = periodosUI.find(p => p.label === (t(periodo.toLowerCase()) || periodo));
       
       if (!configPeriodo) return [];
       
@@ -813,14 +785,14 @@ const ExperienciaDetalhes = () => {
   };
 
   const verificarDisponibilidade = () => {
-    if (horariosDisponiveis.length === 0) return "Indisponível neste período";
+    if (horariosDisponiveis.length === 0) return t('indisponivel_periodo') || "Indisponível neste período";
     const regra = experiencia?.regras_disponibilidade?.find(r => 
       r.data_especifica === dataPasseio && r.periodo === periodo
     );
     if (regra) {
-      if (parseInt(regra.disponivel) === 0 || parseInt(regra.vagas_disponiveis) === 0) return "Esgotado";
+      if (parseInt(regra.disponivel) === 0 || parseInt(regra.vagas_disponiveis) === 0) return t('esgotado') || "Esgotado";
     }
-    return "Disponível";
+    return t('disponivel') || "Disponível";
   };
 
   const precoVigente = getPrecoAtual();
@@ -828,7 +800,7 @@ const ExperienciaDetalhes = () => {
 
   const handleReservarAgora = () => {
     if (!usuarioLogado) {
-      alert("Por favor, faça login com o Google primeiro.");
+      alert(t('login_necessario') || "Por favor, faça login com o Google primeiro.");
       return;
     }
 
@@ -883,7 +855,7 @@ const ExperienciaDetalhes = () => {
       <div className="w-full min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <Loader2 size={48} className="animate-spin text-blue-900 mx-auto mb-4" />
-          <p className="text-slate-600">Carregando detalhes da experiência...</p>
+          <p className="text-slate-600">{t('carregando_experiencia') || 'Carregando detalhes da experiência...'}</p>
         </div>
       </div>
     );
@@ -894,13 +866,13 @@ const ExperienciaDetalhes = () => {
       <div className="w-full min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Erro ao carregar</h2>
-          <p className="text-slate-600 mb-4">{error || 'Experiência não encontrada'}</p>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{t('erro_carregar_titulo') || 'Erro ao carregar'}</h2>
+          <p className="text-slate-600 mb-4">{error || (t('experiencia_nao_encontrada') || 'Experiência não encontrada')}</p>
           <button 
             onClick={() => navigate('/experiencias')}
             className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition"
           >
-            Voltar para experiências
+            {t('voltar_experiencias') || 'Voltar para experiências'}
           </button>
         </div>
       </div>
@@ -920,9 +892,9 @@ const ExperienciaDetalhes = () => {
       )}
 
       <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500 text-left">
-        <span onClick={() => navigate('/')} className="hover:text-blue-900 cursor-pointer">Início</span>
+        <span onClick={() => navigate('/')} className="hover:text-blue-900 cursor-pointer">{t('inicio') || 'Início'}</span>
         <ChevronRight size={10} />
-        <span onClick={() => navigate('/experiencias')} className="hover:text-blue-900 cursor-pointer">Experiências</span>
+        <span onClick={() => navigate('/experiencias')} className="hover:text-blue-900 cursor-pointer">{t('experiencias') || 'Experiências'}</span>
         <ChevronRight size={10} />
         <span className="text-slate-500 font-semibold truncate">{experiencia.titulo}</span>
       </nav>
@@ -939,34 +911,34 @@ const ExperienciaDetalhes = () => {
             />
 
             <div className="mt-6 pt-6 border-t border-slate-100 text-left">
-              <h3 className="text-sm font-bold text-slate-900 mb-4">Informações principais</h3>
+              <h3 className="text-sm font-bold text-slate-900 mb-4">{t('informacoes_principais') || 'Informações principais'}</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="flex items-center gap-2">
                   <Clock size={18} className="text-slate-400" />
                   <div>
                     <p className="text-[11px] font-bold">{experiencia.duracao}</p>
-                    <p className="text-[9px] text-slate-400">Duração</p>
+                    <p className="text-[9px] text-slate-400">{t('duracao') || 'Duração'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users size={18} className="text-slate-400" />
                   <div>
-                    <p className="text-[11px] font-bold">Máx. {experiencia.max_pessoas}</p>
-                    <p className="text-[9px] text-slate-400">Participantes</p>
+                    <p className="text-[11px] font-bold">{t('max') || 'Máx'}. {experiencia.max_pessoas}</p>
+                    <p className="text-[9px] text-slate-400">{t('participantes') || 'Participantes'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin size={18} className="text-slate-400" />
                   <div>
                     <p className="text-[11px] font-bold">{experiencia.ilha}</p>
-                    <p className="text-[9px] text-slate-400">Localização</p>
+                    <p className="text-[9px] text-slate-400">{t('localizacao') || 'Localização'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Star size={18} className="text-slate-400" />
                   <div>
                     <p className="text-[11px] font-bold">{experiencia.rating_formatado || '5.0'}</p>
-                    <p className="text-[9px] text-slate-400">Avaliação</p>
+                    <p className="text-[9px] text-slate-400">{t('avaliacao') || 'Avaliação'}</p>
                   </div>
                 </div>
               </div>
@@ -998,7 +970,7 @@ const ExperienciaDetalhes = () => {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl md:text-3xl font-bold">{experiencia.titulo}</h1>
-              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">{experiencia.categoria_nome || 'Experiência'}</span>
+              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">{experiencia.categoria_nome || (t('experiencia') || 'Experiência')}</span>
             </div>
             <div className="flex items-center gap-4 text-sm mt-2 flex-wrap">
               <div className="flex items-center gap-1 text-slate-500">
@@ -1007,7 +979,7 @@ const ExperienciaDetalhes = () => {
               <div className="flex items-center gap-1">
                 <Star size={14} className="fill-orange-400 text-orange-400" /> 
                 <span className="text-slate-900 font-bold">{experiencia.rating_formatado || '5.0'}</span> 
-                <span className="text-slate-400">({experiencia.reviews_recentes?.length || 0} avaliações)</span>
+                <span className="text-slate-400">({experiencia.reviews_recentes?.length || 0} {t('avaliacoes') || 'avaliações'})</span>
               </div>
             </div>
           </div>
@@ -1038,9 +1010,9 @@ const ExperienciaDetalhes = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-900">
-              Avaliações dos participantes
+              {t('avaliacoes_participantes') || 'Avaliações dos participantes'}
               <span className="ml-2 text-sm font-normal text-slate-500">
-                ({experiencia.reviews_recentes?.length || 0} avaliações)
+                ({experiencia.reviews_recentes?.length || 0} {t('avaliacoes') || 'avaliações'})
               </span>
             </h2>
             <div className="flex items-center gap-2">
@@ -1052,7 +1024,7 @@ const ExperienciaDetalhes = () => {
           <AvaliacoesSeccao 
             experienciaId={experiencia.id} 
             usuarioLogado={usuarioLogado}
-            onOpenLoginModal={() => alert("Por favor, faça login com o Google para avaliar.")}
+            onOpenLoginModal={() => alert(t('login_para_avaliar') || "Por favor, faça login com o Google para avaliar.")}
           />
         </div>
       </div>

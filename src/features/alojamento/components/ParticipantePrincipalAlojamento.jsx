@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { User, Trash2, Plus } from 'lucide-react';
 
 const ParticipantePrincipalAlojamento = ({ 
@@ -7,26 +8,28 @@ const ParticipantePrincipalAlojamento = ({
   removeParticipante, 
   updateParticipante 
 }) => {
+  const { t } = useTranslation();
+  
   return (
     <div className="mb-8">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-bold text-blue-900">
-          Outros hóspedes
-          <span className="font-normal text-slate-400 text-xs ml-1">(opcional)</span>
+          {t('outros_hospedes')}
+          <span className="font-normal text-slate-400 text-xs ml-1">({t('opcional')})</span>
         </h3>
         <button 
           onClick={addParticipante}
           className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:text-blue-800 transition-colors"
         >
-          <Plus size={14}/> Adicionar hóspede
+          <Plus size={14}/> {t('adicionar_hospede')}
         </button>
       </div>
 
       {participantes.length === 0 && (
         <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-200">
           <User size={24} className="text-slate-300 mx-auto mb-2" />
-          <p className="text-xs text-slate-400">Nenhum hóspede adicional adicionado</p>
-          <p className="text-[10px] text-slate-300 mt-1">Clique em "Adicionar hóspede" para incluir mais pessoas</p>
+          <p className="text-xs text-slate-400">{t('nenhum_hospede_adicional')}</p>
+          <p className="text-[10px] text-slate-300 mt-1">{t('clique_adicionar_hospede')}</p>
         </div>
       )}
 
@@ -42,7 +45,7 @@ const ParticipantePrincipalAlojamento = ({
           
           <div className="flex items-center gap-2 mb-3">
             <User size={14} className="text-blue-500"/>
-            <span className="text-xs font-bold text-slate-600">Hóspede {index + 2}</span>
+            <span className="text-xs font-bold text-slate-600">{t('hospede')} {index + 2}</span>
           </div>
           
           <div className="grid grid-cols-1 gap-4">
@@ -50,7 +53,7 @@ const ParticipantePrincipalAlojamento = ({
               type="text" 
               value={participante.nome_completo || ''}
               onChange={(e) => updateParticipante(participante.id, 'nome_completo', e.target.value)}
-              placeholder="Nome completo do hóspede" 
+              placeholder={t('placeholder_nome_hospede')} 
               className="w-full h-[40px] border border-slate-200 rounded-lg px-3 text-sm outline-none focus:border-blue-500"
             />
           </div>
