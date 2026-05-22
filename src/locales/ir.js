@@ -743,6 +743,36 @@ transferencia_bancaria_deposito: "Bonifico Bancario / Deposito",
 info_transferencia: "I dettagli dei conti bancari locali ti saranno forniti via email dopo la conferma.",
 pagamento_zap: "Pagamento Digitale ZAP",
 info_zap: "Liquidazione immediata tramite la rete digitale ZAP. Contatta il supporto per la validazione.",
-confirmar_reserva_concluir: "Conferma Prenotazione e Completa"
+confirmar_reserva_concluir: "Conferma Prenotazione e Completa",
+// ==================== FAVORITOS ====================
+login_para_favoritos: "Connectez-vous pour voir vos favoris",
+faça_login_para_ver_favoritos: "Vous devez être connecté pour voir et gérer vos éléments favoris.",
+meus_favoritos: "Mes Favoris",
+olá: "Bonjour",
+estes_sao_seus_favoritos: "voici vos éléments favoris.",
+sem_favoritos: "Aucun {{categoria}} dans les favoris",
+explorar: "Explorer",
+favoritos: "Favoris",
+// ==================== FAVORITOS ====================
+login_para_favoritos: "Inicia sesión para ver tus favoritos",
+faça_login_para_ver_favoritos: "Necesitas estar conectado para ver y gestionar tus elementos favoritos.",
+meus_favoritos: "Mis Favoritos",
+olá: "Hola",
+estes_sao_seus_favoritos: "estos son tus elementos favoritos.",
+sem_favoritos: "No hay {{categoria}} en favoritos",
+explorar: "Explorar",
+favoritos: "Favoritos",
+// ==================== FAVORITOS ====================
+login_para_favoritos: "Accedi per vedere i tuoi preferiti",
+faça_login_para_ver_favoritos: "Devi essere loggato per vedere e gestire i tuoi elementi preferiti.",
+meus_favoritos: "I miei Preferiti",
+olá: "Ciao",
+estes_sao_seus_favoritos: "questi sono i tuoi elementi preferiti.",
+sem_favoritos: "Nessun {{categoria}} nei preferiti",
+explorar: "Esplora",
+favoritos: "Preferiti",
+// ==================== LOGIN GOOGLE ====================
+entrar_com_google: "Accedi con Google",
+erro_login_google: "Errore durante l'accesso con Google. Riprova."
   }
 };

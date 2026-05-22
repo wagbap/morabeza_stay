@@ -779,7 +779,19 @@ transferencia_bancaria_deposito: "Transferência Bancária / Depósito",
 info_transferencia: "Os dados das contas bancárias locais ser-lhe-ão fornecidos por e-mail após a confirmação.",
 pagamento_zap: "Pagamento Digital ZAP",
 info_zap: "Liquidação imediata através da rede digital ZAP. Contacte o suporte para validação.",
-confirmar_reserva_concluir: "Confirmar Reserva e Concluir"
+confirmar_reserva_concluir: "Confirmar Reserva e Concluir",
+// ==================== FAVORITOS ====================
+login_para_favoritos: "Faça login para ver seus favoritos",
+faça_login_para_ver_favoritos: "Precisa estar logado para ver e gerenciar seus itens favoritos.",
+meus_favoritos: "Meus Favoritos",
+olá: "Olá",
+estes_sao_seus_favoritos: "estes são os seus itens favoritos.",
+sem_favoritos: "Nenhum {{categoria}} nos favoritos",
+explorar: "Explorar",
+favoritos: "Favoritos",
+// Adicionar ao pt.js
+entrar_com_google: "Entrar com Google",
+erro_login_google: "Erro ao fazer login com Google. Tente novamente."
 
   }
 };

@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Heart, Star, ArrowRight } from 'lucide-react';
+import { MapPin, Star, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import BotaoFavorito from '../../../components/BotaoFavorito';
 
 const CardAlojamento = ({ 
   id, 
@@ -27,6 +28,18 @@ const CardAlojamento = ({
 
   const linkTo = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
 
+  // Dados para o favorito
+  const itemFavorito = {
+    id: id,
+    titulo: titulo,
+    localizacao: localizacao,
+    imagem_url: imagemCompleta,
+    preco_noite: preco_noite,
+    estrelas: estrelas,
+    slug: slug,
+    tipo: 'alojamento'
+  };
+
   return (
     <div className={`relative group bg-white border border-gray-100 transition-all duration-300 hover:shadow-2xl overflow-hidden ${
       isList 
@@ -50,15 +63,12 @@ const CardAlojamento = ({
           {tipo || t('alojamento')}
         </div>
 
-        <button 
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform"
-        >
-          <Heart size={18} strokeWidth={2.5} className="text-gray-900" />
-        </button>
+        <BotaoFavorito 
+          tipo="alojamentos"
+          item={itemFavorito}
+          size={18}
+          className="absolute top-3 right-3"
+        />
       </div>
 
       <div className={`flex flex-col flex-1 text-left ${isList ? 'py-4 pr-4 justify-between' : 'p-4'}`}>

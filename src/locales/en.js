@@ -752,7 +752,19 @@ transferencia_bancaria_deposito: "Bank Transfer / Deposit",
 info_transferencia: "Local bank account details will be provided via email after confirmation.",
 pagamento_zap: "ZAP Digital Payment",
 info_zap: "Instant settlement through the ZAP digital network. Contact support for validation.",
-confirmar_reserva_concluir: "Confirm Booking and Complete"
+confirmar_reserva_concluir: "Confirm Booking and Complete",
+// ==================== FAVORITOS ====================
+login_para_favoritos: "Login to view your favorites",
+faça_login_para_ver_favoritos: "You need to be logged in to view and manage your favorite items.",
+meus_favoritos: "My Favorites",
+olá: "Hello",
+estes_sao_seus_favoritos: "these are your favorite items.",
+sem_favoritos: "No {{categoria}} in favorites",
+explorar: "Explore",
+favoritos: "Favorites",
+// ==================== LOGIN GOOGLE ====================
+entrar_com_google: "Sign in with Google",
+erro_login_google: "Error signing in with Google. Please try again."
 
   }
 };

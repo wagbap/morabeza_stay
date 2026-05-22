@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Heart, Star, Users, Fuel, Clock } from 'lucide-react';
+import { MapPin, Star, Users, Clock } from 'lucide-react';
+import BotaoFavorito from './BotaoFavorito';
 
 const CardGridItem = ({ item }) => {
   const { t } = useTranslation();
@@ -24,6 +25,23 @@ const CardGridItem = ({ item }) => {
   // Prefixo de rota dinâmico
   const rotaBase = isCarro ? 'carro' : isExperiencia ? 'experiencia' : 'alojamento';
 
+  // Determinar tipo para favorito
+  const tipoFavorito = isCarro ? 'carros' : isExperiencia ? 'experiencias' : 'alojamentos';
+
+  // Dados do item para favorito
+  const itemFavorito = {
+    id: id,
+    titulo: titulo,
+    localizacao: localizacao,
+    imagem_url: imagem,
+    preco_noite: item.preco_noite,
+    preco_dia: item.preco_dia,
+    preco: item.preco,
+    estrelas: item.estrelas || item.rating,
+    slug: item.slug,
+    tipo: tipoFavorito
+  };
+
   // Texto do badge
   const badgeTexto = item.categoria_nome || item.tipo || (isCarro ? t('aluguer') : t('alojamento_tipo'));
 
@@ -33,7 +51,7 @@ const CardGridItem = ({ item }) => {
   return (
     <div className="relative group bg-white rounded-2xl flex flex-col h-full w-full overflow-hidden transition-all duration-300 border border-gray-100 hover:shadow-2xl">
       
-      {/* 1. Container da Imagem - Arredondado apenas no topo */}
+      {/* 1. Container da Imagem */}
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-2xl">
         <img 
           src={imagem} 
@@ -46,10 +64,13 @@ const CardGridItem = ({ item }) => {
           {badgeTexto}
         </div>
 
-        {/* Botão Heart Padrão (Círculo Branco) */}
-        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform">
-          <Heart size={18} strokeWidth={2.5} className="text-gray-900" />
-        </button>
+        {/* Botão de Favorito */}
+        <BotaoFavorito 
+          tipo={tipoFavorito}
+          item={itemFavorito}
+          size={18}
+          className="absolute top-3 right-3"
+        />
       </div>
 
       {/* 2. Conteúdo do Card */}
@@ -79,7 +100,7 @@ const CardGridItem = ({ item }) => {
           {titulo}
         </h3>
 
-        {/* 3. Footer: Rating e Preço (Alinhamento Horizontal) */}
+        {/* 3. Footer: Rating e Preço */}
         <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-3">
           
           {/* Rating à esquerda */}
@@ -89,7 +110,7 @@ const CardGridItem = ({ item }) => {
             <span className="text-[10px] text-gray-400">({reviews})</span>
           </div>
 
-          {/* Preço à direita em linha única */}
+          {/* Preço à direita */}
           <div className="flex items-baseline gap-1 text-right">
             <span className="text-xl font-extrabold text-[#1a2b6d]">
               {preco.toLocaleString('pt-PT')}
@@ -103,7 +124,7 @@ const CardGridItem = ({ item }) => {
       </div>
       
       {/* Link invisível que cobre o card inteiro */}
-      <Link to={`/${rotaBase}/${id}`} className="absolute inset-0 z-0" />
+      <Link to={`/${rotaBase}/${item.slug || id}`} className="absolute inset-0 z-0" />
     </div>
   );
 };

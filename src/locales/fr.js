@@ -704,7 +704,10 @@ transferencia_bancaria_deposito: "Virement Bancaire / Dépôt",
 info_transferencia: "Les coordonnées des comptes bancaires locaux vous seront fournies par e-mail après confirmation.",
 pagamento_zap: "Paiement numérique ZAP",
 info_zap: "Règlement instantané via le réseau numérique ZAP. Contactez le support pour validation.",
-confirmar_reserva_concluir: "Confirmer la réservation et terminer"
+confirmar_reserva_concluir: "Confirmer la réservation et terminer",
+// ==================== LOGIN GOOGLE ====================
+entrar_com_google: "Se connecter avec Google",
+erro_login_google: "Erreur lors de la connexion avec Google. Veuillez réessayer."
 
   }
 };

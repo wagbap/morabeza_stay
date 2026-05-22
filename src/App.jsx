@@ -1,7 +1,7 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route,Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import './i18n';
+import './i18n'; // Importa a configuração do i18n
 
 // Hooks
 import { useFetchHomeData } from './hooks/useFetchHomeData';
@@ -25,18 +25,18 @@ import CheckoutAlojamento from './features/alojamento/components/CheckoutAlojame
 import CheckoutCarro from './features/carros/components/CheckoutCarro';
 import Pagamento from './pages/Pagamento';
 import Confirmacao from './pages/Confirmacao';
-
-
-import ReactDOM from 'react-dom/client';
-import './i18n'; // Importa a configuração do i18n
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+import Favoritos from './pages/Favoritos';
 import InfoAlojamento from './features/alojamento/components/InfoAlojamento';
+import Login from './pages/Login';
+
+// Layout que inclui a Navbar e o Footer para as páginas principais
+const LayoutPrincipal = ({ children }) => (
+  <div className="min-h-screen bg-[#f8f9fc] flex flex-col">
+    <Navbar />
+    <div className="flex-grow">{children}</div>
+    <Footer />
+  </div>
+);
 
 function App() {
   const { alojamentos, carros, experiencias, loading } = useFetchHomeData();
@@ -44,47 +44,45 @@ function App() {
   return (
     <HelmetProvider>
       <Router>
-        <div className="min-h-screen bg-[#f8f9fc]">
-          <Navbar />
+        <Routes>
+          
+          {/* 1. ROTA DE LOGIN: Totalmente isolada (Sem Navbar e Sem Footer) */}
+          <Route path="/login" element={<Login />} />
 
-          <Routes>
-            {/* Home recebe os dados do Hook */}
-            <Route path="/" element={
+          {/* 2. ROTAS COM LAYOUT COMPLETO (Com Navbar e Footer) */}
+          <Route path="/" element={
+            <LayoutPrincipal>
               <Home 
                 alojamentos={alojamentos} 
                 carros={carros} 
                 experiencias={experiencias} 
                 loading={loading} 
               />
-            } />
+            </LayoutPrincipal>
+          } />
 
-            {/* Alojamentos */}
-           <Route path="/alojamentos" element={<Alojamentos />} />
-           <Route path="/alojamentos/:slug" element={<InfoAlojamento />} />
-           <Route path="/alojamento/:slug" element={<InfoAlojamento />} />
+          <Route path="/alojamentos" element={<LayoutPrincipal><Alojamentos /></LayoutPrincipal>} />
+          <Route path="/alojamentos/:slug" element={<LayoutPrincipal><InfoAlojamento /></LayoutPrincipal>} />
+          <Route path="/alojamento/:slug" element={<LayoutPrincipal><InfoAlojamento /></LayoutPrincipal>} />
 
-           {/* Carros */}
-           <Route path="/carros" element={<Carros />} />
-           <Route path="/carros/:slug" element={<CarrosDetalhes />} />
-           <Route path="/carro/:slug" element={<CarrosDetalhes />} />
+          <Route path="/carros" element={<LayoutPrincipal><Carros /></LayoutPrincipal>} />
+          <Route path="/carros/:slug" element={<LayoutPrincipal><CarrosDetalhes /></LayoutPrincipal>} />
+          <Route path="/carro/:slug" element={<LayoutPrincipal><CarrosDetalhes /></LayoutPrincipal>} />
 
-            {/* Experiências */}
-            <Route path="/experiencias" element={<Experiencias />} />
-            <Route path="/experiencia/:slug" element={<ExperienciaDetalhes />} />
+          <Route path="/experiencias" element={<LayoutPrincipal><Experiencias /></LayoutPrincipal>} />
+          <Route path="/experiencia/:slug" element={<LayoutPrincipal><ExperienciaDetalhes /></LayoutPrincipal>} />
+          
+          <Route path="/mapa" element={<LayoutPrincipal><PaginaMapa /></LayoutPrincipal>} />
+          <Route path="/mapa-experiencias" element={<LayoutPrincipal><MapaInterativoExperiencia /></LayoutPrincipal>} />
+          <Route path="/mapa-carros" element={<LayoutPrincipal><MapaInterativoCarros /></LayoutPrincipal>} />
+          <Route path="/checkout-experiancia" element={<LayoutPrincipal><CheckoutExperiancia /></LayoutPrincipal>} />
+          <Route path="/checkout-alojamento" element={<LayoutPrincipal><CheckoutAlojamento /></LayoutPrincipal>} />
+          <Route path="/checkout-carro" element={<LayoutPrincipal><CheckoutCarro /></LayoutPrincipal>} />
+          <Route path="/pagamento" element={<LayoutPrincipal><Pagamento /></LayoutPrincipal>} />
+          <Route path="/confirmacao" element={<LayoutPrincipal><Confirmacao /></LayoutPrincipal>} />
+          <Route path="/favoritos" element={<LayoutPrincipal><Favoritos /></LayoutPrincipal>} />
 
-            {/* Outros */}
-            <Route path="/mapa" element={<PaginaMapa />} />
-            <Route path="/mapa-experiencias" element={<MapaInterativoExperiencia />} />
-            <Route path="/mapa-carros" element={<MapaInterativoCarros/>} />
-            <Route path="/checkout-experiancia" element={<CheckoutExperiancia />} />
-            <Route path="/checkout-alojamento" element={<CheckoutAlojamento />} />
-            <Route path="/checkout-carro" element={<CheckoutCarro />} />
-            <Route path="/pagamento" element={<Pagamento />} />
-            <Route path="/confirmacao" element={<Confirmacao />} />
-          </Routes>
-
-          <Footer />
-        </div>
+        </Routes>
       </Router>
     </HelmetProvider>
   );

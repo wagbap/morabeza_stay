@@ -1,19 +1,39 @@
-// CardCarro.jsx - Versão com slug
+// CardCarro.jsx - Versão com slug e favoritos
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Heart, Calendar, Users, Fuel, Gauge, Star } from 'lucide-react';
+import BotaoFavorito from '../../../components/BotaoFavorito';
 
 const CardCarro = (props) => {
   const carro = props.carro || props;
 
   if (!carro || (!carro.id && !props.id)) return null;
 
-  // Usar slug se existir, senão usa ID
   const linkTo = carro.slug ? `/carros/${carro.slug}` : `/carros/${carro.id}`;
 
   const imagemCompleta = carro.imagem_url 
     ? (carro.imagem_url.startsWith('http') ? carro.imagem_url : `https://welovepalop.com/api/uploads/${carro.imagem_url}`)
     : "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?q=80&w=400";
+
+  // Dados para o favorito
+  const itemFavorito = {
+    id: carro.id,
+    titulo: carro.titulo,
+    localizacao: carro.localizacao || carro.ilha,
+    imagem_url: imagemCompleta,
+    preco_dia: carro.preco_dia,
+    estrelas: carro.estrelas,
+    slug: carro.slug,
+    tipo: 'carro'
+  };
+
+  // Badge de tipo com ícone
+  const getBadgeText = () => {
+    if (carro.combustivel === 'Elétrico' || carro.combustivel === 'Eletrico') {
+      return '⚡ Elétrico';
+    }
+    return carro.tipo || 'Carro';
+  };
 
   return (
     <div className="relative group bg-white rounded-[2.5rem] flex flex-col h-full w-full overflow-hidden transition-all duration-300 border border-gray-100 hover:shadow-2xl hover:shadow-gray-100">
@@ -28,13 +48,16 @@ const CardCarro = (props) => {
         
         {/* Badge de Tipo */}
         <div className="absolute bottom-4 left-4 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-lg z-10">
-          {carro.combustivel === 'Elétrico' || carro.combustivel === 'Eletrico' ? '⚡ Elétrico' : (carro.tipo || 'Carro')}
+          {getBadgeText()}
         </div>
 
-        {/* Ícone de Coração */}
-        <button className="absolute top-4 right-4 p-2.5 bg-white/90 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-20 hover:scale-110 transition-transform active:scale-95">
-          <Heart size={18} strokeWidth={2.5} />
-        </button>
+        {/* Botão de Favorito */}
+        <BotaoFavorito 
+          tipo="carros"
+          item={itemFavorito}
+          size={18}
+          className="absolute top-4 right-4 p-2.5"
+        />
       </div>
 
       {/* Conteúdo do Card */}
@@ -77,7 +100,9 @@ const CardCarro = (props) => {
         <div className="mt-auto flex items-center justify-between">
           <div className="flex items-center gap-1 bg-orange-50 px-2.5 py-1 rounded-lg">
             <Star size={14} className="fill-orange-400 text-orange-400" />
-            <span className="text-xs font-black text-gray-800">{carro.estrelas || '5.0'}</span>
+            <span className="text-xs font-black text-gray-800">
+              {Number(carro.estrelas || 5.0).toFixed(1)}
+            </span>
           </div>
 
           <div className="flex flex-col items-end">

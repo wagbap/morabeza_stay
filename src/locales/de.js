@@ -747,6 +747,15 @@ transferencia_bancaria_deposito: "Banküberweisung / Einzahlung",
 info_transferencia: "Die Kontodaten der lokalen Banken werden Ihnen nach Bestätigung per E-Mail zugesandt.",
 pagamento_zap: "ZAP Digitalzahlung",
 info_zap: "Sofortige Abwicklung über das digitale ZAP-Netzwerk. Kontaktieren Sie den Support zur Validierung.",
-confirmar_reserva_concluir: "Buchung bestätigen und abschließen"
+confirmar_reserva_concluir: "Buchung bestätigen und abschließen",
+// ==================== FAVORITOS ====================
+login_para_favoritos: "Melden Sie sich an, um Ihre Favoriten zu sehen",
+faça_login_para_ver_favoritos: "Sie müssen angemeldet sein, um Ihre Favoriten zu sehen und zu verwalten.",
+meus_favoritos: "Meine Favoriten",
+olá: "Hallo",
+estes_sao_seus_favoritos: "das sind Ihre Favoriten.",
+sem_favoritos: "Keine {{categoria}} in Favoriten",
+explorar: "Entdecken",
+favoritos: "Favoriten"
   }
 };

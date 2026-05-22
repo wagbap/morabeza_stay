@@ -1,16 +1,48 @@
-import React from 'react';
+// src/components/UserDropdown.jsx
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Heart, ChevronDown, LayoutDashboard } from 'lucide-react';
-import { useTranslation } from 'react-i18next'; // 1. Importar o hook
+import { useTranslation } from 'react-i18next';
+import { useFavoritos } from '../hooks/useFavoritos';
 
 const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
-  const { t } = useTranslation(); // 2. Inicializar a tradução
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { totalFavoritos: totalFromHook, recarregar } = useFavoritos();
+  const [totalFavoritos, setTotalFavoritos] = useState(0);
+
+  // Sincronizar com o hook
+  useEffect(() => {
+    setTotalFavoritos(totalFromHook);
+  }, [totalFromHook]);
+
+  // Ouvir eventos de atualização
+  useEffect(() => {
+    const handleUpdate = (event) => {
+      if (event.detail?.total !== undefined) {
+        setTotalFavoritos(event.detail.total);
+      } else {
+        recarregar();
+      }
+    };
+    
+    window.addEventListener('favoritosAtualizados', handleUpdate);
+    
+    return () => {
+      window.removeEventListener('favoritosAtualizados', handleUpdate);
+    };
+  }, [recarregar]);
 
   if (!user) return null;
 
+  const handleNavigation = (path) => {
+    setIsOpen(false);
+    navigate(path);
+  };
+
   return (
     <div className="relative">
-      {/* BOTÃO DO PERFIL */}
-        <button 
+      <button 
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(!isOpen);
@@ -18,10 +50,10 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
         className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 p-1.5 pr-4 rounded-full transition-all z-50 shadow-sm"
       >
         <img 
-          src={user.picture} // Alterado de user.foto para user.picture
+          src={user.picture} 
           alt={user.name} 
           className="w-8 h-8 rounded-full border border-white/50 object-cover"
-          referrerPolicy="no-referrer" // Necessário para imagens do Google
+          referrerPolicy="no-referrer"
         />
         <span className="text-xs font-bold text-white uppercase tracking-wider hidden md:block">
           {user.name ? user.name.split(' ')[0] : 'User'}
@@ -29,7 +61,6 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
         <ChevronDown size={14} className={`text-white transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* DROPDOWN MENU */}
       {isOpen && (
         <>
           <div 
@@ -39,7 +70,6 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
           
           <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl py-3 z-50 border border-gray-100 animate-in fade-in zoom-in duration-200 text-left">
             
-            {/* Cabeçalho do Menu */}
             <div className="px-6 py-3 border-b border-gray-50 mb-2">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                 {t('minha_conta')}
@@ -47,28 +77,43 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
               <p className="text-sm font-bold text-gray-800 truncate">{user.email}</p>
             </div>
 
-            {/* Links do Menu */}
             <div className="px-2 space-y-1">
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm">
+              <button 
+                onClick={() => handleNavigation('/minhas-reservas')}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+              >
                 <LayoutDashboard size={16} /> 
                 {t('minhas_reservas')}
               </button>
               
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm">
+              <button 
+                onClick={() => handleNavigation('/favoritos')}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+              >
                 <Heart size={16} /> 
                 {t('favoritos')}
+                {totalFavoritos > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                    {totalFavoritos}
+                  </span>
+                )}
               </button>
 
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-blue-600 bg-blue-50/30 hover:bg-blue-50 transition-all font-semibold text-sm border-t border-gray-50 mt-2 pt-2">
+              <button 
+                onClick={() => handleNavigation('/anunciar')}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-blue-600 bg-blue-50/30 hover:bg-blue-50 transition-all font-semibold text-sm border-t border-gray-50 mt-2 pt-2"
+              >
                 <User size={16} /> 
                 {t('anuncie')}
               </button>
             </div>
 
-            {/* Botão de Logout */}
             <div className="mt-2 pt-2 border-t border-gray-100 px-2">
               <button 
-                onClick={onLogout} 
+                onClick={() => {
+                  setIsOpen(false);
+                  onLogout();
+                }} 
                 className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors font-bold text-xs uppercase tracking-widest"
               >
                 <LogOut size={16} /> 

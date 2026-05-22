@@ -784,6 +784,12 @@ transferencia_bancaria_deposito: "Transferencia Bancaria / Depósito",
 info_transferencia: "Los datos de las cuentas bancarias locales se proporcionarán por correo electrónico tras la confirmación.",
 pagamento_zap: "Pago Digital ZAP",
 info_zap: "Liquidación inmediata a través de la red digital ZAP. Contacte con soporte para validación.",
-confirmar_reserva_concluir: "Confirmar Reserva y Concluir"
+confirmar_reserva_concluir: "Confirmar Reserva y Concluir",
+// ==================== LOGIN GOOGLE ====================
+entrar_com_google: "Iniciar sesión con Google",
+erro_login_google: "Error al iniciar sesión con Google. Inténtalo de nuevo.",
+// ==================== LOGIN GOOGLE ====================
+entrar_com_google: "Mit Google anmelden",
+erro_login_google: "Fehler bei der Anmeldung mit Google. Bitte versuchen Sie es erneut."
   }
 };

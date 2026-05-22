@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Heart, Star, ArrowRight, Clock } from 'lucide-react';
+import { MapPin, Star, ArrowRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import BotaoFavorito from '../../../components/BotaoFavorito';
 
 const CardExperiencia = ({ 
   id, 
@@ -23,6 +24,18 @@ const CardExperiencia = ({
   const imagemCompleta = imagem_principal 
     ? (imagem_principal.startsWith('http') ? imagem_principal : `${BASE_URL_IMAGENS}${imagem_principal}`)
     : "https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?q=80&w=400";
+
+  // Dados para o favorito
+  const itemFavorito = {
+    id: id,
+    titulo: titulo,
+    localizacao: localizacao,
+    imagem_url: imagemCompleta,
+    preco: preco,
+    estrelas: rating,
+    slug: slug,
+    tipo: 'experiencia'
+  };
 
   return (
     <div className={`relative group bg-white transition-all duration-300 border border-gray-100 hover:shadow-2xl overflow-hidden ${
@@ -53,9 +66,12 @@ const CardExperiencia = ({
           {categoria_nome || t('experiencia')}
         </div>
 
-        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-20 hover:scale-110 transition-transform active:scale-95">
-          <Heart size={18} strokeWidth={2.5} />
-        </button>
+        <BotaoFavorito 
+          tipo="experiencias"
+          item={itemFavorito}
+          size={18}
+          className="absolute top-3 right-3"
+        />
       </div>
 
       <div className={`flex flex-col flex-1 text-left ${isList ? 'py-4 pr-4 justify-between' : 'p-5'}`}>

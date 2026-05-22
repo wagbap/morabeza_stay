@@ -755,7 +755,19 @@ transferencia_bancaria_deposito: "Transferénsia Bankária / Depózitu",
 info_transferencia: "Dadus di kontas bankárias lokais sera forneseu via email dipos di konfirmason.",
 pagamento_zap: "Pagamentu Digital ZAP",
 info_zap: "Liquidason imediata via redi digital ZAP. Kontata suporti pa validason.",
-confirmar_reserva_concluir: "Konfirma Reserva i Konklui"
+confirmar_reserva_concluir: "Konfirma Reserva i Konklui",
+// ==================== FAVORITOS ====================
+login_para_favoritos: "Fazi login pa odja bu favoritus",
+faça_login_para_ver_favoritos: "Bu precisa sta logadu pa odja i jeri bu itens favoritus.",
+meus_favoritos: "Nhas Favoritus",
+olá: "Olá",
+estes_sao_seus_favoritos: "es é bu itens favoritus.",
+sem_favoritos: "Nenhum {{categoria}} na favoritus",
+explorar: "Esplora",
+favoritos: "Favoritus",
+// ==================== LOGIN GOOGLE ====================
+entrar_com_google: "Entra ku Google",
+erro_login_google: "Eru na entrada ku Google. Tentaba novamenti."
 
   }
 };

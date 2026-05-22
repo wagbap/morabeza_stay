@@ -1,45 +1,71 @@
+// src/components/LoginGoogle.jsx
 import React from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
-import { jwtDecode } from "jwt-decode";
 
 const LoginGoogle = ({ onLoginSuccess }) => {
-  
-  // Função que dispara o popup do Google
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      // O tokenResponse dá-nos um access_token, precisamos de buscar os dados do user
       try {
-        const res = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+        // Buscar dados do usuário no Google
+        const userInfo = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
         });
         
-        const userObject = res.data;
-        localStorage.setItem('user', JSON.stringify(userObject));
-        if (onLoginSuccess) onLoginSuccess(userObject);
+        const googleUser = userInfo.data;
+        
+        // Enviar para o backend
+        const response = await axios.post('https://welovepalop.com/api/auth_google.php', {
+          action: 'google_login',
+          google_id: googleUser.sub,
+          email: googleUser.email,
+          nome: googleUser.name,
+          foto: googleUser.picture
+        });
+        
+        if (response.data.status === 'success') {
+          // Salvar no localStorage
+          const userForStorage = {
+            id: response.data.user.id,
+            sub: response.data.user.id,
+            name: response.data.user.nome,
+            email: response.data.user.email,
+            picture: response.data.user.foto || googleUser.picture,
+            full_name: response.data.user.nome
+          };
+          
+          localStorage.setItem('user', JSON.stringify(userForStorage));
+          
+          if (onLoginSuccess) {
+            onLoginSuccess(userForStorage);
+          }
+          
+          window.location.reload();
+        } else {
+          alert('Erro ao fazer login: ' + response.data.message);
+        }
       } catch (err) {
-        console.error("Erro ao buscar dados do user:", err);
+        console.error('Erro no login com Google:', err);
+        alert('Erro ao fazer login com Google. Tente novamente.');
       }
     },
-    onError: () => console.log('Login Failed'),
+    onError: (error) => {
+      console.error('Google Login Failed:', error);
+      alert('Erro ao fazer login com Google.');
+    },
   });
 
   return (
-    <button 
+    <button
       onClick={() => login()}
-      className="flex items-center justify-center transition-all duration-300 group"
+      className="flex items-center justify-center gap-2 bg-white border border-gray-300 rounded-lg px-4 py-2.5 hover:bg-gray-50 transition w-full"
     >
-      {/* NO MOBILE: Apenas o G circular | NO DESKTOP: Botão completo */}
-      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full p-2 md:px-4 md:py-2 shadow-sm hover:shadow-md transition-shadow">
-        <img 
-          src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" 
-          alt="Google G" 
-          className="w-5 h-5"
-        />
-        <span className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-700">
-          Entrar com Google
-        </span>
-      </div>
+      <img 
+        src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" 
+        alt="Google" 
+        className="w-5 h-5"
+      />
+      <span className="text-sm font-medium text-gray-700">Continuar com Google</span>
     </button>
   );
 };
