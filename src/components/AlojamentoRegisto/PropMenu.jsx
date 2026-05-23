@@ -1,0 +1,91 @@
+// src/components/AlojamentoRegisto/PropMenu.jsx
+import React, { useState, useRef, useEffect } from 'react';
+import { Pencil, MapPin, ChevronDown, Wifi, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+const PropMenu = ({ nomePropriedade, onEditName, onEditLocation, onEditComodidades, onEditRegras }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const handleEditName = () => {
+    setIsOpen(false);
+    if (onEditName) onEditName();
+    else navigate('/alojamento-registro/fluxo');
+  };
+
+  const handleEditLocation = () => {
+    setIsOpen(false);
+    if (onEditLocation) onEditLocation();
+    else navigate('/alojamento-registro/fluxo');
+  };
+
+  const handleEditComodidades = () => {
+    setIsOpen(false);
+    if (onEditComodidades) onEditComodidades();
+    else navigate('/alojamento-registro/fluxo');
+  };
+
+  const handleEditRegras = () => {
+    setIsOpen(false);
+    if (onEditRegras) onEditRegras();
+    else navigate('/alojamento-registro/fluxo');
+  };
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="font-bold flex items-center gap-1 cursor-pointer hover:underline focus:outline-none"
+      >
+        {nomePropriedade} 
+        <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-64 bg-white text-gray-900 shadow-lg border border-gray-200 rounded-md z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div 
+            onClick={handleEditName} 
+            className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 text-sm transition-colors duration-150"
+          >
+            <Pencil size={18} className="text-gray-500" /> 
+            <span>Alterar nome da propriedade</span>
+          </div>
+          <div 
+            onClick={handleEditLocation} 
+            className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 text-sm transition-colors duration-150 border-t border-gray-100"
+          >
+            <MapPin size={18} className="text-gray-500" /> 
+            <span>Alterar morada </span>
+          </div>
+          <div 
+            onClick={handleEditComodidades} 
+            className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 text-sm transition-colors duration-150 border-t border-gray-100"
+          >
+            <Wifi size={18} className="text-gray-500" /> 
+            <span>Alterar comodidades</span>
+          </div>
+          <div 
+            onClick={handleEditRegras} 
+            className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 text-sm transition-colors duration-150 border-t border-gray-100"
+          >
+            <Shield size={18} className="text-gray-500" /> 
+            <span>Alterar regras da casa</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PropMenu;

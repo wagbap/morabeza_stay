@@ -6,8 +6,8 @@ import LoginGoogle from '../components/LoginGoogle';
 export default function Login() {
   const navigate = useNavigate();
 
-  // Estados do fluxo
-  const [step, setStep] = useState(1); // 1=Email, 2=OTP, 3=Registo
+  // Estados do fluxo principal
+  const [step, setStep] = useState(1); // 1=Email, 2=OTP Registo, 3=Registo, 4=Reset Email, 5=Reset OTP, 6=Reset Nova Senha, 7=Recuperar Conta (sem email)
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [otp, setOtp] = useState('');
@@ -19,6 +19,19 @@ export default function Login() {
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [telefone, setTelefone] = useState('');
   const [roles, setRoles] = useState(['hospede']);
+  
+  // Estados para reset password
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetUserId, setResetUserId] = useState(null);
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState('');
+  
+  // Estados para recuperar conta sem email
+  const [recuperarTelefone, setRecuperarTelefone] = useState('');
+  const [recuperarOtp, setRecuperarOtp] = useState('');
+  const [recuperarUserId, setRecuperarUserId] = useState(null);
+  const [recuperarEmail, setRecuperarEmail] = useState('');
   
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -35,7 +48,7 @@ export default function Login() {
     }
   };
 
-  // PASSO 1: Verificar email
+  // PASSO 1: Verificar email para login/registo
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -51,14 +64,12 @@ export default function Login() {
       
       if (res.data.status === 'exists') {
         if (res.data.has_password) {
-          // Email com senha - mostrar input de senha
           setShowPasswordInput(true);
           setSuccessMessage('Email encontrado! Insira sua senha.');
         } else {
           setErrorMessage('Esta conta foi criada com Google. Use o botão do Google.');
         }
       } else {
-        // Novo email - enviar OTP
         await sendOtp();
       }
     } catch (err) {
@@ -106,7 +117,7 @@ export default function Login() {
         if (res.data.code_debug) {
           alert('Código de verificação: ' + res.data.code_debug);
         }
-        setStep(2); // Vai para passo de validação OTP
+        setStep(2);
       } else {
         setErrorMessage(res.data.message);
       }
@@ -115,7 +126,7 @@ export default function Login() {
     }
   };
 
-  // PASSO 2: Verificar OTP (ANTES do formulário)
+  // Verificar OTP para registo
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -130,7 +141,7 @@ export default function Login() {
 
       if (res.data.status === 'success') {
         setUserId(res.data.user_id);
-        setStep(3); // Só depois de OTP válido mostra formulário
+        setStep(3);
         setSuccessMessage('Email verificado! Complete o seu registo.');
       } else {
         setErrorMessage(res.data.message);
@@ -142,7 +153,7 @@ export default function Login() {
     }
   };
 
-  // PASSO 3: Completar registo (só aparece após OTP válido)
+  // Completar registo
   const handleCompleteRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -186,6 +197,210 @@ export default function Login() {
     }
   };
 
+  // ==================== RESET PASSWORD ====================
+  
+  const handleSendResetOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const res = await axios.post(BACKEND_URL, {
+        action: 'send_reset_otp',
+        email: resetEmail.trim()
+      });
+
+      if (res.data.status === 'reset_otp_sent') {
+        setSuccessMessage(`Enviamos um código de recuperação para ${resetEmail}`);
+        if (res.data.code_debug) {
+          alert('Código de recuperação: ' + res.data.code_debug);
+        }
+        setStep(5);
+      } else {
+        setErrorMessage(res.data.message);
+      }
+    } catch (err) {
+      setErrorMessage('Erro ao enviar código de recuperação.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyResetOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      const res = await axios.post(BACKEND_URL, {
+        action: 'verify_reset_otp',
+        email: resetEmail.trim(),
+        otp: resetOtp.trim()
+      });
+
+      if (res.data.status === 'success') {
+        setResetUserId(res.data.user_id);
+        setStep(6);
+        setSuccessMessage('Código verificado! Defina a sua nova senha.');
+      } else {
+        setErrorMessage(res.data.message);
+      }
+    } catch (err) {
+      setErrorMessage('Erro ao verificar código.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+
+    if (novaSenha.length < 6) {
+      setErrorMessage('A senha deve ter pelo menos 6 caracteres.');
+      setLoading(false);
+      return;
+    }
+    if (novaSenha !== confirmarNovaSenha) {
+      setErrorMessage('As senhas não coincidem.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await axios.post(BACKEND_URL, {
+        action: 'reset_password',
+        user_id: resetUserId,
+        nova_senha: novaSenha
+      });
+
+      if (res.data.status === 'success') {
+        setSuccessMessage('Senha alterada com sucesso! Faça login com a nova senha.');
+        setTimeout(() => {
+          setStep(1);
+          setEmail(resetEmail);
+          setResetEmail('');
+          setResetOtp('');
+          setNovaSenha('');
+          setConfirmarNovaSenha('');
+          setShowPasswordInput(true);
+        }, 2000);
+      } else {
+        setErrorMessage(res.data.message);
+      }
+    } catch (err) {
+      setErrorMessage('Erro ao alterar senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== RECUPERAR CONTA SEM EMAIL ====================
+  
+  // Enviar OTP por SMS para o telefone
+  const handleSendSmsOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const res = await axios.post(BACKEND_URL, {
+        action: 'send_sms_recovery_otp',
+        telefone: recuperarTelefone.trim()
+      });
+
+      if (res.data.status === 'sms_otp_sent') {
+        setSuccessMessage(`Enviamos um código de recuperação por SMS para ${recuperarTelefone}`);
+        if (res.data.code_debug) {
+          alert('Código de recuperação SMS: ' + res.data.code_debug);
+        }
+        setStep(8); // Passo para verificar SMS OTP
+      } else {
+        setErrorMessage(res.data.message);
+      }
+    } catch (err) {
+      setErrorMessage('Erro ao enviar código por SMS.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verificar OTP do SMS e recuperar email
+  const handleVerifySmsOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      const res = await axios.post(BACKEND_URL, {
+        action: 'verify_sms_recovery_otp',
+        telefone: recuperarTelefone.trim(),
+        otp: recuperarOtp.trim()
+      });
+
+      if (res.data.status === 'success') {
+        setRecuperarUserId(res.data.user_id);
+        setRecuperarEmail(res.data.email);
+        setStep(9); // Mostrar email recuperado e opção de reset
+        setSuccessMessage(`Conta encontrada! O email associado é: ${res.data.email}`);
+      } else {
+        setErrorMessage(res.data.message);
+      }
+    } catch (err) {
+      setErrorMessage('Erro ao verificar código.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset password após recuperação por SMS
+  const handleRecoveryResetPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+
+    if (novaSenha.length < 6) {
+      setErrorMessage('A senha deve ter pelo menos 6 caracteres.');
+      setLoading(false);
+      return;
+    }
+    if (novaSenha !== confirmarNovaSenha) {
+      setErrorMessage('As senhas não coincidem.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await axios.post(BACKEND_URL, {
+        action: 'reset_password_by_id',
+        user_id: recuperarUserId,
+        nova_senha: novaSenha
+      });
+
+      if (res.data.status === 'success') {
+        setSuccessMessage('Senha alterada com sucesso! Faça login com a nova senha.');
+        setTimeout(() => {
+          setStep(1);
+          setEmail(recuperarEmail);
+          setRecuperarTelefone('');
+          setRecuperarOtp('');
+          setNovaSenha('');
+          setConfirmarNovaSenha('');
+          setShowPasswordInput(true);
+        }, 2000);
+      } else {
+        setErrorMessage(res.data.message);
+      }
+    } catch (err) {
+      setErrorMessage('Erro ao alterar senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const salvarSessao = (user) => {
     const userForStorage = {
       id: user.id,
@@ -199,6 +414,16 @@ export default function Login() {
     localStorage.setItem('user', JSON.stringify(userForStorage));
     navigate('/');
     window.location.reload();
+  };
+
+  const handleBackToLogin = () => {
+    setStep(1);
+    setErrorMessage('');
+    setSuccessMessage('');
+    setResetEmail('');
+    setResetOtp('');
+    setRecuperarTelefone('');
+    setRecuperarOtp('');
   };
 
   return (
@@ -223,7 +448,7 @@ export default function Login() {
             </div>
           )}
 
-          {/* PASSO 1: Email */}
+          {/* PASSO 1: Email para Login/Registo */}
           {step === 1 && (
             <>
               <h2 className="text-xl font-bold mb-2">Iniciar sessão ou criar conta</h2>
@@ -265,6 +490,22 @@ export default function Login() {
                   >
                     Entrar
                   </button>
+                  
+                  <div className="flex flex-col gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep(4);
+                        setShowPasswordInput(false);
+                        setErrorMessage('');
+                      }}
+                      className="text-center text-sm text-blue-600 hover:underline"
+                    >
+                     Perdeu o acesso ao seu e-mail? Recupere a sua conta
+                    </button>
+                    
+                    
+                  </div>
                 </form>
               )}
 
@@ -279,7 +520,7 @@ export default function Login() {
             </>
           )}
 
-          {/* PASSO 2: Validar OTP (ANTES do formulário) */}
+          {/* PASSO 2: Validar OTP para Registo */}
           {step === 2 && (
             <>
               <h2 className="text-xl font-bold mb-2">Verificar o seu email</h2>
@@ -315,7 +556,7 @@ export default function Login() {
             </>
           )}
 
-          {/* PASSO 3: Formulário de registo (SÓ APÓS OTP VÁLIDO) */}
+          {/* PASSO 3: Formulário de Registo */}
           {step === 3 && (
             <>
               <h2 className="text-xl font-bold mb-2">Criar a sua conta</h2>
@@ -324,7 +565,6 @@ export default function Login() {
               </p>
 
               <form onSubmit={handleCompleteRegister} className="space-y-4">
-                {/* Roles */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de conta:</label>
                   <div className="grid grid-cols-2 gap-3">
@@ -406,6 +646,260 @@ export default function Login() {
                   className="w-full bg-[#003580] hover:bg-[#002560] text-white font-medium py-2.5 rounded text-sm"
                 >
                   {loading ? 'A criar conta...' : 'Criar conta'}
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* PASSO 4: Email para Reset Password */}
+          {step === 4 && (
+            <>
+              <h2 className="text-xl font-bold mb-2">Recuperar palavra-passe</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Insira o seu email para receber um código de recuperação
+              </p>
+
+              <form onSubmit={handleSendResetOtp} className="space-y-4">
+                <input
+                  type="email"
+                  required
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="Endereço de email"
+                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#006ce4] hover:bg-[#0056b3] text-white font-medium py-2.5 rounded text-sm"
+                >
+                  {loading ? 'A enviar...' : 'Enviar código'}
+                </button>
+                
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={handleBackToLogin}
+                    className="text-center text-sm text-gray-500 hover:underline"
+                  >
+                    Voltar ao login
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep(7);
+                      setErrorMessage('');
+                    }}
+                    className="text-center text-sm text-amber-600 hover:underline"
+                  >
+                    📱 Perdeu o acesso ao seu e-mail? Recuperar por SMS
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {/* PASSO 5: Verificar OTP para Reset */}
+          {step === 5 && (
+            <>
+              <h2 className="text-xl font-bold mb-2">Verificar código</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Enviámos um código de 6 dígitos para <strong>{resetEmail}</strong>
+              </p>
+
+              <form onSubmit={handleVerifyResetOtp} className="space-y-4">
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={resetOtp}
+                  onChange={(e) => setResetOtp(e.target.value)}
+                  placeholder="Código de verificação"
+                  className="w-full text-center text-2xl tracking-widest font-bold px-3 py-3 border border-gray-400 rounded"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#006ce4] hover:bg-[#0056b3] text-white font-medium py-2.5 rounded text-sm"
+                >
+                  {loading ? 'A verificar...' : 'Verificar código'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(4)}
+                  className="w-full text-center text-sm text-gray-500 hover:underline"
+                >
+                  Voltar
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* PASSO 6: Definir nova senha */}
+          {step === 6 && (
+            <>
+              <h2 className="text-xl font-bold mb-2">Nova palavra-passe</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Defina uma nova senha para a sua conta
+              </p>
+
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <input
+                  type="password"
+                  required
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                  placeholder="Nova palavra-passe (mínimo 6 caracteres)"
+                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
+                />
+                <input
+                  type="password"
+                  required
+                  value={confirmarNovaSenha}
+                  onChange={(e) => setConfirmarNovaSenha(e.target.value)}
+                  placeholder="Confirmar nova palavra-passe"
+                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#003580] hover:bg-[#002560] text-white font-medium py-2.5 rounded text-sm"
+                >
+                  {loading ? 'A alterar...' : 'Alterar palavra-passe'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="w-full text-center text-sm text-gray-500 hover:underline"
+                >
+                  Cancelar
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* PASSO 7: Recuperar conta por SMS (sem email) */}
+          {step === 7 && (
+            <>
+              <h2 className="text-xl font-bold mb-2">Recuperar conta por SMS</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Perdeu o acesso ao seu email? Recupere a sua conta usando o número de telefone registado.
+              </p>
+
+              <form onSubmit={handleSendSmsOtp} className="space-y-4">
+                <div className="bg-blue-50 p-3 rounded-lg mb-2">
+                  <p className="text-xs text-blue-800">
+                    ℹ️ Enviaremos um código de verificação por SMS para o número de telefone associado à sua conta.
+                  </p>
+                </div>
+                
+                <input
+                  type="tel"
+                  required
+                  value={recuperarTelefone}
+                  onChange={(e) => setRecuperarTelefone(e.target.value)}
+                  placeholder="Número de telefone (ex: 960176729)"
+                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#006ce4] hover:bg-[#0056b3] text-white font-medium py-2.5 rounded text-sm"
+                >
+                  {loading ? 'A enviar...' : 'Enviar código por SMS'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="w-full text-center text-sm text-gray-500 hover:underline"
+                >
+                  Voltar ao login
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* PASSO 8: Verificar OTP do SMS */}
+          {step === 8 && (
+            <>
+              <h2 className="text-xl font-bold mb-2">Verificar código SMS</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Enviámos um código de 6 dígitos por SMS para <strong>{recuperarTelefone}</strong>
+              </p>
+
+              <form onSubmit={handleVerifySmsOtp} className="space-y-4">
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={recuperarOtp}
+                  onChange={(e) => setRecuperarOtp(e.target.value)}
+                  placeholder="Código de verificação"
+                  className="w-full text-center text-2xl tracking-widest font-bold px-3 py-3 border border-gray-400 rounded"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#006ce4] hover:bg-[#0056b3] text-white font-medium py-2.5 rounded text-sm"
+                >
+                  {loading ? 'A verificar...' : 'Verificar código'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(7)}
+                  className="w-full text-center text-sm text-gray-500 hover:underline"
+                >
+                  Voltar
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* PASSO 9: Definir nova senha após recuperação por SMS */}
+          {step === 9 && (
+            <>
+              <h2 className="text-xl font-bold mb-2">Nova palavra-passe</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Conta verificada! Defina uma nova senha para a sua conta.
+              </p>
+
+              <form onSubmit={handleRecoveryResetPassword} className="space-y-4">
+                <div className="bg-green-50 p-3 rounded-lg mb-2">
+                  <p className="text-xs text-green-800">
+                    ✅ Conta encontrada: <strong>{recuperarEmail}</strong>
+                  </p>
+                </div>
+                
+                <input
+                  type="password"
+                  required
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                  placeholder="Nova palavra-passe (mínimo 6 caracteres)"
+                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
+                />
+                <input
+                  type="password"
+                  required
+                  value={confirmarNovaSenha}
+                  onChange={(e) => setConfirmarNovaSenha(e.target.value)}
+                  placeholder="Confirmar nova palavra-passe"
+                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#003580] hover:bg-[#002560] text-white font-medium py-2.5 rounded text-sm"
+                >
+                  {loading ? 'A alterar...' : 'Alterar palavra-passe'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="w-full text-center text-sm text-gray-500 hover:underline"
+                >
+                  Cancelar
                 </button>
               </form>
             </>
