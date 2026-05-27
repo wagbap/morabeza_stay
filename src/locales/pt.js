@@ -792,6 +792,5 @@ favoritos: "Favoritos",
 // Adicionar ao pt.js
 entrar_com_google: "Entrar com Google",
 erro_login_google: "Erro ao fazer login com Google. Tente novamente."
-
   }
 };

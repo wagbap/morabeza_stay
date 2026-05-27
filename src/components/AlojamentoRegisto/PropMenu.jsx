@@ -1,12 +1,20 @@
 // src/components/AlojamentoRegisto/PropMenu.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Pencil, MapPin, ChevronDown, Wifi, Shield } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
-const PropMenu = ({ nomePropriedade, onEditName, onEditLocation, onEditComodidades, onEditRegras }) => {
+const PropMenu = ({ 
+  nomePropriedade, 
+  alojamentoId,
+  onEditName, 
+  onEditLocation, 
+  onEditComodidades, 
+  onEditRegras 
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
+  const { id } = useParams(); // Para pegar o ID quando estiver na rota de edição
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -18,28 +26,65 @@ const PropMenu = ({ nomePropriedade, onEditName, onEditLocation, onEditComodidad
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
+  // Função para obter o ID correto (prioriza o prop alojamentoId, depois o param da URL)
+  const obterId = () => {
+    return alojamentoId || id;
+  };
+
   const handleEditName = () => {
     setIsOpen(false);
-    if (onEditName) onEditName();
-    else navigate('/alojamento-registro/fluxo');
+    if (onEditName) {
+      onEditName();
+    } else {
+      const idAtual = obterId();
+      if (idAtual) {
+        navigate(`/alojamento-registro/editar/${idAtual}?step=nome`);
+      } else {
+        console.warn('Não foi possível editar nome: ID do alojamento não encontrado');
+      }
+    }
   };
 
   const handleEditLocation = () => {
     setIsOpen(false);
-    if (onEditLocation) onEditLocation();
-    else navigate('/alojamento-registro/fluxo');
+    if (onEditLocation) {
+      onEditLocation();
+    } else {
+      const idAtual = obterId();
+      if (idAtual) {
+        navigate(`/alojamento-registro/editar/${idAtual}?step=localizacao`);
+      } else {
+        console.warn('Não foi possível editar localização: ID do alojamento não encontrado');
+      }
+    }
   };
 
   const handleEditComodidades = () => {
     setIsOpen(false);
-    if (onEditComodidades) onEditComodidades();
-    else navigate('/alojamento-registro/fluxo');
+    if (onEditComodidades) {
+      onEditComodidades();
+    } else {
+      const idAtual = obterId();
+      if (idAtual) {
+        navigate(`/alojamento-registro/editar/${idAtual}?step=comodidades`);
+      } else {
+        console.warn('Não foi possível editar comodidades: ID do alojamento não encontrado');
+      }
+    }
   };
 
   const handleEditRegras = () => {
     setIsOpen(false);
-    if (onEditRegras) onEditRegras();
-    else navigate('/alojamento-registro/fluxo');
+    if (onEditRegras) {
+      onEditRegras();
+    } else {
+      const idAtual = obterId();
+      if (idAtual) {
+        navigate(`/alojamento-registro/editar/${idAtual}?step=regras`);
+      } else {
+        console.warn('Não foi possível editar regras: ID do alojamento não encontrado');
+      }
+    }
   };
 
   return (
@@ -48,7 +93,7 @@ const PropMenu = ({ nomePropriedade, onEditName, onEditLocation, onEditComodidad
         onClick={() => setIsOpen(!isOpen)} 
         className="font-bold flex items-center gap-1 cursor-pointer hover:underline focus:outline-none"
       >
-        {nomePropriedade} 
+        {nomePropriedade || "Propriedade"} 
         <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
@@ -66,7 +111,7 @@ const PropMenu = ({ nomePropriedade, onEditName, onEditLocation, onEditComodidad
             className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 text-sm transition-colors duration-150 border-t border-gray-100"
           >
             <MapPin size={18} className="text-gray-500" /> 
-            <span>Alterar morada </span>
+            <span>Alterar morada</span>
           </div>
           <div 
             onClick={handleEditComodidades} 

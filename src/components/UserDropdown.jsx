@@ -79,7 +79,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
 
             <div className="px-2 space-y-1">
               <button 
-                onClick={() => handleNavigation('/minhas-reservas')}
+                onClick={() => handleNavigation('/alojamento-registro/meus')}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
               >
                 <LayoutDashboard size={16} /> 
@@ -98,9 +98,10 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   </span>
                 )}
               </button>
+              
 
               <button 
-                onClick={() => handleNavigation('/anunciar')}
+                onClick={() => handleNavigation('/alojamento-registro/fluxo')}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-blue-600 bg-blue-50/30 hover:bg-blue-50 transition-all font-semibold text-sm border-t border-gray-50 mt-2 pt-2"
               >
                 <User size={16} /> 

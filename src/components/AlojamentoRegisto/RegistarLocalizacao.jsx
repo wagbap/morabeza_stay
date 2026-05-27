@@ -124,7 +124,7 @@ const RegistarLocalizacao = () => {
     <div className="w-screen h-screen relative bg-slate-100 overflow-hidden font-sans antialiased text-gray-900">
       
       <header className="absolute top-0 left-0 right-0 bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm z-20">
-        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
+        <div className="font-bold text-2xl tracking-tight">Booking.com</div>
         <div className="flex items-center gap-6 text-sm">
           <div className="text-right">
             <PropMenu 

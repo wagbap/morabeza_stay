@@ -1,3 +1,5 @@
+// src/components/AlojamentoRegisto/index.jsx
+
 // Componentes principais
 export { default as AlojamentoRouter } from './AlojamentoRouter';
 export { default as FluxoRegisto } from './FluxoRegisto';
@@ -7,14 +9,14 @@ export { default as PropMenu } from './PropMenu';
 export { default as InformacoesBasicas } from './InformacoesBasicas';
 
 // FASE 2 - Localização
-export { default as RegistarLocalizacao } from './RegistarLocalizacao'; // versão antiga
-export { default as NomePropriedade } from './NomePropriedade'; // versão antiga
+export { default as RegistarLocalizacao } from './RegistarLocalizacao';
+export { default as NomePropriedade } from './NomePropriedade';
 
 // FASE 3 - Comodidades
-export { default as Comodidades, COMODIDADES_PADRAO } from './Comodidades';
+export { default as Comodidades } from './Comodidades';
 
 // FASE 4 - Regras da Casa
-export { default as Regras, REGRAS_PADRAO, RegrasResumo } from './Regras';
+export { default as Regras, RegrasResumo } from './Regras';
 
 // FASE 5 - Fotos
 export { default as ImagensUpload } from './ImagensUpload';

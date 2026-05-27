@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App';
 import './index.css';
+import './utils/polyfills.js';
 import './i18n';
 import { HelmetProvider } from 'react-helmet-async'; // Adiciona isto se faltar
 
