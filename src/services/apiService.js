@@ -41,9 +41,6 @@ async function apiRequest(endpoint, method, data = null) {
 }
 
 // ==================== QUARTOS ====================
-// src/services/apiService.js - ADICIONAR ESTAS FUNÇÕES
-
-// ==================== QUARTOS ====================
 
 export async function buscarTiposQuarto() {
     try {
@@ -78,7 +75,6 @@ export async function buscarQuartosDoAlojamento(alojamentoId) {
 }
 
 export async function buscarQuartosComSelecao(alojamentoId) {
-    // Mesma função que buscarQuartosDoAlojamento (para compatibilidade)
     return buscarQuartosDoAlojamento(alojamentoId);
 }
 
@@ -251,54 +247,234 @@ export async function buscarPrecos(id) {
     return apiRequest(`/alojamento/precos.php?id=${id}`, 'GET');
 }
 
-// ==================== LÓGICA DE INTEGRAÇÃO ====================
+// ==================== LOCALIZAÇÃO PERSISTENTE ====================
+
+export async function buscarLocalizacaoPersistente(alojamentoId) {
+    if (!alojamentoId) {
+        return { success: false, message: 'ID do alojamento não fornecido', data: null };
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/alojamento/buscar_localizacao.php?id=${alojamentoId}`);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+            return { 
+                success: true, 
+                data: {
+                    id: data.data.id,
+                    alojamento_id: data.data.alojamento_id,
+                    endereco: data.data.endereco,
+                    apartamento: data.data.num_apartamento || '',
+                    num_apartamento: data.data.num_apartamento || '',
+                    coordenadas: data.data.coordenadas || { lat: null, lng: null },
+                    morada: data.data.endereco?.split(',')[0] || '',
+                    moradaCompleta: data.data.endereco || '',
+                    cidade: '',
+                    codigoPostal: '',
+                    pais: 'Cabo Verde'
+                }
+            };
+        }
+        return { success: false, message: data.message || 'Localização não encontrada', data: null };
+    } catch (error) {
+        console.error('Erro ao buscar localização persistente:', error);
+        return { success: false, message: error.message, data: null };
+    }
+}
+
+// ==================== LÓGICA DE INTEGRAÇÃO COMPLETA ====================
 
 export async function buscarAlojamentoCompleto(id) {
     try {
         console.log(`🔍 Buscando dados para o alojamento #${id}`);
         
+        // 1. Buscar informações básicas do alojamento
         const infoResponse = await buscarInformacoesBasicas(id);
         
         if (!infoResponse?.success || !infoResponse?.data) {
             return { success: false, message: 'Alojamento não encontrado.' };
         }
 
+        // 2. Buscar localização persistente (COM num_apartamento)
+        const locPersistente = await buscarLocalizacaoPersistente(id);
+        
+        // 3. Preparar objeto base com os dados do alojamento
         const dadosCompletos = {
             id: parseInt(id),
-            ...infoResponse.data,
-            morada: null,
+            // Dados da tabela alojamentos
+            titulo: infoResponse.data.titulo || '',
+            tipo_propriedade: infoResponse.data.tipo_propriedade || 'Apartamento',
+            capacidade: infoResponse.data.capacidade|| infoResponse.data.capacidade || 2,
+            estrelas: infoResponse.data.estrelas || 4.5,
+            descricao: infoResponse.data.descricao || '',
+            descricao_detalhada: infoResponse.data.descricao_detalhada || '',
+            preco_noite: infoResponse.data.preco_noite || '',
+            tempo_resposta: infoResponse.data.tempo_resposta || 'Dentro de 1 hora',
+            quartos: infoResponse.data.quartos || 1,
+            camas: infoResponse.data.camas || 1,
+            casas_banho: infoResponse.data.casas_banho || 1,
+            localizacao: infoResponse.data.localizacao || '',
+            latitude: infoResponse.data.latitude || null,
+            longitude: infoResponse.data.longitude || null,
+            regras_adicionais: infoResponse.data.regras_adicionais || '',
+            status: infoResponse.data.status || 'pendente',
+            created_at: infoResponse.data.created_at || null,
+            updated_at: infoResponse.data.updated_at || null,
+            
+            // Dados da localização (com num_apartamento)
+            morada: locPersistente.success ? {
+                id: locPersistente.data.id,
+                alojamento_id: locPersistente.data.alojamento_id,
+                endereco: locPersistente.data.endereco,
+                morada: locPersistente.data.morada,
+                moradaCompleta: locPersistente.data.moradaCompleta,
+                apartamento: locPersistente.data.apartamento,
+                num_apartamento: locPersistente.data.num_apartamento,
+                cidade: locPersistente.data.cidade,
+                codigoPostal: locPersistente.data.codigoPostal,
+                pais: locPersistente.data.pais,
+                coordenadas: locPersistente.data.coordenadas
+            } : null,
+            
+            // Arrays para dados relacionados
             comodidades: [],
             regras: null,
             fotos: [],
             quartos: []
         };
 
-        const [loc, com, reg, img, quartos] = await Promise.all([
-            buscarLocalizacao(id).catch(e => ({ success: false })),
-            buscarComodidadesDoAlojamento(id).catch(e => ({ success: false })),
-            buscarRegrasDoAlojamento(id).catch(e => ({ success: false })),
-            buscarImagensDoAlojamento(id).catch(e => ({ success: false })),
-            buscarQuartosDoAlojamento(id).catch(e => ({ success: false }))
+        // 4. Buscar dados relacionados em paralelo
+        console.log('🔄 Buscando dados relacionados em paralelo...');
+        
+        const [comResponse, regResponse, imgResponse, quartosResponse] = await Promise.all([
+            buscarComodidadesDoAlojamento(id).catch(e => {
+                console.warn('Erro ao buscar comodidades:', e);
+                return { success: false, data: [] };
+            }),
+            buscarRegrasDoAlojamento(id).catch(e => {
+                console.warn('Erro ao buscar regras:', e);
+                return { success: false, data: null };
+            }),
+            buscarImagensDoAlojamento(id).catch(e => {
+                console.warn('Erro ao buscar imagens:', e);
+                return { success: false, data: [] };
+            }),
+            buscarQuartosDoAlojamento(id).catch(e => {
+                console.warn('Erro ao buscar quartos:', e);
+                return { success: false, data: [] };
+            })
         ]);
 
-        if (loc.success) dadosCompletos.morada = loc.data;
-        if (com.success) dadosCompletos.comodidades = com.data;
-        if (reg.success) dadosCompletos.regras = reg.data;
-        if (img.success) dadosCompletos.fotos = img.data;
-        if (quartos.success) dadosCompletos.quartos = quartos.data;
+        // 5. Processar comodidades
+        if (comResponse.success && comResponse.data) {
+            dadosCompletos.comodidades = Array.isArray(comResponse.data) ? comResponse.data : [];
+            console.log(`✅ ${dadosCompletos.comodidades.length} comodidades carregadas`);
+        }
 
-        console.log('✅ Dados carregados com sucesso');
+        // 6. Processar regras
+        if (regResponse.success && regResponse.data) {
+            let regrasList = [];
+            let regrasIds = [];
+            
+            if (Array.isArray(regResponse.data)) {
+                regrasList = regResponse.data;
+                regrasIds = regrasList.map(r => r.id || r);
+            } else if (regResponse.data.regras) {
+                regrasList = regResponse.data.regras;
+                regrasIds = regrasList.map(r => r.id || r);
+            } else if (regResponse.data.regras_ids) {
+                regrasIds = regResponse.data.regras_ids;
+            }
+            
+            dadosCompletos.regras = {
+                regras: regrasList,
+                regras_ids: regrasIds,
+                regras_adicionais: dadosCompletos.regras_adicionais || ''
+            };
+            console.log(`✅ ${regrasList.length} regras carregadas`);
+        }
+
+        // 7. Processar fotos
+        if (imgResponse.success && imgResponse.data) {
+            dadosCompletos.fotos = Array.isArray(imgResponse.data) ? imgResponse.data : [];
+            console.log(`✅ ${dadosCompletos.fotos.length} fotos carregadas`);
+        }
+
+        // 8. Processar quartos
+        if (quartosResponse.success && quartosResponse.data) {
+            dadosCompletos.quartos = quartosResponse.data.map(q => ({
+                id: q.id,
+                alojamento_id: q.alojamento_id,
+                tipo_quarto_id: q.tipo_quarto_id,
+                tipo_nome: q.tipo_nome || q.nome,
+                quantidade_disponivel: q.quantidade_disponivel || 1,
+                preco_personalizado: q.preco_personalizado || null,
+                capacidade: q.capacidade || 2,
+                camas: q.camas || 1,
+                icone: q.icone,
+                imagem_url: q.imagem_url,
+                multiplicador_preco: q.multiplicador_preco || 1,
+                ativo: q.ativo !== undefined ? q.ativo : 1
+            }));
+            console.log(`✅ ${dadosCompletos.quartos.length} quartos carregados`);
+        }
+
+        // 9. Log final
+        console.log('✅ Dados carregados com sucesso!', {
+            id: dadosCompletos.id,
+            titulo: dadosCompletos.titulo,
+            temMorada: !!dadosCompletos.morada,
+            numComodidades: dadosCompletos.comodidades.length,
+            numRegras: dadosCompletos.regras?.regras?.length || 0,
+            numFotos: dadosCompletos.fotos.length,
+            numQuartos: dadosCompletos.quartos.length
+        });
+        
         return { success: true, data: dadosCompletos };
+        
     } catch (error) {
-        console.error('❌ Erro:', error);
-        return { success: false, message: error.message };
+        console.error('❌ Erro em buscarAlojamentoCompleto:', error);
+        return { 
+            success: false, 
+            message: error.message || 'Erro ao carregar dados do alojamento',
+            data: null 
+        };
     }
 }
 
 export async function buscarAlojamentoParaEdicao(id) {
     return buscarAlojamentoCompleto(id);
 }
-// Substitua a função salvarFluxoRegisto existente por esta versão melhorada
+
+export async function buscarLocalizacaoDoAlojamento(id) {
+    try {
+        const result = await buscarLocalizacao(id);
+        if (result.success && result.data) {
+            return {
+                success: true,
+                data: {
+                    endereco: result.data.endereco || '',
+                    apartamento: result.data.num_apartamento || result.data.apartamento || '',
+                    num_apartamento: result.data.num_apartamento || '',
+                    coordenadas: {
+                        lat: result.data.latitude || result.data.coordenadas_lat || null,
+                        lng: result.data.longitude || result.data.coordenadas_lng || null
+                    },
+                    cidade: result.data.cidade || '',
+                    codigoPostal: result.data.codigo_postal || '',
+                    pais: result.data.pais || 'Cabo Verde'
+                }
+            };
+        }
+        return { success: false, data: null, message: result.message };
+    } catch (error) {
+        console.error('Erro ao buscar localização:', error);
+        return { success: false, data: null, message: error.message };
+    }
+}
+
+// ==================== SALVAR FLUXO REGISTO ====================
 
 export async function salvarFluxoRegisto(dados, alojamentoId = null) {
     try {
@@ -334,7 +510,7 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
                 principal: index === 0 ? 1 : 0
             }));
         
-        // 4. Extrair Quartos (FORMATO CORRETO)
+        // 4. Extrair Quartos
         let quartosFormatados = [];
         if (dados.quartos && Array.isArray(dados.quartos)) {
             quartosFormatados = dados.quartos.map(q => ({
@@ -352,7 +528,7 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             morada = informacoes.morada;
         }
         
-        // Payload completo
+        // 6. Payload completo
         const payload = {
             proprietario_id: dados.proprietario_id || 1,
             titulo: informacoes.titulo || 'Propriedade Sem Título',
@@ -371,6 +547,7 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             num_quartos: parseInt(informacoes.quartos) || 1,
             camas: parseInt(informacoes.camas) || 1,
             casas_banho: parseInt(informacoes.casas_banho) || 1,
+            num_apartamento: morada?.apartamento || dados.num_apartamento || '',
             
             comodidades: comodidadesIds,
             
@@ -381,12 +558,12 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             
             imagens: imagens,
             
-            // Quartos no formato correto
             quartos: quartosFormatados,
             
             morada: morada ? {
                 endereco: morada.morada || morada.endereco || '',
                 apartamento: morada.apartamento || '',
+                num_apartamento: morada.apartamento || '',
                 cidade: morada.cidade || '',
                 codigo_postal: morada.codigoPostal || morada.codigo_postal || '',
                 pais: morada.pais || 'Cabo Verde',
@@ -402,7 +579,6 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             : await registrarAlojamentoCompleto(payload);
         
         if (result.success) {
-            // Se tiver quartos e for criação, salvar quartos separadamente
             if (!isEdicao && quartosFormatados.length > 0 && result.data?.alojamento_id) {
                 console.log('📦 Salvando quartos após criação do alojamento...');
                 const quartosResult = await salvarQuartos(result.data.alojamento_id, quartosFormatados);
@@ -424,6 +600,8 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
         return { success: false, message: error.message, data: null };
     }
 }
+
+// ==================== EXPORT DEFAULT ====================
 
 export default {
     registrarAlojamentoCompleto,
@@ -452,5 +630,7 @@ export default {
     removerQuartoPorId,
     salvarFluxoRegisto,
     buscarAlojamentoParaEdicao,
-    buscarAlojamentoCompleto
+    buscarAlojamentoCompleto,
+    buscarLocalizacaoPersistente,
+    buscarLocalizacaoDoAlojamento
 };

@@ -8,7 +8,7 @@ import Comodidades from './Comodidades';
 import InformacoesBasicas from './InformacoesBasicas';
 import Regras from './Regras';
 import ImagensUpload from './ImagensUpload';
-import { salvarFluxoRegisto, buscarAlojamentoParaEdicao, buscarQuartosDoAlojamento } from '../../services/apiService';
+import { salvarFluxoRegisto, buscarAlojamentoParaEdicao, buscarQuartosDoAlojamento, buscarLocalizacaoPersistente } from '../../services/apiService';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -28,6 +28,45 @@ const BASE_ENDERECOS_CV = [
   { id: 'cv-11', titulo: 'Ribeira Grande Centro', subtitulo: 'Ilha de Santo Antão, 1110, Cabo Verde', cidade: 'Ribeira Grande', codigoPostal: '1110', pais: 'Cabo Verde', lat: 17.1833, lng: -25.0667 },
   { id: 'cv-12', titulo: 'Porto Novo (Zona do Porto)', subtitulo: 'Porto Novo, Ilha de Santo Antão, Cabo Verde', cidade: 'Porto Novo', codigoPostal: '1120', pais: 'Cabo Verde', lat: 17.0197, lng: -25.0642 }
 ];
+
+// 🔥 FUNÇÃO PARA EXTRAIR CIDADE DO ENDEREÇO
+const extrairCidadeDoEndereco = (endereco) => {
+  if (!endereco) return '';
+  
+  // Lista de cidades de Cabo Verde
+  const cidadesCV = [
+    'Mindelo', 'Praia', 'Santa Maria', 'Espargos', 'Sal Rei', 
+    'Cidade Velha', 'Tarrafal', 'São Filipe', 'Ribeira Grande', 
+    'Porto Novo', 'Assomada', 'Pedra Badejo', 'Calheta', 'Pombas'
+  ];
+  
+  // Tentar encontrar cidade no endereço
+  for (const cidade of cidadesCV) {
+    if (endereco.toLowerCase().includes(cidade.toLowerCase())) {
+      return cidade;
+    }
+  }
+  
+  // Se não encontrar, tentar extrair da lista BASE_ENDERECOS_CV
+  const encontrado = BASE_ENDERECOS_CV.find(item => 
+    endereco.toLowerCase().includes(item.titulo.toLowerCase()) ||
+    endereco.toLowerCase().includes(item.cidade.toLowerCase())
+  );
+  
+  return encontrado ? encontrado.cidade : '';
+};
+
+// 🔥 FUNÇÃO PARA EXTRAIR CÓDIGO POSTAL DO ENDEREÇO
+const extrairCodigoPostalDoEndereco = (endereco) => {
+  if (!endereco) return '';
+  
+  const encontrado = BASE_ENDERECOS_CV.find(item => 
+    endereco.toLowerCase().includes(item.titulo.toLowerCase()) ||
+    endereco.toLowerCase().includes(item.cidade.toLowerCase())
+  );
+  
+  return encontrado ? encontrado.codigoPostal : '';
+};
 
 const EditarAlojamento = () => {
   const navigate = useNavigate();
@@ -72,13 +111,18 @@ const EditarAlojamento = () => {
   const [regras, setRegras] = useState([]);
   const [regrasAdicionais, setRegrasAdicionais] = useState('');
   const [fotos, setFotos] = useState([]);
+  
+  // 🔥 FUNÇÃO CORRIGIDA PARA CARREGAR TODOS OS DADOS
   const carregarDadosAlojamento = async (alojamentoIdParam) => {
     if (!alojamentoIdParam) return;
     
     setIsLoading(true);
     try {
       console.log(`📥 Carregando alojamento ID: ${alojamentoIdParam} para edição`);
+      
+      // Buscar dados completos do alojamento
       const resultado = await buscarAlojamentoParaEdicao(alojamentoIdParam);
+      console.log('📦 Dados carregados:', resultado);
       
       if (resultado.success && resultado.data) {
         const dados = resultado.data;
@@ -98,10 +142,9 @@ const EditarAlojamento = () => {
           casas_banho: dados.casas_banho || 1
         };
         
-        // Atualizar Estado das Informações
         setInformacoesBasicas(infoBasicas);
         
-        // 2. Preparar e Atualizar Quartos
+        // 2. Carregar Quartos
         let quartosDaBd = [];
         if (dados.quartos && Array.isArray(dados.quartos) && dados.quartos.length > 0) {
           quartosDaBd = dados.quartos;
@@ -112,17 +155,61 @@ const EditarAlojamento = () => {
           }
         }
         setQuartosSelecionados(quartosDaBd);
-        infoBasicas.quartos = quartosDaBd; // Anexar à info básica
         
-        // 3. Preparar e Atualizar Morada
-        let moradaObj = null;
-        if (dados.morada) {
-          setPesquisa(dados.morada.morada || '');
-          setNumApartamento(dados.morada.apartamento || '');
+        // 3. 🔥 CARREGAR MORADA COMPLETAMENTE
+        console.log('📍 Processando morada...');
+        
+        // Tentar buscar localização da API específica
+        const locResult = await buscarLocalizacaoPersistente(alojamentoIdParam);
+        console.log('📍 Localização da API:', locResult);
+        
+        if (locResult.success && locResult.data) {
+          // Dados da API
+          const enderecoCompleto = locResult.data.endereco || '';
+          const numApt = locResult.data.num_apartamento || locResult.data.apartamento || '';
+          
+          // 🔥 EXTRAIR CIDADE E CÓDIGO POSTAL DO ENDEREÇO
+          const cidadeExtraida = extrairCidadeDoEndereco(enderecoCompleto);
+          const codigoPostalExtraido = extrairCodigoPostalDoEndereco(enderecoCompleto);
+          
+          setPesquisa(enderecoCompleto.split(',')[0] || enderecoCompleto);
+          setNumApartamento(numApt);
+          setMoradaCompleta(enderecoCompleto);
+          setCidade(cidadeExtraida);
+          setCodigoPostal(codigoPostalExtraido);
+          setPais('Cabo Verde');
+          
+          console.log('📍 Cidade extraída da API:', cidadeExtraida);
+          console.log('📍 Código Postal extraído da API:', codigoPostalExtraido);
+          
+          if (locResult.data.coordenadas?.lat) {
+            setViewState({
+              latitude: locResult.data.coordenadas.lat,
+              longitude: locResult.data.coordenadas.lng,
+              zoom: 16
+            });
+          }
+        } 
+        // Fallback: usar dados.morada se existir
+        else if (dados.morada) {
+          console.log('📍 Usando dados.morada como fallback:', dados.morada);
+          
+          const enderecoMorada = dados.morada.morada || dados.morada.endereco || '';
+          const enderecoCompletoMorada = dados.morada.moradaCompleta || dados.morada.endereco || '';
+          const numAptMorada = dados.morada.apartamento || dados.morada.num_apartamento || '';
+          
+          // 🔥 EXTRAIR CIDADE E CÓDIGO POSTAL DO ENDEREÇO
+          const cidadeExtraida = extrairCidadeDoEndereco(enderecoMorada || enderecoCompletoMorada);
+          const codigoPostalExtraido = extrairCodigoPostalDoEndereco(enderecoMorada || enderecoCompletoMorada);
+          
+          setPesquisa(enderecoMorada);
+          setNumApartamento(numAptMorada);
           setPais(dados.morada.pais || 'Cabo Verde');
-          setCidade(dados.morada.cidade || '');
-          setCodigoPostal(dados.morada.codigoPostal || '');
-          setMoradaCompleta(dados.morada.moradaCompleta || '');
+          setCidade(cidadeExtraida || dados.morada.cidade || '');
+          setCodigoPostal(codigoPostalExtraido || dados.morada.codigoPostal || dados.morada.codigo_postal || '');
+          setMoradaCompleta(enderecoCompletoMorada);
+          
+          console.log('📍 Cidade extraída do fallback:', cidadeExtraida);
           
           if (dados.morada.coordenadas) {
             setViewState({
@@ -131,16 +218,6 @@ const EditarAlojamento = () => {
               zoom: 16
             });
           }
-          
-          moradaObj = {
-            morada: dados.morada.morada || '',
-            apartamento: dados.morada.apartamento || '',
-            pais: dados.morada.pais || 'Cabo Verde',
-            cidade: dados.morada.cidade || '',
-            codigoPostal: dados.morada.codigoPostal || '',
-            moradaCompleta: dados.morada.moradaCompleta || '',
-            coordenadas: dados.morada.coordenadas || { lat: 16.8884, lng: -24.9896 }
-          };
         }
         
         // 4. Comodidades, Regras e Fotos
@@ -155,25 +232,43 @@ const EditarAlojamento = () => {
         const fotosList = Array.isArray(dados.fotos) ? dados.fotos : [];
         setFotos(fotosList);
         
-        // ================================================================
-        // 🔥 A MAGIA DA PERSISTÊNCIA: GRAVAR TUDO NO LOCALSTORAGE AQUI!
-        // ================================================================
+        // 5. Salvar no localStorage
         setAlojamentoId(dados.id);
         localStorage.setItem('propertyAlojamentoId', dados.id);
         localStorage.setItem('propertyInformacoesBasicas', JSON.stringify(infoBasicas));
         localStorage.setItem('propertyQuartos', JSON.stringify(quartosDaBd));
-        if (moradaObj) localStorage.setItem('propertyAddress', JSON.stringify(moradaObj));
+        
+        // Salvar morada no localStorage
+        const moradaObj = {
+          morada: pesquisa || dados.morada?.morada || '',
+          endereco: moradaCompleta || dados.morada?.endereco || '',
+          apartamento: numApartamento || dados.morada?.apartamento || '',
+          num_apartamento: numApartamento || dados.morada?.num_apartamento || '',
+          pais: pais || dados.morada?.pais || 'Cabo Verde',
+          cidade: cidade || dados.morada?.cidade || '',
+          codigoPostal: codigoPostal || dados.morada?.codigoPostal || '',
+          codigo_postal: codigoPostal || dados.morada?.codigo_postal || '',
+          moradaCompleta: moradaCompleta || dados.morada?.moradaCompleta || '',
+          coordenadas: viewState || dados.morada?.coordenadas || { lat: 16.8884, lng: -24.9896 }
+        };
+        localStorage.setItem('propertyAddress', JSON.stringify(moradaObj));
         localStorage.setItem('propertyComodidades', JSON.stringify(comodidadesList));
         localStorage.setItem('propertyRegras', JSON.stringify({ regras: regrasList, regrasAdicionais: regrasAdd }));
         localStorage.setItem('propertyFotos', JSON.stringify(fotosList));
         
+        console.log('✅ Todos os dados carregados com sucesso!');
+        console.log('📍 Cidade:', cidade);
+        console.log('📍 Código Postal:', codigoPostal);
+        console.log('📍 País:', pais);
+        
       } else {
         alert(`Erro ao carregar dados do alojamento: ${resultado.message}`);
-        navigate('/');
+        navigate('/alojamento-registro/meus');
       }
     } catch (error) {
+      console.error('❌ Erro ao carregar:', error);
       alert('Erro ao carregar dados do alojamento. Tente novamente.');
-      navigate('/');
+      navigate('/alojamento-registro/meus');
     } finally {
       setIsLoading(false);
     }
@@ -203,6 +298,7 @@ const EditarAlojamento = () => {
   };
   
   const handleSelecionarSugestao = (item) => {
+    console.log('📍 Selecionando sugestão:', item);
     setPesquisa(item.titulo);
     setMostrarDropdown(false);
     setCidade(item.cidade);
@@ -216,6 +312,7 @@ const EditarAlojamento = () => {
     if (!atualizarAoMover) return;
     const { lng, lat } = event.lngLat;
     setViewState(prev => ({ ...prev, latitude: lat, longitude: lng }));
+    console.log(`📍 Marcador movido para: lat=${lat}, lng=${lng}`);
   };
   
   const handleSaveAddress = () => {
@@ -224,12 +321,18 @@ const EditarAlojamento = () => {
     
     const dadosMorada = {
       morada: pesquisa,
+      endereco: pesquisa,
       apartamento: numApartamento,
-      pais, cidade, codigoPostal,
+      num_apartamento: numApartamento,
+      pais: pais,
+      cidade: cidade,
+      codigoPostal: codigoPostal,
+      codigo_postal: codigoPostal,
       moradaCompleta: `${pesquisa}${numApartamento ? `, ${numApartamento}` : ''}, ${cidade}, ${codigoPostal}, ${pais}`,
       coordenadas: { lat: viewState.latitude, lng: viewState.longitude }
     };
     
+    console.log('💾 Salvando morada:', dadosMorada);
     localStorage.setItem('propertyAddress', JSON.stringify(dadosMorada));
     setFase(3);
     return true;
@@ -262,10 +365,13 @@ const EditarAlojamento = () => {
         informacoes: informacoesBasicas,
         morada: {
           morada: pesquisa,
+          endereco: pesquisa,
           apartamento: numApartamento,
+          num_apartamento: numApartamento,
           pais: pais,
           cidade: cidade,
           codigoPostal: codigoPostal,
+          codigo_postal: codigoPostal,
           moradaCompleta: moradaCompleta,
           coordenadas: { lat: viewState.latitude, lng: viewState.longitude }
         },
@@ -274,14 +380,13 @@ const EditarAlojamento = () => {
           regras_ids: regras.map(r => r.id || r),
           regras_adicionais: regrasAdicionais
         },
-        quartos: quartosSelecionados, // Agora o React sabe sempre que tens quartos novos!
+        quartos: quartosSelecionados,
         fotos: fotos
       };
       
       const result = await salvarFluxoRegisto(dadosParaAPI, alojamentoId);
       
       if (result.success) {
-        // Limpar o cache local após sucesso
         localStorage.removeItem('propertyInformacoesBasicas');
         localStorage.removeItem('propertyAddress');
         localStorage.removeItem('propertyComodidades');
@@ -325,13 +430,13 @@ const EditarAlojamento = () => {
         <div className="flex items-center justify-between mb-2">
           {fasesLista.map((nome, index) => (
             <div key={index} className="flex-1 text-center">
-              <div className={`text-xs font-medium ${fase > index ? 'text-[#006ce4]' : fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>{nome}</div>
+              <div className={`text-xs font-medium ${fase > index + 1 ? 'text-[#006ce4]' : fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>{nome}</div>
             </div>
           ))}
         </div>
         <div className="flex gap-1">
           {fasesLista.map((_, index) => (
-            <div key={index} className={`h-1 flex-1 rounded-full ${fase > index ? 'bg-[#006ce4]' : fase === index + 1 ? 'bg-[#006ce4] bg-opacity-50' : 'bg-gray-200'}`} />
+            <div key={index} className={`h-1 flex-1 rounded-full ${fase > index + 1 ? 'bg-[#006ce4]' : fase === index + 1 ? 'bg-[#006ce4]' : 'bg-gray-200'}`} />
           ))}
         </div>
       </div>
@@ -353,7 +458,7 @@ const EditarAlojamento = () => {
           <InformacoesBasicas 
             dados={informacoesBasicas}
             onDadosChange={setInformacoesBasicas}
-            onQuartosChange={setQuartosSelecionados} // 🔥 AQUI ESTÁ A CORREÇÃO QUE FALTAVA
+            onQuartosChange={setQuartosSelecionados}
             onNext={handleSaveInformacoes}
             alojamentoId={alojamentoId}  
             readOnly={false}
@@ -402,7 +507,7 @@ const EditarAlojamento = () => {
             
             <div><label className="block text-xs font-bold text-gray-800 mb-1">Número do apartamento <span className="text-gray-500">(opcional)</span></label><input type="text" value={numApartamento} onChange={(e) => setNumApartamento(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
             <div><label className="block text-xs font-bold text-gray-800 mb-1">País/região</label><select value={pais} onChange={(e) => setPais(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"><option>Cabo Verde</option><option>Portugal</option><option>Angola</option></select></div>
-            <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs font-bold text-gray-800 mb-1">Cidade</label><input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" /></div><div><label className="block text-xs font-bold text-gray-800 mb-1">Código postal</label><input type="text" value={codigoPostal} onChange={(e) => setCodigoPostal(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" /></div></div>
+            <div className="grid grid-cols-2 gap-3"><div><label className="block text-xs font-bold text-gray-800 mb-1">Cidade</label><input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Ex: Mindelo, Praia, Santa Maria..." className="w-full px-3 py-2 border border-gray-300 rounded-md" /></div><div><label className="block text-xs font-bold text-gray-800 mb-1">Código postal</label><input type="text" value={codigoPostal} onChange={(e) => setCodigoPostal(e.target.value)} placeholder="Ex: 2110, 7110" className="w-full px-3 py-2 border border-gray-300 rounded-md" /></div></div>
             <div className="flex gap-2 pt-2"><button onClick={handleBack} className="p-2.5 border border-[#006ce4] text-[#006ce4] bg-white rounded-md"><ArrowLeft size={18} /></button><button onClick={handleSaveAddress} className="flex-1 bg-[#006ce4] text-white py-2.5 px-4 rounded-md">Continuar</button></div>
           </div>
         </div>

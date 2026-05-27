@@ -1,4 +1,4 @@
-// src/components/AlojamentoRegisto/RegistarLocalizacao.js
+// src/components/AlojamentoRegisto/RegistarLocalizacao.jsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, X, HelpCircle, User } from 'lucide-react';
@@ -19,6 +19,8 @@ const BASE_ENDERECOS_CV = [
   { id: 'cv-8', titulo: 'Rua Direita, Cidade Velha', subtitulo: 'Ribeira Grande de Santiago, Ilha de Santiago, Cabo Verde', cidade: 'Cidade Velha', codigoPostal: '7120', pais: 'Cabo Verde', lat: 14.9157, lng: -23.6053 },
   { id: 'cv-9', titulo: 'Tarrafal de Santiago (Praia Mar)', subtitulo: 'Concelho do Tarrafal, Ilha de Santiago, Cabo Verde', cidade: 'Tarrafal', codigoPostal: '7310', pais: 'Cabo Verde', lat: 15.2778, lng: -23.7512 },
   { id: 'cv-10', titulo: 'São Filipe Centro', subtitulo: 'Ilha do Fogo, 8110, Cabo Verde', cidade: 'São Filipe', codigoPostal: '8110', pais: 'Cabo Verde', lat: 14.8961, lng: -24.4956 },
+  { id: 'cv-11', titulo: 'Ribeira Grande Centro', subtitulo: 'Ilha de Santo Antão, 1110, Cabo Verde', cidade: 'Ribeira Grande', codigoPostal: '1110', pais: 'Cabo Verde', lat: 17.1833, lng: -25.0667 },
+  { id: 'cv-12', titulo: 'Porto Novo (Zona do Porto)', subtitulo: 'Porto Novo, Ilha de Santo Antão, Cabo Verde', cidade: 'Porto Novo', codigoPostal: '1120', pais: 'Cabo Verde', lat: 17.0197, lng: -25.0642 }
 ];
 
 const RegistarLocalizacao = () => {
@@ -44,24 +46,90 @@ const RegistarLocalizacao = () => {
     bearing: 0
   });
 
+  // 🔥 CARREGAR TODOS OS DADOS DO LOCALSTORAGE (incluindo cidade, código postal)
   useEffect(() => {
-    const savedAddress = localStorage.getItem('propertyAddress');
-    if (savedAddress) {
-      const address = JSON.parse(savedAddress);
-      setPesquisa(address.morada || '');
-      setNumApartamento(address.apartamento || '');
-      setPais(address.pais || 'Cabo Verde');
-      setCidade(address.cidade || '');
-      setCodigoPostal(address.codigoPostal || '');
-      setMoradaCompleta(address.moradaCompleta || '');
-      if (address.coordenadas) {
-        setViewState(prev => ({ ...prev, latitude: address.coordenadas.lat, longitude: address.coordenadas.lng, zoom: 16 }));
-      }
-    }
+    console.log('📦 Carregando dados salvos do localStorage...');
     
+    // Carregar nome da propriedade
     const savedName = localStorage.getItem('propertyName');
     if (savedName && !propertyName) {
       setPropertyName(savedName);
+      console.log('✅ Nome carregado:', savedName);
+    }
+    
+    // Carregar endereço completo
+    const savedAddress = localStorage.getItem('propertyAddress');
+    if (savedAddress) {
+      try {
+        const address = JSON.parse(savedAddress);
+        console.log('📦 Endereço salvo:', address);
+        
+        setPesquisa(address.morada || address.endereco || '');
+        setNumApartamento(address.apartamento || address.num_apartamento || '');
+        setPais(address.pais || 'Cabo Verde');
+        setCidade(address.cidade || '');
+        setCodigoPostal(address.codigoPostal || address.codigo_postal || '');
+        setMoradaCompleta(address.moradaCompleta || address.endereco || '');
+        
+        if (address.coordenadas) {
+          setViewState({
+            latitude: address.coordenadas.lat || 16.8884,
+            longitude: address.coordenadas.lng || -24.9896,
+            zoom: 16,
+            pitch: 0,
+            bearing: 0
+          });
+        }
+        
+        console.log('✅ Dados carregados:', { cidade: address.cidade, codigoPostal: address.codigoPostal });
+      } catch (e) {
+        console.error('Erro ao carregar endereço:', e);
+      }
+    }
+    
+    // 🔥 TENTAR CARREGAR DA API SE TIVER ALOJAMENTO_ID
+    const alojamentoId = localStorage.getItem('propertyAlojamentoId');
+    if (alojamentoId) {
+      console.log(`🔄 Buscando localização da API para alojamento #${alojamentoId}...`);
+      fetch(`https://welovepalop.com/api/alojamento/buscar_localizacao.php?id=${alojamentoId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data) {
+            console.log('📍 Localização da API:', data.data);
+            
+            // Atualizar campos com dados da API
+            if (data.data.endereco) {
+              setPesquisa(data.data.endereco.split(',')[0] || data.data.endereco);
+              setMoradaCompleta(data.data.endereco);
+            }
+            if (data.data.num_apartamento) setNumApartamento(data.data.num_apartamento);
+            if (data.data.coordenadas?.lat) {
+              setViewState(prev => ({
+                ...prev,
+                latitude: data.data.coordenadas.lat,
+                longitude: data.data.coordenadas.lng,
+                zoom: 16
+              }));
+            }
+            
+            // Tentar extrair cidade do endereço
+            if (data.data.endereco) {
+              const partes = data.data.endereco.split(',');
+              if (partes.length >= 2) {
+                const possivelCidade = partes[partes.length - 2]?.trim();
+                const cidadeEncontrada = BASE_ENDERECOS_CV.find(
+                  item => possivelCidade?.toLowerCase().includes(item.cidade.toLowerCase())
+                );
+                if (cidadeEncontrada) {
+                  setCidade(cidadeEncontrada.cidade);
+                  setCodigoPostal(cidadeEncontrada.codigoPostal);
+                  setPais(cidadeEncontrada.pais);
+                }
+              }
+            }
+          }
+        })
+        .catch(err => console.error('Erro ao buscar localização da API:', err));
     }
   }, []);
 
@@ -74,6 +142,7 @@ const RegistarLocalizacao = () => {
   }, [pesquisa]);
 
   const handleSelecionarSugestao = (item) => {
+    console.log('📍 Selecionando sugestão:', item);
     setPesquisa(item.titulo);
     setMostrarDropdown(false);
     setCidade(item.cidade);
@@ -87,6 +156,10 @@ const RegistarLocalizacao = () => {
     if (!atualizarAoMover) return;
     const { lng, lat } = event.lngLat;
     setViewState(prev => ({ ...prev, latitude: lat, longitude: lng }));
+    
+    // 🔥 TENTAR ENCONTRAR ENDEREÇO PELAS COORDENADAS (reverse geocoding)
+    // Isso é opcional, mas pode ser útil
+    console.log(`📍 Marcador movido para: lat=${lat}, lng=${lng}`);
   };
 
   const handleEditName = () => {
@@ -99,21 +172,41 @@ const RegistarLocalizacao = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validar campos obrigatórios
+    if (!pesquisa.trim()) {
+      alert('Por favor, insira a morada da propriedade');
+      return;
+    }
+    
+    if (!cidade.trim()) {
+      alert('Por favor, insira a cidade');
+      return;
+    }
+    
     const dadosMorada = {
       morada: pesquisa,
+      endereco: pesquisa,
       apartamento: numApartamento,
-      pais,
-      cidade,
-      codigoPostal,
+      num_apartamento: numApartamento,
+      pais: pais,
+      cidade: cidade,
+      codigoPostal: codigoPostal,
+      codigo_postal: codigoPostal,
       moradaCompleta: `${pesquisa}${numApartamento ? `, ${numApartamento}` : ''}, ${cidade}, ${codigoPostal}, ${pais}`,
-      coordenadas: { lat: viewState.latitude, lng: viewState.longitude }
+      coordenadas: { 
+        lat: viewState.latitude, 
+        lng: viewState.longitude 
+      }
     };
+    
+    console.log('💾 Salvando morada:', dadosMorada);
     
     localStorage.setItem('propertyAddress', JSON.stringify(dadosMorada));
     localStorage.setItem('propertyName', propertyName);
     
-    alert('Morada salva com sucesso!');
-    navigate('/alojamento/fluxo', { state: { step: 3 } });
+    alert('✅ Morada salva com sucesso!');
+    navigate('/alojamento-registro/fluxo');
   };
 
   const handleBack = () => {
@@ -124,7 +217,7 @@ const RegistarLocalizacao = () => {
     <div className="w-screen h-screen relative bg-slate-100 overflow-hidden font-sans antialiased text-gray-900">
       
       <header className="absolute top-0 left-0 right-0 bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm z-20">
-        <div className="font-bold text-2xl tracking-tight">Booking.com</div>
+        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
         <div className="flex items-center gap-6 text-sm">
           <div className="text-right">
             <PropMenu 
@@ -133,7 +226,7 @@ const RegistarLocalizacao = () => {
               onEditLocation={handleEditLocation}
             />
             <div className="text-[10px] opacity-80">
-              {moradaCompleta || 'Morada não definida'}
+              {cidade ? `${cidade}, ${pais}` : (moradaCompleta || 'Morada não definida')}
             </div>
           </div>
           <div className="w-[1px] h-8 bg-blue-900"></div>
@@ -199,7 +292,13 @@ const RegistarLocalizacao = () => {
 
             <div>
               <label className="block text-xs font-bold text-gray-800 mb-1">Número do apartamento ou do piso <span className="text-gray-500 font-normal">(opcional)</span></label>
-              <input type="text" value={numApartamento} onChange={(e) => setNumApartamento(e.target.value)} placeholder="Ex: 2º Esquerdo / Apt 12" className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" />
+              <input 
+                type="text" 
+                value={numApartamento} 
+                onChange={(e) => setNumApartamento(e.target.value)} 
+                placeholder="Ex: 2º Esquerdo / Apt 12" 
+                className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" 
+              />
             </div>
 
             <div>
@@ -214,30 +313,69 @@ const RegistarLocalizacao = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-gray-800 mb-1">Cidade</label>
-                <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" />
+                <input 
+                  type="text" 
+                  value={cidade} 
+                  onChange={(e) => setCidade(e.target.value)} 
+                  placeholder="Ex: Mindelo, Praia, Santa Maria..."
+                  className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" 
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-800 mb-1">Código postal</label>
-                <input type="text" value={codigoPostal} onChange={(e) => setCodigoPostal(e.target.value)} className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" />
+                <input 
+                  type="text" 
+                  value={codigoPostal} 
+                  onChange={(e) => setCodigoPostal(e.target.value)} 
+                  placeholder="Ex: 2110, 7110"
+                  className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" 
+                />
               </div>
             </div>
 
             <div className="flex items-start gap-2 pt-1">
-              <input id="sync-map" type="checkbox" checked={atualizarAoMover} onChange={(e) => setAtualizarAoMover(e.target.checked)} className="w-4 h-4 text-[#006ce4] border-gray-400 rounded mt-0.5" />
-              <label htmlFor="sync-map" className="text-xs text-gray-900 font-medium select-none cursor-pointer">Atualize a morada ao mover o pin no mapa.</label>
+              <input 
+                id="sync-map" 
+                type="checkbox" 
+                checked={atualizarAoMover} 
+                onChange={(e) => setAtualizarAoMover(e.target.checked)} 
+                className="w-4 h-4 text-[#006ce4] border-gray-400 rounded mt-0.5" 
+              />
+              <label htmlFor="sync-map" className="text-xs text-gray-900 font-medium select-none cursor-pointer">
+                Atualize a morada ao mover o pin no mapa.
+              </label>
             </div>
 
             {mostrarAviso && (
               <div className="bg-[#f5f5f5] border border-gray-300 rounded-sm p-3 relative flex gap-3 mt-2">
                 <div className="w-[18px] h-[18px] border border-gray-500 rounded-full flex items-center justify-center shrink-0 text-xs font-serif font-bold text-gray-600">i</div>
-                <p className="text-[11px] text-gray-700 leading-normal pr-5">A localização do pin vermelho está incorreta? Retire a seleção da opção acima e clique no mapa para mover o pin para o local certo.</p>
-                <button type="button" onClick={() => setMostrarAviso(false)} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                <p className="text-[11px] text-gray-700 leading-normal pr-5">
+                  A localização do pin vermelho está incorreta? Retire a seleção da opção acima e clique no mapa para mover o pin para o local certo.
+                </p>
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarAviso(false)} 
+                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={14} />
+                </button>
               </div>
             )}
 
             <div className="flex gap-2 pt-2">
-              <button type="button" onClick={handleBack} className="p-2.5 border border-[#006ce4] text-[#006ce4] bg-white rounded-sm hover:bg-blue-50 transition-colors"><ArrowLeft size={18} /></button>
-              <button type="submit" className="flex-1 bg-[#006ce4] text-white text-sm font-semibold py-2.5 px-4 rounded-sm hover:bg-[#0053b3] transition-colors">Guardar e Continuar</button>
+              <button 
+                type="button" 
+                onClick={handleBack} 
+                className="p-2.5 border border-[#006ce4] text-[#006ce4] bg-white rounded-sm hover:bg-blue-50 transition-colors"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <button 
+                type="submit" 
+                className="flex-1 bg-[#006ce4] text-white text-sm font-semibold py-2.5 px-4 rounded-sm hover:bg-[#0053b3] transition-colors"
+              >
+                Guardar e Continuar
+              </button>
             </div>
           </form>
         </div>
