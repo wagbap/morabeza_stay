@@ -1,9 +1,10 @@
 // src/components/UserDropdown.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, Heart, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { Home, Car, Compass, Heart, User,LogOut, ChevronDown, LayoutDashboard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFavoritos } from '../hooks/useFavoritos';
+
 
 const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
   const { t } = useTranslation();
@@ -76,38 +77,60 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
               </p>
               <p className="text-sm font-bold text-gray-800 truncate">{user.email}</p>
             </div>
+              <div className="px-2 space-y-1">
+                <button 
+                  onClick={() => handleNavigation('/alojamento-registro/meus')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+                >
+                  <Home size={16} /> 
+                  Anuncie Alojamento
+                </button>
 
-            <div className="px-2 space-y-1">
-              <button 
-                onClick={() => handleNavigation('/alojamento-registro/meus')}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
-              >
-                <LayoutDashboard size={16} /> 
-                {t('minhas_reservas')}
-              </button>
-              
-              <button 
-                onClick={() => handleNavigation('/favoritos')}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
-              >
-                <Heart size={16} /> 
-                {t('favoritos')}
-                {totalFavoritos > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                    {totalFavoritos}
-                  </span>
-                )}
-              </button>
-              
+                <button 
+                  onClick={() => handleNavigation('/carro-registo/meus')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+                >
+                  <Car size={16} /> 
+                  Anuncie Carros
+                </button>
 
-              <button 
-                onClick={() => handleNavigation('/alojamento-registro/fluxo')}
-                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-blue-600 bg-blue-50/30 hover:bg-blue-50 transition-all font-semibold text-sm border-t border-gray-50 mt-2 pt-2"
-              >
-                <User size={16} /> 
-                {t('anuncie')}
-              </button>
-            </div>
+                <button 
+                  onClick={() => handleNavigation('/experiencia-registo/meus')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+                >
+                  <Compass size={16} /> 
+                  Anuncie Experiência
+                </button>
+
+                <button 
+                  onClick={() => handleNavigation('/favoritos')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+                >
+                  <Heart size={16} /> 
+                  {t('favoritos')}
+                  {totalFavoritos > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                      {totalFavoritos}
+                    </span>
+                  )}
+                </button>
+
+                <button 
+                  onClick={() => handleNavigation('/perfil')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+                >                
+                  <User size={16} /> 
+                  Perfil
+                </button>
+
+                <button 
+                  onClick={() => handleNavigation('/gest/dashboard')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+                >                
+                  <LayoutDashboard size={16} /> 
+                  Dashboard
+                </button>
+              </div>
 
             <div className="mt-2 pt-2 border-t border-gray-100 px-2">
               <button 

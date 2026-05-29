@@ -11,6 +11,7 @@ import {
   Loader2, ShieldCheck, Sun, Sunset, Maximize2, Navigation
 } from 'lucide-react';
 import AvaliacoesSeccao from './AvaliacoesSeccaoExperiencia';
+import useExperienciaTracking from "../hooks/useExperienciaTracking";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -88,7 +89,7 @@ const TabsNavegacaoExperiencia = ({ activeTab = 0, onTabChange }) => {
   );
 };
 
-const GuiaInfo = ({ guia }) => {
+const GuiaInfo = ({ guia, onContactClick }) => {
   const { t } = useTranslation();
   
   if (!guia) return null;
@@ -115,14 +116,17 @@ const GuiaInfo = ({ guia }) => {
           </p>
         </div>
       </div>
-      <button className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors">
+      <button 
+        onClick={onContactClick}
+        className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors"
+      >
         {t('contactar_guia') || 'Contactar guia'}
       </button>
     </div>
   );
 };
 
-const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentosData }) => {
+const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentosData, onMapClick }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const mapContainer = useRef(null);
@@ -153,10 +157,12 @@ const MapLocationExperiencia = ({ localizacao, ilha, pontosProximos, alojamentos
   const cidadeNome = ilha;
   
   const abrirPaginaMapa = () => {
+    if (onMapClick) onMapClick();
     navigate('/mapa-experiencias');
   };
   
   const abrirMapaInterativo = () => {
+    if (onMapClick) onMapClick();
     setIsMapaInterativoOpen(true);
   };
   
@@ -671,6 +677,7 @@ const ExperienciaDetalhes = () => {
   const [horario, setHorario] = useState("");
   const [usuarioLogado, setUsuarioLogado] = useState(null);
 
+  // Carregar usuário logado
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -683,6 +690,7 @@ const ExperienciaDetalhes = () => {
     }
   }, []);
 
+  // Carregar alojamentos para o mapa
   useEffect(() => {
     const fetchAlojamentos = async () => {
       try {
@@ -696,6 +704,7 @@ const ExperienciaDetalhes = () => {
     fetchAlojamentos();
   }, []);
 
+  // Carregar dados da experiência
   useEffect(() => {
     const fetchDados = async () => {
       try {
@@ -738,6 +747,13 @@ const ExperienciaDetalhes = () => {
     };
     fetchDados();
   }, [slug, t]);
+
+  // Tracking - Só inicializar quando a experiência estiver carregada
+  const tracking = useExperienciaTracking(experiencia?.id || null, usuarioLogado?.id || null);
+  
+  const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
+  const registrarCliqueGuia = tracking?.registrarCliqueGuia || (() => {});
+  const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
 
   const periodosUI = [
     { label: t('manha') || 'Manhã', range: [8, 11], timeRange: '08:00 - 11:00', temHorarios: true },
@@ -799,6 +815,9 @@ const ExperienciaDetalhes = () => {
   const statusVagas = verificarDisponibilidade();
 
   const handleReservarAgora = () => {
+    // Registrar clique em reserva
+    registrarCliqueReserva();
+    
     if (!usuarioLogado) {
       alert(t('login_necessario') || "Por favor, faça login com o Google primeiro.");
       return;
@@ -995,12 +1014,16 @@ const ExperienciaDetalhes = () => {
           </div>
 
           <div className="space-y-4">
-            <GuiaInfo guia={experiencia.guia} />
+            <GuiaInfo 
+              guia={experiencia.guia} 
+              onContactClick={registrarCliqueGuia}
+            />
             <MapLocationExperiencia 
               localizacao={experiencia.localizacao}
               ilha={experiencia.ilha}
               pontosProximos={experiencia.pontos_proximos}
               alojamentosData={alojamentos}
+              onMapClick={registrarVisualizacaoMapa}
             />
           </div>
         </div>

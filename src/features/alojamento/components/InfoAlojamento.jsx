@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
+import useAlojamentoTracking from "../hooks/useAlojamentoTracking";
 
 // Token do Mapbox
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -91,7 +92,7 @@ const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
   );
 };
 
-const HostInfo = ({ proprietario }) => {
+const HostInfo = ({ proprietario, onContactClick }) => {
   const { t } = useTranslation();
   
   if (!proprietario) return null;
@@ -120,14 +121,17 @@ const HostInfo = ({ proprietario }) => {
           </p>
         </div>
       </div>
-      <button className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors">
+      <button 
+        onClick={onContactClick}
+        className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors"
+      >
         {t('contactar_anfitriao') || 'Contactar anfitrião'}
       </button>
     </div>
   );
 };
 
-const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitude, alojamentoId }) => {
+const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitude, alojamentoId, onMapClick }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const mapContainer = useRef(null);
@@ -140,6 +144,8 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
   const cidadeNome = textoLocalizacao.split(',').shift();
   
   const abrirPaginaMapa = () => {
+    if (onMapClick) onMapClick();
+    
     if (alojamentoId) {
       navigate(`/mapa?foco=${alojamentoId}`);
     } else {
@@ -258,7 +264,10 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
         </div>
       ) : (
         <div 
-          onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(textoLocalizacao)}`, '_blank')}
+          onClick={() => {
+            if (onMapClick) onMapClick();
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(textoLocalizacao)}`, '_blank');
+          }}
           className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100 cursor-pointer group"
         >
           <img 
@@ -658,7 +667,6 @@ export const InfoAlojamento = () => {
   const [error, setError] = useState(null);
   const [images, setImages] = useState([]);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
-
   const [tiposQuarto, setTiposQuarto] = useState([]);
   const [quartoSelecionado, setQuartoSelecionado] = useState(null);
   const [precoNoiteDinamico, setPrecoNoiteDinamico] = useState(0);
@@ -731,12 +739,21 @@ export const InfoAlojamento = () => {
     fetchAlojamento();
   }, [slug, t]);
 
+  // Tracking - Só inicializar quando o alojamento estiver carregado
+  const tracking = useAlojamentoTracking(alojamento?.id || null, usuarioLogado?.id || null);
+  
+  const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
+  const registrarCliqueContato = tracking?.registrarCliqueContato || (() => {});
+  const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
+
   const handleSelecaoQuarto = (idQuarto, titulo, novoPreco) => {
     setQuartoSelecionado(idQuarto);
     setPrecoNoiteDinamico(novoPreco);
   };
 
   const handleContinueToCheckout = (reservaInfo) => {
+    registrarCliqueReserva();
+    
     const userLogado = localStorage.getItem('user');
     
     if (!userLogado) {
@@ -914,7 +931,10 @@ export const InfoAlojamento = () => {
           </div>
 
           <div className="space-y-4">
-            <HostInfo proprietario={alojamento.proprietario} />
+            <HostInfo 
+              proprietario={alojamento.proprietario} 
+              onContactClick={registrarCliqueContato}
+            />
             <MapLocation 
               localizacao={alojamento.localizacao}
               pontosProximos={alojamento.pontos_proximos}
@@ -922,6 +942,7 @@ export const InfoAlojamento = () => {
               latitude={alojamento.latitude}
               longitude={alojamento.longitude}
               alojamentoId={alojamento.id}
+              onMapClick={registrarVisualizacaoMapa}
             />
           </div>
         </div>

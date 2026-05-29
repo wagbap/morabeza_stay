@@ -4,6 +4,7 @@
 export { default as AlojamentoRouter } from './AlojamentoRouter';
 export { default as FluxoRegisto } from './FluxoRegisto';
 export { default as PropMenu } from './PropMenu';
+export { default as SideBar } from './SideBar';
 
 // FASE 1 - Informações Básicas
 export { default as InformacoesBasicas } from './InformacoesBasicas';

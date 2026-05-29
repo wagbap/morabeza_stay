@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import AvaliacoesSeccaoCarro from './AvaliacoesSeccaoCarro';
+import useCarroTracking from "../hooks/useCarroTracking";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -231,7 +232,7 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   );
 };
 
-const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) => {
+const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onMapClick }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const mapContainer = useRef(null);
@@ -245,6 +246,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
   const cidadeNome = localizacao || ilha || (t('cabo_verde') || 'Cabo Verde');
   
   const abrirPaginaMapa = () => {
+    if (onMapClick) onMapClick();
     if (carroId) {
       navigate(`/mapa-carros?foco=${carroId}`);
     } else {
@@ -253,6 +255,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId }) =
   };
   
   const abrirMapaInterativo = () => {
+    if (onMapClick) onMapClick();
     setIsMapaInterativoOpen(true);
   };
   
@@ -687,6 +690,12 @@ export const CarrosDetalhes = () => {
   const [images, setImages] = useState([]);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
 
+  // Inicializar tracking
+  const tracking = useCarroTracking(carro?.id, usuarioLogado?.id);
+  
+  const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
+  const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
+
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -751,6 +760,9 @@ export const CarrosDetalhes = () => {
   }, [slug, t]);
 
   const handleContinueToCheckout = (reservaInfo) => {
+    // Registrar clique em reserva
+    registrarCliqueReserva();
+    
     const userLogado = localStorage.getItem('user');
     
     if (!userLogado) {
@@ -932,6 +944,7 @@ export const CarrosDetalhes = () => {
               latitude={carro.latitude}
               longitude={carro.longitude}
               carroId={carro.id}
+              onMapClick={registrarVisualizacaoMapa}
             />
           </div>
         </div>

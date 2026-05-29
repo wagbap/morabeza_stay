@@ -25,15 +25,19 @@ import CheckoutAlojamento from './features/alojamento/components/CheckoutAlojame
 import CheckoutCarro from './features/carros/components/CheckoutCarro';
 import Pagamento from './pages/Pagamento';
 import Confirmacao from './pages/Confirmacao';
-// App.js ou router
-
 import Favoritos from './pages/Favoritos';
 import InfoAlojamento from './features/alojamento/components/InfoAlojamento';
 import Login from './pages/Login';
 
+// Routers Específicos
 import { AlojamentoRouter } from './components/AlojamentoRegisto';
+import { ExperienciaRouter } from './components/ExperienciaRegisto';
+import { CarroRouter } from './components/CarroRegisto';
 
-// Layout que inclui a Navbar e o Footer para as páginas principais
+// --- IMPORTA O ROUTER DE GESTÃO ---
+import GestaoRouter from './components/gest/GestaoRouter';
+
+// Layout Principal (Clientes)
 const LayoutPrincipal = ({ children }) => (
   <div className="min-h-screen bg-[#f8f9fc] flex flex-col">
     <Navbar />
@@ -49,11 +53,15 @@ function App() {
     <HelmetProvider>
       <Router>
         <Routes>
+          {/* ROTAS DE REGISTO (Anúncios) */}
           <Route path="/alojamento-registro/*" element={<AlojamentoRouter />} />
-          {/* 1. ROTA DE LOGIN: Totalmente isolada (Sem Navbar e Sem Footer) */}
+          <Route path="/experiencia-registo/*" element={<ExperienciaRouter />} />
+          <Route path="/carro-registo/*" element={<CarroRouter />} />
+          
+          {/* 1. ROTA DE LOGIN: Totalmente isolada */}
           <Route path="/login" element={<Login />} />
 
-          {/* 2. ROTAS COM LAYOUT COMPLETO (Com Navbar e Footer) */}
+          {/* 2. ROTAS COM LAYOUT COMPLETO (Clientes) */}
           <Route path="/" element={
             <LayoutPrincipal>
               <Home 
@@ -68,7 +76,6 @@ function App() {
           <Route path="/alojamentos" element={<LayoutPrincipal><Alojamentos /></LayoutPrincipal>} />
           <Route path="/alojamentos/:slug" element={<LayoutPrincipal><InfoAlojamento /></LayoutPrincipal>} />
           <Route path="/alojamento/:slug" element={<LayoutPrincipal><InfoAlojamento /></LayoutPrincipal>} />
-
 
           <Route path="/carros" element={<LayoutPrincipal><Carros /></LayoutPrincipal>} />
           <Route path="/carros/:slug" element={<LayoutPrincipal><CarrosDetalhes /></LayoutPrincipal>} />
@@ -86,6 +93,9 @@ function App() {
           <Route path="/pagamento" element={<LayoutPrincipal><Pagamento /></LayoutPrincipal>} />
           <Route path="/confirmacao" element={<LayoutPrincipal><Confirmacao /></LayoutPrincipal>} />
           <Route path="/favoritos" element={<LayoutPrincipal><Favoritos /></LayoutPrincipal>} />
+
+          {/* 3. ROTAS DE GESTÃO DO ANFITRIÃO (Delega tudo para o GestaoRouter) */}
+          <Route path="/gest/*" element={<GestaoRouter />} />
 
         </Routes>
       </Router>
