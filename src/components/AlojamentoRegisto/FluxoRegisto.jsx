@@ -1,14 +1,14 @@
 // src/components/AlojamentoRegisto/FluxoRegisto.jsx
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, HelpCircle, User, ChevronRight, Search, MapPin } from 'lucide-react';
+import { ArrowLeft, Check, HelpCircle, User, ChevronRight, Search, MapPin, Loader } from 'lucide-react';
 import { Map, Marker, NavigationControl } from 'react-map-gl';
 import PropMenu from './PropMenu';
 import Comodidades from './Comodidades';
 import InformacoesBasicas from './InformacoesBasicas';
 import Regras from './Regras';
 import ImagensUpload from './ImagensUpload';
+import RegistarLocalizacao from './RegistarLocalizacao'; // Importe o componente de localização
 import { salvarFluxoRegisto } from '../../services/apiService';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -52,16 +52,16 @@ const FluxoRegisto = () => {
     casas_banho: 1
   });
   
-  // FASE 2 - Localização
-  const [pesquisa, setPesquisa] = useState('');
-  const [mostrarDropdown, setMostrarDropdown] = useState(false);
-  const [numApartamento, setNumApartamento] = useState('');
-  const [pais, setPais] = useState('Cabo Verde');
-  const [cidade, setCidade] = useState('');
-  const [codigoPostal, setCodigoPostal] = useState('');
-  const [atualizarAoMover, setAtualizarAoMover] = useState(true);
-  const [moradaCompleta, setMoradaCompleta] = useState('');
-  const [viewState, setViewState] = useState({ latitude: 16.8884, longitude: -24.9896, zoom: 13 });
+  // FASE 2 - Localização (usando o novo componente)
+  const [localizacaoDados, setLocalizacaoDados] = useState({
+    endereco: '',
+    cidade: '',
+    ilha: '',
+    codigo_postal: '',
+    num_apartamento: '',
+    morada_completa: '',
+    coordenadas: { lat: null, lng: null }
+  });
   
   // FASE 3 - Comodidades
   const [comodidadesSelecionadas, setComodidadesSelecionadas] = useState([]);
@@ -110,6 +110,26 @@ const FluxoRegisto = () => {
     console.log('✅ Regras IDs salvas:', ids);
   }, []);
   
+  // Handler para localização
+  const handleLocalizacaoChange = useCallback((dados) => {
+    console.log('📍 Localização atualizada:', dados);
+    setLocalizacaoDados(dados);
+    localStorage.setItem('propertyLocalizacao', JSON.stringify(dados));
+    
+    // Também salvar no formato antigo para compatibilidade
+    const dadosMorada = {
+      morada: dados.endereco,
+      apartamento: dados.num_apartamento,
+      pais: 'Cabo Verde',
+      cidade: dados.cidade,
+      ilha: dados.ilha,
+      codigoPostal: dados.codigo_postal,
+      moradaCompleta: dados.morada_completa,
+      coordenadas: dados.coordenadas
+    };
+    localStorage.setItem('propertyAddress', JSON.stringify(dadosMorada));
+  }, []);
+  
   // ==================== CARREGAR DADOS DO LOCALSTORAGE ====================
   
   useEffect(() => {
@@ -124,21 +144,24 @@ const FluxoRegisto = () => {
         }
       }
       
-      // Localização
-      const savedAddress = localStorage.getItem('propertyAddress');
-      if (savedAddress) {
-        const address = JSON.parse(savedAddress);
-        setPesquisa(address.morada || '');
-        setNumApartamento(address.apartamento || '');
-        setPais(address.pais || 'Cabo Verde');
-        setCidade(address.cidade || '');
-        setCodigoPostal(address.codigoPostal || '');
-        setMoradaCompleta(address.moradaCompleta || '');
-        if (address.coordenadas) {
-          setViewState({ 
-            latitude: address.coordenadas.lat, 
-            longitude: address.coordenadas.lng, 
-            zoom: 16 
+      // Localização (novo formato)
+      const savedLocalizacao = localStorage.getItem('propertyLocalizacao');
+      if (savedLocalizacao) {
+        const parsed = JSON.parse(savedLocalizacao);
+        setLocalizacaoDados(parsed);
+      } else {
+        // Tentar carregar do formato antigo
+        const savedAddress = localStorage.getItem('propertyAddress');
+        if (savedAddress) {
+          const address = JSON.parse(savedAddress);
+          setLocalizacaoDados({
+            endereco: address.morada || '',
+            cidade: address.cidade || '',
+            ilha: address.ilha || '',
+            codigo_postal: address.codigoPostal || '',
+            num_apartamento: address.apartamento || '',
+            morada_completa: address.moradaCompleta || '',
+            coordenadas: address.coordenadas || { lat: null, lng: null }
           });
         }
       }
@@ -214,30 +237,20 @@ const FluxoRegisto = () => {
     return true;
   };
   
-  const handleSaveAddress = () => {
-    if (!pesquisa.trim()) {
-      alert('Por favor, insira a morada');
+  const handleSaveLocalizacao = () => {
+    if (!localizacaoDados.endereco?.trim()) {
+      alert('Por favor, insira o endereço');
       return false;
     }
-    if (!cidade.trim()) {
+    if (!localizacaoDados.cidade?.trim()) {
       alert('Por favor, insira a cidade');
       return false;
     }
+    if (!localizacaoDados.ilha?.trim()) {
+      alert('Por favor, selecione a ilha');
+      return false;
+    }
     
-    const moradaCompletaStr = `${pesquisa}${numApartamento ? `, ${numApartamento}` : ''}, ${cidade}, ${codigoPostal}, ${pais}`;
-    setMoradaCompleta(moradaCompletaStr);
-    
-    const dadosMorada = {
-      morada: pesquisa,
-      apartamento: numApartamento,
-      pais: pais,
-      cidade: cidade,
-      codigoPostal: codigoPostal,
-      moradaCompleta: moradaCompletaStr,
-      coordenadas: { lat: viewState.latitude, lng: viewState.longitude }
-    };
-    
-    localStorage.setItem('propertyAddress', JSON.stringify(dadosMorada));
     setFase(3);
     return true;
   };
@@ -249,7 +262,6 @@ const FluxoRegisto = () => {
   };
   
   const handleSaveRegras = () => {
-    // As regras já estão salvas via handleRegrasChange
     setFase(5);
     return true;
   };
@@ -282,7 +294,7 @@ const FluxoRegisto = () => {
       
       console.log('📤 === DADOS PARA API ===');
       console.log('📤 Informações:', informacoesBasicas);
-      console.log('📤 Morada:', { pesquisa, cidade, pais });
+      console.log('📤 Localização:', localizacaoDados);
       console.log('📤 Comodidades IDs:', comodidadesIds);
       console.log('📤 Regras IDs:', regrasIds);
       console.log('📤 Regras adicionais:', regrasAdicionais);
@@ -304,21 +316,22 @@ const FluxoRegisto = () => {
         quartos: parseInt(informacoesBasicas.quartos) || 1,
         camas: parseInt(informacoesBasicas.camas) || 1,
         casas_banho: parseInt(informacoesBasicas.casas_banho) || 1,
-        localizacao: cidade,
-        latitude: viewState.latitude,
-        longitude: viewState.longitude,
+        localizacao: localizacaoDados.cidade,
+        latitude: localizacaoDados.coordenadas?.lat || 16.8884,
+        longitude: localizacaoDados.coordenadas?.lng || -24.9896,
         comodidades: comodidadesIds,
         regras_ids: regrasIds,
         regras_adicionais: regrasAdicionais,
         morada: {
-          endereco: pesquisa,
-          apartamento: numApartamento,
-          cidade: cidade,
-          codigo_postal: codigoPostal,
-          pais: pais,
-          morada_completa: moradaCompleta,
-          lat: viewState.latitude,
-          lng: viewState.longitude
+          endereco: localizacaoDados.endereco,
+          apartamento: localizacaoDados.num_apartamento,
+          cidade: localizacaoDados.cidade,
+          ilha: localizacaoDados.ilha,
+          codigo_postal: localizacaoDados.codigo_postal,
+          pais: 'Cabo Verde',
+          morada_completa: localizacaoDados.morada_completa,
+          lat: localizacaoDados.coordenadas?.lat || 16.8884,
+          lng: localizacaoDados.coordenadas?.lng || -24.9896
         },
         quartos: quartosFormatados,
         imagens: fotos
@@ -338,6 +351,7 @@ const FluxoRegisto = () => {
         // Limpar localStorage após sucesso
         localStorage.removeItem('propertyInformacoesBasicas');
         localStorage.removeItem('propertyAddress');
+        localStorage.removeItem('propertyLocalizacao');
         localStorage.removeItem('propertyComodidades');
         localStorage.removeItem('propertyRegrasSelecionadas');
         localStorage.removeItem('propertyRegrasAdicionais');
@@ -366,32 +380,6 @@ const FluxoRegisto = () => {
       navigate(-1);
     }
   };
-  
-  // ==================== FUNÇÕES DE UI ====================
-  
-  const handleSelecionarSugestao = (item) => {
-    setPesquisa(item.titulo);
-    setMostrarDropdown(false);
-    setCidade(item.cidade);
-    setCodigoPostal(item.codigoPostal);
-    setPais(item.pais);
-    setMoradaCompleta(`${item.titulo}, ${item.subtitulo}`);
-    setViewState({ latitude: item.lat, longitude: item.lng, zoom: 16 });
-  };
-  
-  const handleDragMarker = (event) => {
-    if (!atualizarAoMover) return;
-    const { lng, lat } = event.lngLat;
-    setViewState(prev => ({ ...prev, latitude: lat, longitude: lng }));
-  };
-  
-  const listaFiltrada = useMemo(() => {
-    if (!pesquisa?.trim()) return [];
-    return BASE_ENDERECOS_CV.filter(item =>
-      item.titulo.toLowerCase().includes(pesquisa.toLowerCase()) ||
-      item.subtitulo.toLowerCase().includes(pesquisa.toLowerCase())
-    );
-  }, [pesquisa]);
   
   const renderProgressBar = () => {
     const fasesLista = ['Informações', 'Localização', 'Comodidades', 'Regras', 'Fotos'];
@@ -458,120 +446,34 @@ const FluxoRegisto = () => {
   );
   
   const renderFaseLocalizacao = () => (
-    <div className="w-screen h-screen relative bg-slate-100 overflow-hidden">
-      <Map
-        {...viewState}
-        onMove={evt => setViewState(evt.viewState)}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
-        mapboxAccessToken={MAPBOX_TOKEN}
-        style={{ width: '100%', height: '100%' }}
-      >
-        <NavigationControl position="bottom-right" />
-        <Marker 
-          latitude={viewState.latitude} 
-          longitude={viewState.longitude} 
-          draggable={true} 
-          onDragEnd={handleDragMarker} 
-          anchor="bottom"
-        >
-          <div className="cursor-pointer flex flex-col items-center">
-            <div className="w-[26px] h-[26px] bg-[#d93025] rounded-full border-2 border-white shadow-md flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-            </div>
-            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-[#d93025] -mt-[2px]"></div>
-          </div>
-        </Marker>
-      </Map>
-      
-      <div className="absolute top-[80px] left-4 right-4 md:left-auto md:right-auto md:w-[400px] bg-white rounded-xl shadow-xl z-10 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 bg-gray-50">
-          <div className="flex items-center gap-2">
-            <MapPin size={18} className="text-[#006ce4]" />
-            <h3 className="font-semibold text-gray-900">Localização da propriedade</h3>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">Arraste o marcador no mapa para ajustar a localização exata</p>
-        </div>
-        
-        <div className="p-4">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={pesquisa}
-              onChange={(e) => { setPesquisa(e.target.value); setMostrarDropdown(true); }}
-              onFocus={() => setMostrarDropdown(true)}
-              placeholder="Digite a morada do seu alojamento..."
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4] text-sm"
-            />
-            {mostrarDropdown && listaFiltrada.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
-                {listaFiltrada.map((item) => (
-                  <div 
-                    key={item.id} 
-                    onClick={() => handleSelecionarSugestao(item)} 
-                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
-                  >
-                    <div className="font-medium text-sm text-gray-900">{item.titulo}</div>
-                    <div className="text-xs text-gray-500">{item.subtitulo}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-2xl mx-auto px-4">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold mb-4">📍 Localização do Alojamento</h2>
+          <p className="text-gray-600 mb-6">Onde fica a sua propriedade?</p>
           
-          <input
-            type="text"
-            value={numApartamento}
-            onChange={(e) => setNumApartamento(e.target.value)}
-            placeholder="Número do apartamento / andar (opcional)"
-            className="w-full mt-3 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4] text-sm"
+          <RegistarLocalizacao
+            dados={localizacaoDados}
+            onChange={handleLocalizacaoChange}
+            alojamentoId={alojamentoId}
+            readOnly={false}
           />
           
-          <div className="grid grid-cols-2 gap-3 mt-3">
-            <input
-              type="text"
-              value={cidade}
-              onChange={(e) => setCidade(e.target.value)}
-              placeholder="Cidade *"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4] text-sm"
-            />
-            <input
-              type="text"
-              value={codigoPostal}
-              onChange={(e) => setCodigoPostal(e.target.value)}
-              placeholder="Código Postal"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4] text-sm"
-            />
-          </div>
-          
-          <input
-            type="text"
-            value={pais}
-            onChange={(e) => setPais(e.target.value)}
-            placeholder="País"
-            className="w-full mt-3 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4] text-sm bg-gray-50"
-            readOnly
-          />
-          
-          <div className="flex gap-3 mt-4">
+          <div className="flex justify-between gap-4 mt-6">
             <button 
               onClick={handleBack} 
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
+              className="px-6 py-2 border rounded-lg hover:bg-gray-50"
             >
-              <ArrowLeft size={18} /> Voltar
+              Voltar
             </button>
             <button 
-              onClick={handleSaveAddress} 
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#006ce4] text-white rounded-lg font-semibold hover:bg-[#0053b3]"
+              onClick={handleSaveLocalizacao}
+              className="px-6 py-2 bg-[#006ce4] text-white rounded-lg hover:bg-[#0053b3]"
             >
-              Continuar <ChevronRight size={18} />
+              Continuar
             </button>
           </div>
         </div>
-      </div>
-      
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-2 z-10">
-        <MapPin size={12} /> Arraste o marcador para ajustar a localização exata
       </div>
     </div>
   );
@@ -690,59 +592,35 @@ const FluxoRegisto = () => {
   
   return (
     <>
-      {/* Header para todas as fases exceto fase 2 (localização) */}
-      {fase !== 2 && (
-        <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
-          <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
-          <div className="flex items-center gap-6 text-sm">
-            <div className="text-right">
-              <PropMenu 
-                nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
-                onEditName={() => setFase(1)} 
-                onEditLocation={() => setFase(2)} 
-                onEditComodidades={() => setFase(3)} 
-                onEditRegras={() => setFase(4)} 
-              />
-              <div className="text-[10px] opacity-80">
-                Passo {fase} de 5
-              </div>
+      {/* Header */}
+      <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
+        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
+        <div className="flex items-center gap-6 text-sm">
+          <div className="text-right">
+            <PropMenu 
+              nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
+              onEditName={() => setFase(1)} 
+              onEditLocation={() => setFase(2)} 
+              onEditComodidades={() => setFase(3)} 
+              onEditRegras={() => setFase(4)} 
+            />
+            <div className="text-[10px] opacity-80">
+              Passo {fase} de 5
             </div>
-            <div className="w-[1px] h-8 bg-blue-900"></div>
-            <div className="cursor-pointer hover:underline">PT</div>
-            <div className="flex items-center gap-2 cursor-pointer hover:underline">
-              <span>Ajuda</span> <HelpCircle size={18} />
-            </div>
-            <User size={24} className="cursor-pointer" />
           </div>
-        </header>
-      )}
-      
-      {/* Header especial para fase 2 (localização) */}
-      {fase === 2 && (
-        <header className="absolute top-0 left-0 right-0 bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm z-20">
-          <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm">
-              <PropMenu 
-                nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
-                onEditName={() => setFase(1)} 
-                onEditLocation={() => setFase(2)} 
-                onEditComodidades={() => setFase(3)} 
-                onEditRegras={() => setFase(4)} 
-              />
-            </div>
-            <div className="w-[1px] h-6 bg-blue-900"></div>
-            <User size={22} className="cursor-pointer" />
+          <div className="w-[1px] h-8 bg-blue-900"></div>
+          <div className="cursor-pointer hover:underline">PT</div>
+          <div className="flex items-center gap-2 cursor-pointer hover:underline">
+            <span>Ajuda</span> <HelpCircle size={18} />
           </div>
-        </header>
-      )}
-      
-      {/* Barra de progresso para fases 1, 3, 4, 5 */}
-      {fase !== 2 && (
-        <div className="max-w-4xl mx-auto px-4 pt-4">
-          {renderProgressBar()}
+          <User size={24} className="cursor-pointer" />
         </div>
-      )}
+      </header>
+      
+      {/* Barra de progresso */}
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        {renderProgressBar()}
+      </div>
       
       {/* Renderização das fases */}
       {fase === 1 && renderFaseInformacoes()}

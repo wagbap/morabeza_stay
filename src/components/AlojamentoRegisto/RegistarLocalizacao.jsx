@@ -1,387 +1,427 @@
-// src/components/AlojamentoRegisto/RegistarLocalizacao.jsx
+// src/components/AlojamentoRegisto/Localizacao.jsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, X, HelpCircle, User } from 'lucide-react';
-import { Map, Marker, NavigationControl } from 'react-map-gl';
-import PropMenu from './PropMenu';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { MapPin, Search, Home, AlertCircle, Loader, Navigation, Building } from 'lucide-react';
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const API_URL = 'https://welovepalop.com';
 
-const BASE_ENDERECOS_CV = [
-  { id: 'cv-1', titulo: 'Avenida Marginal, Mindelo', subtitulo: 'Concelho de São Vicente, 2110, Cabo Verde', cidade: 'Mindelo', codigoPostal: '2110', pais: 'Cabo Verde', lat: 16.8884, lng: -24.9896 },
-  { id: 'cv-2', titulo: 'Praça Nova (Praça Amílcar Cabral)', subtitulo: 'Mindelo, Ilha de São Vicente, Cabo Verde', cidade: 'Mindelo', codigoPostal: '2110', pais: 'Cabo Verde', lat: 16.8893, lng: -24.9875 },
-  { id: 'cv-3', titulo: 'Avenida Amílcar Cabral, Praia', subtitulo: 'Platô, Concelho da Praia, 7110, Cabo Verde', cidade: 'Praia', codigoPostal: '7110', pais: 'Cabo Verde', lat: 14.9212, lng: -23.5084 },
-  { id: 'cv-4', titulo: 'Quebra Canela, Praia', subtitulo: 'Ilha de Santiago, Cabo Verde', cidade: 'Praia', codigoPostal: '7110', pais: 'Cabo Verde', lat: 14.9042, lng: -23.5218 },
-  { id: 'cv-5', titulo: 'Rua Pedonal de Santa Maria', subtitulo: 'Santa Maria, Ilha do Sal, 4111, Cabo Verde', cidade: 'Santa Maria', codigoPostal: '4111', pais: 'Cabo Verde', lat: 16.5975, lng: -22.9051 },
-  { id: 'cv-6', titulo: 'Largo de Santana, Espargos', subtitulo: 'Espargos, Ilha do Sal, Cabo Verde', cidade: 'Espargos', codigoPostal: '4110', pais: 'Cabo Verde', lat: 16.7554, lng: -22.9439 },
-  { id: 'cv-7', titulo: 'Praça Sal Rei, Boa Vista', subtitulo: 'Sal Rei, Ilha da Boa Vista, 5110, Cabo Verde', cidade: 'Sal Rei', codigoPostal: '5110', pais: 'Cabo Verde', lat: 16.1792, lng: -22.9158 },
-  { id: 'cv-8', titulo: 'Rua Direita, Cidade Velha', subtitulo: 'Ribeira Grande de Santiago, Ilha de Santiago, Cabo Verde', cidade: 'Cidade Velha', codigoPostal: '7120', pais: 'Cabo Verde', lat: 14.9157, lng: -23.6053 },
-  { id: 'cv-9', titulo: 'Tarrafal de Santiago (Praia Mar)', subtitulo: 'Concelho do Tarrafal, Ilha de Santiago, Cabo Verde', cidade: 'Tarrafal', codigoPostal: '7310', pais: 'Cabo Verde', lat: 15.2778, lng: -23.7512 },
-  { id: 'cv-10', titulo: 'São Filipe Centro', subtitulo: 'Ilha do Fogo, 8110, Cabo Verde', cidade: 'São Filipe', codigoPostal: '8110', pais: 'Cabo Verde', lat: 14.8961, lng: -24.4956 },
-  { id: 'cv-11', titulo: 'Ribeira Grande Centro', subtitulo: 'Ilha de Santo Antão, 1110, Cabo Verde', cidade: 'Ribeira Grande', codigoPostal: '1110', pais: 'Cabo Verde', lat: 17.1833, lng: -25.0667 },
-  { id: 'cv-12', titulo: 'Porto Novo (Zona do Porto)', subtitulo: 'Porto Novo, Ilha de Santo Antão, Cabo Verde', cidade: 'Porto Novo', codigoPostal: '1120', pais: 'Cabo Verde', lat: 17.0197, lng: -25.0642 }
+const ILHAS_CABO_VERDE = [
+  'Santiago', 'São Vicente', 'Sal', 'Boa Vista', 'Fogo', 
+  'Santo Antão', 'Maio', 'São Nicolau', 'Brava', 'Santa Luzia'
 ];
 
-const RegistarLocalizacao = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+const LOCALIZACOES_SUGESTAO = [
+  // Santiago
+  { nome: 'Platô - Praia Centro', cidade: 'Praia', ilha: 'Santiago', codigoPostal: '7110' },
+  { nome: 'Achada Santo António', cidade: 'Praia', ilha: 'Santiago', codigoPostal: '7110' },
+  { nome: 'Palmarejo', cidade: 'Praia', ilha: 'Santiago', codigoPostal: '7110' },
+  { nome: 'Quebra Canela', cidade: 'Praia', ilha: 'Santiago', codigoPostal: '7110' },
+  { nome: 'Tarrafal - Praia', cidade: 'Tarrafal', ilha: 'Santiago', codigoPostal: '7310' },
+  { nome: 'Cidade Velha - Centro Histórico', cidade: 'Cidade Velha', ilha: 'Santiago', codigoPostal: '7120' },
+  { nome: 'Assomada - Mercado', cidade: 'Assomada', ilha: 'Santiago', codigoPostal: '7310' },
   
-  const [propertyName, setPropertyName] = useState(location.state?.propertyName || '');
-  const [pesquisa, setPesquisa] = useState('');
-  const [mostrarDropdown, setMostrarDropdown] = useState(false);
-  const [mostrarAviso, setMostrarAviso] = useState(true);
-  const [numApartamento, setNumApartamento] = useState('');
-  const [pais, setPais] = useState('Cabo Verde');
+  // São Vicente
+  { nome: 'Avenida Marginal - Mindelo', cidade: 'Mindelo', ilha: 'São Vicente', codigoPostal: '2110' },
+  { nome: 'Praça Nova - Mindelo Centro', cidade: 'Mindelo', ilha: 'São Vicente', codigoPostal: '2110' },
+  { nome: 'Lazareto', cidade: 'Mindelo', ilha: 'São Vicente', codigoPostal: '2110' },
+  
+  // Sal
+  { nome: 'Santa Maria - Zona Turística', cidade: 'Santa Maria', ilha: 'Sal', codigoPostal: '4111' },
+  { nome: 'Rua Pedonal de Santa Maria', cidade: 'Santa Maria', ilha: 'Sal', codigoPostal: '4111' },
+  { nome: 'Espargos - Centro', cidade: 'Espargos', ilha: 'Sal', codigoPostal: '4110' },
+  
+  // Boa Vista
+  { nome: 'Sal Rei - Beira Mar', cidade: 'Sal Rei', ilha: 'Boa Vista', codigoPostal: '5110' },
+  { nome: 'Praia de Chaves', cidade: 'Sal Rei', ilha: 'Boa Vista', codigoPostal: '5110' },
+  
+  // Fogo
+  { nome: 'São Filipe - Centro', cidade: 'São Filipe', ilha: 'Fogo', codigoPostal: '8110' },
+  { nome: 'Chã das Caldeiras - Vulcão', cidade: 'Chã das Caldeiras', ilha: 'Fogo', codigoPostal: '8110' },
+  
+  // Santo Antão
+  { nome: 'Ribeira Grande - Vale', cidade: 'Ribeira Grande', ilha: 'Santo Antão', codigoPostal: '1110' },
+  { nome: 'Porto Novo - Cais', cidade: 'Porto Novo', ilha: 'Santo Antão', codigoPostal: '1120' },
+  { nome: 'Ponta do Sol - Mirante', cidade: 'Ponta do Sol', ilha: 'Santo Antão', codigoPostal: '1110' },
+  { nome: 'Paul - Vale', cidade: 'Paul', ilha: 'Santo Antão', codigoPostal: '1110' }
+];
+
+const LocalizacaoAlojamento = ({ dados = {}, onChange, readOnly = false, alojamentoId = null }) => {
+  const [busca, setBusca] = useState('');
   const [cidade, setCidade] = useState('');
+  const [ilha, setIlha] = useState('');
   const [codigoPostal, setCodigoPostal] = useState('');
-  const [atualizarAoMover, setAtualizarAoMover] = useState(true);
+  const [numApartamento, setNumApartamento] = useState('');
   const [moradaCompleta, setMoradaCompleta] = useState('');
-
-  const [viewState, setViewState] = useState({
-    latitude: 16.8884,
-    longitude: -24.9896,
-    zoom: 13,
-    pitch: 0,
-    bearing: 0
-  });
-
-  // 🔥 CARREGAR TODOS OS DADOS DO LOCALSTORAGE (incluindo cidade, código postal)
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [carregado, setCarregado] = useState(false);
+  const [coordenadas, setCoordenadas] = useState({ lat: null, lng: null });
+  
+  // CARREGAR DADOS DA API
   useEffect(() => {
-    console.log('📦 Carregando dados salvos do localStorage...');
-    
-    // Carregar nome da propriedade
-    const savedName = localStorage.getItem('propertyName');
-    if (savedName && !propertyName) {
-      setPropertyName(savedName);
-      console.log('✅ Nome carregado:', savedName);
-    }
-    
-    // Carregar endereço completo
-    const savedAddress = localStorage.getItem('propertyAddress');
-    if (savedAddress) {
+    const carregarLocalizacao = async () => {
+      if (!alojamentoId || carregado) return;
+      
+      setLoading(true);
       try {
-        const address = JSON.parse(savedAddress);
-        console.log('📦 Endereço salvo:', address);
+        console.log(`📍 Buscando localização para alojamento ID: ${alojamentoId}`);
         
-        setPesquisa(address.morada || address.endereco || '');
-        setNumApartamento(address.apartamento || address.num_apartamento || '');
-        setPais(address.pais || 'Cabo Verde');
-        setCidade(address.cidade || '');
-        setCodigoPostal(address.codigoPostal || address.codigo_postal || '');
-        setMoradaCompleta(address.moradaCompleta || address.endereco || '');
+        const response = await fetch(`${API_URL}/api/alojamento/buscar_localizacao.php?id=${alojamentoId}`);
+        const result = await response.json();
         
-        if (address.coordenadas) {
-          setViewState({
-            latitude: address.coordenadas.lat || 16.8884,
-            longitude: address.coordenadas.lng || -24.9896,
-            zoom: 16,
-            pitch: 0,
-            bearing: 0
-          });
-        }
+        console.log('📦 Resposta da API:', result);
         
-        console.log('✅ Dados carregados:', { cidade: address.cidade, codigoPostal: address.codigoPostal });
-      } catch (e) {
-        console.error('Erro ao carregar endereço:', e);
-      }
-    }
-    
-    // 🔥 TENTAR CARREGAR DA API SE TIVER ALOJAMENTO_ID
-    const alojamentoId = localStorage.getItem('propertyAlojamentoId');
-    if (alojamentoId) {
-      console.log(`🔄 Buscando localização da API para alojamento #${alojamentoId}...`);
-      fetch(`https://welovepalop.com/api/alojamento/buscar_localizacao.php?id=${alojamentoId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.data) {
-            console.log('📍 Localização da API:', data.data);
-            
-            // Atualizar campos com dados da API
-            if (data.data.endereco) {
-              setPesquisa(data.data.endereco.split(',')[0] || data.data.endereco);
-              setMoradaCompleta(data.data.endereco);
-            }
-            if (data.data.num_apartamento) setNumApartamento(data.data.num_apartamento);
-            if (data.data.coordenadas?.lat) {
-              setViewState(prev => ({
-                ...prev,
-                latitude: data.data.coordenadas.lat,
-                longitude: data.data.coordenadas.lng,
-                zoom: 16
-              }));
-            }
-            
-            // Tentar extrair cidade do endereço
-            if (data.data.endereco) {
-              const partes = data.data.endereco.split(',');
-              if (partes.length >= 2) {
-                const possivelCidade = partes[partes.length - 2]?.trim();
-                const cidadeEncontrada = BASE_ENDERECOS_CV.find(
-                  item => possivelCidade?.toLowerCase().includes(item.cidade.toLowerCase())
-                );
-                if (cidadeEncontrada) {
-                  setCidade(cidadeEncontrada.cidade);
-                  setCodigoPostal(cidadeEncontrada.codigoPostal);
-                  setPais(cidadeEncontrada.pais);
-                }
-              }
-            }
+        if (result.success && result.data) {
+          const enderecoValue = result.data.endereco || result.data.morada || '';
+          const cidadeValue = result.data.cidade || '';
+          const ilhaValue = result.data.ilha || '';
+          const codigoPostalValue = result.data.codigo_postal || result.data.codigoPostal || '';
+          const numApartamentoValue = result.data.num_apartamento || result.data.apartamento || '';
+          const moradaCompletaValue = result.data.morada_completa || result.data.moradaCompleta || '';
+          
+          setBusca(enderecoValue);
+          setCidade(cidadeValue);
+          setIlha(ilhaValue);
+          setCodigoPostal(codigoPostalValue);
+          setNumApartamento(numApartamentoValue);
+          setMoradaCompleta(moradaCompletaValue);
+          
+          if (result.data.latitude && result.data.longitude) {
+            setCoordenadas({ lat: result.data.latitude, lng: result.data.longitude });
           }
-        })
-        .catch(err => console.error('Erro ao buscar localização da API:', err));
-    }
-  }, []);
-
-  const listaFiltrada = useMemo(() => {
-    if (!pesquisa || pesquisa.trim() === '') return [];
-    return BASE_ENDERECOS_CV.filter(item =>
-      item.titulo.toLowerCase().includes(pesquisa.toLowerCase()) ||
-      item.subtitulo.toLowerCase().includes(pesquisa.toLowerCase())
-    );
-  }, [pesquisa]);
-
-  const handleSelecionarSugestao = (item) => {
-    console.log('📍 Selecionando sugestão:', item);
-    setPesquisa(item.titulo);
-    setMostrarDropdown(false);
-    setCidade(item.cidade);
-    setCodigoPostal(item.codigoPostal);
-    setPais(item.pais);
-    setMoradaCompleta(`${item.titulo}, ${item.subtitulo}`);
-    setViewState(prev => ({ ...prev, latitude: item.lat, longitude: item.lng, zoom: 16 }));
-  };
-
-  const handleDragMarker = (event) => {
-    if (!atualizarAoMover) return;
-    const { lng, lat } = event.lngLat;
-    setViewState(prev => ({ ...prev, latitude: lat, longitude: lng }));
-    
-    // 🔥 TENTAR ENCONTRAR ENDEREÇO PELAS COORDENADAS (reverse geocoding)
-    // Isso é opcional, mas pode ser útil
-    console.log(`📍 Marcador movido para: lat=${lat}, lng=${lng}`);
-  };
-
-  const handleEditName = () => {
-    navigate('/alojamento/nome', { state: { propertyName } });
-  };
-
-  const handleEditLocation = () => {
-    console.log('Editando localização');
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Validar campos obrigatórios
-    if (!pesquisa.trim()) {
-      alert('Por favor, insira a morada da propriedade');
-      return;
-    }
-    
-    if (!cidade.trim()) {
-      alert('Por favor, insira a cidade');
-      return;
-    }
-    
-    const dadosMorada = {
-      morada: pesquisa,
-      endereco: pesquisa,
-      apartamento: numApartamento,
-      num_apartamento: numApartamento,
-      pais: pais,
-      cidade: cidade,
-      codigoPostal: codigoPostal,
-      codigo_postal: codigoPostal,
-      moradaCompleta: `${pesquisa}${numApartamento ? `, ${numApartamento}` : ''}, ${cidade}, ${codigoPostal}, ${pais}`,
-      coordenadas: { 
-        lat: viewState.latitude, 
-        lng: viewState.longitude 
+          
+          onChange({
+            endereco: enderecoValue,
+            morada: enderecoValue,
+            cidade: cidadeValue,
+            ilha: ilhaValue,
+            codigo_postal: codigoPostalValue,
+            num_apartamento: numApartamentoValue,
+            morada_completa: moradaCompletaValue,
+            coordenadas: { lat: result.data.latitude, lng: result.data.longitude }
+          });
+          
+          setCarregado(true);
+        }
+      } catch (error) {
+        console.error('❌ Erro ao carregar localização:', error);
+      } finally {
+        setLoading(false);
       }
     };
     
-    console.log('💾 Salvando morada:', dadosMorada);
-    
-    localStorage.setItem('propertyAddress', JSON.stringify(dadosMorada));
-    localStorage.setItem('propertyName', propertyName);
-    
-    alert('✅ Morada salva com sucesso!');
-    navigate('/alojamento-registro/fluxo');
+    carregarLocalizacao();
+  }, [alojamentoId, onChange, carregado]);
+  
+  // Atualizar quando dados prop mudar
+  useEffect(() => {
+    if (dados && !carregado) {
+      if (dados.endereco) setBusca(dados.endereco);
+      else if (dados.morada) setBusca(dados.morada);
+      if (dados.cidade) setCidade(dados.cidade);
+      if (dados.ilha) setIlha(dados.ilha);
+      if (dados.codigo_postal || dados.codigoPostal) setCodigoPostal(dados.codigo_postal || dados.codigoPostal);
+      if (dados.num_apartamento || dados.apartamento) setNumApartamento(dados.num_apartamento || dados.apartamento);
+      if (dados.morada_completa || dados.moradaCompleta) setMoradaCompleta(dados.morada_completa || dados.moradaCompleta);
+      if (dados.coordenadas) setCoordenadas(dados.coordenadas);
+    }
+  }, [dados, carregado]);
+  
+  // Construir morada completa
+  const construirMoradaCompleta = (endereco, apartamento, cidadeLocal, codigoLocal, ilhaLocal) => {
+    const partes = [];
+    if (endereco) partes.push(endereco);
+    if (apartamento) partes.push(apartamento);
+    if (cidadeLocal) partes.push(cidadeLocal);
+    if (codigoLocal) partes.push(codigoLocal);
+    if (ilhaLocal) partes.push(ilhaLocal);
+    partes.push('Cabo Verde');
+    return partes.join(', ');
   };
-
-  const handleBack = () => {
-    navigate(-1);
+  
+  // HANDLERS
+  const handleEnderecoChange = (valor) => {
+    setBusca(valor);
+    const novaMoradaCompleta = construirMoradaCompleta(valor, numApartamento, cidade, codigoPostal, ilha);
+    setMoradaCompleta(novaMoradaCompleta);
+    
+    onChange({
+      endereco: valor,
+      morada: valor,
+      cidade: cidade,
+      ilha: ilha,
+      codigo_postal: codigoPostal,
+      num_apartamento: numApartamento,
+      morada_completa: novaMoradaCompleta,
+      coordenadas: coordenadas
+    });
   };
-
+  
+  const handleNumApartamentoChange = (valor) => {
+    setNumApartamento(valor);
+    const novaMoradaCompleta = construirMoradaCompleta(busca, valor, cidade, codigoPostal, ilha);
+    setMoradaCompleta(novaMoradaCompleta);
+    
+    onChange({
+      endereco: busca,
+      morada: busca,
+      cidade: cidade,
+      ilha: ilha,
+      codigo_postal: codigoPostal,
+      num_apartamento: valor,
+      morada_completa: novaMoradaCompleta,
+      coordenadas: coordenadas
+    });
+  };
+  
+  const handleCidadeChange = (valor) => {
+    setCidade(valor);
+    const novaMoradaCompleta = construirMoradaCompleta(busca, numApartamento, valor, codigoPostal, ilha);
+    setMoradaCompleta(novaMoradaCompleta);
+    
+    onChange({
+      endereco: busca,
+      morada: busca,
+      cidade: valor,
+      ilha: ilha,
+      codigo_postal: codigoPostal,
+      num_apartamento: numApartamento,
+      morada_completa: novaMoradaCompleta,
+      coordenadas: coordenadas
+    });
+  };
+  
+  const handleIlhaChange = (valor) => {
+    setIlha(valor);
+    const novaMoradaCompleta = construirMoradaCompleta(busca, numApartamento, cidade, codigoPostal, valor);
+    setMoradaCompleta(novaMoradaCompleta);
+    
+    onChange({
+      endereco: busca,
+      morada: busca,
+      cidade: cidade,
+      ilha: valor,
+      codigo_postal: codigoPostal,
+      num_apartamento: numApartamento,
+      morada_completa: novaMoradaCompleta,
+      coordenadas: coordenadas
+    });
+  };
+  
+  const handleCodigoPostalChange = (valor) => {
+    setCodigoPostal(valor);
+    const novaMoradaCompleta = construirMoradaCompleta(busca, numApartamento, cidade, valor, ilha);
+    setMoradaCompleta(novaMoradaCompleta);
+    
+    onChange({
+      endereco: busca,
+      morada: busca,
+      cidade: cidade,
+      ilha: ilha,
+      codigo_postal: valor,
+      num_apartamento: numApartamento,
+      morada_completa: novaMoradaCompleta,
+      coordenadas: coordenadas
+    });
+  };
+  
+  const handleSelecionarSugestao = (sugestao) => {
+    setBusca(sugestao.nome);
+    setCidade(sugestao.cidade);
+    setIlha(sugestao.ilha);
+    setCodigoPostal(sugestao.codigoPostal || '');
+    
+    const novaMoradaCompleta = construirMoradaCompleta(
+      sugestao.nome, 
+      numApartamento, 
+      sugestao.cidade, 
+      sugestao.codigoPostal || '', 
+      sugestao.ilha
+    );
+    setMoradaCompleta(novaMoradaCompleta);
+    
+    onChange({
+      endereco: sugestao.nome,
+      morada: sugestao.nome,
+      cidade: sugestao.cidade,
+      ilha: sugestao.ilha,
+      codigo_postal: sugestao.codigoPostal || '',
+      num_apartamento: numApartamento,
+      morada_completa: novaMoradaCompleta,
+      coordenadas: coordenadas
+    });
+    
+    setMostrarSugestoes(false);
+  };
+  
+  const sugestoesFiltradas = useMemo(() => {
+    if (!busca || typeof busca !== 'string' || busca.trim() === '') return LOCALIZACOES_SUGESTAO.slice(0, 10);
+    const termo = busca.toLowerCase().trim();
+    return LOCALIZACOES_SUGESTAO.filter(s => 
+      s.nome.toLowerCase().includes(termo) ||
+      s.cidade.toLowerCase().includes(termo) ||
+      s.ilha.toLowerCase().includes(termo)
+    ).slice(0, 10);
+  }, [busca]);
+  
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <Loader className="animate-spin mx-auto text-[#006ce4]" size={32} />
+        <p className="mt-2 text-sm text-gray-500">Carregando localização salva...</p>
+      </div>
+    );
+  }
+  
   return (
-    <div className="w-screen h-screen relative bg-slate-100 overflow-hidden font-sans antialiased text-gray-900">
-      
-      <header className="absolute top-0 left-0 right-0 bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm z-20">
-        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
-        <div className="flex items-center gap-6 text-sm">
-          <div className="text-right">
-            <PropMenu 
-              nomePropriedade={propertyName || 'Nova Propriedade'}
-              onEditName={handleEditName}
-              onEditLocation={handleEditLocation}
-            />
-            <div className="text-[10px] opacity-80">
-              {cidade ? `${cidade}, ${pais}` : (moradaCompleta || 'Morada não definida')}
-            </div>
-          </div>
-          <div className="w-[1px] h-8 bg-blue-900"></div>
-          <div className="cursor-pointer hover:underline">PT</div>
-          <div className="flex items-center gap-2 cursor-pointer hover:underline">
-            <span>Ajuda</span> <HelpCircle size={18} />
-          </div>
-          <User size={24} className="cursor-pointer" />
+    <div className="space-y-6">
+      {/* ENDEREÇO COMPLETO */}
+      <div className="relative">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Endereço Completo <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => handleEnderecoChange(e.target.value)}
+            onFocus={() => setMostrarSugestoes(true)}
+            onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
+            placeholder="Ex: Avenida Marginal, Praia de Santa Maria, Rua Pedonal..."
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
+            disabled={readOnly}
+          />
         </div>
-      </header>
-
-      <Map
-        {...viewState}
-        onMove={evt => setViewState(evt.viewState)}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
-        mapboxAccessToken={MAPBOX_TOKEN}
-        style={{ width: '100%', height: '100%' }}
-      >
-        <NavigationControl position="bottom-right" />
-        <Marker latitude={viewState.latitude} longitude={viewState.longitude} draggable={true} onDragEnd={handleDragMarker} anchor="bottom">
-          <div className="cursor-pointer flex flex-col items-center">
-            <div className="w-[26px] h-[26px] bg-[#d93025] rounded-full border-2 border-white shadow-md flex items-center justify-center">
-              <div className="w-2 h-2 bg-white rounded-full"></div>
-            </div>
-            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-[#d93025] -mt-[2px]"></div>
-          </div>
-        </Marker>
-      </Map>
-
-      <div className="absolute top-[80px] left-8 z-30 w-full max-w-[420px]">
-        <div className="bg-white rounded-sm shadow-[0_4px_24px_rgba(0,0,0,0.15)] p-6 border border-gray-200">
-          
-          <h2 className="text-[22px] font-bold text-gray-900 tracking-tight mb-5">
-            Onde é a sua propriedade?
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <label className="block text-xs font-bold text-gray-800 mb-1">Encontre a sua morada</label>
-              <input
-                type="text"
-                value={pesquisa}
-                onChange={(e) => { setPesquisa(e.target.value); setMostrarDropdown(true); }}
-                onFocus={() => setMostrarDropdown(true)}
-                placeholder="Ex: Avenida Marginal, Praia, Santa Maria..."
-                className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4] focus:ring-1 focus:ring-[#006ce4]"
-              />
-              {mostrarDropdown && pesquisa.trim().length > 0 && (
-                <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-300 shadow-xl rounded-sm z-50 max-h-60 overflow-y-auto">
-                  {listaFiltrada.length > 0 ? (
-                    listaFiltrada.map((item) => (
-                      <div key={item.id} onClick={() => handleSelecionarSugestao(item)} className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
-                        <h4 className="text-xs font-bold text-gray-900">{item.titulo}</h4>
-                        <p className="text-[11px] text-gray-500 mt-0.5">{item.subtitulo}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-3 text-xs text-gray-500 text-center">Nenhuma morada encontrada em Cabo Verde.</div>
-                  )}
+        <p className="text-xs text-gray-400 mt-1">Rua/Avenida, número, bairro</p>
+        
+        {mostrarSugestoes && sugestoesFiltradas.length > 0 && !readOnly && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            {sugestoesFiltradas.map((sug, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSelecionarSugestao(sug)}
+                className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 border-b border-gray-100 last:border-0"
+              >
+                <MapPin size={16} className="text-gray-400" />
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{sug.nome}</p>
+                  <p className="text-xs text-gray-500">{sug.cidade}, {sug.ilha}</p>
+                  {sug.codigoPostal && <p className="text-xs text-gray-400">CP: {sug.codigoPostal}</p>}
                 </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-800 mb-1">Número do apartamento ou do piso <span className="text-gray-500 font-normal">(opcional)</span></label>
-              <input 
-                type="text" 
-                value={numApartamento} 
-                onChange={(e) => setNumApartamento(e.target.value)} 
-                placeholder="Ex: 2º Esquerdo / Apt 12" 
-                className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" 
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-800 mb-1">País/região</label>
-              <select value={pais} onChange={(e) => setPais(e.target.value)} className="w-full px-3 py-2 border border-gray-400 rounded-sm bg-white text-sm focus:outline-none focus:border-[#006ce4]">
-                <option value="Cabo Verde">Cabo Verde</option>
-                <option value="Portugal">Portugal</option>
-                <option value="Angola">Angola</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-gray-800 mb-1">Cidade</label>
-                <input 
-                  type="text" 
-                  value={cidade} 
-                  onChange={(e) => setCidade(e.target.value)} 
-                  placeholder="Ex: Mindelo, Praia, Santa Maria..."
-                  className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" 
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-800 mb-1">Código postal</label>
-                <input 
-                  type="text" 
-                  value={codigoPostal} 
-                  onChange={(e) => setCodigoPostal(e.target.value)} 
-                  placeholder="Ex: 2110, 7110"
-                  className="w-full px-3 py-2 border border-gray-400 rounded-sm text-sm focus:outline-none focus:border-[#006ce4]" 
-                />
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2 pt-1">
-              <input 
-                id="sync-map" 
-                type="checkbox" 
-                checked={atualizarAoMover} 
-                onChange={(e) => setAtualizarAoMover(e.target.checked)} 
-                className="w-4 h-4 text-[#006ce4] border-gray-400 rounded mt-0.5" 
-              />
-              <label htmlFor="sync-map" className="text-xs text-gray-900 font-medium select-none cursor-pointer">
-                Atualize a morada ao mover o pin no mapa.
-              </label>
-            </div>
-
-            {mostrarAviso && (
-              <div className="bg-[#f5f5f5] border border-gray-300 rounded-sm p-3 relative flex gap-3 mt-2">
-                <div className="w-[18px] h-[18px] border border-gray-500 rounded-full flex items-center justify-center shrink-0 text-xs font-serif font-bold text-gray-600">i</div>
-                <p className="text-[11px] text-gray-700 leading-normal pr-5">
-                  A localização do pin vermelho está incorreta? Retire a seleção da opção acima e clique no mapa para mover o pin para o local certo.
-                </p>
-                <button 
-                  type="button" 
-                  onClick={() => setMostrarAviso(false)} 
-                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-2">
-              <button 
-                type="button" 
-                onClick={handleBack} 
-                className="p-2.5 border border-[#006ce4] text-[#006ce4] bg-white rounded-sm hover:bg-blue-50 transition-colors"
-              >
-                <ArrowLeft size={18} />
               </button>
-              <button 
-                type="submit" 
-                className="flex-1 bg-[#006ce4] text-white text-sm font-semibold py-2.5 px-4 rounded-sm hover:bg-[#0053b3] transition-colors"
-              >
-                Guardar e Continuar
-              </button>
-            </div>
-          </form>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      {/* NÚMERO DO APARTAMENTO/PISO */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Número do apartamento/piso <span className="text-gray-400 text-xs">(opcional)</span>
+        </label>
+        <div className="relative">
+          <Building size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={numApartamento}
+            onChange={(e) => handleNumApartamentoChange(e.target.value)}
+            placeholder="Ex: 2º Esquerdo, Apartamento 12, 3º Andar..."
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
+            disabled={readOnly}
+          />
+        </div>
+        <p className="text-xs text-gray-400 mt-1">Especifique o andar, apartamento ou unidade</p>
+      </div>
+      
+      {/* CIDADE */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Cidade <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <Home size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={cidade}
+            onChange={(e) => handleCidadeChange(e.target.value)}
+            placeholder="Ex: Santa Maria, Mindelo, Praia..."
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
+            disabled={readOnly}
+          />
+        </div>
+      </div>
+      
+      {/* ILHA */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Ilha <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <Navigation size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <select
+            value={ilha}
+            onChange={(e) => handleIlhaChange(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4] bg-white"
+            disabled={readOnly}
+          >
+            <option value="">Selecione a ilha</option>
+            {ILHAS_CABO_VERDE.map(i => (
+              <option key={i} value={i}>{i}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      
+      {/* CÓDIGO POSTAL */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Código Postal <span className="text-gray-400 text-xs">(opcional)</span>
+        </label>
+        <div className="relative">
+          <MapPin size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={codigoPostal}
+            onChange={(e) => handleCodigoPostalChange(e.target.value)}
+            placeholder="Ex: 7110, 2110, 4111..."
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
+            disabled={readOnly}
+          />
+        </div>
+        <p className="text-xs text-gray-400 mt-1">Código postal da localização</p>
+      </div>
+      
+      {/* MORADA COMPLETA (PREVIEW) */}
+      {moradaCompleta && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <p className="text-xs font-semibold text-gray-500 mb-1">📋 Morada Completa:</p>
+          <p className="text-sm text-gray-800">{moradaCompleta}, Cabo Verde</p>
+        </div>
+      )}
+      
+      {/* INDICADOR DE DADOS CARREGADOS */}
+      {carregado && !loading && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center">
+          <p className="text-xs text-green-700">✅ Localização carregada do seu alojamento</p>
+        </div>
+      )}
+      
+      {/* DICA */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="flex items-start gap-2">
+          <AlertCircle size={18} className="text-blue-600 shrink-0 mt-0.5" />
+          <div className="text-xs text-blue-700">
+            <p className="font-semibold mb-1">💡 Dicas para localização:</p>
+            <p>• Endereço completo ajuda hóspedes a chegar</p>
+            <p>• Número de apartamento evita confusões</p>
+            <p>• Cidade e ilha corretas facilitam a busca</p>
+            <p>• Código postal ajuda na navegação GPS</p>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default RegistarLocalizacao;
+export default LocalizacaoAlojamento;

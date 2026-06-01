@@ -1,6 +1,6 @@
 // src/components/gest/GestaoRouter.jsx
-import React, { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 
 import Navbar from '../Navbar'; 
@@ -10,13 +10,35 @@ import Calendario from './Calendario';
 import Reservas from './Reservas';
 import Mensagens from './Mensagens';
 import Financeiro from './Financeiro';
-import Avaliacoes from './Avaliacoes';
 import Relatorios from './Relatorios';
+import Historico from './Historico';
+import Avaliacoes from './Avaliacoes';
 import Configuracoes from './Configuracoes';
 
 const LayoutGestao = ({ children }) => {
-  // Estado para controlar a Sidebar no mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (!user) {
+      navigate('/login');
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [navigate]);
+  
+  if (isAuthenticated === null) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#f8f9fc]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Verificando acesso...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-[#f8f9fc] overflow-hidden relative">
@@ -69,9 +91,12 @@ const GestaoRouter = () => {
       <Route path="reservas" element={<LayoutGestao><Reservas /></LayoutGestao>} />
       <Route path="mensagens" element={<LayoutGestao><Mensagens /></LayoutGestao>} />
       <Route path="financeiro" element={<LayoutGestao><Financeiro /></LayoutGestao>} />
-      <Route path="avaliacoes" element={<LayoutGestao><Avaliacoes /></LayoutGestao>} />
+      <Route path="historico" element={<LayoutGestao><Historico /></LayoutGestao>} />
       <Route path="relatorios" element={<LayoutGestao><Relatorios /></LayoutGestao>} />
+      <Route path="avaliacoes" element={<LayoutGestao><Avaliacoes /></LayoutGestao>} />
       <Route path="configuracoes" element={<LayoutGestao><Configuracoes /></LayoutGestao>} />
+      <Route path="" element={<Navigate to="dashboard" replace />} />
+      <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>
   );
 };

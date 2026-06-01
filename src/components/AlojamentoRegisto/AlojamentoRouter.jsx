@@ -1,6 +1,6 @@
-// src/components/AlojamentoRegisto/AlojamentoRouter.jsx
+// src/components/AlojamentoRegisto/AlojamentoRouter.jsx (versão simplificada)
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from '../Navbar';
 import Footer from '../Footer';
 
@@ -12,24 +12,56 @@ import NomePropriedade from './NomePropriedade';
 import RegistarLocalizacao from './RegistarLocalizacao';
 import FluxoRegisto from './FluxoRegisto';
 
-// Layout para o fluxo de registo
-const LayoutRegisto = ({ children }) => (
-  <div className="min-h-screen bg-[#f8f9fc] flex flex-col">
-    <Navbar />
-    <div className="flex-grow">{children}</div>
-    <Footer />
-  </div>
-);
+// Layout com verificação de login
+const LayoutRegisto = ({ children }) => {
+  const user = localStorage.getItem('user');
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return (
+    <div className="min-h-screen bg-[#f8f9fc] flex flex-col">
+      <Navbar />
+      <div className="flex-grow">{children}</div>
+      <Footer />
+    </div>
+  );
+};
 
 const AlojamentoRouter = () => {
   return (
     <Routes>
-      <Route path="meus" element={<LayoutRegisto><MeusAlojamentos /></LayoutRegisto>} />
-      <Route path="editar/:id" element={<LayoutRegisto><EditarAlojamento /></LayoutRegisto>} />
-      <Route path="detalhes/:id" element={<LayoutRegisto><InfoAlojamento /></LayoutRegisto>} />
-      <Route path="nome" element={<LayoutRegisto><NomePropriedade /></LayoutRegisto>} />
-      <Route path="localizacao" element={<LayoutRegisto><RegistarLocalizacao /></LayoutRegisto>} />
-      <Route path="fluxo" element={<LayoutRegisto><FluxoRegisto /></LayoutRegisto>} />
+      <Route path="meus" element={
+        <LayoutRegisto>
+          <MeusAlojamentos />
+        </LayoutRegisto>
+      } />
+      <Route path="editar/:id" element={
+        <LayoutRegisto>
+          <EditarAlojamento />
+        </LayoutRegisto>
+      } />
+      <Route path="detalhes/:id" element={
+        <LayoutRegisto>
+          <InfoAlojamento />
+        </LayoutRegisto>
+      } />
+      <Route path="nome" element={
+        <LayoutRegisto>
+          <NomePropriedade />
+        </LayoutRegisto>
+      } />
+      <Route path="localizacao" element={
+        <LayoutRegisto>
+          <RegistarLocalizacao />
+        </LayoutRegisto>
+      } />
+      <Route path="fluxo" element={
+        <LayoutRegisto>
+          <FluxoRegisto />
+        </LayoutRegisto>
+      } />
     </Routes>
   );
 };

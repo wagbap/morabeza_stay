@@ -10,6 +10,7 @@ import {
   Star,
   BarChart3,
   Settings,
+  History ,
   LogOut,
   X // Importei o X para fechar no mobile
 } from "lucide-react";
@@ -76,14 +77,21 @@ export default function Sidebar({ isOpen, onClose }) {
             <span className="text-[15px] truncate">Financeiro</span>
           </Link>
 
-          <Link to="/gest/avaliacoes" onClick={onClose} className={linkClass('/gest/avaliacoes')}>
-            <Star className={iconClass('/gest/avaliacoes')} strokeWidth={2} />
-            <span className="text-[15px] truncate">Avaliações</span>
-          </Link>
-
           <Link to="/gest/relatorios" onClick={onClose} className={linkClass('/gest/relatorios')}>
             <BarChart3 className={iconClass('/gest/relatorios')} strokeWidth={2} />
             <span className="text-[15px] truncate">Relatórios</span>
+          </Link>
+        
+
+          <Link to="/gest/historico" onClick={onClose} className={linkClass('/gest/historico')}>
+            <History  className={iconClass('/gest/historico')} strokeWidth={2} />
+            <span className="text-[15px] truncate">Histórico</span>
+          </Link>
+
+
+            <Link to="/gest/avaliacoes" onClick={onClose} className={linkClass('/gest/avaliacoes')}>
+            <Star className={iconClass('/gest/avaliacoes')} strokeWidth={2} />
+            <span className="text-[15px] truncate">Avaliações</span>
           </Link>
 
           <Link to="/gest/configuracoes" onClick={onClose} className={linkClass('/gest/configuracoes')}>
