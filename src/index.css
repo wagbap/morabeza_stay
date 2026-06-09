@@ -75,3 +75,29 @@ nav {
   background: #3b82f6;
   border-radius: 4px;
 }
+
+/* Garantir que a sidebar tenha scroll suave */
+.admin-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.3) transparent;
+}
+
+.admin-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.admin-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.3);
+  border-radius: 4px;
+}
+
+/* Prevenir overflow no mobile */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+}

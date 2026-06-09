@@ -15,6 +15,8 @@ import {
 import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
 import useAlojamentoTracking from "../hooks/useAlojamentoTracking";
+// No topo do arquivo, adicione a importação
+import BotaoDenuncia from '../../../components/BotaoDenuncia';
 
 // Token do Mapbox
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -919,7 +921,19 @@ export const InfoAlojamento = () => {
               </div>
             </div>
           </div>
-        </div>
+            {/* Botão de Denúncia - Adicionar aqui */}
+    <div className="flex items-center gap-2">
+      <BotaoDenuncia 
+        tipo="alojamento"
+        itemId={alojamento.id}
+        itemTitulo={alojamento.titulo}
+        onDenunciaEnviada={() => {
+          // Opcional: mostrar toast ou mensagem de sucesso
+          console.log('Denúncia enviada com sucesso');
+        }}
+      />
+    </div>
+        </div>  
       </div>
 
       <div className="max-w-7xl mx-auto px-6 mt-6 text-left">

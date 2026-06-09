@@ -30,7 +30,7 @@ export default function Financeiro() {
       if (!savedUser) return;
       
       const user = JSON.parse(savedUser);
-      const response = await fetch(`https://welovepalop.com/api/tracking/dashboard.php?usuario_id=${user.id}`);
+      const response = await fetch(`https://welovepalop.com/api/dashboard/estatisticas.php?usuario_id=${user.id}`);
       const data = await response.json();
       
       if (data.success && data.data) {

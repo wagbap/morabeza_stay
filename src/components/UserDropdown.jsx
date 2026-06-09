@@ -1,16 +1,55 @@
 // src/components/UserDropdown.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Car, Compass, Heart, User,LogOut, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { Home, Car, Compass, Heart, User, LogOut, ChevronDown, LayoutDashboard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFavoritos } from '../hooks/useFavoritos';
-
 
 const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { totalFavoritos: totalFromHook, recarregar } = useFavoritos();
   const [totalFavoritos, setTotalFavoritos] = useState(0);
+  
+  // Estados das roles
+  const [canManageAlojamento, setCanManageAlojamento] = useState(false);
+  const [canManageCarros, setCanManageCarros] = useState(false);
+  const [canManageExperiencias, setCanManageExperiencias] = useState(false);
+  const [canAccessDashboard, setCanAccessDashboard] = useState(false);
+  const [loadingRoles, setLoadingRoles] = useState(true);
+
+  // Buscar roles do usuário
+  useEffect(() => {
+    const fetchUserRoles = async () => {
+      if (!user?.id) {
+        setLoadingRoles(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${user.id}`);
+        const data = await response.json();
+        
+        if (data.success && data.roles) {
+          // Verificar cada role APROVADA
+          const isAnfitrionApproved = data.roles.some(r => r.name === 'anfitrion' && r.status === 'approved');
+          const isGuiaApproved = data.roles.some(r => r.name === 'guia_experiencias' && r.status === 'approved');
+          const isProprietarioVeiculosApproved = data.roles.some(r => r.name === 'proprietario_veiculos' && r.status === 'approved');
+          
+          setCanManageAlojamento(isAnfitrionApproved);
+          setCanManageCarros(isProprietarioVeiculosApproved);
+          setCanManageExperiencias(isGuiaApproved);
+          setCanAccessDashboard(isAnfitrionApproved || isGuiaApproved || isProprietarioVeiculosApproved);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar roles do usuário:', error);
+      } finally {
+        setLoadingRoles(false);
+      }
+    };
+
+    fetchUserRoles();
+  }, [user?.id]);
 
   // Sincronizar com o hook
   useEffect(() => {
@@ -77,7 +116,10 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
               </p>
               <p className="text-sm font-bold text-gray-800 truncate">{user.email}</p>
             </div>
-              <div className="px-2 space-y-1">
+            
+            <div className="px-2 space-y-1">
+              {/* Só mostra se o usuário tem role de ANFITRIÃO APROVADA */}
+              {canManageAlojamento && (
                 <button 
                   onClick={() => handleNavigation('/alojamento-registro/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
@@ -85,7 +127,10 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   <Home size={16} /> 
                   Anuncie Alojamento
                 </button>
+              )}
 
+              {/* Só mostra se o usuário tem role de PROPRIETÁRIO VEÍCULOS APROVADA */}
+              {canManageCarros && (
                 <button 
                   onClick={() => handleNavigation('/carro-registo/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
@@ -93,7 +138,10 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   <Car size={16} /> 
                   Anuncie Carros
                 </button>
+              )}
 
+              {/* Só mostra se o usuário tem role de GUIA APROVADA */}
+              {canManageExperiencias && (
                 <button 
                   onClick={() => handleNavigation('/experiencia-registo/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
@@ -101,28 +149,33 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   <Compass size={16} /> 
                   Anuncie Experiência
                 </button>
+              )}
 
-                <button 
-                  onClick={() => handleNavigation('/favoritos')}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
-                >
-                  <Heart size={16} /> 
-                  {t('favoritos')}
-                  {totalFavoritos > 0 && (
-                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                      {totalFavoritos}
-                    </span>
-                  )}
-                </button>
+              {/* Favoritos - Sempre disponível */}
+              <button 
+                onClick={() => handleNavigation('/favoritos')}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+              >
+                <Heart size={16} /> 
+                {t('favoritos')}
+                {totalFavoritos > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                    {totalFavoritos}
+                  </span>
+                )}
+              </button>
 
-                <button 
-                  onClick={() => handleNavigation('/perfil')}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
-                >                
-                  <User size={16} /> 
-                  Perfil
-                </button>
+              {/* Perfil - Sempre disponível */}
+              <button 
+                onClick={() => handleNavigation('/perfil')}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+              >                
+                <User size={16} /> 
+                Perfil
+              </button>
 
+              {/* Dashboard - Só aparece se pelo menos uma role foi aprovada */}
+              {canAccessDashboard && (
                 <button 
                   onClick={() => handleNavigation('/gest/dashboard')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
@@ -130,7 +183,8 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   <LayoutDashboard size={16} /> 
                   Dashboard
                 </button>
-              </div>
+              )}
+            </div>
 
             <div className="mt-2 pt-2 border-t border-gray-100 px-2">
               <button 

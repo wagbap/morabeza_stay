@@ -410,7 +410,7 @@ const CheckoutExperiencia = () => {
         if (result.usuario) {
           setParticipantePrincipal(prev => ({
             ...prev,
-            nome_completo: result.usuario.full_name || prev.nome_completo,
+            nome_completo: result.usuario.nome || prev.nome_completo,
             email: result.usuario.email || prev.email,
             phone: result.usuario.phone || prev.phone
           }));
@@ -531,7 +531,7 @@ const CheckoutExperiencia = () => {
         buscarDadosUsuario(email, googleId);
         setParticipantePrincipal(prev => ({
           ...prev,
-          nome_completo: userData.name || userData.full_name || '',
+          nome_completo: userData.name || userData.nome || '',
           email: email,
           phone: userData.phone || ''
         }));

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import AvaliacoesSeccao from './AvaliacoesSeccaoExperiencia';
 import useExperienciaTracking from "../hooks/useExperienciaTracking";
+import BotaoDenuncia from '../../../components/BotaoDenuncia';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -1002,6 +1003,14 @@ const ExperienciaDetalhes = () => {
               </div>
             </div>
           </div>
+           <BotaoDenuncia 
+      tipo="experiencia"
+      itemId={experiencia.id}
+      itemTitulo={experiencia.titulo}
+      onDenunciaEnviada={() => {
+        console.log('Denúncia de experiência enviada com sucesso');
+      }}
+    />
         </div>
       </div>
 

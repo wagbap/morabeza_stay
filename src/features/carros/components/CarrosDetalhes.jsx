@@ -14,6 +14,7 @@ import {
 import { Helmet } from 'react-helmet-async';
 import AvaliacoesSeccaoCarro from './AvaliacoesSeccaoCarro';
 import useCarroTracking from "../hooks/useCarroTracking";
+import BotaoDenuncia from '../../../components/BotaoDenuncia';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -926,6 +927,16 @@ export const CarrosDetalhes = () => {
               </div>
             </div>
           </div>
+           <BotaoDenuncia 
+            tipo="carro"
+            itemId={carro.id}
+            itemTitulo={carro.titulo}
+            onDenunciaEnviada={() => {
+              console.log('Denúncia de carro enviada com sucesso');
+              // Opcional: mostrar toast de sucesso
+            }}
+          />
+  
         </div>
       </div>
 

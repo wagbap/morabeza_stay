@@ -1,3 +1,4 @@
+// hooks/useAlojamentoTracking.js
 import { useEffect, useRef, useCallback } from 'react';
 
 const useAlojamentoTracking = (alojamentoId, usuarioId = null) => {
@@ -6,10 +7,14 @@ const useAlojamentoTracking = (alojamentoId, usuarioId = null) => {
   const intervalRef = useRef(null);
   
   const registrarEvento = useCallback(async (tipo, dadosAdicionais = {}) => {
-    if (!alojamentoId) return;
+    if (!alojamentoId) {
+      console.log('⚠️ Sem alojamentoId, ignorando tracking');
+      return;
+    }
     
+    // Usar a API CORRETA para alojamentos
     const payload = {
-      alojamento_id: alojamentoId,
+      alojamento_id: alojamentoId,  // Mudado de experiencia_id para alojamento_id
       tipo: tipo,
       usuario_id: usuarioId,
       ...dadosAdicionais
@@ -101,7 +106,7 @@ const useAlojamentoTracking = (alojamentoId, usuarioId = null) => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [alojamentoId]); // Dependência no alojamentoId
+  }, [alojamentoId]);
   
   return {
     registrarCliqueReserva,
