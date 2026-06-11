@@ -1,3 +1,4 @@
+// src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -7,19 +8,17 @@ export default function Login() {
   const navigate = useNavigate();
 
   // Estados do fluxo principal
-  const [step, setStep] = useState(1); // 1=Email, 2=OTP Registo, 3=Registo, 4=Reset Email, 5=Reset OTP, 6=Reset Nova Senha
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [otp, setOtp] = useState('');
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [userId, setUserId] = useState(null);
   
-  // Estados do formulário de registo (apenas hóspede)
   const [nome, setNome] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [telefone, setTelefone] = useState('');
   
-  // Estados para reset password
   const [resetEmail, setResetEmail] = useState('');
   const [resetOtp, setResetOtp] = useState('');
   const [resetUserId, setResetUserId] = useState(null);
@@ -32,7 +31,6 @@ export default function Login() {
 
   const BACKEND_URL = 'https://welovepalop.com/api/auth_google.php';
 
-  // PASSO 1: Verificar email para login/registo
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -63,7 +61,6 @@ export default function Login() {
     }
   };
 
-  // Login com senha
   const handlePasswordLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -88,7 +85,6 @@ export default function Login() {
     }
   };
 
-  // Enviar OTP para novo registo
   const sendOtp = async () => {
     try {
       const res = await axios.post(BACKEND_URL, {
@@ -110,7 +106,6 @@ export default function Login() {
     }
   };
 
-  // Verificar OTP para registo
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -137,7 +132,6 @@ export default function Login() {
     }
   };
 
-  // Completar registo (apenas como hóspede - role_id = 1)
   const handleCompleteRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -160,14 +154,13 @@ export default function Login() {
     }
 
     try {
-      // Apenas role de hóspede (id = 1)
       const res = await axios.post(BACKEND_URL, {
         action: 'complete_register',
         user_id: userId,
         nome: nome.trim(),
         senha: senha,
         telefone: telefone.trim(),
-        roles: ['hospede'] // Apenas hóspede
+        roles: ['hospede']
       });
 
       if (res.data.status === 'success') {
@@ -182,8 +175,6 @@ export default function Login() {
     }
   };
 
-  // ==================== RESET PASSWORD ====================
-  
   const handleSendResetOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -280,9 +271,18 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };// ✅ A CORREÇÃO (O que tens de usar)
+  const ProtectedRoute = ({ children }) => {
+    const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+    
+    // Só bloqueia se a pessoa realmente não tiver NADA no Local Storage
+    if (!savedUser) {
+      return <Navigate to="/" replace />;
+    }
+    
+    return children;
   };
-
-  const salvarSessao = (user) => {
+const salvarSessao = (user) => {
     const userForStorage = {
       id: user.id,
       sub: user.id,
@@ -292,11 +292,21 @@ export default function Login() {
       phone: user.phone || '',
       roles: user.roles || ['hospede']
     };
+    
+    // Grava nas DUAS chaves
     localStorage.setItem('user', JSON.stringify(userForStorage));
-    navigate('/');
-    window.location.reload();
-  };
+    localStorage.setItem('morabeza_user', JSON.stringify(userForStorage));
+    
+    // Mata qualquer lixo antigo da sessão
+    sessionStorage.clear();
 
+    // 🚀 O SEGREDO ESTÁ AQUI: location.replace() apaga o histórico do /login.
+    // O setTimeout dá tempo ao localStorage de gravar fisicamente no disco 
+    // antes de destruir a página de login.
+    setTimeout(() => {
+      window.location.replace('/');
+    }, 100);
+  };
   const handleBackToLogin = () => {
     setStep(1);
     setErrorMessage('');
@@ -327,7 +337,6 @@ export default function Login() {
             </div>
           )}
 
-          {/* PASSO 1: Email para Login/Registo */}
           {step === 1 && (
             <>
               <h2 className="text-xl font-bold mb-2">Iniciar sessão ou criar conta</h2>
@@ -397,7 +406,6 @@ export default function Login() {
             </>
           )}
 
-          {/* PASSO 2: Validar OTP para Registo */}
           {step === 2 && (
             <>
               <h2 className="text-xl font-bold mb-2">Verificar o seu email</h2>
@@ -433,7 +441,6 @@ export default function Login() {
             </>
           )}
 
-          {/* PASSO 3: Formulário de Registo (apenas hóspede) */}
           {step === 3 && (
             <>
               <h2 className="text-xl font-bold mb-2">Criar a sua conta</h2>
@@ -489,7 +496,6 @@ export default function Login() {
             </>
           )}
 
-          {/* PASSO 4: Email para Reset Password */}
           {step === 4 && (
             <>
               <h2 className="text-xl font-bold mb-2">Recuperar palavra-passe</h2>
@@ -524,7 +530,6 @@ export default function Login() {
             </>
           )}
 
-          {/* PASSO 5: Verificar OTP para Reset */}
           {step === 5 && (
             <>
               <h2 className="text-xl font-bold mb-2">Verificar código</h2>
@@ -560,7 +565,6 @@ export default function Login() {
             </>
           )}
 
-          {/* PASSO 6: Definir nova senha */}
           {step === 6 && (
             <>
               <h2 className="text-xl font-bold mb-2">Nova palavra-passe</h2>

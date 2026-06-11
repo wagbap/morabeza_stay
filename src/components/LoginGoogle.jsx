@@ -24,23 +24,32 @@ const LoginGoogle = ({ onLoginSuccess }) => {
         });
         
         if (response.data.status === 'success') {
-          // Salvar no localStorage
+          
+          // 1. Salvar no localStorage de forma IDÊNTICA ao login com email
           const userForStorage = {
             id: response.data.user.id,
             sub: response.data.user.id,
             name: response.data.user.nome,
             email: response.data.user.email,
             picture: response.data.user.foto || googleUser.picture,
-            full_name: response.data.user.nome
+            full_name: response.data.user.nome,
+            phone: response.data.user.phone || '',
+            roles: response.data.user.roles || ['hospede'] // -> Faltava isto!
           };
           
+          // 2. Grava nas DUAS chaves para garantir que o sistema não te expulsa
           localStorage.setItem('user', JSON.stringify(userForStorage));
+          localStorage.setItem('morabeza_user', JSON.stringify(userForStorage));
           
           if (onLoginSuccess) {
             onLoginSuccess(userForStorage);
           }
           
-          window.location.reload();
+          // 3. A CORREÇÃO: Forçar a ida para a Home (em vez de fazer reload na página de login)
+          setTimeout(() => {
+            window.location.replace('/');
+          }, 100);
+
         } else {
           alert('Erro ao fazer login: ' + response.data.message);
         }

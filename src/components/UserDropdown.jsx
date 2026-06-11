@@ -79,12 +79,22 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
     };
   }, [recarregar]);
 
-  if (!user) return null;
-
   const handleNavigation = (path) => {
     setIsOpen(false);
     navigate(path);
   };
+
+  // Se NÃO ESTIVER LOGADO, mostra o botão "Registar sua propriedade" que vai para o /login
+  if (!user) {
+    return (
+      <button 
+        onClick={() => navigate('/login')}
+        className="flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 px-4 py-2 rounded-lg transition-all shadow-sm text-white font-medium text-sm"
+      >
+        Registar sua propriedade
+      </button>
+    );
+  }
 
   return (
     <div className="relative">

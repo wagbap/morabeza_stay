@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Home, Car, Palmtree, Globe, ChevronDown } from 'lucide-react';
-import LoginGoogle from './LoginGoogle';
 import UserDropdown from './UserDropdown';
 import { useTranslation } from 'react-i18next';
 
@@ -128,8 +127,18 @@ const Navbar = () => {
             )}
           </div>
 
+          {/* ✅ AQUI ESTÁ O NOVO BOTÃO DE REGISTAR PROPRIEDADE */}
           {!user ? (
-            <LoginGoogle onLoginSuccess={(u) => setUser(u)} />
+            <Link 
+              to="/login"
+              className={`px-4 py-2 text-[11px] md:text-sm font-bold rounded-lg transition-all shadow-sm whitespace-nowrap ${
+                isHeroPage 
+                  ? "bg-white text-[#003580] hover:bg-gray-100" 
+                  : "bg-[#003580] text-white hover:bg-[#002560]"
+              }`}
+            >
+              Registar sua propriedade
+            </Link>
           ) : (
             <UserDropdown 
               user={user} 
