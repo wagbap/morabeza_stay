@@ -14,6 +14,7 @@ import Relatorios from './Relatorios';
 import Historico from './Historico';
 import Avaliacoes from './Avaliacoes';
 import Configuracoes from './Configuracoes';
+import MinhasReservas from './MinhasReservas';
 
 const LayoutGestao = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -95,6 +96,8 @@ const GestaoRouter = () => {
       <Route path="relatorios" element={<LayoutGestao><Relatorios /></LayoutGestao>} />
       <Route path="avaliacoes" element={<LayoutGestao><Avaliacoes /></LayoutGestao>} />
       <Route path="configuracoes" element={<LayoutGestao><Configuracoes /></LayoutGestao>} />
+      <Route path="minhas-reservas" element={<LayoutGestao><MinhasReservas /></LayoutGestao>} />
+
       <Route path="" element={<Navigate to="dashboard" replace />} />
       <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>

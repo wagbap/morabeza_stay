@@ -12,6 +12,11 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [userRoles, setUserRoles] = useState({
+    anfitrion: false,
+    guia: false,
+    proprietarioVeiculos: false
+  });
   
   // Estatísticas dos diferentes tipos
   const [estatisticas, setEstatisticas] = useState({
@@ -24,12 +29,35 @@ export default function Dashboard() {
   // Reservas recentes
   const [reservasRecentes, setReservasRecentes] = useState([]);
 
+  // Buscar roles do usuário
   useEffect(() => {
+    const fetchUserRoles = async (userId) => {
+      try {
+        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
+        const data = await response.json();
+        
+        if (data.success && data.roles) {
+          const isAnfitrion = data.roles.some(r => r.name === 'anfitrion' && r.status === 'approved');
+          const isGuia = data.roles.some(r => r.name === 'guia_experiencias' && r.status === 'approved');
+          const isProprietarioVeiculos = data.roles.some(r => r.name === 'proprietario_veiculos' && r.status === 'approved');
+          
+          setUserRoles({
+            anfitrion: isAnfitrion,
+            guia: isGuia,
+            proprietarioVeiculos: isProprietarioVeiculos
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao buscar roles:', error);
+      }
+    };
+
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       try {
         const userParsed = JSON.parse(savedUser);
         setUser(userParsed);
+        fetchUserRoles(userParsed.id);
         fetchDashboardData(userParsed.id);
         fetchReservasRecentes(userParsed.id);
       } catch (e) {
@@ -44,7 +72,6 @@ export default function Dashboard() {
   const fetchDashboardData = async (userId) => {
     setLoading(true);
     try {
-      // Usar a API unificada
       const response = await fetch(`https://welovepalop.com/api/dashboard/estatisticas.php?usuario_id=${userId}`);
       const data = await response.json();
       
@@ -67,43 +94,6 @@ export default function Dashboard() {
       
       if (data.success && data.data?.reservas) {
         setReservasRecentes(data.data.reservas);
-      } else {
-        // Dados mockados para exemplo
-        setReservasRecentes([
-          {
-            id: 1,
-            nome: 'Maria Fernandes',
-            email: 'maria@example.com',
-            imagem: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=60&h=60&fit=crop',
-            item: 'Apartamento Vista Mar',
-            tipo: 'alojamento',
-            data: '12 - 15 Mai 2026',
-            status: 'Confirmada',
-            valor: '16.500'
-          },
-          {
-            id: 2,
-            nome: 'Carlos Mendes',
-            email: 'carlos@example.com',
-            imagem: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=60&h=60&fit=crop',
-            item: 'Toyota Hilux',
-            tipo: 'carro',
-            data: '10 - 12 Mai 2026',
-            status: 'Pendente',
-            valor: '8.000'
-          },
-          {
-            id: 3,
-            nome: 'Ana Costa',
-            email: 'ana@example.com',
-            imagem: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=60&h=60&fit=crop',
-            item: 'Mergulho com Tartarugas',
-            tipo: 'experiencia',
-            data: '08 Mai 2026',
-            status: 'Confirmada',
-            valor: '5.000'
-          }
-        ]);
       }
     } catch (error) {
       console.error('Erro ao buscar reservas:', error);
@@ -121,6 +111,15 @@ export default function Dashboard() {
   const totalCliques = estatisticas.totais?.total_cliques_reserva || 0;
   const taxaConversao = estatisticas.totais?.taxa_conversao || 0;
 
+  // Determinar quais tabs mostrar baseado nas roles
+  const tabsDisponiveis = [];
+  if (userRoles.anfitrion) tabsDisponiveis.push({ id: 'alojamentos', label: 'Alojamentos', icon: Home, count: estatisticas.alojamentos?.total_anuncios || 0 });
+  if (userRoles.proprietarioVeiculos) tabsDisponiveis.push({ id: 'carros', label: 'Carros', icon: Car, count: estatisticas.carros?.total_anuncios || 0 });
+  if (userRoles.guia) tabsDisponiveis.push({ id: 'experiencias', label: 'Experiências', icon: Compass, count: estatisticas.experiencias?.total_anuncios || 0 });
+
+  // Verificar se não tem nenhuma role aprovada
+  const hasNoRoles = !userRoles.anfitrion && !userRoles.guia && !userRoles.proprietarioVeiculos;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f8f9fc] flex items-center justify-center">
@@ -136,55 +135,63 @@ export default function Dashboard() {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-[#f8f9fc]">
-   
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
-        {/* Tabs de Navegação */}
-        <div className="flex gap-2 mb-6 border-b border-gray-200">
+  // Se não tem roles aprovadas, mostrar mensagem
+  if (hasNoRoles) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fc] flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-xl shadow-sm">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Award size={40} className="text-gray-400" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Acesso Restrito</h2>
+          <p className="text-gray-500">
+            Você não tem permissão para aceder ao dashboard de gestão.
+            É necessário ter uma das seguintes funções aprovadas:
+            Anfitrião, Guia de Experiências ou Proprietário de Veículos.
+          </p>
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'overview'
-                ? 'text-blue-900 border-b-2 border-blue-900'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
+            onClick={() => navigate('/')}
+            className="mt-6 px-6 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition"
           >
-            Visão Geral
-          </button>
-          <button
-            onClick={() => setActiveTab('alojamentos')}
-            className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
-              activeTab === 'alojamentos'
-                ? 'text-blue-900 border-b-2 border-blue-900'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Home size={16} /> Alojamentos ({estatisticas.alojamentos?.total_anuncios || 0})
-          </button>
-          <button
-            onClick={() => setActiveTab('carros')}
-            className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
-              activeTab === 'carros'
-                ? 'text-blue-900 border-b-2 border-blue-900'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Car size={16} /> Carros ({estatisticas.carros?.total_anuncios || 0})
-          </button>
-          <button
-            onClick={() => setActiveTab('experiencias')}
-            className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
-              activeTab === 'experiencias'
-                ? 'text-blue-900 border-b-2 border-blue-900'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Compass size={16} /> Experiências ({estatisticas.experiencias?.total_anuncios || 0})
+            Voltar para o site
           </button>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fc]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        {/* Tabs de Navegação - apenas as roles aprovadas */}
+        {tabsDisponiveis.length > 0 && (
+          <div className="flex gap-2 mb-6 border-b border-gray-200 flex-wrap">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'overview'
+                  ? 'text-blue-900 border-b-2 border-blue-900'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Visão Geral
+            </button>
+            {tabsDisponiveis.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? 'text-blue-900 border-b-2 border-blue-900'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <tab.icon size={16} /> {tab.label} ({tab.count})
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Conteúdo do Dashboard */}
         {activeTab === 'overview' && (
@@ -258,14 +265,14 @@ export default function Dashboard() {
                 <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
                   <h3 className="text-[13px] font-medium text-slate-500 mb-4">Visualizações</h3>
                   <div className="flex items-end justify-between">
-                    <span className="text-[28px] font-bold text-slate-900">{totalVisualizacoes}</span>
+                    <span className="text-[28px] font-bold text-slate-900">{totalVisualizacoes.toLocaleString()}</span>
                   </div>
                 </div>
 
                 <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
                   <h3 className="text-[13px] font-medium text-slate-500 mb-4">Cliques em Reserva</h3>
                   <div className="flex items-end justify-between">
-                    <span className="text-[28px] font-bold text-slate-900">{totalCliques}</span>
+                    <span className="text-[28px] font-bold text-slate-900">{totalCliques.toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -312,42 +319,40 @@ export default function Dashboard() {
                         index !== reservasRecentes.length - 1 ? 'border-b border-gray-50' : ''
                       }`}
                     >
-                      {/* Cliente */}
                       <div className="flex items-center gap-3 lg:w-[25%]">
                         <img 
-                          src={reserva.imagem || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=60&h=60&fit=crop'} 
-                          alt={reserva.nome} 
-                          className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                          src={reserva.cliente_foto || 'https://ui-avatars.com/api/?name=Cliente&background=0D8ABC&color=fff'} 
+                          alt={reserva.cliente_nome} 
+                          className="w-10 h-10 rounded-full object-cover border border-gray-200"
                         />
                         <div>
-                          <p className="text-[13px] font-bold">{reserva.nome}</p>
-                          <p className="text-[10px] text-slate-400">{reserva.email}</p>
+                          <p className="text-[13px] font-bold">{reserva.cliente_nome}</p>
+                          <p className="text-[10px] text-slate-400">{reserva.cliente_email}</p>
                         </div>
                       </div>
 
-                      {/* Item Reservado */}
                       <div className="lg:w-[30%]">
                         <div className="flex items-center gap-1">
                           {reserva.tipo === 'alojamento' && <Home size={12} className="text-blue-500" />}
                           {reserva.tipo === 'carro' && <Car size={12} className="text-green-500" />}
                           {reserva.tipo === 'experiencia' && <Compass size={12} className="text-purple-500" />}
-                          <p className="text-[13px] font-medium text-slate-600">{reserva.item}</p>
+                          <p className="text-[13px] font-medium text-slate-600">{reserva.item_nome}</p>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-1">{reserva.data}</p>
+                        <p className="text-[11px] text-slate-400 mt-1">{reserva.periodo}</p>
                       </div>
 
-                      {/* Status */}
                       <div className="lg:w-[15%]">
                         <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-medium ${
                           reserva.status === 'Confirmada' 
                             ? 'bg-green-100 text-green-700' 
-                            : 'bg-yellow-100 text-yellow-700'
+                            : reserva.status === 'Pendente'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-700'
                         }`}>
                           {reserva.status}
                         </span>
                       </div>
 
-                      {/* Valor */}
                       <div className="lg:w-[20%] text-left lg:text-right">
                         <p className="text-[14px] font-bold text-blue-600">{reserva.valor} CVE</p>
                       </div>
@@ -365,8 +370,8 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* Seção de Alojamentos */}
-        {activeTab === 'alojamentos' && estatisticas.alojamentos && (
+        {/* Seção de Alojamentos - só aparece se tiver role de anfitrião */}
+        {activeTab === 'alojamentos' && userRoles.anfitrion && estatisticas.alojamentos && (
           <EstatisticasTipo 
             tipo="Alojamentos" 
             dados={estatisticas.alojamentos} 
@@ -374,8 +379,8 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Seção de Carros */}
-        {activeTab === 'carros' && estatisticas.carros && (
+        {/* Seção de Carros - só aparece se tiver role de proprietário de veículos */}
+        {activeTab === 'carros' && userRoles.proprietarioVeiculos && estatisticas.carros && (
           <EstatisticasTipo 
             tipo="Carros" 
             dados={estatisticas.carros} 
@@ -383,8 +388,8 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Seção de Experiências */}
-        {activeTab === 'experiencias' && estatisticas.experiencias && (
+        {/* Seção de Experiências - só aparece se tiver role de guia */}
+        {activeTab === 'experiencias' && userRoles.guia && estatisticas.experiencias && (
           <EstatisticasTipo 
             tipo="Experiências" 
             dados={estatisticas.experiencias} 

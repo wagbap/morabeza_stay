@@ -7,18 +7,17 @@ export default function Login() {
   const navigate = useNavigate();
 
   // Estados do fluxo principal
-  const [step, setStep] = useState(1); // 1=Email, 2=OTP Registo, 3=Registo, 4=Reset Email, 5=Reset OTP, 6=Reset Nova Senha, 7=Recuperar Conta (sem email)
+  const [step, setStep] = useState(1); // 1=Email, 2=OTP Registo, 3=Registo, 4=Reset Email, 5=Reset OTP, 6=Reset Nova Senha
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [otp, setOtp] = useState('');
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [userId, setUserId] = useState(null);
   
-  // Estados do formulário de registo
+  // Estados do formulário de registo (apenas hóspede)
   const [nome, setNome] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [roles, setRoles] = useState(['hospede']);
   
   // Estados para reset password
   const [resetEmail, setResetEmail] = useState('');
@@ -27,26 +26,11 @@ export default function Login() {
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmarNovaSenha, setConfirmarNovaSenha] = useState('');
   
-  // Estados para recuperar conta sem email
-  const [recuperarTelefone, setRecuperarTelefone] = useState('');
-  const [recuperarOtp, setRecuperarOtp] = useState('');
-  const [recuperarUserId, setRecuperarUserId] = useState(null);
-  const [recuperarEmail, setRecuperarEmail] = useState('');
-  
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const BACKEND_URL = 'https://welovepalop.com/api/auth_google.php';
-
-  const handleRoleToggle = (roleName) => {
-    if (roleName === 'hospede') return;
-    if (roles.includes(roleName)) {
-      setRoles(roles.filter(r => r !== roleName));
-    } else {
-      setRoles([...roles, roleName]);
-    }
-  };
 
   // PASSO 1: Verificar email para login/registo
   const handleEmailSubmit = async (e) => {
@@ -153,7 +137,7 @@ export default function Login() {
     }
   };
 
-  // Completar registo
+  // Completar registo (apenas como hóspede - role_id = 1)
   const handleCompleteRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -176,13 +160,14 @@ export default function Login() {
     }
 
     try {
+      // Apenas role de hóspede (id = 1)
       const res = await axios.post(BACKEND_URL, {
         action: 'complete_register',
         user_id: userId,
         nome: nome.trim(),
         senha: senha,
         telefone: telefone.trim(),
-        roles: roles
+        roles: ['hospede'] // Apenas hóspede
       });
 
       if (res.data.status === 'success') {
@@ -297,110 +282,6 @@ export default function Login() {
     }
   };
 
-  // ==================== RECUPERAR CONTA SEM EMAIL ====================
-  
-  // Enviar OTP por SMS para o telefone
-  const handleSendSmsOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    try {
-      const res = await axios.post(BACKEND_URL, {
-        action: 'send_sms_recovery_otp',
-        telefone: recuperarTelefone.trim()
-      });
-
-      if (res.data.status === 'sms_otp_sent') {
-        setSuccessMessage(`Enviamos um código de recuperação por SMS para ${recuperarTelefone}`);
-        if (res.data.code_debug) {
-          alert('Código de recuperação SMS: ' + res.data.code_debug);
-        }
-        setStep(8); // Passo para verificar SMS OTP
-      } else {
-        setErrorMessage(res.data.message);
-      }
-    } catch (err) {
-      setErrorMessage('Erro ao enviar código por SMS.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Verificar OTP do SMS e recuperar email
-  const handleVerifySmsOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMessage('');
-
-    try {
-      const res = await axios.post(BACKEND_URL, {
-        action: 'verify_sms_recovery_otp',
-        telefone: recuperarTelefone.trim(),
-        otp: recuperarOtp.trim()
-      });
-
-      if (res.data.status === 'success') {
-        setRecuperarUserId(res.data.user_id);
-        setRecuperarEmail(res.data.email);
-        setStep(9); // Mostrar email recuperado e opção de reset
-        setSuccessMessage(`Conta encontrada! O email associado é: ${res.data.email}`);
-      } else {
-        setErrorMessage(res.data.message);
-      }
-    } catch (err) {
-      setErrorMessage('Erro ao verificar código.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Reset password após recuperação por SMS
-  const handleRecoveryResetPassword = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMessage('');
-
-    if (novaSenha.length < 6) {
-      setErrorMessage('A senha deve ter pelo menos 6 caracteres.');
-      setLoading(false);
-      return;
-    }
-    if (novaSenha !== confirmarNovaSenha) {
-      setErrorMessage('As senhas não coincidem.');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const res = await axios.post(BACKEND_URL, {
-        action: 'reset_password_by_id',
-        user_id: recuperarUserId,
-        nova_senha: novaSenha
-      });
-
-      if (res.data.status === 'success') {
-        setSuccessMessage('Senha alterada com sucesso! Faça login com a nova senha.');
-        setTimeout(() => {
-          setStep(1);
-          setEmail(recuperarEmail);
-          setRecuperarTelefone('');
-          setRecuperarOtp('');
-          setNovaSenha('');
-          setConfirmarNovaSenha('');
-          setShowPasswordInput(true);
-        }, 2000);
-      } else {
-        setErrorMessage(res.data.message);
-      }
-    } catch (err) {
-      setErrorMessage('Erro ao alterar senha.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const salvarSessao = (user) => {
     const userForStorage = {
       id: user.id,
@@ -422,8 +303,6 @@ export default function Login() {
     setSuccessMessage('');
     setResetEmail('');
     setResetOtp('');
-    setRecuperarTelefone('');
-    setRecuperarOtp('');
   };
 
   return (
@@ -501,10 +380,8 @@ export default function Login() {
                       }}
                       className="text-center text-sm text-blue-600 hover:underline"
                     >
-                     Perdeu o acesso ao seu e-mail? Recupere a sua conta
+                      Esqueceu a palavra-passe?
                     </button>
-                    
-                    
                   </div>
                 </form>
               )}
@@ -556,54 +433,15 @@ export default function Login() {
             </>
           )}
 
-          {/* PASSO 3: Formulário de Registo */}
+          {/* PASSO 3: Formulário de Registo (apenas hóspede) */}
           {step === 3 && (
             <>
               <h2 className="text-xl font-bold mb-2">Criar a sua conta</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Complete os dados para finalizar o registo
+                Complete os dados para finalizar o registo como hóspede
               </p>
 
               <form onSubmit={handleCompleteRegister} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de conta:</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => handleRoleToggle('anfitrion')}
-                      className={`p-3 border rounded-lg text-center transition ${
-                        roles.includes('anfitrion') 
-                          ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold' 
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      🏠 Anfitrião
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRoleToggle('guia_experiencias')}
-                      className={`p-3 border rounded-lg text-center transition ${
-                        roles.includes('guia_experiencias') 
-                          ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold' 
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      🗺️ Guia
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRoleToggle('proprietario_veiculos')}
-                      className={`p-3 border rounded-lg text-center transition col-span-2 ${
-                        roles.includes('proprietario_veiculos') 
-                          ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold' 
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      🚗 Proprietário de Veículos
-                    </button>
-                  </div>
-                </div>
-
                 <input
                   type="text"
                   required
@@ -675,27 +513,13 @@ export default function Login() {
                 >
                   {loading ? 'A enviar...' : 'Enviar código'}
                 </button>
-                
-                <div className="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={handleBackToLogin}
-                    className="text-center text-sm text-gray-500 hover:underline"
-                  >
-                    Voltar ao login
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep(7);
-                      setErrorMessage('');
-                    }}
-                    className="text-center text-sm text-amber-600 hover:underline"
-                  >
-                    📱 Perdeu o acesso ao seu e-mail? Recuperar por SMS
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="w-full text-center text-sm text-gray-500 hover:underline"
+                >
+                  Voltar ao login
+                </button>
               </form>
             </>
           )}
@@ -745,132 +569,6 @@ export default function Login() {
               </p>
 
               <form onSubmit={handleResetPassword} className="space-y-4">
-                <input
-                  type="password"
-                  required
-                  value={novaSenha}
-                  onChange={(e) => setNovaSenha(e.target.value)}
-                  placeholder="Nova palavra-passe (mínimo 6 caracteres)"
-                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
-                />
-                <input
-                  type="password"
-                  required
-                  value={confirmarNovaSenha}
-                  onChange={(e) => setConfirmarNovaSenha(e.target.value)}
-                  placeholder="Confirmar nova palavra-passe"
-                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#003580] hover:bg-[#002560] text-white font-medium py-2.5 rounded text-sm"
-                >
-                  {loading ? 'A alterar...' : 'Alterar palavra-passe'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBackToLogin}
-                  className="w-full text-center text-sm text-gray-500 hover:underline"
-                >
-                  Cancelar
-                </button>
-              </form>
-            </>
-          )}
-
-          {/* PASSO 7: Recuperar conta por SMS (sem email) */}
-          {step === 7 && (
-            <>
-              <h2 className="text-xl font-bold mb-2">Recuperar conta por SMS</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Perdeu o acesso ao seu email? Recupere a sua conta usando o número de telefone registado.
-              </p>
-
-              <form onSubmit={handleSendSmsOtp} className="space-y-4">
-                <div className="bg-blue-50 p-3 rounded-lg mb-2">
-                  <p className="text-xs text-blue-800">
-                    ℹ️ Enviaremos um código de verificação por SMS para o número de telefone associado à sua conta.
-                  </p>
-                </div>
-                
-                <input
-                  type="tel"
-                  required
-                  value={recuperarTelefone}
-                  onChange={(e) => setRecuperarTelefone(e.target.value)}
-                  placeholder="Número de telefone (ex: 960176729)"
-                  className="w-full px-3 py-2.5 border border-gray-400 rounded text-sm"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#006ce4] hover:bg-[#0056b3] text-white font-medium py-2.5 rounded text-sm"
-                >
-                  {loading ? 'A enviar...' : 'Enviar código por SMS'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBackToLogin}
-                  className="w-full text-center text-sm text-gray-500 hover:underline"
-                >
-                  Voltar ao login
-                </button>
-              </form>
-            </>
-          )}
-
-          {/* PASSO 8: Verificar OTP do SMS */}
-          {step === 8 && (
-            <>
-              <h2 className="text-xl font-bold mb-2">Verificar código SMS</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Enviámos um código de 6 dígitos por SMS para <strong>{recuperarTelefone}</strong>
-              </p>
-
-              <form onSubmit={handleVerifySmsOtp} className="space-y-4">
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={recuperarOtp}
-                  onChange={(e) => setRecuperarOtp(e.target.value)}
-                  placeholder="Código de verificação"
-                  className="w-full text-center text-2xl tracking-widest font-bold px-3 py-3 border border-gray-400 rounded"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#006ce4] hover:bg-[#0056b3] text-white font-medium py-2.5 rounded text-sm"
-                >
-                  {loading ? 'A verificar...' : 'Verificar código'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(7)}
-                  className="w-full text-center text-sm text-gray-500 hover:underline"
-                >
-                  Voltar
-                </button>
-              </form>
-            </>
-          )}
-
-          {/* PASSO 9: Definir nova senha após recuperação por SMS */}
-          {step === 9 && (
-            <>
-              <h2 className="text-xl font-bold mb-2">Nova palavra-passe</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Conta verificada! Defina uma nova senha para a sua conta.
-              </p>
-
-              <form onSubmit={handleRecoveryResetPassword} className="space-y-4">
-                <div className="bg-green-50 p-3 rounded-lg mb-2">
-                  <p className="text-xs text-green-800">
-                    ✅ Conta encontrada: <strong>{recuperarEmail}</strong>
-                  </p>
-                </div>
-                
                 <input
                   type="password"
                   required

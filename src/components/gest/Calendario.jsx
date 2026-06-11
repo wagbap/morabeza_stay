@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Search, Calendar, Car, Home, Compass } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Search, Calendar, Car, Home, Compass, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 export default function Calendario() {
-  const [activeTab, setActiveTab] = useState('alojamentos'); // alojamentos, carros, experiencias
+  const [activeTab, setActiveTab] = useState('alojamentos');
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -11,14 +11,65 @@ export default function Calendario() {
   const [disponibilidade, setDisponibilidade] = useState({});
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [userRoles, setUserRoles] = useState({
+    anfitrion: false,
+    guia: false,
+    proprietarioVeiculos: false
+  });
+  const [tabsPermitidas, setTabsPermitidas] = useState([]);
   
   const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-  // Buscar itens baseado na tab ativa
+  // Buscar roles do usuário
   useEffect(() => {
-    fetchItems();
-  }, [activeTab]);
+    const fetchUserRoles = async () => {
+      try {
+        const savedUser = localStorage.getItem('morabeza_user') || localStorage.getItem('user');
+        if (!savedUser) return;
+        
+        const user = JSON.parse(savedUser);
+        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${user.id}`);
+        const data = await response.json();
+        
+        if (data.success && data.roles) {
+          const isAnfitrion = data.roles.some(r => r.name === 'anfitrion' && r.status === 'approved');
+          const isGuia = data.roles.some(r => r.name === 'guia_experiencias' && r.status === 'approved');
+          const isProprietarioVeiculos = data.roles.some(r => r.name === 'proprietario_veiculos' && r.status === 'approved');
+          
+          setUserRoles({
+            anfitrion: isAnfitrion,
+            guia: isGuia,
+            proprietarioVeiculos: isProprietarioVeiculos
+          });
+          
+          // Determinar quais tabs mostrar baseado nas roles aprovadas
+          const tabs = [];
+          if (isAnfitrion) tabs.push('alojamentos');
+          if (isProprietarioVeiculos) tabs.push('carros');
+          if (isGuia) tabs.push('experiencias');
+          
+          setTabsPermitidas(tabs);
+          
+          // Se a tab atual não é permitida, mudar para a primeira permitida
+          if (tabs.length > 0 && !tabs.includes(activeTab)) {
+            setActiveTab(tabs[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar roles:', error);
+      }
+    };
+    
+    fetchUserRoles();
+  }, []);
+
+  // Buscar itens baseado na tab ativa e roles
+  useEffect(() => {
+    if (tabsPermitidas.length > 0 && tabsPermitidas.includes(activeTab)) {
+      fetchItems();
+    }
+  }, [activeTab, tabsPermitidas]);
 
   // Quando selecionar um item, buscar disponibilidade
   useEffect(() => {
@@ -30,8 +81,11 @@ export default function Calendario() {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) return;
+      const savedUser = localStorage.getItem('morabeza_user') || localStorage.getItem('user');
+      if (!savedUser) {
+        setLoading(false);
+        return;
+      }
       
       const user = JSON.parse(savedUser);
       let url = '';
@@ -41,10 +95,10 @@ export default function Calendario() {
           url = `https://welovepalop.com/api/get_alojamentos_by_proprietario.php?proprietario_id=${user.id}`;
           break;
         case 'carros':
-          url = `https://welovepalop.com/api/get_carros.php?proprietario_id=${user.id}`;
+          url = `https://welovepalop.com/api/get_carros_by_proprietario.php?proprietario_id=${user.id}`;
           break;
         case 'experiencias':
-          url = `https://welovepalop.com/api/get_experiencias.php?proprietario_id=${user.id}`;
+          url = `https://welovepalop.com/api/get_experiencias_by_proprietario.php?proprietario_id=${user.id}`;
           break;
         default:
           url = '';
@@ -61,6 +115,8 @@ export default function Calendario() {
       setItems(itemsList);
       if (itemsList.length > 0 && !selectedItem) {
         setSelectedItem(itemsList[0]);
+      } else if (itemsList.length === 0) {
+        setSelectedItem(null);
       }
     } catch (error) {
       console.error('Erro ao buscar itens:', error);
@@ -76,7 +132,6 @@ export default function Calendario() {
     try {
       const ano = selectedYear;
       const mes = selectedMonth;
-      const primeiroDia = new Date(ano, mes, 1);
       const ultimoDia = new Date(ano, mes + 1, 0);
       
       const disponibilidadeMap = {};
@@ -91,7 +146,7 @@ export default function Calendario() {
         } else if (activeTab === 'carros') {
           url = `https://welovepalop.com/api/disponibilidade/carro.php?carro_id=${selectedItem.id}&data_inicio=${data}&data_fim=${data}`;
         } else if (activeTab === 'experiencias') {
-          url = `https://welovepalop.com/api/tracking/disponibilidade_experiencia.php?experiencia_id=${selectedItem.id}&data=${data}`;
+          url = `https://welovepalop.com/api/disponibilidade/experiencia.php?experiencia_id=${selectedItem.id}&data=${data}`;
         }
         
         try {
@@ -101,7 +156,7 @@ export default function Calendario() {
           if (result.success && result.data) {
             disponibilidadeMap[dia] = result.data.disponivel;
           } else {
-            disponibilidadeMap[dia] = true; // Por padrão, disponível
+            disponibilidadeMap[dia] = true;
           }
         } catch (e) {
           disponibilidadeMap[dia] = true;
@@ -121,9 +176,8 @@ export default function Calendario() {
     const mes = selectedMonth;
     const primeiroDia = new Date(ano, mes, 1);
     const ultimoDia = new Date(ano, mes + 1, 0);
-    const diaSemanaInicio = primeiroDia.getDay(); // 0 = Domingo, 1 = Segunda...
+    const diaSemanaInicio = primeiroDia.getDay();
     
-    // Ajustar para segunda-feira como primeiro dia (em Portugal)
     let startOffset = diaSemanaInicio === 0 ? 6 : diaSemanaInicio - 1;
     
     const dias = [];
@@ -136,7 +190,6 @@ export default function Calendario() {
     
     // Dias do mês atual
     for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
-      const data = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
       let status = null;
       
       if (disponibilidade[dia] === true) {
@@ -145,10 +198,10 @@ export default function Calendario() {
         status = 'Reservado';
       }
       
-      dias.push({ dia, mesAtual: true, status, data });
+      dias.push({ dia, mesAtual: true, status, data: `${ano}-${mes + 1}-${dia}` });
     }
     
-    // Dias do mês seguinte para completar a grid (42 dias = 6 semanas)
+    // Dias do mês seguinte
     const totalDias = dias.length;
     const diasFaltando = 42 - totalDias;
     for (let i = 1; i <= diasFaltando; i++) {
@@ -169,10 +222,6 @@ export default function Calendario() {
       default:
         return 'bg-white text-[#0f172a]';
     }
-  };
-
-  const getStatusLabel = (status) => {
-    return status || '';
   };
 
   const mudarMes = (direcao) => {
@@ -201,8 +250,8 @@ export default function Calendario() {
     item.titulo?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getTipoIcone = () => {
-    switch(activeTab) {
+  const getTipoIcone = (tab) => {
+    switch(tab) {
       case 'alojamentos': return <Home size={18} className="text-blue-600" />;
       case 'carros': return <Car size={18} className="text-green-600" />;
       case 'experiencias': return <Compass size={18} className="text-purple-600" />;
@@ -219,50 +268,74 @@ export default function Calendario() {
     }
   };
 
+  // Se não tem nenhuma role aprovada
+  if (tabsPermitidas.length === 0 && !loading) {
+    return (
+      <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Calendar size={40} className="text-gray-400" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Acesso Restrito</h2>
+          <p className="text-gray-500 max-w-md mx-auto">
+            Você não tem permissão para aceder ao calendário de disponibilidade.
+            É necessário ter uma das seguintes funções aprovadas: Anfitrião, Guia de Experiências ou Proprietário de Veículos.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
       
-      {/* Título Principal */}
       <h1 className="text-[22px] font-bold mb-6">Calendário de Disponibilidade</h1>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab('alojamentos')}
-          className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'alojamentos'
-              ? 'text-blue-900 border-b-2 border-blue-900'
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <Home size={16} /> Alojamentos
-        </button>
-        <button
-          onClick={() => setActiveTab('carros')}
-          className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'carros'
-              ? 'text-blue-900 border-b-2 border-blue-900'
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <Car size={16} /> Carros
-        </button>
-        <button
-          onClick={() => setActiveTab('experiencias')}
-          className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'experiencias'
-              ? 'text-blue-900 border-b-2 border-blue-900'
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <Compass size={16} /> Experiências
-        </button>
-      </div>
+      {/* Tabs - Apenas as roles aprovadas */}
+      {tabsPermitidas.length > 0 && (
+        <div className="flex gap-2 mb-6 border-b border-gray-200">
+          {tabsPermitidas.includes('alojamentos') && (
+            <button
+              onClick={() => setActiveTab('alojamentos')}
+              className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'alojamentos'
+                  ? 'text-blue-900 border-b-2 border-blue-900'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Home size={16} /> Alojamentos
+            </button>
+          )}
+          {tabsPermitidas.includes('carros') && (
+            <button
+              onClick={() => setActiveTab('carros')}
+              className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'carros'
+                  ? 'text-blue-900 border-b-2 border-blue-900'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Car size={16} /> Carros
+            </button>
+          )}
+          {tabsPermitidas.includes('experiencias') && (
+            <button
+              onClick={() => setActiveTab('experiencias')}
+              className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'experiencias'
+                  ? 'text-blue-900 border-b-2 border-blue-900'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Compass size={16} /> Experiências
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Controles de Topo */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         
-        {/* Lado Esquerdo: Navegação de Mês */}
         <div className="flex items-center gap-3">
           <button 
             onClick={() => mudarMes(-1)}
@@ -281,9 +354,7 @@ export default function Calendario() {
           </button>
         </div>
 
-        {/* Lado Direito: Busca e Select */}
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          {/* Busca */}
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -295,27 +366,25 @@ export default function Calendario() {
             />
           </div>
           
-          {/* Select */}
-          <div className="relative w-full md:w-72">
-            <select
-              value={selectedItem?.id || ''}
-              onChange={(e) => {
-                const item = items.find(i => i.id === parseInt(e.target.value));
-                setSelectedItem(item);
-              }}
-              className="appearance-none bg-white border border-gray-200 text-[#0f172a] text-[14px] font-medium rounded-xl px-4 py-2.5 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 cursor-pointer w-full"
-            >
-              {filteredItems.length === 0 && (
-                <option value="">Nenhum item encontrado</option>
-              )}
-              {filteredItems.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.titulo}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-gray-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          {filteredItems.length > 0 && (
+            <div className="relative w-full md:w-72">
+              <select
+                value={selectedItem?.id || ''}
+                onChange={(e) => {
+                  const item = items.find(i => i.id === parseInt(e.target.value));
+                  setSelectedItem(item);
+                }}
+                className="appearance-none bg-white border border-gray-200 text-[#0f172a] text-[14px] font-medium rounded-xl px-4 py-2.5 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 cursor-pointer w-full"
+              >
+                {filteredItems.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.titulo}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-gray-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -328,13 +397,12 @@ export default function Calendario() {
       )}
 
       {/* Grelha do Calendário */}
-      {!loading && selectedItem && (
+      {!loading && selectedItem && filteredItems.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
           
           <div className="overflow-x-auto w-full scrollbar-hide">
             <div className="min-w-[700px]">
               
-              {/* Cabeçalho dos Dias da Semana */}
               <div className="grid grid-cols-7 border-b border-gray-100">
                 {diasSemana.map((dia, idx) => (
                   <div key={idx} className="py-4 text-center border-r border-gray-100 last:border-r-0">
@@ -343,7 +411,6 @@ export default function Calendario() {
                 ))}
               </div>
 
-              {/* Células dos Dias */}
               <div className="grid grid-cols-7">
                 {getDiasMes().map((dayObj, index) => {
                   const statusColor = getStatusColor(dayObj.status);
@@ -374,14 +441,20 @@ export default function Calendario() {
         </div>
       )}
 
-      {/* Sem seleção */}
-      {!loading && !selectedItem && items.length === 0 && (
+      {/* Sem itens */}
+      {!loading && filteredItems.length === 0 && (
         <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
-          <p className="text-slate-500">Nenhum {getTipoLabel().toLowerCase()} encontrado</p>
+          <div className="flex flex-col items-center gap-2">
+            {getTipoIcone(activeTab)}
+            <p className="text-slate-500 mt-2">Nenhum {getTipoLabel().toLowerCase()} encontrado</p>
+            <p className="text-sm text-gray-400">
+              Você ainda não tem {getTipoLabel().toLowerCase()} cadastrados ou aprovados
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Legenda do Calendário */}
+      {/* Legenda */}
       <div className="flex flex-wrap items-center gap-6 mt-6 px-2">
         <div className="flex items-center gap-2">
           <div className="w-[18px] h-[18px] rounded-[4px] bg-[#dcfce7] border border-[#bbf7d0]"></div>
@@ -396,9 +469,9 @@ export default function Calendario() {
           <span className="text-[13px] font-semibold text-[#475569]">Pendente</span>
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          {getTipoIcone()}
+          {getTipoIcone(activeTab)}
           <span className="text-[12px] text-slate-400">
-            Mostrando: {selectedItem?.titulo || 'Nenhum'}
+            Mostrando: {selectedItem?.titulo || 'Nenhum item selecionado'}
           </span>
         </div>
       </div>
