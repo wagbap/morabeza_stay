@@ -790,6 +790,8 @@ entrar_com_google: "Iniciar sesión con Google",
 erro_login_google: "Error al iniciar sesión con Google. Inténtalo de nuevo.",
 // ==================== LOGIN GOOGLE ====================
 entrar_com_google: "Mit Google anmelden",
-erro_login_google: "Fehler bei der Anmeldung mit Google. Bitte versuchen Sie es erneut."
+erro_login_google: "Fehler bei der Anmeldung mit Google. Bitte versuchen Sie es erneut.",
+registe_sua_propriedade: "Registre Su Propiedad",
+dados_cartao: "Datos de la Tarjeta"
   }
 };

@@ -773,6 +773,8 @@ explorar: "Esplora",
 favoritos: "Preferiti",
 // ==================== LOGIN GOOGLE ====================
 entrar_com_google: "Accedi con Google",
-erro_login_google: "Errore durante l'accesso con Google. Riprova."
+erro_login_google: "Errore durante l'accesso con Google. Riprova.",
+registe_sua_propriedade: "Registra la Tua Proprietà",
+dados_cartao: "Dati della Carta"
   }
 };

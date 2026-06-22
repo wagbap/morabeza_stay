@@ -76,14 +76,13 @@ const Navbar = () => {
     <>
       <nav className={`w-full z-[100] px-6 md:px-12 py-5 flex justify-between items-center transition-all duration-300 ${getNavbarClasses()}`}>
         
-        <Link to="/" className="flex items-center gap-1 min-w-[150px]">
-          <span className="text-3xl font-bold italic text-[#a5d6a7]">M</span>
-          <span className={`text-xl font-bold uppercase tracking-widest transition-colors ${
-            isHeroPage ? "text-white" : "text-gray-900"
-          }`}>
-            Morabeza<span className="font-light opacity-80 uppercase tracking-tighter">Stay</span>
-          </span>
-        </Link>
+    <Link to="/" className="flex items-center min-w-[150px]">
+  <img 
+    src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" 
+    alt="Morabeza Stay Logo" 
+    className="h-10 w-auto object-contain" /* Ajusta a altura (h-10) como preferires */
+  />
+</Link>
 
         {/* ✅ LINHA 90 CORRIGIDA: Texto fantasma removido com sucesso! */}
         <div className={`hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] absolute left-1/2 -translate-x-1/2 transition-colors ${
@@ -137,7 +136,7 @@ const Navbar = () => {
                   : "bg-[#003580] text-white hover:bg-[#002560]"
               }`}
             >
-              Registar sua propriedade
+                 {t('registe_sua_propriedade')}
             </Link>
           ) : (
             <UserDropdown 

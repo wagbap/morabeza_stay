@@ -791,6 +791,8 @@ explorar: "Explorar",
 favoritos: "Favoritos",
 // Adicionar ao pt.js
 entrar_com_google: "Entrar com Google",
-erro_login_google: "Erro ao fazer login com Google. Tente novamente."
+erro_login_google: "Erro ao fazer login com Google. Tente novamente.",
+registe_sua_propriedade: "Registe a sua Propriedade",
+dados_cartao: "Dados do Cartão"
   }
 };

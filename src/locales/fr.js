@@ -707,7 +707,9 @@ info_zap: "Règlement instantané via le réseau numérique ZAP. Contactez le su
 confirmar_reserva_concluir: "Confirmer la réservation et terminer",
 // ==================== LOGIN GOOGLE ====================
 entrar_com_google: "Se connecter avec Google",
-erro_login_google: "Erreur lors de la connexion avec Google. Veuillez réessayer."
+erro_login_google: "Erreur lors de la connexion avec Google. Veuillez réessayer.",
+registe_sua_propriedade: "Enregistrez Votre Propriété",
+dados_cartao: "Coordonnées de la Carte"
 
   }
 };

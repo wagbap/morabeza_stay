@@ -65,11 +65,11 @@ const NomePropriedade = () => {
             </div>
           </div>
           <div className="w-[1px] h-8 bg-blue-900"></div>
-          <div className="cursor-pointer hover:underline">PT</div>
+
           <div className="flex items-center gap-2 cursor-pointer hover:underline">
             <span>Ajuda</span> <HelpCircle size={18} />
           </div>
-          <User size={24} className="cursor-pointer" />
+    
         </div>
       </header>
 

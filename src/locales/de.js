@@ -756,6 +756,8 @@ olá: "Hallo",
 estes_sao_seus_favoritos: "das sind Ihre Favoriten.",
 sem_favoritos: "Keine {{categoria}} in Favoriten",
 explorar: "Entdecken",
-favoritos: "Favoriten"
+favoritos: "Favoriten",
+registe_sua_propriedade: "Registrieren Sie Ihre Immobilie",
+dados_cartao: "Kartendaten"
   }
 };

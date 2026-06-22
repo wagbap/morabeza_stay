@@ -1,10 +1,11 @@
-// Pagamento.jsx - Versão COMPLETA com suporte para Experiências, Alojamentos e Carros
+// Pagamento.jsx - Versão COMPLETA apenas com Stripe (sem PayPal)
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Check, CreditCard, ArrowLeft, ChevronRight, 
-  ShieldCheck, Lock, AlertCircle, Loader, Users, Wallet
+  ShieldCheck, Lock, AlertCircle, Loader, 
+  Sparkles
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
@@ -13,9 +14,8 @@ import { Elements, useStripe, useElements, CardElement } from '@stripe/react-str
 import ResumoReservaExperiencia from '../features/experiencias/components/ResumoReservaExperiencia';
 import ResumoReservaAlojamento from '../features/alojamento/components/ResumoReservaAlojamento';
 import ResumoReservaCarro from '../features/carros/components/ResumoReservaCarro';
-import PayPalButton from './PayPalButton';
 
-// No topo do ficheiro, depois dos imports
+// Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 const PagamentoContent = () => {
@@ -27,12 +27,12 @@ const PagamentoContent = () => {
 
   const { reservaData, dadosParticipantes, tipo: tipoState } = location.state || {};
 
-  const [metodoPagamento, setMetodoPagamento] = useState('cartao');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reserva, setReserva] = useState(reservaData || {});
   const [tipo, setTipo] = useState(tipoState || 'experiencia');
-  const [payPalLoading, setPayPalLoading] = useState(false);
+  const [cardComplete, setCardComplete] = useState(false);
+  const [cardError, setCardError] = useState('');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -120,8 +120,8 @@ const PagamentoContent = () => {
         horario: horarioFormatado,
         quantidade_pessoas: quantidadeLabel,
         preco_total: tipo === 'alojamento' ? (rD?.totalGeral || 0) : (tipo === 'carro' ? (rD?.totalGeral || 0) : (rD?.precoTotal || 0)),
-        metodo_pagamento: metodoPagamento,
-        status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
+        metodo_pagamento: 'cartao',
+        status_pagamento: 'pago',
         participante_principal: {
           nome_completo: participantePrincipal.nome_completo || '',
           email: participantePrincipal.email || '',
@@ -182,11 +182,8 @@ const PagamentoContent = () => {
         },
         participante_principal: { ...participantePrincipal },
         participantes_adicionais: (participantesAdicionais || []).map(p => ({ ...p })),
-        metodo_pagamento: metodoPagamento,
-        status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
-        transaction_id: dadosTransacao?.id || dadosTransacao?.paypal_capture_id || null,
-        paypal_order_id: dadosTransacao?.paypal_order_id || null,
-        paypal_capture_id: dadosTransacao?.paypal_capture_id || null,
+        metodo_pagamento: 'cartao',
+        status_pagamento: 'pago',
         stripe_id: dadosTransacao?.id || null
       };
     } else if (tipo === 'carro') {
@@ -213,11 +210,8 @@ const PagamentoContent = () => {
           observacoes: participantePrincipal.observacoes || ''
         },
         participantes_adicionais: [],
-        metodo_pagamento: metodoPagamento,
-        status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
-        transaction_id: dadosTransacao?.id || dadosTransacao?.paypal_capture_id || null,
-        paypal_order_id: dadosTransacao?.paypal_order_id || null,
-        paypal_capture_id: dadosTransacao?.paypal_capture_id || null,
+        metodo_pagamento: 'cartao',
+        status_pagamento: 'pago',
         stripe_id: dadosTransacao?.id || null
       };
     } else {
@@ -238,11 +232,8 @@ const PagamentoContent = () => {
         },
         participante_principal: { ...participantePrincipal },
         participantes_adicionais: (participantesAdicionais || []).map(p => ({ ...p })),
-        metodo_pagamento: metodoPagamento,
-        status_pagamento: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente',
-        transaction_id: dadosTransacao?.id || dadosTransacao?.paypal_capture_id || null,
-        paypal_order_id: dadosTransacao?.paypal_order_id || null,
-        paypal_capture_id: dadosTransacao?.paypal_capture_id || null,
+        metodo_pagamento: 'cartao',
+        status_pagamento: 'pago',
         stripe_id: dadosTransacao?.id || null
       };
     }
@@ -260,94 +251,70 @@ const PagamentoContent = () => {
     return result;
   };
 
-  const handlePayPalSuccess = async (paypalData) => {
-    setPayPalLoading(true);
+  const handleFinalizarPagamento = async () => {
+    setLoading(true);
     setError('');
+    
     try {
-      const transactionData = {
-        id: paypalData.id,
-        paypal_order_id: paypalData.id,
-        paypal_capture_id: paypalData.purchase_units?.[0]?.payments?.captures?.[0]?.id || paypalData.id
-      };
+      if (!stripe || !elements) {
+        setError(t('erro_stripe_nao_carregado'));
+        setLoading(false);
+        return;
+      }
 
-      const saveResult = await salvarReservaNoBackend(transactionData);
+      let totalPagar;
+      if (tipo === 'alojamento') totalPagar = reserva?.totalGeral || 0;
+      else if (tipo === 'carro') totalPagar = reserva?.totalGeral || 0;
+      else totalPagar = reserva?.precoTotal || 0;
+      
+      const taxaConversao = 110.265;
+      let valorEmEUR = totalPagar / taxaConversao;
+
+      if (valorEmEUR < 0.50) {
+        setError(t('erro_valor_minimo_cartao', { valor: valorEmEUR.toFixed(2) }));
+        setLoading(false);
+        return;
+      }
+
+      const valorEmCentavos = Math.round(valorEmEUR * 100);
+
+      // Criar Payment Intent
+      const resIntent = await fetch('https://welovepalop.com/api/create-payment-intent.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: valorEmCentavos, currency: 'eur' })
+      });
+
+      const dataIntent = await resIntent.json();
+      
+      if (!resIntent.ok) {
+        throw new Error(dataIntent.error || t('erro_servidor_pagamentos'));
+      }
+
+      // Confirmar pagamento com Stripe
+      const result = await stripe.confirmCardPayment(dataIntent.clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        },
+      });
+
+      if (result.error) {
+        setError(result.error.message);
+        setLoading(false);
+        return;
+      }
+
+      // Salvar reserva no backend
+      const saveResult = await salvarReservaNoBackend(result.paymentIntent);
+      
       if (saveResult.success) {
         finalizeSucesso(saveResult.data);
       } else {
         setError(saveResult.error || t('erro_registar_reserva'));
       }
+      
     } catch (err) {
-      setError(err.message || t('erro_processamento_paypal'));
-    } finally {
-      setPayPalLoading(false);
-    }
-  };
-
-  const handlePayPalError = (err) => {
-    setError(err.message || t('erro_paypal'));
-  };
-
-  const handleFinalizarPagamento = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      if (metodoPagamento === 'cartao') {
-        if (!stripe || !elements) {
-          setError(t('erro_stripe_nao_carregado'));
-          setLoading(false);
-          return;
-        }
-
-        let totalPagar;
-        if (tipo === 'alojamento') totalPagar = reserva?.totalGeral || 0;
-        else if (tipo === 'carro') totalPagar = reserva?.totalGeral || 0;
-        else totalPagar = reserva?.precoTotal || 0;
-        
-        const taxaConversao = 110.265;
-        let valorEmEUR = totalPagar / taxaConversao;
-
-        if (valorEmEUR < 0.50) {
-          setError(t('erro_valor_minimo_cartao', { valor: valorEmEUR.toFixed(2) }));
-          setLoading(false);
-          return;
-        }
-
-        const valorEmCentavos = Math.round(valorEmEUR * 100);
-
-        const resIntent = await fetch('https://welovepalop.com/api/create-payment-intent.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: valorEmCentavos, currency: 'eur' })
-        });
-
-        const dataIntent = await resIntent.json();
-        if (!resIntent.ok) throw new Error(dataIntent.error || t('erro_servidor_pagamentos'));
-
-        const result = await stripe.confirmCardPayment(dataIntent.clientSecret, {
-          payment_method: { card: elements.getElement(CardElement) },
-        });
-
-        if (result.error) {
-          setError(result.error.message);
-          setLoading(false);
-          return;
-        }
-
-        const saveResult = await salvarReservaNoBackend(result.paymentIntent);
-        if (saveResult.success) {
-          finalizeSucesso(saveResult.data);
-        } else {
-          setError(saveResult.error || t('erro_registar_reserva'));
-        }
-      } else if (metodoPagamento === 'transferencia' || metodoPagamento === 'zap') {
-        const saveResult = await salvarReservaNoBackend();
-        if (saveResult.success) {
-          finalizeSucesso(saveResult.data);
-        } else {
-          setError(saveResult.error || t('erro_registar_reserva'));
-        }
-      }
-    } catch (err) {
+      console.error('Erro no pagamento:', err);
       setError(err.message || t('erro_geral_pagamento'));
     } finally {
       setLoading(false);
@@ -367,59 +334,23 @@ const PagamentoContent = () => {
         reservaId: data?.reserva_id,
         codigoReserva: data?.codigo_reserva,
         reservaData: reserva,
-        metodoPagamento,
+        metodoPagamento: 'cartao',
         tipo,
-        status: metodoPagamento === 'cartao' || metodoPagamento === 'paypal' ? 'pago' : 'pendente'
+        status: 'pago'
       } 
     });
   };
 
-  const getPayPalReservationData = () => {
-    let keyStorage;
-    if (tipo === 'alojamento') keyStorage = 'reservaAlojamentoPendente';
-    else if (tipo === 'carro') keyStorage = 'reservaCarroPendente';
-    else keyStorage = 'reservaPendente';
-    
-    const cache = sessionStorage.getItem(keyStorage);
-    if (cache) {
-      try {
-        const dados = JSON.parse(cache);
-        return {
-          titulo: reserva?.titulo || t('reserva'),
-          reserva_id: reserva?.id,
-          email_cliente: dados.participantePrincipal?.email || '',
-          nome_cliente: dados.participantePrincipal?.nome_completo || t('cliente'),
-          phone_cliente: dados.participantePrincipal?.phone || ''
-        };
-      } catch (e) {
-        return { titulo: reserva?.titulo || t('reserva'), nome_cliente: t('cliente'), email_cliente: '' };
-      }
-    }
-    return { titulo: reserva?.titulo || t('reserva'), nome_cliente: t('cliente'), email_cliente: '' };
-  };
-
-  const isPayPalAmountValid = () => {
-    let totalPagar;
-    if (tipo === 'alojamento') totalPagar = reserva?.totalGeral || 0;
-    else if (tipo === 'carro') totalPagar = reserva?.totalGeral || 0;
-    else totalPagar = reserva?.precoTotal || 0;
-    return (totalPagar / 110.265) >= 0.50;
+  // Card Element change handler
+  const handleCardChange = (event) => {
+    setCardComplete(event.complete);
+    setCardError(event.error ? event.error.message : '');
   };
 
   const getTituloStepper = () => {
     if (tipo === 'alojamento') return t('dados_hospedes');
     if (tipo === 'carro') return t('dados_condutor');
     return t('dados_participantes');
-  };
-
-  const getMetodoPagamentoLabel = (metodo) => {
-    const labels = {
-      cartao: t('cartao_credito_debito'),
-      paypal: 'PayPal',
-      transferencia: t('transferencia_bancaria'),
-      zap: 'ZAP'
-    };
-    return labels[metodo] || metodo;
   };
 
   const steps = [
@@ -454,7 +385,7 @@ const PagamentoContent = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8">
             <h1 className="text-2xl font-bold text-blue-900 mb-2 text-left">{t('pagamento')}</h1>
-            <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('escolha_metodo_pagamento')}</p>
+            <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('pagamento_com_cartao')}</p>
             
             <div className="bg-[#F8FFF9] border border-green-100 rounded-2xl p-4 flex gap-3 mb-8 text-left">
               <ShieldCheck className="text-green-500 shrink-0" size={20} />
@@ -471,119 +402,88 @@ const PagamentoContent = () => {
             )}
 
             <div className="space-y-4 text-left">
-              <h3 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-4">{t('selecione_metodo_pagamento')}</h3>
+              <h3 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-4">{t('dados_cartao')}</h3>
               
-              {/* STRIPE */}
-              <div className={`border rounded-2xl transition ${metodoPagamento === 'cartao' ? 'border-blue-600 bg-blue-50/10 shadow-sm' : 'border-slate-200'}`}>
-                <label className="flex items-center p-4 cursor-pointer">
-                  <input type="radio" name="metodoPagamento" checked={metodoPagamento === 'cartao'} onChange={() => setMetodoPagamento('cartao')} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                  <CreditCard className="ml-4 text-blue-900" size={20} />
-                  <span className="ml-3 text-sm font-bold text-blue-900 flex-1">{t('cartao_credito_debito_stripe')}</span>
-                  <div className="flex gap-1 shrink-0">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-3" />
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-3" />
+              {/* ============================================ */}
+              {/* STRIPE - ESTILIZADO */}
+              {/* ============================================ */}
+              <div className="border-2 border-blue-500 rounded-2xl bg-blue-50/30 shadow-md shadow-blue-100 overflow-hidden">
+                <div className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200">
+                      <CreditCard className="text-white" size={20} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-blue-900">{t('cartao_credito_debito')}</p>
+                      <p className="text-xs text-slate-500 font-medium">Pagamento seguro com Stripe</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0 ml-auto">
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/9/98/Visa_Inc._logo_%282005%E2%80%932014%29.svg" alt="Visa" className="h-4" />
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-4" />
+                      <Sparkles className="text-blue-400" size={14} />
+                    </div>
                   </div>
-                </label>
-                
-                {metodoPagamento === 'cartao' && (
-                  <div className="px-12 pb-6 duration-300 animate-in fade-in">
-                    <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-sm">
-                      <CardElement options={{
+                  
+                  <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Lock size={14} className="text-slate-400" />
+                      <span className="text-xs text-slate-500 font-medium">Informações do cartão</span>
+                    </div>
+                    <CardElement 
+                      options={{
                         style: {
                           base: {
-                            fontSize: '14px',
+                            fontSize: '16px',
                             color: '#0f172a',
-                            fontFamily: 'sans-serif',
-                            '::placeholder': { color: '#94a3b8' },
+                            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+                            fontWeight: '500',
+                            padding: '12px 0',
+                            '::placeholder': { color: '#94a3b8', fontWeight: '400' },
                           },
                           invalid: { color: '#ef4444' },
                         },
-                      }} />
+                        hidePostalCode: true,
+                      }}
+                      onChange={handleCardChange}
+                    />
+                    {cardError && (
+                      <p className="text-xs text-red-500 mt-2 font-medium">{cardError}</p>
+                    )}
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                      <div className="flex gap-2">
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">🔒 Seguro</span>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">⚡ Instantâneo</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">Pagamento processado pela Stripe</span>
                     </div>
                   </div>
-                )}
-              </div>
-
-              {/* PAYPAL */}
-              <div className={`border rounded-2xl transition ${metodoPagamento === 'paypal' ? 'border-blue-600 bg-blue-50/10 shadow-sm' : 'border-slate-200'}`}>
-                <label className="flex items-center p-4 cursor-pointer">
-                  <input type="radio" name="metodoPagamento" checked={metodoPagamento === 'paypal'} onChange={() => setMetodoPagamento('paypal')} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                  <Wallet className="ml-4 text-[#0070ba]" size={20} />
-                  <span className="ml-3 text-sm font-bold text-blue-900 flex-1">PayPal</span>
-                  <img src="https://www.paypal.com/webapps/mpp/assets/images/logo/logo_paypal_pill.png" alt="PayPal" className="h-5 shrink-0" />
-                </label>
-                
-                {metodoPagamento === 'paypal' && (
-                  <div className="px-12 pb-6 duration-300 animate-in fade-in">
-                    {!isPayPalAmountValid() ? (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-                        <AlertCircle className="text-amber-600 mx-auto mb-2" size={24} />
-                        <p className="text-sm font-bold text-amber-800">{t('montante_minimo_nao_elegivel')}</p>
-                        <p className="text-xs text-amber-700 mt-1 font-medium">
-                          {t('paypal_valor_minimo')}<br />
-                          {t('selecione_outro_metodo')}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-sm">
-                        {payPalLoading ? (
-                          <div className="flex items-center justify-center py-4 text-slate-500 text-sm font-medium">
-                            <Loader className="animate-spin text-blue-600 mr-2" size={20} /> {t('processando_transacao')}
-                          </div>
-                        ) : (
-                          <PayPalButton
-                            amount={tipo === 'alojamento' || tipo === 'carro' ? (reserva?.totalGeral || 0) : (reserva?.precoTotal || 0)}
-                            currency="CVE"
-                            reservationData={getPayPalReservationData()}
-                            onSuccess={handlePayPalSuccess}
-                            onError={handlePayPalError}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* TRANSFERÊNCIA BANCÁRIA */}
-              <div className={`border rounded-2xl transition ${metodoPagamento === 'transferencia' ? 'border-blue-600 bg-blue-50/10 shadow-sm' : 'border-slate-200'}`}>
-                <label className="flex items-center p-4 cursor-pointer">
-                  <input type="radio" name="metodoPagamento" checked={metodoPagamento === 'transferencia'} onChange={() => setMetodoPagamento('transferencia')} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                  <Users className="ml-4 text-slate-600" size={20} />
-                  <div className="ml-3">
-                    <p className="text-sm font-bold text-blue-900">{t('transferencia_bancaria_deposito')}</p>
-                    <p className="text-xs text-slate-500 font-medium">{t('info_transferencia')}</p>
-                  </div>
-                </label>
-              </div>
-
-              {/* ZAP */}
-              <div className={`border rounded-2xl transition ${metodoPagamento === 'zap' ? 'border-blue-600 bg-blue-50/10 shadow-sm' : 'border-slate-200'}`}>
-                <label className="flex items-center p-4 cursor-pointer">
-                  <input type="radio" name="metodoPagamento" checked={metodoPagamento === 'zap'} onChange={() => setMetodoPagamento('zap')} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                  <span className="ml-4 text-[#E91E63] font-black italic text-lg font-sans">zap</span>
-                  <div className="ml-3">
-                    <p className="text-sm font-bold text-blue-900">{t('pagamento_zap')}</p>
-                    <p className="text-xs text-slate-500 font-medium">{t('info_zap')}</p>
-                  </div>
-                </label>
+                </div>
               </div>
             </div>
 
             <div className="mt-12 flex flex-col sm:flex-row justify-between gap-4">
-              <button onClick={() => navigate(-1)} className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition text-slate-700 shadow-sm">
+              <button 
+                onClick={() => navigate(-1)} 
+                className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition text-slate-700 shadow-sm"
+              >
                 <ArrowLeft size={18}/> {t('voltar')}
               </button>
               
-              {metodoPagamento !== 'paypal' && (
-                <button 
-                  onClick={handleFinalizarPagamento}
-                  disabled={loading}
-                  className="flex-1 max-w-md bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 transition shadow-md"
-                >
-                  {loading ? <Loader className="animate-spin" size={20} /> : <><Lock size={16} /> {t('confirmar_reserva_concluir')} <ChevronRight size={18}/></>}
-                </button>
-              )}
+              <button 
+                onClick={handleFinalizarPagamento}
+                disabled={loading || !cardComplete}
+                className="flex-1 max-w-md bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-md shadow-blue-200 py-3.5"
+              >
+                {loading ? (
+                  <Loader className="animate-spin" size={20} /> 
+                ) : (
+                  <>
+                    <Lock size={16} /> 
+                    {t('confirmar_reserva_concluir')} 
+                    <ChevronRight size={18}/>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 

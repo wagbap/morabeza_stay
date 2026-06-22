@@ -764,7 +764,9 @@ explorar: "Explore",
 favoritos: "Favorites",
 // ==================== LOGIN GOOGLE ====================
 entrar_com_google: "Sign in with Google",
-erro_login_google: "Error signing in with Google. Please try again."
+erro_login_google: "Error signing in with Google. Please try again.",
+registe_sua_propriedade: "Register Your Property",
+dados_cartao: "Card Details"
 
   }
 };

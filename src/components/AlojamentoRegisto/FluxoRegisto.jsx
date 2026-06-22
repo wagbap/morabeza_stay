@@ -1,33 +1,15 @@
 // src/components/AlojamentoRegisto/FluxoRegisto.jsx
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, HelpCircle, User, ChevronRight, Search, MapPin, Loader } from 'lucide-react';
-import { Map, Marker, NavigationControl } from 'react-map-gl';
+import { ArrowLeft, Check, HelpCircle, User, ChevronRight, Loader } from 'lucide-react';
 import PropMenu from './PropMenu';
 import Comodidades from './Comodidades';
 import InformacoesBasicas from './InformacoesBasicas';
 import Regras from './Regras';
 import ImagensUpload from './ImagensUpload';
-import RegistarLocalizacao from './RegistarLocalizacao'; // Importe o componente de localização
-import { salvarFluxoRegisto } from '../../services/apiService';
+import RegistarLocalizacao from './RegistarLocalizacao';
+import { salvarFluxoRegisto, buscarAlojamentoParaEdicao } from '../../services/apiService';
 import 'mapbox-gl/dist/mapbox-gl.css';
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-
-const BASE_ENDERECOS_CV = [
-  { id: 'cv-1', titulo: 'Avenida Marginal, Mindelo', subtitulo: 'Concelho de São Vicente, 2110, Cabo Verde', cidade: 'Mindelo', codigoPostal: '2110', pais: 'Cabo Verde', lat: 16.8884, lng: -24.9896 },
-  { id: 'cv-2', titulo: 'Praça Nova (Praça Amílcar Cabral)', subtitulo: 'Mindelo, Ilha de São Vicente, Cabo Verde', cidade: 'Mindelo', codigoPostal: '2110', pais: 'Cabo Verde', lat: 16.8893, lng: -24.9875 },
-  { id: 'cv-3', titulo: 'Avenida Amílcar Cabral, Praia', subtitulo: 'Platô, Concelho da Praia, 7110, Cabo Verde', cidade: 'Praia', codigoPostal: '7110', pais: 'Cabo Verde', lat: 14.9212, lng: -23.5084 },
-  { id: 'cv-4', titulo: 'Quebra Canela, Praia', subtitulo: 'Ilha de Santiago, Cabo Verde', cidade: 'Praia', codigoPostal: '7110', pais: 'Cabo Verde', lat: 14.9042, lng: -23.5218 },
-  { id: 'cv-5', titulo: 'Rua Pedonal de Santa Maria', subtitulo: 'Santa Maria, Ilha do Sal, 4111, Cabo Verde', cidade: 'Santa Maria', codigoPostal: '4111', pais: 'Cabo Verde', lat: 16.5975, lng: -22.9051 },
-  { id: 'cv-6', titulo: 'Largo de Santana, Espargos', subtitulo: 'Espargos, Ilha do Sal, Cabo Verde', cidade: 'Espargos', codigoPostal: '4110', pais: 'Cabo Verde', lat: 16.7554, lng: -22.9439 },
-  { id: 'cv-7', titulo: 'Praça Sal Rei, Boa Vista', subtitulo: 'Sal Rei, Ilha da Boa Vista, 5110, Cabo Verde', cidade: 'Sal Rei', codigoPostal: '5110', pais: 'Cabo Verde', lat: 16.1792, lng: -22.9158 },
-  { id: 'cv-8', titulo: 'Rua Direita, Cidade Velha', subtitulo: 'Ribeira Grande de Santiago, Ilha de Santiago, Cabo Verde', cidade: 'Cidade Velha', codigoPostal: '7120', pais: 'Cabo Verde', lat: 14.9157, lng: -23.6053 },
-  { id: 'cv-9', titulo: 'Tarrafal de Santiago (Praia Mar)', subtitulo: 'Concelho do Tarrafal, Ilha de Santiago, Cabo Verde', cidade: 'Tarrafal', codigoPostal: '7310', pais: 'Cabo Verde', lat: 15.2778, lng: -23.7512 },
-  { id: 'cv-10', titulo: 'São Filipe Centro', subtitulo: 'Ilha do Fogo, 8110, Cabo Verde', cidade: 'São Filipe', codigoPostal: '8110', pais: 'Cabo Verde', lat: 14.8961, lng: -24.4956 },
-  { id: 'cv-11', titulo: 'Ribeira Grande Centro', subtitulo: 'Ilha de Santo Antão, 1110, Cabo Verde', cidade: 'Ribeira Grande', codigoPostal: '1110', pais: 'Cabo Verde', lat: 17.1833, lng: -25.0667 },
-  { id: 'cv-12', titulo: 'Porto Novo (Zona do Porto)', subtitulo: 'Porto Novo, Ilha de Santo Antão, Cabo Verde', cidade: 'Porto Novo', codigoPostal: '1120', pais: 'Cabo Verde', lat: 17.0197, lng: -25.0642 }
-];
 
 const FluxoRegisto = () => {
   const navigate = useNavigate();
@@ -36,6 +18,7 @@ const FluxoRegisto = () => {
   const [fase, setFase] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alojamentoId, setAlojamentoId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   // FASE 1 - Informações Básicas
   const [informacoesBasicas, setInformacoesBasicas] = useState({
@@ -52,7 +35,7 @@ const FluxoRegisto = () => {
     casas_banho: 1
   });
   
-  // FASE 2 - Localização (usando o novo componente)
+  // FASE 2 - Localização
   const [localizacaoDados, setLocalizacaoDados] = useState({
     endereco: '',
     cidade: '',
@@ -60,6 +43,8 @@ const FluxoRegisto = () => {
     codigo_postal: '',
     num_apartamento: '',
     morada_completa: '',
+    latitude: null,
+    longitude: null,
     coordenadas: { lat: null, lng: null }
   });
   
@@ -77,6 +62,122 @@ const FluxoRegisto = () => {
   
   // Refs para controlar carregamento inicial
   const isInitialLoad = useRef(true);
+  const isEditing = useRef(false);
+  
+  // ==================== CARREGAR DADOS PARA EDIÇÃO ====================
+  
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    
+    if (id) {
+      isEditing.current = true;
+      setAlojamentoId(parseInt(id));
+      carregarDadosParaEdicao(parseInt(id));
+    }
+  }, []);
+  
+  const carregarDadosParaEdicao = async (id) => {
+    setIsLoading(true);
+    try {
+      console.log(`🔍 Carregando dados para edição do alojamento #${id}`);
+      
+      const result = await buscarAlojamentoParaEdicao(id);
+      
+      if (!result.success || !result.data) {
+        console.error('❌ Erro ao carregar dados:', result.message);
+        alert('Erro ao carregar dados do alojamento para edição.');
+        return;
+      }
+      
+      const data = result.data;
+      console.log('📦 Dados carregados:', data);
+      
+      // 1. Preencher Informações Básicas
+      setInformacoesBasicas({
+        titulo: data.titulo || '',
+        tipo_propriedade: data.tipo_propriedade || data.tipo || 'Apartamento',
+        capacidade: data.capacidade || 2,
+        estrelas: data.estrelas || 4.5,
+        descricao: data.descricao || '',
+        descricao_detalhada: data.descricao_detalhada || '',
+        preco_noite: data.preco_noite || '',
+        tempo_resposta: data.tempo_resposta || 'Dentro de 1 hora',
+        quartos: data.quartos || 1,
+        camas: data.camas || 1,
+        casas_banho: data.casas_banho || 1
+      });
+      
+      // 2. Preencher Localização
+      if (data.morada) {
+        const morada = data.morada;
+        setLocalizacaoDados({
+          endereco: morada.endereco || data.localizacao || '',
+          cidade: morada.cidade || data.cidade || '',
+          ilha: morada.ilha || data.ilha || '',
+          codigo_postal: morada.codigo_postal || morada.codigoPostal || data.codigo_postal || '',
+          num_apartamento: morada.num_apartamento || morada.apartamento || data.num_apartamento || '',
+          morada_completa: morada.morada_completa || data.morada_completa || '',
+          latitude: morada.coordenadas?.lat || morada.lat || data.latitude || null,
+          longitude: morada.coordenadas?.lng || morada.lng || data.longitude || null,
+          coordenadas: {
+            lat: morada.coordenadas?.lat || morada.lat || data.latitude || null,
+            lng: morada.coordenadas?.lng || morada.lng || data.longitude || null
+          }
+        });
+      } else {
+        setLocalizacaoDados({
+          endereco: data.localizacao || '',
+          cidade: data.cidade || '',
+          ilha: data.ilha || '',
+          codigo_postal: data.codigo_postal || '',
+          num_apartamento: data.num_apartamento || '',
+          morada_completa: data.morada_completa || '',
+          latitude: data.latitude || null,
+          longitude: data.longitude || null,
+          coordenadas: {
+            lat: data.latitude || null,
+            lng: data.longitude || null
+          }
+        });
+      }
+      
+      // 3. Preencher Comodidades
+      if (data.comodidades && Array.isArray(data.comodidades)) {
+        setComodidadesSelecionadas(data.comodidades);
+      }
+      
+      // 4. Preencher Regras
+      if (data.regras) {
+        if (data.regras.regras_ids) {
+          setRegrasIds(data.regras.regras_ids);
+        } else if (Array.isArray(data.regras)) {
+          const ids = data.regras.map(r => r.id || r);
+          setRegrasIds(ids);
+          setRegrasObjetos(data.regras);
+        }
+        setRegrasAdicionais(data.regras.regras_adicionais || data.regras_adicionais || '');
+      }
+      
+      // 5. Preencher Fotos
+      if (data.fotos && Array.isArray(data.fotos)) {
+        setFotos(data.fotos);
+      }
+      
+      // 6. Preencher Quartos
+      if (data.quartos && Array.isArray(data.quartos)) {
+        setQuartosParaEnviar(data.quartos);
+      }
+      
+      console.log('✅ Dados carregados com sucesso para edição!');
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados para edição:', error);
+      alert('Erro ao carregar dados do alojamento para edição.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // ==================== HANDLERS ====================
   
@@ -84,136 +185,28 @@ const FluxoRegisto = () => {
     console.log('📦 Quartos atualizados:', novosQuartos);
     const quartosArray = Array.isArray(novosQuartos) ? novosQuartos : [];
     setQuartosParaEnviar(quartosArray);
-    localStorage.setItem('propertyQuartos', JSON.stringify(quartosArray));
   }, []);
   
   const handleComodidadesChange = useCallback((comodidades) => {
     console.log('📦 Comodidades selecionadas:', comodidades);
     const comodidadesArray = Array.isArray(comodidades) ? comodidades : [];
     setComodidadesSelecionadas(comodidadesArray);
-    localStorage.setItem('propertyComodidades', JSON.stringify(comodidadesArray));
   }, []);
   
   const handleRegrasChange = useCallback((dadosRegras) => {
     console.log('📋 Regras recebidas:', dadosRegras);
-    
     const ids = dadosRegras.regras_ids || [];
     const texto = dadosRegras.regrasAdicionais || '';
     
     setRegrasIds(ids);
     setRegrasAdicionais(texto);
     setRegrasObjetos(dadosRegras.regras || []);
-    
-    localStorage.setItem('propertyRegrasSelecionadas', JSON.stringify(ids));
-    localStorage.setItem('propertyRegrasAdicionais', texto);
-    
-    console.log('✅ Regras IDs salvas:', ids);
+    console.log('✅ Regras IDs:', ids);
   }, []);
   
-  // Handler para localização
   const handleLocalizacaoChange = useCallback((dados) => {
     console.log('📍 Localização atualizada:', dados);
     setLocalizacaoDados(dados);
-    localStorage.setItem('propertyLocalizacao', JSON.stringify(dados));
-    
-    // Também salvar no formato antigo para compatibilidade
-    const dadosMorada = {
-      morada: dados.endereco,
-      apartamento: dados.num_apartamento,
-      pais: 'Cabo Verde',
-      cidade: dados.cidade,
-      ilha: dados.ilha,
-      codigoPostal: dados.codigo_postal,
-      moradaCompleta: dados.morada_completa,
-      coordenadas: dados.coordenadas
-    };
-    localStorage.setItem('propertyAddress', JSON.stringify(dadosMorada));
-  }, []);
-  
-  // ==================== CARREGAR DADOS DO LOCALSTORAGE ====================
-  
-  useEffect(() => {
-    try {
-      // Informações básicas
-      const savedInfo = localStorage.getItem('propertyInformacoesBasicas');
-      if (savedInfo) {
-        const parsed = JSON.parse(savedInfo);
-        setInformacoesBasicas(parsed);
-        if (parsed.quartos && Array.isArray(parsed.quartos)) {
-          setQuartosParaEnviar(parsed.quartos);
-        }
-      }
-      
-      // Localização (novo formato)
-      const savedLocalizacao = localStorage.getItem('propertyLocalizacao');
-      if (savedLocalizacao) {
-        const parsed = JSON.parse(savedLocalizacao);
-        setLocalizacaoDados(parsed);
-      } else {
-        // Tentar carregar do formato antigo
-        const savedAddress = localStorage.getItem('propertyAddress');
-        if (savedAddress) {
-          const address = JSON.parse(savedAddress);
-          setLocalizacaoDados({
-            endereco: address.morada || '',
-            cidade: address.cidade || '',
-            ilha: address.ilha || '',
-            codigo_postal: address.codigoPostal || '',
-            num_apartamento: address.apartamento || '',
-            morada_completa: address.moradaCompleta || '',
-            coordenadas: address.coordenadas || { lat: null, lng: null }
-          });
-        }
-      }
-      
-      // Comodidades
-      const savedComodidades = localStorage.getItem('propertyComodidades');
-      if (savedComodidades) {
-        const parsed = JSON.parse(savedComodidades);
-        setComodidadesSelecionadas(Array.isArray(parsed) ? parsed : []);
-      }
-      
-      // Regras
-      const savedRegrasIds = localStorage.getItem('propertyRegrasSelecionadas');
-      if (savedRegrasIds) {
-        const parsed = JSON.parse(savedRegrasIds);
-        setRegrasIds(Array.isArray(parsed) ? parsed : []);
-      }
-      
-      const savedRegrasAdicionais = localStorage.getItem('propertyRegrasAdicionais');
-      if (savedRegrasAdicionais) {
-        setRegrasAdicionais(savedRegrasAdicionais);
-      }
-      
-      // Quartos
-      const savedQuartos = localStorage.getItem('propertyQuartos');
-      if (savedQuartos) {
-        const parsed = JSON.parse(savedQuartos);
-        if (Array.isArray(parsed)) {
-          setQuartosParaEnviar(parsed);
-        }
-      }
-      
-      // Fotos
-      const savedFotos = localStorage.getItem('propertyFotos');
-      if (savedFotos) {
-        const parsed = JSON.parse(savedFotos);
-        if (Array.isArray(parsed)) {
-          setFotos(parsed);
-        }
-      }
-      
-      // ID do alojamento (se existir)
-      const savedAlojamentoId = localStorage.getItem('propertyAlojamentoId');
-      if (savedAlojamentoId) {
-        setAlojamentoId(parseInt(savedAlojamentoId));
-      }
-      
-      console.log('✅ Dados carregados do localStorage');
-      
-    } catch (e) {
-      console.warn('Erro ao carregar dados do localStorage:', e);
-    }
   }, []);
   
   // ==================== NAVEGAÇÃO ENTRE FASES ====================
@@ -232,7 +225,6 @@ const FluxoRegisto = () => {
       return false;
     }
     
-    localStorage.setItem('propertyInformacoesBasicas', JSON.stringify(informacoesBasicas));
     setFase(2);
     return true;
   };
@@ -256,7 +248,6 @@ const FluxoRegisto = () => {
   };
   
   const handleSaveComodidades = () => {
-    localStorage.setItem('propertyComodidades', JSON.stringify(comodidadesSelecionadas));
     setFase(4);
     return true;
   };
@@ -266,21 +257,19 @@ const FluxoRegisto = () => {
     return true;
   };
   
-  // ==================== FINALIZAR REGISTO ====================
+  // ==================== FINALIZAR REGISTO (ÚNICA VERSÃO) ====================
   
   const handleFinalizar = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     
     try {
-      // Validar fotos
       if (fotos.length === 0) {
         alert('⚠️ Adicione pelo menos uma foto do seu alojamento');
         setIsSubmitting(false);
         return;
       }
       
-      // Garantir que quartos é array
       let quartosFinal = Array.isArray(quartosParaEnviar) ? quartosParaEnviar : [];
       
       const quartosFormatados = quartosFinal.map(q => ({
@@ -289,19 +278,47 @@ const FluxoRegisto = () => {
         preco_personalizado: q.preco_personalizado || null
       }));
       
-      // Obter IDs das comodidades
       const comodidadesIds = comodidadesSelecionadas.map(c => c.id || c);
       
-      console.log('📤 === DADOS PARA API ===');
-      console.log('📤 Informações:', informacoesBasicas);
-      console.log('📤 Localização:', localizacaoDados);
-      console.log('📤 Comodidades IDs:', comodidadesIds);
-      console.log('📤 Regras IDs:', regrasIds);
-      console.log('📤 Regras adicionais:', regrasAdicionais);
-      console.log('📤 Quartos:', quartosFormatados);
-      console.log('📤 Fotos:', fotos.length);
+      // ✅ EXTRAIR CIDADE E ILHA DO localizacaoDados
+      const cidade = localizacaoDados.cidade || '';
+      const ilha = localizacaoDados.ilha || '';
+      const endereco = localizacaoDados.endereco || '';
+      const codigo_postal = localizacaoDados.codigo_postal || '';
+      const num_apartamento = localizacaoDados.num_apartamento || '';
+      const morada_completa = localizacaoDados.morada_completa || '';
+      const latitude = localizacaoDados.coordenadas?.lat || localizacaoDados.latitude || null;
+      const longitude = localizacaoDados.coordenadas?.lng || localizacaoDados.longitude || null;
+
+      console.log('📍 Cidade do localizacaoDados:', cidade);
+      console.log('📍 Ilha do localizacaoDados:', ilha);
+      console.log('📍 localizacaoDados completo:', localizacaoDados);
       
-      // 🔥 PAYLOAD PARA O registrar.php
+      // ==================== CORREÇÃO DAS IMAGENS ====================
+      // Garantir que cada imagem tenha 'url' e 'principal'
+      const imagensFormatadas = fotos
+        .filter(foto => {
+          // Verificar se tem URL em qualquer formato
+          const hasUrl = foto.url || foto.path || foto.caminho_url || foto.src || foto.caminho;
+          if (!hasUrl) {
+            console.warn('⚠️ Imagem sem URL encontrada:', foto);
+          }
+          return hasUrl;
+        })
+        .map((foto, index) => {
+          // 🔥 PEGAR A URL DE QUALQUER LUGAR
+          const url = foto.url || foto.path || foto.caminho_url || foto.src || foto.caminho || '';
+          
+          return {
+            url: url,
+            caminho_url: url, // Para compatibilidade com o backend
+            principal: index === 0 ? 1 : 0,
+            ordem: index
+          };
+        });
+
+      console.log('📸 Imagens formatadas:', imagensFormatadas);
+      
       const dadosParaAPI = {
         proprietario_id: 1,
         titulo: informacoesBasicas.titulo,
@@ -316,49 +333,50 @@ const FluxoRegisto = () => {
         quartos: parseInt(informacoesBasicas.quartos) || 1,
         camas: parseInt(informacoesBasicas.camas) || 1,
         casas_banho: parseInt(informacoesBasicas.casas_banho) || 1,
-        localizacao: localizacaoDados.cidade,
-        latitude: localizacaoDados.coordenadas?.lat || 16.8884,
-        longitude: localizacaoDados.coordenadas?.lng || -24.9896,
+        
+        // ✅ CAMPOS DE LOCALIZAÇÃO DIRETOS (OBRIGATÓRIOS)
+        cidade: cidade,
+        ilha: ilha,
+        endereco: endereco,
+        localizacao: endereco,
+        codigo_postal: codigo_postal,
+        num_apartamento: num_apartamento,
+        morada_completa: morada_completa,
+        latitude: latitude,
+        longitude: longitude,
+        
         comodidades: comodidadesIds,
         regras_ids: regrasIds,
         regras_adicionais: regrasAdicionais,
+        
         morada: {
-          endereco: localizacaoDados.endereco,
-          apartamento: localizacaoDados.num_apartamento,
-          cidade: localizacaoDados.cidade,
-          ilha: localizacaoDados.ilha,
-          codigo_postal: localizacaoDados.codigo_postal,
+          endereco: endereco,
+          apartamento: num_apartamento,
+          cidade: cidade,
+          ilha: ilha,
+          codigo_postal: codigo_postal,
           pais: 'Cabo Verde',
-          morada_completa: localizacaoDados.morada_completa,
-          lat: localizacaoDados.coordenadas?.lat || 16.8884,
-          lng: localizacaoDados.coordenadas?.lng || -24.9896
+          morada_completa: morada_completa,
+          lat: latitude,
+          lng: longitude,
+          coordenadas: { lat: latitude, lng: longitude }
         },
+        
         quartos: quartosFormatados,
-        imagens: fotos
-          .filter(foto => foto.url || foto.path)
-          .map((foto, index) => ({
-            url: foto.url || foto.path,
-            principal: index === 0 ? 1 : 0,
-            ordem: index
-          }))
+        
+        // ==================== IMAGENS CORRIGIDAS ====================
+        imagens: imagensFormatadas,
+        fotos: imagensFormatadas // Também enviar como fotos para compatibilidade
       };
-      
+
       console.log('📤 Payload final:', JSON.stringify(dadosParaAPI, null, 2));
+      console.log('📍 Cidade no payload final:', dadosParaAPI.cidade);
+      console.log('📍 Ilha no payload final:', dadosParaAPI.ilha);
+      console.log('📸 Imagens no payload final:', dadosParaAPI.imagens);
       
-      const result = await salvarFluxoRegisto(dadosParaAPI);
+      const result = await salvarFluxoRegisto(dadosParaAPI, alojamentoId);
       
       if (result.success) {
-        // Limpar localStorage após sucesso
-        localStorage.removeItem('propertyInformacoesBasicas');
-        localStorage.removeItem('propertyAddress');
-        localStorage.removeItem('propertyLocalizacao');
-        localStorage.removeItem('propertyComodidades');
-        localStorage.removeItem('propertyRegrasSelecionadas');
-        localStorage.removeItem('propertyRegrasAdicionais');
-        localStorage.removeItem('propertyQuartos');
-        localStorage.removeItem('propertyFotos');
-        localStorage.removeItem('propertyAlojamentoId');
-        
         alert(`✅ ${result.message}`);
         navigate('/alojamento-registro/meus');
       } else {
@@ -422,7 +440,7 @@ const FluxoRegisto = () => {
             dados={informacoesBasicas} 
             onDadosChange={setInformacoesBasicas} 
             onQuartosChange={handleQuartosChange} 
-            alojamentoId={null} 
+            alojamentoId={alojamentoId} 
             readOnly={false} 
           />
           
@@ -486,8 +504,9 @@ const FluxoRegisto = () => {
           <p className="text-gray-600 mb-6">Selecione as comodidades oferecidas pela propriedade</p>
           
           <Comodidades 
-            alojamentoId={null}
+            alojamentoId={alojamentoId}
             onChange={handleComodidadesChange}
+            initialComodidades={comodidadesSelecionadas}
             readOnly={false}
           />
           
@@ -518,9 +537,9 @@ const FluxoRegisto = () => {
           <p className="text-gray-600 mb-6">Defina as regras para os hóspedes</p>
           
           <Regras 
-            alojamentoId={null}
+            alojamentoId={alojamentoId}
             onChange={handleRegrasChange}
-            initialRegras={[]}
+            initialRegras={regrasObjetos}
             initialRegrasAdicionais={regrasAdicionais}
             readOnly={false}
           />
@@ -555,7 +574,7 @@ const FluxoRegisto = () => {
             fotos={fotos} 
             onFotosChange={setFotos} 
             maxFotos={20} 
-            alojamentoId={null} 
+            alojamentoId={alojamentoId} 
           />
           
           <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
@@ -573,12 +592,12 @@ const FluxoRegisto = () => {
               {isSubmitting ? (
                 <>
                   <Loader size={18} className="animate-spin" />
-                  Registando...
+                  {alojamentoId ? 'Atualizando...' : 'Registando...'}
                 </>
               ) : (
                 <>
                   <Check size={18} />
-                  Finalizar Registo
+                  {alojamentoId ? 'Atualizar Alojamento' : 'Finalizar Registo'}
                 </>
               )}
             </button>
@@ -588,11 +607,19 @@ const FluxoRegisto = () => {
     </div>
   );
   
-  // ==================== RENDER PRINCIPAL ====================
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="animate-spin mx-auto text-[#006ce4]" size={48} />
+          <p className="mt-4 text-gray-600">Carregando dados do alojamento...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <>
-      {/* Header */}
       <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
         <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
         <div className="flex items-center gap-6 text-sm">
@@ -605,24 +632,22 @@ const FluxoRegisto = () => {
               onEditRegras={() => setFase(4)} 
             />
             <div className="text-[10px] opacity-80">
-              Passo {fase} de 5
+              {alojamentoId ? 'Editando' : 'Novo'} - Passo {fase} de 5
             </div>
           </div>
           <div className="w-[1px] h-8 bg-blue-900"></div>
-          <div className="cursor-pointer hover:underline">PT</div>
+      
           <div className="flex items-center gap-2 cursor-pointer hover:underline">
             <span>Ajuda</span> <HelpCircle size={18} />
           </div>
-          <User size={24} className="cursor-pointer" />
+     
         </div>
       </header>
       
-      {/* Barra de progresso */}
       <div className="max-w-4xl mx-auto px-4 pt-4">
         {renderProgressBar()}
       </div>
       
-      {/* Renderização das fases */}
       {fase === 1 && renderFaseInformacoes()}
       {fase === 2 && renderFaseLocalizacao()}
       {fase === 3 && renderFaseComodidades()}

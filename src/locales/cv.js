@@ -767,7 +767,10 @@ explorar: "Esplora",
 favoritos: "Favoritus",
 // ==================== LOGIN GOOGLE ====================
 entrar_com_google: "Entra ku Google",
-erro_login_google: "Eru na entrada ku Google. Tentaba novamenti."
+erro_login_google: "Eru na entrada ku Google. Tentaba novamenti.",
+dados_cartao: "Dadus Karton",
+registe_sua_propriedade: "Registra bu propriedadi"
+
 
   }
 };

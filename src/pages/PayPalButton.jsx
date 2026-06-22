@@ -8,8 +8,11 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
     const [convertedAmount, setConvertedAmount] = useState(null);
     const TAXA_CONVERSAO = 110.265;
     
-    // Client ID da Sandbox
-    const clientId = 'AaB7TSBPAQOlgGPjvIo2epKQRL0ziLbirhHuJYl9S9_Kck5wZpACLZXLEOc1lBOEJ6GjjONXmk0FW6Gu';
+    // 🔴 CLIENT ID DE PRODUÇÃO - Substitua pelo SEU Client ID de Produção
+    const clientId = ''; // <-- Coloque o CLIENT ID de PRODUÇÃO aqui
+    
+    // 🔴 URL da API de PRODUÇÃO
+    const API_URL = 'https://welovepalop.com/api/paypal_api.php';
     
     useEffect(() => {
         // Converter CVE para EUR para exibição
@@ -25,16 +28,26 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
     const createOrder = async () => {
         try {
             console.log(`💰 Criando ordem: ${amount} ${currency}`);
+            console.log('🌐 Ambiente: PRODUÇÃO');
             
-            const response = await fetch('https://welovepalop.com/api/paypal_api.php?action=create_order', {
+            const response = await fetch(API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    // Se precisar de autenticação adicional
+                    // 'Authorization': 'Bearer SEU_TOKEN'
+                },
                 body: JSON.stringify({
+                    action: 'create_order',
                     amount: amount,
                     currency: currency,
                     reservation_data: reservationData
                 })
             });
+            
+            if (!response.ok) {
+                throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+            }
             
             const order = await response.json();
             
@@ -45,9 +58,9 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
             console.log('✅ Ordem criada com ID:', order.id);
             return order.id;
         } catch (error) {
-            console.error('❌ Erro ao criar order:', error);
+            console.error('❌ Erro ao criar ordem:', error);
             onError?.(error);
-            return null;
+            throw error;
         }
     };
     
@@ -55,11 +68,18 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
         try {
             console.log('✅ Pagamento aprovado! Order ID:', data.orderID);
             
-            const response = await fetch('https://welovepalop.com/api/paypal_api.php?action=capture_order', {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ order_id: data.orderID })
+                body: JSON.stringify({
+                    action: 'capture_order',
+                    order_id: data.orderID
+                })
             });
+            
+            if (!response.ok) {
+                throw new Error(`Erro HTTP ${response.status}: ${response.statusText}`);
+            }
             
             const captureData = await response.json();
             
@@ -107,23 +127,30 @@ const PayPalButton = ({ amount, currency, onSuccess, onError, reservationData })
         );
     }
     
-    // IMPORTANTE: O SDK do PayPal SÓ ACEITA EUR, USD, GBP, etc.
-    // NÃO ACEITA CVE! Por isso forçamos 'EUR' aqui
+    // Configuração do PayPal para PRODUÇÃO
     const paypalOptions = {
         clientId: clientId,
-        currency: 'EUR',
+        currency: 'EUR', // PayPal só aceita EUR, USD, GBP, etc.
         intent: 'capture',
-        locale: 'pt_PT'
+        locale: 'pt_PT',
+        // Desabilitar métodos de pagamento indesejados
+        'disable-funding': ['card', 'credit', 'bancontact', 'eps', 'giropay', 'ideal', 'mybank', 'p24', 'sofort', 'venmo']
     };
     
     return (
         <PayPalScriptProvider options={paypalOptions}>
             <div className="paypal-button-container">
+                <div className="mb-2 text-xs text-green-600 text-center font-semibold">
+                    🔒 Ambiente de Produção
+                </div>
                 <PayPalButtons
                     createOrder={createOrder}
                     onApprove={onApprove}
                     onError={handleError}
-                    onCancel={() => handleError(new Error(t('pagamento_cancelado')))}
+                    onCancel={() => {
+                        console.log('❌ Pagamento cancelado pelo usuário');
+                        onError?.(new Error(t('pagamento_cancelado')));
+                    }}
                     style={{
                         layout: 'vertical',
                         color: 'blue',

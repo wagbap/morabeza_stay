@@ -12,7 +12,7 @@ import { HelmetProvider } from 'react-helmet-async'; // Adiciona isto se faltar
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* Substitui o Client ID pelo teu que criaste no Google Console */}
-    <GoogleOAuthProvider clientId="925230978662-dh81pj9ktrsp5q706uk0ks4214eql1kh.apps.googleusercontent.com">
+<GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <App />
     </GoogleOAuthProvider>
   </React.StrictMode>

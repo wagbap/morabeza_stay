@@ -270,8 +270,9 @@ export async function buscarLocalizacaoPersistente(alojamentoId) {
                     coordenadas: data.data.coordenadas || { lat: null, lng: null },
                     morada: data.data.endereco?.split(',')[0] || '',
                     moradaCompleta: data.data.endereco || '',
-                    cidade: '',
-                    codigoPostal: '',
+                    cidade: data.data.cidade || '',
+                    ilha: data.data.ilha || '',
+                    codigoPostal: data.data.codigo_postal || '',
                     pais: 'Cabo Verde'
                 }
             };
@@ -315,6 +316,10 @@ export async function buscarAlojamentoCompleto(id) {
             camas: infoResponse.data.camas || 1,
             casas_banho: infoResponse.data.casas_banho || 1,
             localizacao: infoResponse.data.localizacao || '',
+            cidade: infoResponse.data.cidade || '',
+            ilha: infoResponse.data.ilha || '',
+            codigo_postal: infoResponse.data.codigo_postal || '',
+            num_apartamento: infoResponse.data.num_apartamento || '',
             latitude: infoResponse.data.latitude || null,
             longitude: infoResponse.data.longitude || null,
             regras_adicionais: infoResponse.data.regras_adicionais || '',
@@ -332,6 +337,7 @@ export async function buscarAlojamentoCompleto(id) {
                 apartamento: locPersistente.data.apartamento,
                 num_apartamento: locPersistente.data.num_apartamento,
                 cidade: locPersistente.data.cidade,
+                ilha: locPersistente.data.ilha,
                 codigoPostal: locPersistente.data.codigoPostal,
                 pais: locPersistente.data.pais,
                 coordenadas: locPersistente.data.coordenadas
@@ -462,6 +468,7 @@ export async function buscarLocalizacaoDoAlojamento(id) {
                         lng: result.data.longitude || result.data.coordenadas_lng || null
                     },
                     cidade: result.data.cidade || '',
+                    ilha: result.data.ilha || '',
                     codigoPostal: result.data.codigo_postal || '',
                     pais: result.data.pais || 'Cabo Verde'
                 }
@@ -474,7 +481,7 @@ export async function buscarLocalizacaoDoAlojamento(id) {
     }
 }
 
-// ==================== SALVAR FLUXO REGISTO ====================
+// ==================== SALVAR FLUXO REGISTO (CORRIGIDO - SEM DUPLICAÇÃO) ====================
 
 export async function salvarFluxoRegisto(dados, alojamentoId = null) {
     try {
@@ -500,15 +507,41 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
                 regrasIds = dados.regras.map(r => typeof r === 'number' ? r : r.id);
             }
             regrasAdicionais = dados.regras.regras_adicionais || '';
+        } else if (dados.regras_ids) {
+            regrasIds = dados.regras_ids;
+            regrasAdicionais = dados.regras_adicionais || '';
         }
         
-        // 3. Extrair Imagens
-        const imagens = (dados.fotos || [])
-            .filter(foto => foto.url)
-            .map((foto, index) => ({
-                url: foto.url,
-                principal: index === 0 ? 1 : 0
-            }));
+        // 3. Extrair Imagens - CORRIGIDO: SEM DUPLICAÇÃO
+        const urlsVistas = new Set();
+        const imagens = (dados.imagens || dados.fotos || [])
+            .filter(foto => {
+                // Verificar se tem URL em qualquer formato
+                const url = foto.url || foto.path || foto.caminho_url || foto.src || foto.caminho || '';
+                if (!url) {
+                    console.warn('⚠️ Imagem sem URL encontrada:', foto);
+                    return false;
+                }
+                // Evitar duplicatas
+                if (urlsVistas.has(url)) {
+                    console.warn(`⚠️ URL duplicada ignorada: ${url}`);
+                    return false;
+                }
+                urlsVistas.add(url);
+                return true;
+            })
+            .map((foto, index) => {
+                const url = foto.url || foto.path || foto.caminho_url || foto.src || foto.caminho || '';
+                
+                return {
+                    url: url,
+                    caminho_url: url,
+                    principal: foto.principal !== undefined ? foto.principal : (index === 0 ? 1 : 0),
+                    ordem: foto.ordem !== undefined ? foto.ordem : index
+                };
+            });
+
+        console.log(`📸 Imagens processadas (${imagens.length} únicas):`, imagens);
         
         // 4. Extrair Quartos
         let quartosFormatados = [];
@@ -521,58 +554,112 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
         }
         
         // 5. Extrair morada
-        let morada = null;
-        if (dados.morada) {
-            morada = dados.morada;
-        } else if (informacoes.morada) {
-            morada = informacoes.morada;
+        let morada = dados.morada || null;
+
+        // ✅ EXTRAIR CIDADE E ILHA DE MÚLTIPLAS FONTES
+        let cidade = '';
+        let ilha = '';
+        
+        // Tentar extrair de dados diretos primeiro
+        if (dados.cidade) cidade = dados.cidade;
+        if (dados.ilha) ilha = dados.ilha;
+        
+        // Se não veio, tentar de morada
+        if (!cidade && morada) {
+            cidade = morada.cidade || '';
+            ilha = morada.ilha || '';
         }
         
-        // 6. Payload completo
+        // Se ainda não veio, tentar de localizacaoDados
+        if (!cidade && dados.localizacaoDados) {
+            cidade = dados.localizacaoDados.cidade || '';
+            ilha = dados.localizacaoDados.ilha || '';
+        }
+        
+        // Última tentativa: dados de localização no nível raiz
+        if (!cidade && dados.localizacao) {
+            if (typeof dados.localizacao === 'object') {
+                cidade = dados.localizacao.cidade || '';
+                ilha = dados.localizacao.ilha || '';
+            }
+        }
+
+        console.log('📍 Cidade extraída:', cidade);
+        console.log('📍 Ilha extraída:', ilha);
+        console.log('📍 Morada:', morada);
+        
+        // 6. Construir morada completa
+        const endereco = dados.endereco || morada?.endereco || morada?.morada || '';
+        const num_apartamento = dados.num_apartamento || morada?.num_apartamento || morada?.apartamento || '';
+        const codigo_postal = dados.codigo_postal || morada?.codigo_postal || morada?.codigoPostal || '';
+        const morada_completa = dados.morada_completa || morada?.morada_completa || '';
+        const latitude = dados.latitude || morada?.coordenadas?.lat || morada?.lat || null;
+        const longitude = dados.longitude || morada?.coordenadas?.lng || morada?.lng || null;
+        
+        // 7. Payload completo
         const payload = {
             proprietario_id: dados.proprietario_id || 1,
-            titulo: informacoes.titulo || 'Propriedade Sem Título',
-            localizacao: morada?.cidade || informacoes.localizacao || '',
-            latitude: morada?.coordenadas?.lat || null,
-            longitude: morada?.coordenadas?.lng || null,
-            preco_noite: parseFloat(informacoes.preco_noite) || 0,
-            capacidade: parseInt(informacoes.capacidade) || 2,
-            estrelas: parseFloat(informacoes.estrelas) || 4.0,
-            tipo: informacoes.tipo_propriedade || 'Apartamento',
-            status: 'pendente',
-            descricao: informacoes.descricao || '',
-            descricao_detalhada: informacoes.descricao_detalhada || '',
-            tipo_propriedade: informacoes.tipo_propriedade || 'Apartamento',
-            tempo_resposta: informacoes.tempo_resposta || 'Dentro de 1 hora',
-            num_quartos: parseInt(informacoes.quartos) || 1,
-            camas: parseInt(informacoes.camas) || 1,
-            casas_banho: parseInt(informacoes.casas_banho) || 1,
-            num_apartamento: morada?.apartamento || dados.num_apartamento || '',
+            titulo: informacoes.titulo || dados.titulo || 'Propriedade Sem Título',
+            
+            // ✅ CAMPOS DE LOCALIZAÇÃO NO NÍVEL RAIZ
+            cidade: cidade,
+            ilha: ilha,
+            endereco: endereco,
+            localizacao: endereco || cidade,
+            codigo_postal: codigo_postal,
+            num_apartamento: num_apartamento,
+            morada_completa: morada_completa,
+            latitude: latitude,
+            longitude: longitude,
+            
+            preco_noite: parseFloat(informacoes.preco_noite || dados.preco_noite) || 0,
+            capacidade: parseInt(informacoes.capacidade || dados.capacidade) || 2,
+            estrelas: parseFloat(informacoes.estrelas || dados.estrelas) || 4.0,
+            tipo: informacoes.tipo_propriedade || dados.tipo_propriedade || dados.tipo || 'Apartamento',
+            tipo_propriedade: informacoes.tipo_propriedade || dados.tipo_propriedade || 'Apartamento',
+            status: dados.status || 'pendente',
+            descricao: informacoes.descricao || dados.descricao || '',
+            descricao_detalhada: informacoes.descricao_detalhada || dados.descricao_detalhada || '',
+            tempo_resposta: informacoes.tempo_resposta || dados.tempo_resposta || 'Dentro de 1 hora',
+            num_quartos: parseInt(informacoes.quartos || dados.quartos) || 1,
+            camas: parseInt(informacoes.camas || dados.camas) || 1,
+            casas_banho: parseInt(informacoes.casas_banho || dados.casas_banho) || 1,
             
             comodidades: comodidadesIds,
+            regras_ids: regrasIds,
+            regras_adicionais: regrasAdicionais,
             
-            regras: {
-                regras_ids: regrasIds,
-                regras_adicionais: regrasAdicionais
+            morada: {
+                endereco: endereco,
+                apartamento: num_apartamento,
+                cidade: cidade,
+                ilha: ilha,
+                codigo_postal: codigo_postal,
+                pais: morada?.pais || 'Cabo Verde',
+                morada_completa: morada_completa,
+                lat: latitude,
+                lng: longitude,
+                coordenadas: { lat: latitude, lng: longitude }
             },
-            
-            imagens: imagens,
             
             quartos: quartosFormatados,
             
-            morada: morada ? {
-                endereco: morada.morada || morada.endereco || '',
-                apartamento: morada.apartamento || '',
-                num_apartamento: morada.apartamento || '',
-                cidade: morada.cidade || '',
-                codigo_postal: morada.codigoPostal || morada.codigo_postal || '',
-                pais: morada.pais || 'Cabo Verde',
-                lat: morada.coordenadas?.lat || null,
-                lng: morada.coordenadas?.lng || null
-            } : null
+            // ==================== IMAGENS CORRIGIDAS ====================
+            imagens: imagens
+            // NÃO enviar "fotos" separadamente para evitar duplicação
         };
-        
+
+        // ✅ REMOVER CAMPOS UNDEFINED
+        Object.keys(payload).forEach(key => {
+            if (payload[key] === undefined || payload[key] === null) {
+                payload[key] = '';
+            }
+        });
+
         console.log(`📤 Enviando payload para ${isEdicao ? 'edição' : 'criação'}:`, payload);
+        console.log('📍 Cidade no payload:', payload.cidade);
+        console.log('📍 Ilha no payload:', payload.ilha);
+        console.log('📸 Imagens no payload:', payload.imagens.length);
         
         const result = isEdicao 
             ? await atualizarAlojamentoCompleto(alojamentoId, payload)
