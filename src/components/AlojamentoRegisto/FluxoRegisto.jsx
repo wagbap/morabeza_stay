@@ -620,29 +620,40 @@ const FluxoRegisto = () => {
   
   return (
     <>
-      <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
-        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
-        <div className="flex items-center gap-6 text-sm">
-          <div className="text-right">
-            <PropMenu 
-              nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
-              onEditName={() => setFase(1)} 
-              onEditLocation={() => setFase(2)} 
-              onEditComodidades={() => setFase(3)} 
-              onEditRegras={() => setFase(4)} 
-            />
-            <div className="text-[10px] opacity-80">
-              {alojamentoId ? 'Editando' : 'Novo'} - Passo {fase} de 5
-            </div>
-          </div>
-          <div className="w-[1px] h-8 bg-blue-900"></div>
-      
-          <div className="flex items-center gap-2 cursor-pointer hover:underline">
-            <span>Ajuda</span> <HelpCircle size={18} />
-          </div>
-     
-        </div>
-      </header>
+
+<header className="bg-[#003580] text-white px-4 py-2 flex items-center justify-between shadow-sm">
+  {/* Lado esquerdo - Logo */}
+  <div className="flex items-center">
+    <div className="font-bold text-lg tracking-tight truncate max-w-[140px]">
+      morabezastay.cv
+    </div>
+  </div>
+
+  {/* Lado direito - Menu e ações */}
+  <div className="flex items-center gap-3">
+    {/* Info do passo - versão mobile compacta */}
+    <div className="flex flex-col items-end">
+      <PropMenu 
+        nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
+        onEditName={() => setFase(1)} 
+        onEditLocation={() => setFase(2)} 
+        onEditComodidades={() => setFase(3)} 
+        onEditRegras={() => setFase(4)} 
+      />
+      <div className="text-[8px] opacity-80 mt-0.5">
+        {alojamentoId ? 'Editando' : 'Novo'} {fase}/5
+      </div>
+    </div>
+
+    {/* Divider vertical */}
+    <div className="w-[1px] h-6 bg-blue-900"></div>
+
+    {/* Botão ajuda mobile */}
+    <div className="flex items-center gap-1 cursor-pointer hover:underline">
+      <HelpCircle size={16} />
+    </div>
+  </div>
+</header>
       
       <div className="max-w-4xl mx-auto px-4 pt-4">
         {renderProgressBar()}

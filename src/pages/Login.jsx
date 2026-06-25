@@ -31,6 +31,26 @@ export default function Login() {
 
   const BACKEND_URL = 'https://welovepalop.com/api/auth_google.php';
 
+  const salvarSessao = (user) => {
+    const userForStorage = {
+      id: user.id,
+      sub: user.id,
+      name: user.nome,
+      email: user.email,
+      picture: user.foto || "https://www.gravatar.com/avatar/?d=mp",
+      phone: user.phone || '',
+      roles: user.roles || []
+    };
+    
+    localStorage.setItem('user', JSON.stringify(userForStorage));
+    localStorage.setItem('morabeza_user', JSON.stringify(userForStorage));
+    sessionStorage.clear();
+
+    setTimeout(() => {
+      window.location.replace('/');
+    }, 100);
+  };
+
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -51,11 +71,37 @@ export default function Login() {
         } else {
           setErrorMessage('Esta conta foi criada com Google. Use o botão do Google.');
         }
-      } else {
+      } else if (res.data.status === 'new_user') {
         await sendOtp();
+      } else {
+        setErrorMessage(res.data.message || 'Erro ao verificar email.');
       }
     } catch (err) {
-      setErrorMessage('Erro ao verificar email.');
+      setErrorMessage('Erro ao verificar email: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendOtp = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post(BACKEND_URL, {
+        action: 'send_otp',
+        email: email.trim()
+      });
+
+      if (res.data.status === 'otp_sent') {
+        setSuccessMessage(`Enviamos um código de 6 dígitos para ${email}`);
+        if (res.data.code_debug) {
+          console.log('Código de verificação:', res.data.code_debug);
+        }
+        setStep(2);
+      } else {
+        setErrorMessage(res.data.message || 'Erro ao enviar código.');
+      }
+    } catch (err) {
+      setErrorMessage('Erro ao enviar código: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -76,33 +122,12 @@ export default function Login() {
       if (res.data.status === 'success') {
         salvarSessao(res.data.user);
       } else {
-        setErrorMessage(res.data.message);
+        setErrorMessage(res.data.message || 'Erro ao fazer login.');
       }
     } catch (err) {
-      setErrorMessage('Erro ao fazer login.');
+      setErrorMessage('Erro ao fazer login: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const sendOtp = async () => {
-    try {
-      const res = await axios.post(BACKEND_URL, {
-        action: 'send_otp',
-        email: email.trim()
-      });
-
-      if (res.data.status === 'otp_sent') {
-        setSuccessMessage(`Enviamos um código de 6 dígitos para ${email}`);
-        if (res.data.code_debug) {
-          alert('Código de verificação: ' + res.data.code_debug);
-        }
-        setStep(2);
-      } else {
-        setErrorMessage(res.data.message);
-      }
-    } catch (err) {
-      setErrorMessage('Erro ao enviar código.');
     }
   };
 
@@ -123,10 +148,10 @@ export default function Login() {
         setStep(3);
         setSuccessMessage('Email verificado! Complete o seu registo.');
       } else {
-        setErrorMessage(res.data.message);
+        setErrorMessage(res.data.message || 'Código inválido.');
       }
     } catch (err) {
-      setErrorMessage('Erro ao verificar código.');
+      setErrorMessage('Erro ao verificar código: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -166,10 +191,10 @@ export default function Login() {
       if (res.data.status === 'success') {
         salvarSessao(res.data.user);
       } else {
-        setErrorMessage(res.data.message);
+        setErrorMessage(res.data.message || 'Erro ao criar conta.');
       }
     } catch (err) {
-      setErrorMessage('Erro ao criar conta.');
+      setErrorMessage('Erro ao criar conta: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -190,14 +215,14 @@ export default function Login() {
       if (res.data.status === 'reset_otp_sent') {
         setSuccessMessage(`Enviamos um código de recuperação para ${resetEmail}`);
         if (res.data.code_debug) {
-          alert('Código de recuperação: ' + res.data.code_debug);
+          console.log('Código de recuperação:', res.data.code_debug);
         }
         setStep(5);
       } else {
-        setErrorMessage(res.data.message);
+        setErrorMessage(res.data.message || 'Erro ao enviar código de recuperação.');
       }
     } catch (err) {
-      setErrorMessage('Erro ao enviar código de recuperação.');
+      setErrorMessage('Erro ao enviar código de recuperação: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -220,10 +245,10 @@ export default function Login() {
         setStep(6);
         setSuccessMessage('Código verificado! Defina a sua nova senha.');
       } else {
-        setErrorMessage(res.data.message);
+        setErrorMessage(res.data.message || 'Código inválido.');
       }
     } catch (err) {
-      setErrorMessage('Erro ao verificar código.');
+      setErrorMessage('Erro ao verificar código: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -264,49 +289,15 @@ export default function Login() {
           setShowPasswordInput(true);
         }, 2000);
       } else {
-        setErrorMessage(res.data.message);
+        setErrorMessage(res.data.message || 'Erro ao alterar senha.');
       }
     } catch (err) {
-      setErrorMessage('Erro ao alterar senha.');
+      setErrorMessage('Erro ao alterar senha: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
-  };// ✅ A CORREÇÃO (O que tens de usar)
-  const ProtectedRoute = ({ children }) => {
-    const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
-    
-    // Só bloqueia se a pessoa realmente não tiver NADA no Local Storage
-    if (!savedUser) {
-      return <Navigate to="/" replace />;
-    }
-    
-    return children;
   };
-const salvarSessao = (user) => {
-    const userForStorage = {
-      id: user.id,
-      sub: user.id,
-      name: user.nome,
-      email: user.email,
-      picture: user.foto || "https://www.gravatar.com/avatar/?d=mp",
-      phone: user.phone || '',
-      roles: user.roles || ['hospede']
-    };
-    
-    // Grava nas DUAS chaves
-    localStorage.setItem('user', JSON.stringify(userForStorage));
-    localStorage.setItem('morabeza_user', JSON.stringify(userForStorage));
-    
-    // Mata qualquer lixo antigo da sessão
-    sessionStorage.clear();
 
-    // 🚀 O SEGREDO ESTÁ AQUI: location.replace() apaga o histórico do /login.
-    // O setTimeout dá tempo ao localStorage de gravar fisicamente no disco 
-    // antes de destruir a página de login.
-    setTimeout(() => {
-      window.location.replace('/');
-    }, 100);
-  };
   const handleBackToLogin = () => {
     setStep(1);
     setErrorMessage('');

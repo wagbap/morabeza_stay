@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { MapPin, Star, Clock, Heart } from 'lucide-react';
+import BotaoFavorito from '../../../components/BotaoFavorito';
+
 
 const CardExperienciaTab = ({ experiencia }) => {
   const { t } = useTranslation();
@@ -9,10 +11,14 @@ const CardExperienciaTab = ({ experiencia }) => {
   
   if (!dados.id && !experiencia) return null;
 
+  // Extrair dados com fallbacks
   const id = dados.id;
   const slug = dados.slug || `experiencia-${id}`;
   const titulo = dados.titulo || t('experiencia');
+  
+  // CORREÇÃO: imagem_url estava undefined no objeto
   const imagem = dados.imagem_principal || dados.imagem_url || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=400";
+  
   const localizacao = dados.localizacao || dados.ilha || t('cabo_verde');
   const preco = Number(dados.preco || dados.preco_pessoa) || 0;
   const duracao = dados.duracao || t('flexivel');
@@ -36,10 +42,21 @@ const CardExperienciaTab = ({ experiencia }) => {
           {categoria}
         </div>
 
-        {/* Coração Padrão (Círculo Branco) */}
-        <button className="absolute top-3 right-3 p-2 bg-white/95 backdrop-blur-sm rounded-full text-gray-900 shadow-md z-10 hover:scale-110 transition-transform">
-          <Heart size={18} strokeWidth={2.5} className="text-gray-900" />
-        </button>
+        {/* Botão Favorito - CORRIGIDO */}
+        <BotaoFavorito 
+          tipo="experiencia"  
+          item={{ 
+            id: id, 
+            titulo: titulo,
+            imagem_url: imagem, // <-- CORRIGIDO: usar 'imagem' em vez de 'imagem_url'
+            localizacao: localizacao,
+            preco_noite: preco, // <-- CORRIGIDO: usar 'preco' em vez de 'preco_noite'
+            estrelas: rating, // <-- CORRIGIDO: usar 'rating' em vez de 'estrelas'
+            slug: slug
+          }} 
+          size={20}
+          className="absolute top-4 right-4 z-10"
+        />
       </div>
 
       {/* Conteúdo do Card */}
@@ -49,11 +66,11 @@ const CardExperienciaTab = ({ experiencia }) => {
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1 text-[#1a2b6d]">
             <MapPin size={14} className="text-blue-500" /> 
-            <span className="text-[11px] font-bold opacity-80 uppercase tracking-tight truncate">
+            <span className="text-[11px] font-bold opacity-80 uppercase tracking-tight truncate max-w-[120px]">
               {localizacao}
             </span>
           </div>
-          <div className="flex items-center gap-1 text-gray-400">
+          <div className="flex items-center gap-1 text-gray-400 flex-shrink-0">
             <Clock size={12} />
             <span className="text-[10px] font-bold uppercase">{duracao}</span>
           </div>

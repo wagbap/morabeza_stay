@@ -212,30 +212,43 @@ const FluxoRegisto = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
-        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
-        <div className="flex items-center gap-6 text-sm">
-          <div className="text-right">
-            <div className="font-medium">{informacoes.titulo || 'Nova Experiência'}</div>
-            <div className="text-[10px] opacity-80">
-              {fase === 1 && 'Informações básicas'}
-              {fase === 2 && 'Localização'}
-              {fase === 3 && 'Categoria'}
-              {fase === 4 && `${inclusoes.length} inclusão(ões)`}
-              {fase === 5 && `${requisitos.length} requisito(s)`}
-              {fase === 6 && `${idiomas.length} idioma(s)`}
-              {fase === 7 && `${imagens.length} foto(s)`}
-              {fase === 8 && 'Disponibilidade'}
-            </div>
-          </div>
-          <div className="w-[1px] h-8 bg-blue-900"></div>
-      
-          <div className="flex items-center gap-2 cursor-pointer hover:underline">
-            <span>Ajuda</span> <HelpCircle size={18} />
-          </div>
-          
-        </div>
-      </header>
+
+<header className="bg-[#003580] text-white px-3 py-2 flex items-center justify-between shadow-sm">
+  {/* Lado esquerdo - Logo */}
+  <div className="flex items-center">
+    <div className="font-bold text-base tracking-tight truncate max-w-[130px]">
+      morabezastay.cv
+    </div>
+  </div>
+
+  {/* Lado direito - Menu e ações */}
+  <div className="flex items-center gap-2">
+    {/* Info do passo - versão mobile ultra compacta */}
+    <div className="flex flex-col items-end">
+      <div className="font-medium text-xs truncate max-w-[90px]">
+        {informacoes.titulo || 'Nova Exp.'}
+      </div>
+      <div className="text-[7px] opacity-80 mt-0.5">
+        {fase === 1 && 'Básicas'}
+        {fase === 2 && 'Localização'}
+        {fase === 3 && 'Categoria'}
+        {fase === 4 && `${inclusoes.length} incl.`}
+        {fase === 5 && `${requisitos.length} req.`}
+        {fase === 6 && `${idiomas.length} idiomas`}
+        {fase === 7 && `${imagens.length} fotos`}
+        {fase === 8 && 'Disponib.'}
+      </div>
+    </div>
+
+    {/* Divider vertical */}
+    <div className="w-[1px] h-5 bg-blue-900"></div>
+
+    {/* Botão ajuda mobile - apenas ícone */}
+    <div className="flex items-center cursor-pointer hover:opacity-80">
+      <HelpCircle size={15} />
+    </div>
+  </div>
+</header>
       
       <div className="max-w-4xl mx-auto px-4 py-8">
         {renderProgressBar()}
