@@ -13,6 +13,7 @@ import {
 import AvaliacoesSeccao from './AvaliacoesSeccaoExperiencia';
 import useExperienciaTracking from "../hooks/useExperienciaTracking";
 import BotaoDenuncia from '../../../components/BotaoDenuncia';
+import { useDisponibilidadeExperiencia } from '../hooks/useDisponibilidadeExperiencia';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -320,6 +321,8 @@ const SidebarReservaExperiencia = ({
   horariosDisponiveis, 
   statusVagas, 
   precoVigente,
+  vagasRestantes,
+  loading,
   onReservar 
 }) => {
   const { t } = useTranslation();
@@ -349,7 +352,7 @@ const SidebarReservaExperiencia = ({
           </div>
         </div>
 
-        {precoVigente !== precoBase && (
+        {precoVigente !== precoBase && precoBase > 0 && (
           <div className="mb-4 p-2 bg-orange-50 rounded-lg border border-orange-200 text-center">
             <span className="text-[10px] font-bold text-orange-600 uppercase">{t('preco_especial') || 'Preço Especial!'}</span>
           </div>
@@ -400,16 +403,17 @@ const SidebarReservaExperiencia = ({
           <div className="grid grid-cols-3 gap-3">
             {periodosUI.map((p) => {
               const isSelected = periodo === p.label;
+              const hasHorarios = p.temHorarios !== false;
               return (
                 <button 
                   key={p.label}
-                  disabled={!p.temHorarios}
+                  disabled={!hasHorarios || loading}
                   onClick={() => setPeriodo(p.label)}
                   className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all gap-1 ${
                     isSelected 
                       ? 'border-blue-600 bg-blue-50/50 ring-1 ring-blue-600 shadow-sm' 
                       : 'border-slate-100 bg-white hover:border-slate-200'
-                  } ${!p.temHorarios ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
+                  } ${!hasHorarios ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
                 >
                   {p.label === 'Manhã' && <Sun size={16} className={isSelected ? 'text-yellow-500' : 'text-slate-300'} />}
                   {p.label === 'Meio dia' && <Sun size={16} className={isSelected ? 'text-orange-500' : 'text-slate-300'} />}
@@ -425,7 +429,11 @@ const SidebarReservaExperiencia = ({
         <div className="mb-4">
           <label className="text-[10px] font-black tracking-[0.1em] text-[#1a2b6d] block mb-3 uppercase">{t('horario') || 'Horário'}</label>
           <div className="grid grid-cols-3 gap-2 text-[10px] font-black uppercase tracking-widest">
-            {horariosDisponiveis.length > 0 ? (
+            {loading ? (
+              <div className="col-span-3 text-[9px] text-slate-400 py-3 text-center bg-slate-50 rounded-xl border border-dashed">
+                {t('carregando') || 'Carregando...'}
+              </div>
+            ) : horariosDisponiveis.length > 0 ? (
               horariosDisponiveis.map(h => (
                 <button 
                   key={h}
@@ -449,10 +457,22 @@ const SidebarReservaExperiencia = ({
 
         <div className="w-full py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl mb-4">
           <p className="text-[11px] font-bold text-slate-500 tracking-tight flex items-center gap-2">
-            <span className={statusVagas === "Disponível" ? "text-green-600" : "text-red-500"}>
-              {statusVagas === "Disponível" ? "✓" : "⚠️"}
+            <span className={statusVagas === "Disponível" ? "text-green-600" : statusVagas === "Esgotado" ? "text-red-500" : "text-orange-500"}>
+              {statusVagas === "Disponível" ? "✓" : statusVagas === "Esgotado" ? "✗" : "⚠️"}
             </span>
-            {t('disponibilidade') || 'Disponibilidade'}: <span className={statusVagas === "Disponível" ? "text-green-600" : "text-red-500"}>{t(statusVagas.toLowerCase()) || statusVagas}</span>
+            {loading ? 'Carregando...' : t('disponibilidade') || 'Disponibilidade'}: 
+            <span className={
+              statusVagas === "Disponível" ? "text-green-600" : 
+              statusVagas === "Esgotado" ? "text-red-500" : 
+              "text-orange-500"
+            }>
+              {t(statusVagas?.toLowerCase()) || statusVagas || 'Indisponível'}
+            </span>
+            {vagasRestantes > 0 && (
+              <span className="text-slate-400 text-[10px] font-normal">
+                ({vagasRestantes} {t('vagas') || 'vagas'} {t('restantes') || 'restantes'})
+              </span>
+            )}
           </p>
         </div>
 
@@ -468,15 +488,19 @@ const SidebarReservaExperiencia = ({
           </div>
 
           <button 
-            disabled={statusVagas !== "Disponível"}
+            disabled={statusVagas !== "Disponível" || loading}
             onClick={onReservar}
             className={`w-full font-black py-3 rounded-xl flex items-center justify-center gap-3 transition-all shadow-lg mt-4 text-sm ${
-              statusVagas === "Disponível" 
+              statusVagas === "Disponível" && !loading
                 ? "bg-blue-900 hover:bg-blue-950 text-white shadow-blue-200 cursor-pointer" 
                 : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
             }`}
           >
-            <Calendar size={16}/> {statusVagas === "Disponível" ? (t('reservar_agora') || 'Reservar agora') : t(statusVagas.toLowerCase()) || statusVagas}
+            <Calendar size={16}/> 
+            {loading ? (t('carregando') || 'Carregando...') : 
+             statusVagas === "Disponível" ? (t('reservar_agora') || 'Reservar agora') : 
+             statusVagas === "Esgotado" ? (t('esgotado') || 'Esgotado') : 
+             (t('indisponivel') || 'Indisponível')}
           </button>
           
           <p className="text-[9px] text-slate-400 text-center mt-3">
@@ -756,64 +780,52 @@ const ExperienciaDetalhes = () => {
   const registrarCliqueGuia = tracking?.registrarCliqueGuia || (() => {});
   const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
 
-  const periodosUI = [
-    { label: t('manha') || 'Manhã', range: [8, 11], timeRange: '08:00 - 11:00', temHorarios: true },
-    { label: t('meio_dia') || 'Meio dia', range: [12, 14], timeRange: '12:00 - 14:00', temHorarios: true },
-    { label: t('tarde') || 'Tarde', range: [15, 17], timeRange: '15:00 - 17:00', temHorarios: true }
-  ];
+  // Usar o hook de disponibilidade
+  const {
+    disponibilidade,
+    loading: loadingDisponibilidade,
+    error: errorDisponibilidade,
+    horariosDisponiveis,
+    statusVagas,
+    precoVigente,
+    vagasRestantes,
+    buscarDisponibilidade
+  } = useDisponibilidadeExperiencia(
+    experiencia?.id,
+    dataPasseio,
+    periodo
+  );
 
-  const getHorariosFiltrados = () => {
-    if (!experiencia || !experiencia.horarios_json) return [];
-    
-    try {
-      const todosHorarios = JSON.parse(experiencia.horarios_json);
-      const configPeriodo = periodosUI.find(p => p.label === (t(periodo.toLowerCase()) || periodo));
-      
-      if (!configPeriodo) return [];
-      
-      return todosHorarios.filter(h => {
-        const horaNum = parseInt(h.split(':')[0], 10);
-        return horaNum >= configPeriodo.range[0] && horaNum <= configPeriodo.range[1];
-      });
-    } catch (e) {
-      console.error("Erro ao processar horários:", e);
-      return [];
+  // Quando mudar a data ou período, buscar disponibilidade
+  useEffect(() => {
+    if (experiencia?.id) {
+      buscarDisponibilidade(dataPasseio, periodo);
     }
-  };
+  }, [dataPasseio, periodo, experiencia?.id, buscarDisponibilidade]);
 
-  const horariosDisponiveis = getHorariosFiltrados();
-
+  // Definir primeiro horário disponível
   useEffect(() => {
     if (horariosDisponiveis.length > 0) {
       setHorario(horariosDisponiveis[0]);
     } else {
       setHorario("");
     }
-  }, [periodo, experiencia]);
+  }, [horariosDisponiveis]);
 
-  const precoBase = parseFloat(experiencia?.preco) || 0;
+  const periodosUI = [
+    { label: 'Manhã', range: [8, 11], timeRange: '08:00 - 11:00', temHorarios: true },
+    { label: 'Meio dia', range: [12, 14], timeRange: '12:00 - 14:00', temHorarios: true },
+    { label: 'Tarde', range: [15, 17], timeRange: '15:00 - 17:00', temHorarios: true }
+  ];
 
-  const getPrecoAtual = () => {
-    if (!experiencia?.regras_disponibilidade) return precoBase;
-    const regra = experiencia.regras_disponibilidade.find(r => 
-      r.data_especifica === dataPasseio && r.periodo === periodo
-    );
-    return regra && regra.preco_especial ? parseFloat(regra.preco_especial) : precoBase;
-  };
-
-  const verificarDisponibilidade = () => {
-    if (horariosDisponiveis.length === 0) return t('indisponivel_periodo') || "Indisponível neste período";
-    const regra = experiencia?.regras_disponibilidade?.find(r => 
-      r.data_especifica === dataPasseio && r.periodo === periodo
-    );
-    if (regra) {
-      if (parseInt(regra.disponivel) === 0 || parseInt(regra.vagas_disponiveis) === 0) return t('esgotado') || "Esgotado";
-    }
-    return t('disponivel') || "Disponível";
-  };
-
-  const precoVigente = getPrecoAtual();
-  const statusVagas = verificarDisponibilidade();
+  // Atualizar temHorarios baseado na disponibilidade
+  const periodosUIAtualizados = periodosUI.map(p => {
+    const periodoInfo = disponibilidade?.periodos?.[p.label];
+    return {
+      ...p,
+      temHorarios: periodoInfo?.tem_horarios !== false && periodoInfo?.status !== 'Indisponível'
+    };
+  });
 
   const handleReservarAgora = () => {
     // Registrar clique em reserva
@@ -967,18 +979,20 @@ const ExperienciaDetalhes = () => {
 
           <div>
             <SidebarReservaExperiencia 
-              precoBase={precoBase}
-              rating={experiencia.rating_formatado || '5.0'}
+              precoBase={experiencia?.preco || 0}
+              rating={experiencia?.rating_formatado || '5.0'}
               dataPasseio={dataPasseio}
               setDataPasseio={setDataPasseio}
               periodo={periodo}
               setPeriodo={setPeriodo}
               horario={horario}
               setHorario={setHorario}
-              periodosUI={periodosUI}
+              periodosUI={periodosUIAtualizados}
               horariosDisponiveis={horariosDisponiveis}
               statusVagas={statusVagas}
               precoVigente={precoVigente}
+              vagasRestantes={vagasRestantes}
+              loading={loadingDisponibilidade}
               onReservar={handleReservarAgora}
             />
           </div>
@@ -1003,14 +1017,14 @@ const ExperienciaDetalhes = () => {
               </div>
             </div>
           </div>
-           <BotaoDenuncia 
-      tipo="experiencia"
-      itemId={experiencia.id}
-      itemTitulo={experiencia.titulo}
-      onDenunciaEnviada={() => {
-        console.log('Denúncia de experiência enviada com sucesso');
-      }}
-    />
+          <BotaoDenuncia 
+            tipo="experiencia"
+            itemId={experiencia.id}
+            itemTitulo={experiencia.titulo}
+            onDenunciaEnviada={() => {
+              console.log('Denúncia de experiência enviada com sucesso');
+            }}
+          />
         </div>
       </div>
 

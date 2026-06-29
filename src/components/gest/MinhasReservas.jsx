@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Reservas() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Todas');
   const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cancelingId, setCancelingId] = useState(null);
   const [counts, setCounts] = useState({
     todas: 0,
     confirmadas: 0,
@@ -12,7 +15,7 @@ export default function Reservas() {
     concluidas: 0
   });
 
-  // Buscar reservas da API - como CLIENTE
+  // Buscar reservas
   useEffect(() => {
     fetchMinhasReservas();
   }, []);
@@ -28,7 +31,6 @@ export default function Reservas() {
       
       const user = JSON.parse(savedUser);
       
-      // Buscar reservas do cliente (usuario_id = user.id)
       const response = await fetch(`https://welovepalop.com/api/dashboard/minhas_reservas.php?usuario_id=${user.id}`);
       const data = await response.json();
       
@@ -36,7 +38,6 @@ export default function Reservas() {
         const reservasData = data.data.reservas;
         setReservas(reservasData);
         
-        // Calcular contagens por status
         const confirmadas = reservasData.filter(r => 
           r.status === 'Confirmada' || r.status === 'confirmada' || r.status === 'CONFIRMADA'
         ).length;
@@ -69,7 +70,56 @@ export default function Reservas() {
     }
   };
 
-  // Lista dos separadores com contagens reais
+  // Função para cancelar reserva
+  const cancelarReserva = async (reservaId, tipo) => {
+    const confirmCancel = window.confirm('Tem certeza que deseja cancelar esta reserva? Esta ação não pode ser desfeita.');
+    
+    if (!confirmCancel) return;
+
+    setCancelingId(reservaId);
+    
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (!savedUser) {
+        alert('Usuário não autenticado');
+        return;
+      }
+      
+      const user = JSON.parse(savedUser);
+      
+      const response = await fetch('https://welovepalop.com/api/dashboard/minhas_reservas.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reserva_id: reservaId,
+          tipo: tipo,
+          usuario_id: user.id
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Reserva cancelada com sucesso!');
+        fetchMinhasReservas();
+      } else {
+        alert(data.message || 'Erro ao cancelar reserva');
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar reserva:', error);
+      alert('Erro ao cancelar reserva. Tente novamente.');
+    } finally {
+      setCancelingId(null);
+    }
+  };
+
+  // Navegar para detalhes
+  const verDetalhes = (reservaId, tipo) => {
+    navigate(`/gest/reserva/${reservaId}/${tipo}`);
+  };
+
   const tabs = [
     { key: 'Todas', label: `Todas (${counts.todas})` },
     { key: 'Confirmadas', label: `Confirmadas (${counts.confirmadas})` },
@@ -78,7 +128,6 @@ export default function Reservas() {
     { key: 'Concluídas', label: `Concluídas (${counts.concluidas})` }
   ];
 
-  // Filtrar reservas baseado no tab ativo
   const getFilteredReservas = () => {
     if (activeTab === 'Todas') return reservas;
     
@@ -95,7 +144,11 @@ export default function Reservas() {
 
   const filteredReservas = getFilteredReservas();
 
-  // Função para dar a cor certa a cada status
+  const podeCancelar = (status) => {
+    const statusLower = String(status).toLowerCase();
+    return !['cancelada', 'concluída', 'concluida'].includes(statusLower);
+  };
+
   const getStatusBadge = (status) => {
     const statusLower = String(status).toLowerCase();
     
@@ -114,7 +167,6 @@ export default function Reservas() {
     return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-[12px] font-semibold inline-block">{status}</span>;
   };
 
-  // Função para formatar o período baseado no tipo
   const formatarPeriodo = (reserva) => {
     if (reserva.tipo === 'alojamento') {
       return reserva.periodo || `${reserva.data_checkin || ''} - ${reserva.data_checkout || ''}`;
@@ -126,22 +178,12 @@ export default function Reservas() {
     return reserva.periodo || '';
   };
 
-  // Função para obter ícone do tipo
-  const getTipoIcone = (tipo) => {
-    if (tipo === 'alojamento') return '🏠';
-    if (tipo === 'carro') return '🚗';
-    if (tipo === 'experiencia') return '🏄';
-    return '📦';
-  };
-
-  // Função para obter o nome do proprietário/anfitrião
   const getProprietarioNome = (reserva) => {
     if (reserva.proprietario_nome) return reserva.proprietario_nome;
     if (reserva.anfitriao_nome) return reserva.anfitriao_nome;
     return 'Anfitrião';
   };
 
-  // Função para obter a imagem do item
   const getItemImagem = (reserva) => {
     if (reserva.item_imagem && !reserva.item_imagem.includes('ui-avatars')) return reserva.item_imagem;
     return `https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=60&h=60&fit=crop`;
@@ -161,10 +203,8 @@ export default function Reservas() {
   return (
     <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
   
-      {/* Container Principal Branco */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
         
-        {/* Header */}
         <div className="px-5 pt-5 pb-3 border-b border-gray-100">
           <div className="flex justify-between items-center">
             <div>
@@ -174,7 +214,6 @@ export default function Reservas() {
           </div>
         </div>
 
-        {/* Navegação por Tabs */}
         <div className="border-b border-gray-100 px-5 pt-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
           <div className="flex gap-6 md:gap-8">
             {tabs.map((tab) => (
@@ -194,16 +233,16 @@ export default function Reservas() {
           </div>
         </div>
 
-        {/* --- VERSÃO DESKTOP (Tabela) --- */}
+        {/* DESKTOP */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead>
               <tr className="border-b border-gray-50 bg-gray-50/50">
-                <th className="w-[30%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Item / Anfitrião</th>
-                <th className="w-[25%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Período</th>
-                <th className="w-[15%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Valor</th>
-                <th className="w-[15%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Status</th>
-                <th className="w-[15%] text-center text-[12px] font-semibold text-[#64748b] px-6 py-4">Ações</th>
+                <th className="w-[25%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Item / Anfitrião</th>
+                <th className="w-[20%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Período</th>
+                <th className="w-[12%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Valor</th>
+                <th className="w-[13%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Status</th>
+                <th className="w-[30%] text-center text-[12px] font-semibold text-[#64748b] px-6 py-4">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -228,10 +267,24 @@ export default function Reservas() {
                     <td className="px-6 py-4 text-[14px] font-medium text-[#0f172a]">{formatarPeriodo(reserva)}</td>
                     <td className="px-6 py-4 text-[14px] font-bold text-[#0f172a]">{reserva.valor} CVE</td>
                     <td className="px-6 py-4">{getStatusBadge(reserva.status)}</td>
-                    <td className="px-6 py-4 text-center">
-                      <button className="text-[14px] font-semibold text-[#2563eb] hover:underline px-3 py-1 rounded-md hover:bg-blue-50 transition-colors">
-                        Ver
-                      </button>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => verDetalhes(reserva.id, reserva.tipo)}
+                          className="text-[14px] font-semibold text-[#2563eb] hover:underline px-3 py-1 rounded-md hover:bg-blue-50 transition-colors"
+                        >
+                          Ver
+                        </button>
+                        {podeCancelar(reserva.status) && (
+                          <button 
+                            onClick={() => cancelarReserva(reserva.id, reserva.tipo)}
+                            disabled={cancelingId === reserva.id}
+                            className="text-[14px] font-semibold text-red-600 hover:underline px-3 py-1 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {cancelingId === reserva.id ? 'Cancelando...' : 'Cancelar'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -250,13 +303,12 @@ export default function Reservas() {
           </table>
         </div>
 
-        {/* --- VERSÃO MOBILE (Cartões) --- */}
+        {/* MOBILE */}
         <div className="md:hidden flex flex-col">
           {filteredReservas.length > 0 ? (
             filteredReservas.map((reserva, index) => (
               <div key={reserva.id || index} className="p-5 border-b border-gray-100 flex flex-col gap-4 active:bg-gray-50">
                 
-                {/* Linha 1: Info Principal */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <img 
@@ -276,7 +328,6 @@ export default function Reservas() {
                   </span>
                 </div>
 
-                {/* Linha 2: Detalhes Secundários */}
                 <div className="flex items-center justify-between gap-2 pt-1">
                   <div className="text-[12px] text-[#64748b] font-medium">
                     <span className="block text-gray-400 text-[11px] mb-0.5">Período</span>
@@ -287,11 +338,22 @@ export default function Reservas() {
                   </div>
                 </div>
 
-                {/* Linha 3: Botão de Ação */}
-                <div className="mt-1">
-                  <button className="w-full bg-white border border-gray-200 text-[14px] font-semibold text-[#2563eb] py-2.5 rounded-lg active:bg-blue-50 active:border-blue-200 transition-colors shadow-sm">
-                    Ver detalhes da reserva
+                <div className="flex flex-col gap-2 mt-1">
+                  <button 
+                    onClick={() => verDetalhes(reserva.id, reserva.tipo)}
+                    className="w-full bg-white border border-gray-200 text-[14px] font-semibold text-[#2563eb] py-2.5 rounded-lg active:bg-blue-50 active:border-blue-200 transition-colors shadow-sm"
+                  >
+                    Ver detalhes
                   </button>
+                  {podeCancelar(reserva.status) && (
+                    <button 
+                      onClick={() => cancelarReserva(reserva.id, reserva.tipo)}
+                      disabled={cancelingId === reserva.id}
+                      className="w-full bg-red-50 border border-red-200 text-[14px] font-semibold text-red-600 py-2.5 rounded-lg active:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {cancelingId === reserva.id ? 'Cancelando...' : 'Cancelar reserva'}
+                    </button>
+                  )}
                 </div>
 
               </div>
@@ -304,11 +366,10 @@ export default function Reservas() {
           )}
         </div>
 
-        {/* Rodapé */}
-        <div className="px-5 py-5 md:px-6 border-t border-gray-100">
+        <div className="px-5 py-5 md:px-6 border-t border-gray-100 flex justify-between items-center">
           <button 
             onClick={fetchMinhasReservas}
-            className="text-[14px] text-[#2563eb] font-semibold hover:underline block text-center md:text-left"
+            className="text-[14px] text-[#2563eb] font-semibold hover:underline"
           >
             Atualizar reservas
           </button>

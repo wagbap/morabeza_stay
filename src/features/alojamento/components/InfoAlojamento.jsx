@@ -10,12 +10,11 @@ import {
   ChevronRight, ChevronLeft, LayoutGrid, Camera,
   CheckCircle, ExternalLink, ChevronDown, X, Loader2,
   Droplet, Car, Eye, Shield, ChevronUp, Shirt, WashingMachine, 
-  CalendarDays, Calendar, Maximize2, Navigation
+  CalendarDays, Calendar, Maximize2, Navigation, Phone, Mail
 } from 'lucide-react';
 import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
 import useAlojamentoTracking from "../hooks/useAlojamentoTracking";
-// No topo do arquivo, adicione a importação
 import BotaoDenuncia from '../../../components/BotaoDenuncia';
 
 // Token do Mapbox
@@ -94,10 +93,100 @@ const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
   );
 };
 
-const HostInfo = ({ proprietario, onContactClick }) => {
+// ===== COMPONENTE HOSTINFO MODIFICADO COM WHATSAPP =====
+const HostInfo = ({ proprietario, onContactClick, alojamentoTitulo }) => {
   const { t } = useTranslation();
+  const [mostrarOpcoes, setMostrarOpcoes] = useState(false);
   
   if (!proprietario) return null;
+  
+  // Função para abrir WhatsApp
+  const abrirWhatsApp = (e) => {
+    e.stopPropagation();
+    
+    if (!proprietario.phone) {
+      alert(t('telefone_nao_disponivel') || "Número de telefone não disponível");
+      return;
+    }
+    
+    // Remove espaços e caracteres especiais, mantém apenas números
+    const numeroLimpo = proprietario.phone.replace(/\D/g, '');
+    
+    // Verifica se tem código do país (assumindo que começa com 238 para Cabo Verde)
+    let numeroWhatsApp = numeroLimpo;
+    if (!numeroWhatsApp.startsWith('238') && numeroWhatsApp.length <= 9) {
+      numeroWhatsApp = '238' + numeroWhatsApp;
+    }
+    
+    // Mensagem pré-definida com o título do alojamento
+    const mensagem = encodeURIComponent(
+      `Olá! Estou interessado no alojamento "${alojamentoTitulo || ''}" que encontrei no site WeLovePalop. Gostaria de mais informações.`
+    );
+    
+    // Abre o WhatsApp com o número e mensagem
+    window.open(`https://wa.me/${numeroWhatsApp}?text=${mensagem}`, '_blank');
+    
+    // Fecha as opções se estiver aberto
+    setMostrarOpcoes(false);
+  };
+  
+  // Função para fazer ligação
+  const fazerLigacao = (e) => {
+    e.stopPropagation();
+    
+    if (!proprietario.phone) {
+      alert(t('telefone_nao_disponivel') || "Número de telefone não disponível");
+      return;
+    }
+    
+    const numeroLimpo = proprietario.phone.replace(/\D/g, '');
+    window.open(`tel:+${numeroLimpo}`, '_blank');
+    setMostrarOpcoes(false);
+  };
+  
+  // Função para enviar email
+  const enviarEmail = (e) => {
+    e.stopPropagation();
+    
+    if (!proprietario.email) {
+      alert(t('email_nao_disponivel') || "Email não disponível");
+      return;
+    }
+    
+    const assunto = encodeURIComponent(`Interesse no alojamento: ${alojamentoTitulo || ''}`);
+    const corpo = encodeURIComponent(`Olá! Estou interessado no alojamento "${alojamentoTitulo || ''}" que encontrei no site WeLovePalop. Gostaria de mais informações.`);
+    window.open(`mailto:${proprietario.email}?subject=${assunto}&body=${corpo}`, '_blank');
+    setMostrarOpcoes(false);
+  };
+  
+  // Função principal do botão "Contactar anfitrião"
+  const handleContactClick = (e) => {
+    e.stopPropagation();
+    
+    // Se tiver apenas telefone, abre WhatsApp diretamente
+    if (proprietario.phone && !proprietario.email) {
+      abrirWhatsApp(e);
+      return;
+    }
+    
+    // Se tiver apenas email, abre email
+    if (proprietario.email && !proprietario.phone) {
+      enviarEmail(e);
+      return;
+    }
+    
+    // Se tiver ambos, mostra opções
+    if (proprietario.phone || proprietario.email) {
+      setMostrarOpcoes(!mostrarOpcoes);
+    } else {
+      alert(t('nenhum_contato_disponivel') || "Nenhum contato disponível para este anfitrião");
+    }
+    
+    // Chama o tracking se fornecido
+    if (onContactClick) {
+      onContactClick();
+    }
+  };
   
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
@@ -121,17 +210,86 @@ const HostInfo = ({ proprietario, onContactClick }) => {
           <p className="text-[10px] text-slate-500 font-medium">
             {proprietario.superhost ? (t('superhost') || 'Superhost') + ' • ' : ''}{proprietario.tempo_resposta || (t('responde_rapido') || 'Responde rápido')}
           </p>
+          {/* Exibe o telefone se disponível */}
+          {proprietario.phone && (
+            <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+              <Phone size={10} className="text-green-500" />
+              <span>{proprietario.phone}</span>
+            </p>
+          )}
+          {proprietario.email && (
+            <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+              <Mail size={10} className="text-blue-500" />
+              <span>{proprietario.email}</span>
+            </p>
+          )}
         </div>
       </div>
-      <button 
-        onClick={onContactClick}
-        className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors"
-      >
-        {t('contactar_anfitriao') || 'Contactar anfitrião'}
-      </button>
+      
+      <div className="flex flex-col gap-2 relative">
+        {/* Botão WhatsApp sempre visível se tiver telefone */}
+        {proprietario.phone && (
+          <button 
+            onClick={abrirWhatsApp}
+            className="w-full py-2.5 bg-[#25D366] hover:bg-[#1DA851] text-white font-bold text-[11px] rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" className="shrink-0">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+            {t('enviar_whatsapp') || 'Enviar mensagem no WhatsApp'}
+          </button>
+        )}
+        
+        {/* Botão de contato principal - agora com funcionalidade */}
+        <button 
+          onClick={handleContactClick}
+          className="w-full py-2.5 border border-blue-900 text-blue-900 text-[11px] font-bold rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <Phone size={14} />
+          {t('contactar_anfitriao') || 'Contactar anfitrião'}
+        </button>
+        
+        {/* Dropdown de opções de contato */}
+        {mostrarOpcoes && (
+          <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50">
+            {proprietario.phone && (
+              <button
+                onClick={fazerLigacao}
+                className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100"
+              >
+                <Phone size={14} className="text-green-600" />
+                <span>{t('ligar') || 'Ligar'}</span>
+                <span className="text-xs text-slate-400 ml-auto">{proprietario.phone}</span>
+              </button>
+            )}
+            {proprietario.phone && (
+              <button
+                onClick={abrirWhatsApp}
+                className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50 flex items-center gap-2 border-b border-slate-100"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366" className="shrink-0">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                <span>{t('whatsapp') || 'WhatsApp'}</span>
+              </button>
+            )}
+            {proprietario.email && (
+              <button
+                onClick={enviarEmail}
+                className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
+              >
+                <Mail size={14} className="text-blue-500" />
+                <span>{t('email') || 'Email'}</span>
+                <span className="text-xs text-slate-400 ml-auto">{proprietario.email}</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+// ===== FIM DO COMPONENTE HOSTINFO MODIFICADO =====
 
 const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitude, alojamentoId, onMapClick }) => {
   const { t } = useTranslation();
@@ -921,18 +1079,16 @@ export const InfoAlojamento = () => {
               </div>
             </div>
           </div>
-            {/* Botão de Denúncia - Adicionar aqui */}
-    <div className="flex items-center gap-2">
-      <BotaoDenuncia 
-        tipo="alojamento"
-        itemId={alojamento.id}
-        itemTitulo={alojamento.titulo}
-        onDenunciaEnviada={() => {
-          // Opcional: mostrar toast ou mensagem de sucesso
-          console.log('Denúncia enviada com sucesso');
-        }}
-      />
-    </div>
+          <div className="flex items-center gap-2">
+            <BotaoDenuncia 
+              tipo="alojamento"
+              itemId={alojamento.id}
+              itemTitulo={alojamento.titulo}
+              onDenunciaEnviada={() => {
+                console.log('Denúncia enviada com sucesso');
+              }}
+            />
+          </div>
         </div>  
       </div>
 
@@ -948,6 +1104,7 @@ export const InfoAlojamento = () => {
             <HostInfo 
               proprietario={alojamento.proprietario} 
               onContactClick={registrarCliqueContato}
+              alojamentoTitulo={alojamento.titulo}
             />
             <MapLocation 
               localizacao={alojamento.localizacao}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Check, X, Loader2, Search, Download } from 'lucide-react';
+import { Eye, Check, X, Loader2, Search, Download, ExternalLink, Link2 } from 'lucide-react';
 
 const ClientesAdmin = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -9,6 +9,7 @@ const ClientesAdmin = () => {
   const [motivo, setMotivo] = useState('');
   const [visualizandoDoc, setVisualizandoDoc] = useState(null);
   const [pdfError, setPdfError] = useState(null);
+  const [pdfUrlOriginal, setPdfUrlOriginal] = useState('');
 
   const carregarUsuarios = async () => {
     setLoading(true);
@@ -87,33 +88,38 @@ const ClientesAdmin = () => {
     
     let cleanUrl = url.trim();
     
-    // Remover protocolos duplicados com ou sem espaço
-    cleanUrl = cleanUrl.replace(/^https?:\s*https?:\/\//i, 'https://');
-    cleanUrl = cleanUrl.replace(/^https?:\/\/https?:\/\//i, 'https://');
-    cleanUrl = cleanUrl.replace(/https:\/\/https:\/\//g, 'https://');
-    cleanUrl = cleanUrl.replace(/http:\/\/http:\/\//g, 'http://');
+    if (cleanUrl === 'https' || cleanUrl === 'http' || cleanUrl === '') {
+      return '';
+    }
     
-    // Corrigir https:/ (apenas uma barra)
+    cleanUrl = cleanUrl.replace(/https:\/\/\//g, 'https://');
+    cleanUrl = cleanUrl.replace(/http:\/\/\//g, 'http://');
     cleanUrl = cleanUrl.replace(/^https:\/([^/])/, 'https://$1');
     cleanUrl = cleanUrl.replace(/^http:\/([^/])/, 'http://$1');
-    
-    // Remover espaços da URL
+    cleanUrl = cleanUrl.replace(/^https?:\/\/https?:\/\//i, 'https://');
+    cleanUrl = cleanUrl.replace(/^https?:\/\/http:\/\//i, 'https://');
+    cleanUrl = cleanUrl.replace(/^http:\/\/https?:\/\//i, 'https://');
     cleanUrl = cleanUrl.replace(/\s/g, '');
-    
-    // Remover caracteres especiais indesejados
     cleanUrl = cleanUrl.replace(/[<>"{}|\\^`\[\]]/g, '');
     
-    // Garantir que tem protocolo
+    if (cleanUrl.startsWith('//')) {
+      cleanUrl = 'https:' + cleanUrl;
+    }
+    
     if (!cleanUrl.match(/^https?:\/\//i)) {
       cleanUrl = 'https://' + cleanUrl;
     }
     
-    // Validar se a URL parece minimamente correta
-    if (!cleanUrl.match(/^https?:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}/)) {
-      console.warn('URL suspeita após limpeza:', cleanUrl);
+    try {
+      const urlObj = new URL(cleanUrl);
+      if (!urlObj.hostname || urlObj.hostname === 'https' || urlObj.hostname === 'http') {
+        return '';
+      }
+      return cleanUrl;
+    } catch (e) {
+      console.warn('Erro ao validar URL:', cleanUrl, e);
+      return '';
     }
-    
-    return cleanUrl;
   };
 
   const visualizarDocumento = async (url) => {
@@ -128,9 +134,15 @@ const ClientesAdmin = () => {
     console.log('📄 URL original:', url);
     console.log('📄 URL limpa:', cleanUrl);
     
+    if (!cleanUrl) {
+      setPdfError('URL do documento inválida. Por favor, verifique o documento.');
+      return;
+    }
+    
+    setPdfUrlOriginal(cleanUrl);
+    
     const proxyUrl = `/api/proxy_pdf.php?url=${encodeURIComponent(cleanUrl)}`;
     
-    // Testar se o proxy está acessível
     try {
       const testResponse = await fetch(proxyUrl, { method: 'HEAD' });
       if (!testResponse.ok) {
@@ -150,10 +162,19 @@ const ClientesAdmin = () => {
     }
     
     const cleanUrl = limparUrl(url);
+    
+    if (!cleanUrl) {
+      alert('URL do documento inválida');
+      return;
+    }
+    
     const proxyUrl = `/api/proxy_pdf.php?url=${encodeURIComponent(cleanUrl)}`;
     
     try {
       const response = await fetch(proxyUrl);
+      if (!response.ok) {
+        throw new Error(`Erro ao baixar: ${response.status}`);
+      }
       const blob = await response.blob();
       
       const link = document.createElement('a');
@@ -295,25 +316,19 @@ const ClientesAdmin = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          {role.document_url ? (
-                            <div className="flex gap-2 flex-wrap">
-                              <button
-                                onClick={() => visualizarDocumento(role.document_url)}
-                                className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition"
-                              >
-                                <Eye size={16} /> Visualizar
-                              </button>
-                              <button
-                                onClick={() => baixarDocumento(role.document_url, usuario.nome)}
-                                className="inline-flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition"
-                              >
-                                <Download size={16} /> Baixar
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400 italic">Sem documento</span>
-                          )}
-                        </td>
+                        
+                     <div className="p-4 border-t bg-gray-50 rounded-b-2xl">
+  <p className="text-xs text-gray-500 mb-1">📄 Ver documento na página:</p>
+  <a 
+    href="/admin/verificacoes"
+    className="text-sm text-blue-600 hover:text-blue-800 hover:underline break-all flex items-center gap-1"
+  >
+    <Link2 size={14} />
+    admin/verificacoes
+  </a>
+</div>
+                       </td>
+                    
                         <td className="px-6 py-4">
                           <div className="flex justify-center gap-2">
                             <button 
@@ -340,13 +355,24 @@ const ClientesAdmin = () => {
         )}
       </div>
 
-      {/* Modal Visualização PDF */}
+      {/* Modal Visualização PDF COM LINK DIRETO */}
       {visualizandoDoc && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center p-4 border-b bg-gray-50 rounded-t-2xl">
               <h3 className="text-lg font-bold text-gray-900">Visualizar Documento</h3>
               <div className="flex gap-2">
+                {pdfUrlOriginal && (
+                  <a 
+                    href={pdfUrlOriginal} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition"
+                    title="Abrir em nova aba"
+                  >
+                    <ExternalLink size={16} /> Abrir Link
+                  </a>
+                )}
                 <button
                   onClick={() => {
                     const link = document.createElement('a');
@@ -362,6 +388,7 @@ const ClientesAdmin = () => {
                   onClick={() => {
                     setVisualizandoDoc(null);
                     setPdfError(null);
+                    setPdfUrlOriginal('');
                   }}
                   className="p-2 hover:bg-gray-200 rounded-lg transition"
                 >
@@ -375,7 +402,11 @@ const ClientesAdmin = () => {
                   <X size={48} className="text-red-500 mb-4" />
                   <p className="text-red-600 text-center max-w-md">{pdfError}</p>
                   <button
-                    onClick={() => setVisualizandoDoc(null)}
+                    onClick={() => {
+                      setVisualizandoDoc(null);
+                      setPdfError(null);
+                      setPdfUrlOriginal('');
+                    }}
                     className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
                   >
                     Fechar
@@ -391,11 +422,26 @@ const ClientesAdmin = () => {
                 />
               )}
             </div>
+            {/* LINK DIRETO DO DOCUMENTO NO MODAL */}
+            {pdfUrlOriginal && (
+              <div className="p-4 border-t bg-gray-50">
+                <p className="text-xs text-gray-500 mb-1">📄 Documento anexado:</p>
+                <a 
+                  href={pdfUrlOriginal} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
+                >
+                  {pdfUrlOriginal}
+                </a>
+              </div>
+            )}
             <div className="p-4 border-t bg-gray-50 rounded-b-2xl flex justify-end">
               <button
                 onClick={() => {
                   setVisualizandoDoc(null);
                   setPdfError(null);
+                  setPdfUrlOriginal('');
                 }}
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition"
               >

@@ -107,8 +107,8 @@ export default function Sidebar({ isOpen, onClose }) {
       </div>
 
       {/* Header com informações do usuário */}
-      <div className="p-4 border-b border-gray-100">
-        <div className="flex items-center gap-3">
+<div className="px-4 py-10 border-b border-gray-100">
+  <div className="flex items-center gap-6"> 
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003580] to-[#6b82c6] flex items-center justify-center text-white font-bold">
             {user?.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
           </div>

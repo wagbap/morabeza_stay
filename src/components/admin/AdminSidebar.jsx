@@ -227,10 +227,10 @@ const AdminSidebar = () => {
         />
       )}
 
-      {/* Botão Hambúrguer - Mobile */}
+      {/* Botão Hambúrguer - Mobile (agora à direita) */}
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="fixed top-4 left-4 z-50 md:hidden bg-[#003580] text-white p-2 rounded-lg shadow-lg"
+        className="fixed top-4 right-4 z-50 md:hidden bg-[#003580] text-white p-2 rounded-lg shadow-lg"
       >
         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>

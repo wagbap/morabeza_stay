@@ -37,7 +37,7 @@ const FiltrosLateraisCarros = ({
         className="relative rounded-2xl overflow-hidden h-32 border-4 border-white shadow-lg cursor-pointer group"
       >
         <img 
-          src="https://images.unsplash.com/photo-1449960232330-79ba99d70d41?q=80&w=400" 
+          src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1782487271/conceito-da-viagem-por-estrada-carro-com-pontos-de-destino-no-mapa-73265365_dswqzq.webp" 
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
           alt={t('mapa_levantamento_alt')} 
         />

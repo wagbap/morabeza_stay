@@ -1,4 +1,5 @@
 // src/components/gest/GestaoRouter.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
@@ -15,6 +16,7 @@ import Historico from './Historico';
 import Avaliacoes from './Avaliacoes';
 import Configuracoes from './Configuracoes';
 import MinhasReservas from './MinhasReservas';
+import DetalhesReserva from './DetalhesReserva';
 
 const LayoutGestao = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -44,14 +46,11 @@ const LayoutGestao = ({ children }) => {
   return (
     <div className="h-screen flex flex-col bg-[#f8f9fc] overflow-hidden relative">
       
-      {/* A TUA NAVBAR INTACTA (onde está o gmail) */}
       <Navbar />
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Passamos o estado e a função para fechar a barra lateral */}
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         
-        {/* Overlay escuro de fundo quando o menu está aberto no mobile */}
         {sidebarOpen && (
           <div 
             onClick={() => setSidebarOpen(false)} 
@@ -59,10 +58,8 @@ const LayoutGestao = ({ children }) => {
           />
         )}
 
-        {/* Área Principal de Conteúdo */}
         <div className="flex-1 flex flex-col overflow-hidden">
           
-          {/* BARRA MOBILE: Hamburger no topo (logo abaixo da tua Navbar) */}
           <div className="lg:hidden flex items-center justify-between bg-white px-4 py-3 border-b border-gray-100 shadow-sm z-20">
             <span className="font-bold text-[#0f172a] text-[15px]">Menu do Anfitrião</span>
             <button 
@@ -73,7 +70,6 @@ const LayoutGestao = ({ children }) => {
             </button>
           </div>
 
-          {/* Onde as páginas carregam */}
           <div className="flex-1 overflow-y-auto p-4 md:p-8">
             {children}
           </div>
@@ -97,6 +93,9 @@ const GestaoRouter = () => {
       <Route path="avaliacoes" element={<LayoutGestao><Avaliacoes /></LayoutGestao>} />
       <Route path="configuracoes" element={<LayoutGestao><Configuracoes /></LayoutGestao>} />
       <Route path="minhas-reservas" element={<LayoutGestao><MinhasReservas /></LayoutGestao>} />
+      
+      {/* ROTA AMIGÁVEL PARA DETALHES DA RESERVA */}
+      <Route path="reserva/:id/:tipo" element={<LayoutGestao><DetalhesReserva /></LayoutGestao>} />
 
       <Route path="" element={<Navigate to="dashboard" replace />} />
       <Route path="*" element={<Navigate to="dashboard" replace />} />
