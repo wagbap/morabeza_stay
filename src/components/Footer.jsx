@@ -45,23 +45,32 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Contacts */}
+          {/* Legal/Support Links - FIXED: Changed title and links */}
+          <div className="flex flex-col items-start">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-900 mb-6">{t('footer_legal', 'Legal')}</h4>
+            <ul className="space-y-4">
+              <li><Link to="/privacidade" className="text-gray-400 hover:text-blue-600 text-sm font-bold transition-colors">{t('footer_privacy', 'Política de privacidade')}</Link></li>
+              <li><Link to="/termos" className="text-gray-400 hover:text-blue-600 text-sm font-bold transition-colors">{t('footer_terms', 'Termos e Condições')}</Link></li>
+              <li><Link to="/faq" className="text-gray-400 hover:text-blue-600 text-sm font-bold transition-colors">{t('footer_faq', 'FAQ')}</Link></li>
+              <li><Link to="/cancelamento" className="text-gray-400 hover:text-blue-600 text-sm font-bold transition-colors">{t('footer_cancellation', 'Política de Cancelamento')}</Link></li>
+            </ul>
+          </div>
+
+          {/* Contacts & Social Media - COMBINED: Merged contact and social into one section */}
           <div className="flex flex-col items-start">
             <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-900 mb-6">{t('footer_contact', 'Contacto')}</h4>
             <div className="space-y-5 mb-8">
               <div className="flex items-center gap-3.5 text-gray-400 text-sm font-bold">
                 <MapPin size={18} className="text-blue-500 flex-shrink-0" />
-                <span>Praia, Cabo Verde</span>
+                <span>{t('footer_address', 'Praia, Cabo Verde')}</span>
               </div>
               <div className="flex items-center gap-3.5 text-gray-400 text-sm font-bold">
                 <Mail size={18} className="text-blue-500 flex-shrink-0" />
-                <span>info@morabezastay.cv</span>
+                <span>morabezastay@gmail.com</span>
               </div>
             </div>
-          </div>
-
-          {/* Social Media */}
-          <div className="flex flex-col items-start">
+            
+            {/* Social Media - Now inside the same section */}
             <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-900 mb-6">{t('footer_follow', 'Siga-nos')}</h4>
             <div className="flex flex-wrap gap-4">
               {/* Instagram */}
@@ -116,7 +125,7 @@ const Footer = () => {
             © {new Date().getFullYear()} Morabeza Stay. {t('footer_rights', 'Todos os direitos reservados.')}
           </p>  
           <div className="flex items-center gap-2 text-[10px] font-black text-gray-300 uppercase tracking-widest cursor-pointer hover:text-gray-900 transition-colors">
-            <Globe size={14} /> <span>PT / EN</span>
+            <Globe size={14} /> <span>{t('footer_language', 'PT / EN')}</span>
           </div>
         </div>
       </div>

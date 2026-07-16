@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Car, Palmtree, Globe, ChevronDown } from 'lucide-react';
+import { Menu, X, Home, Car, Palmtree, Globe, ChevronDown, Info } from 'lucide-react';
 import UserDropdown from './UserDropdown';
 import { useTranslation } from 'react-i18next';
 
@@ -15,7 +15,7 @@ const Navbar = () => {
   const langRef = useRef(null);
 
   // ✅ MAPEAMENTO COMPLETO: Todas as páginas com Hero Banner agora têm a Navbar transparente por cima
-  const paginasComHero = ['/', '/experiencias', '/alojamentos', '/carros'];
+  const paginasComHero = ['/', '/experiencias', '/alojamentos', '/carros', '/sobre'];
   const isHeroPage = paginasComHero.includes(location.pathname);
 
   useEffect(() => {
@@ -49,6 +49,7 @@ const Navbar = () => {
 
   const navLinks = [
     { name: t('menu_inicio'), icon: <Home size={18} />, path: '/' },
+    { name: t('menu_sobre', 'Sobre Nós'), icon: <Info size={18} />, path: '/sobre' }, // ADICIONADO DEPOIS DO INÍCIO
     { name: t('menu_alojamentos'), icon: <Globe size={18} />, path: '/alojamentos' },
     { name: t('menu_carros'), icon: <Car size={18} />, path: '/carros' },
     { name: t('menu_experiencias'), icon: <Palmtree size={18} />, path: '/experiencias' },
@@ -76,20 +77,24 @@ const Navbar = () => {
     <>
       <nav className={`w-full z-[100] px-6 md:px-12 py-5 flex justify-between items-center transition-all duration-300 ${getNavbarClasses()}`}>
         
-    <Link to="/" className="flex items-center min-w-[150px]">
-  <img 
-    src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" 
-    alt="Morabeza Stay Logo" 
-    className="h-10 w-auto object-contain" /* Ajusta a altura (h-10) como preferires */
-  />
-</Link>
+        <Link to="/" className="flex items-center min-w-[150px]">
+          <img 
+            src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" 
+            alt="Morabeza Stay Logo" 
+            className="h-10 w-auto object-contain"
+          />
+        </Link>
 
-        {/* ✅ LINHA 90 CORRIGIDA: Texto fantasma removido com sucesso! */}
+        {/* MENU DESKTOP */}
         <div className={`hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] absolute left-1/2 -translate-x-1/2 transition-colors ${
           isHeroPage ? "text-white" : "text-gray-600"
         }`}>
           {navLinks.map((link, idx) => (
-            <Link key={idx} to={link.path} className="hover:text-blue-400 transition-all opacity-80 hover:opacity-100 relative group">
+            <Link 
+              key={idx} 
+              to={link.path} 
+              className="hover:text-blue-400 transition-all opacity-80 hover:opacity-100 relative group"
+            >
               {link.name}
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-400 transition-all group-hover:w-full"></span>
             </Link>
@@ -126,7 +131,7 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* ✅ AQUI ESTÁ O NOVO BOTÃO DE REGISTAR PROPRIEDADE */}
+          {/* BOTÃO DE REGISTAR PROPRIEDADE */}
           {!user ? (
             <Link 
               to="/login"
@@ -136,7 +141,7 @@ const Navbar = () => {
                   : "bg-[#003580] text-white hover:bg-[#002560]"
               }`}
             >
-                 {t('registe_sua_propriedade')}
+              {t('registe_sua_propriedade')}
             </Link>
           ) : (
             <UserDropdown 
@@ -171,27 +176,32 @@ const Navbar = () => {
 
         <div className="p-6 space-y-2 text-left">
           {navLinks.map((link, index) => (
-            <Link key={index} to={link.path} onClick={() => setIsOpen(false)} className="flex items-center gap-4 p-4 hover:bg-blue-50 text-gray-700 rounded-2xl transition-all group">
+            <Link 
+              key={index} 
+              to={link.path} 
+              onClick={() => setIsOpen(false)} 
+              className="flex items-center gap-4 p-4 hover:bg-blue-50 text-gray-700 rounded-2xl transition-all group"
+            >
               <span className="text-gray-400 group-hover:text-blue-500 transition-colors">{link.icon}</span>
               <span className="font-bold text-sm uppercase tracking-wider">{link.name}</span>
             </Link>
           ))}
           
           <div className="pt-6 mt-6 border-t border-gray-100">
-             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 px-4">Idioma</p>
-             <div className="grid grid-cols-2 gap-2 px-2">
-                {languages.map((lng) => (
-                  <button 
-                    key={lng.code}
-                    onClick={() => { changeLanguage(lng.code); setIsOpen(false); }}
-                    className={`py-3 text-[10px] font-bold rounded-xl border transition-all ${
-                      i18n.language === lng.code ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100"
-                    }`}
-                  >
-                    {lng.label}
-                  </button>
-                ))}
-             </div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 px-4">Idioma</p>
+            <div className="grid grid-cols-2 gap-2 px-2">
+              {languages.map((lng) => (
+                <button 
+                  key={lng.code}
+                  onClick={() => { changeLanguage(lng.code); setIsOpen(false); }}
+                  className={`py-3 text-[10px] font-bold rounded-xl border transition-all ${
+                    i18n.language === lng.code ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100"
+                  }`}
+                >
+                  {lng.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

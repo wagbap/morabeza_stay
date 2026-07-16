@@ -63,7 +63,68 @@ const FluxoRegisto = () => {
   // Refs para controlar carregamento inicial
   const isInitialLoad = useRef(true);
   const isEditing = useRef(false);
+
+  // ==================== CLEANUP PARA NOVO REGISTO ====================
   
+  // 🔥 NOVO: Limpar localStorage e resetar estados quando for novo registo
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    
+    if (!id) {
+      // É um novo registo - limpar dados antigos
+      console.log('🧹 Novo registo - limpando dados antigos...');
+      
+      // Limpar localStorage de quartos se existir
+      try {
+        const storageKeys = [
+          'quartos_temporarios',
+          'quartos_editando',
+          'quartos_alojamento_id',
+          'informacoes_basicas_temp',
+          'localizacao_temp',
+          'comodidades_temp',
+          'regras_temp',
+          'fotos_temp'
+        ];
+        
+        storageKeys.forEach(key => {
+          if (localStorage.getItem(key)) {
+            localStorage.removeItem(key);
+            console.log(`🗑️ Removido localStorage: ${key}`);
+          }
+        });
+        
+        // Também limpar sessionStorage se usado
+        const sessionKeys = [
+          'quartos_temp',
+          'alojamento_temp'
+        ];
+        
+        sessionKeys.forEach(key => {
+          if (sessionStorage.getItem(key)) {
+            sessionStorage.removeItem(key);
+            console.log(`🗑️ Removido sessionStorage: ${key}`);
+          }
+        });
+        
+      } catch (error) {
+        console.warn('⚠️ Erro ao limpar localStorage:', error);
+      }
+      
+      // Resetar estados para valores padrão
+      setQuartosParaEnviar([]);
+      setFotos([]);
+      setComodidadesSelecionadas([]);
+      setRegrasIds([]);
+      setRegrasAdicionais('');
+      setRegrasObjetos([]);
+      setAlojamentoId(null);
+      
+      console.log('✅ Estados resetados para novo registo');
+    }
+  }, []); // Executa apenas na montagem do componente
+
   // ==================== CARREGAR DADOS PARA EDIÇÃO ====================
   
   useEffect(() => {
@@ -76,6 +137,8 @@ const FluxoRegisto = () => {
       carregarDadosParaEdicao(parseInt(id));
     }
   }, []);
+  
+  // ==================== RESTO DO CÓDIGO PERMANECE IGUAL ====================
   
   const carregarDadosParaEdicao = async (id) => {
     setIsLoading(true);
@@ -620,40 +683,39 @@ const FluxoRegisto = () => {
   
   return (
     <>
+      <header className="bg-[#003580] text-white px-4 py-2 flex items-center justify-between shadow-sm">
+        {/* Lado esquerdo - Logo */}
+        <div className="flex items-center">
+          <div className="font-bold text-lg tracking-tight truncate max-w-[140px]">
+            morabezastay.cv
+          </div>
+        </div>
 
-<header className="bg-[#003580] text-white px-4 py-2 flex items-center justify-between shadow-sm">
-  {/* Lado esquerdo - Logo */}
-  <div className="flex items-center">
-    <div className="font-bold text-lg tracking-tight truncate max-w-[140px]">
-      morabezastay.cv
-    </div>
-  </div>
+        {/* Lado direito - Menu e ações */}
+        <div className="flex items-center gap-3">
+          {/* Info do passo - versão mobile compacta */}
+          <div className="flex flex-col items-end">
+            <PropMenu 
+              nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
+              onEditName={() => setFase(1)} 
+              onEditLocation={() => setFase(2)} 
+              onEditComodidades={() => setFase(3)} 
+              onEditRegras={() => setFase(4)} 
+            />
+            <div className="text-[8px] opacity-80 mt-0.5">
+              {alojamentoId ? 'Editando' : 'Novo'} {fase}/5
+            </div>
+          </div>
 
-  {/* Lado direito - Menu e ações */}
-  <div className="flex items-center gap-3">
-    {/* Info do passo - versão mobile compacta */}
-    <div className="flex flex-col items-end">
-      <PropMenu 
-        nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
-        onEditName={() => setFase(1)} 
-        onEditLocation={() => setFase(2)} 
-        onEditComodidades={() => setFase(3)} 
-        onEditRegras={() => setFase(4)} 
-      />
-      <div className="text-[8px] opacity-80 mt-0.5">
-        {alojamentoId ? 'Editando' : 'Novo'} {fase}/5
-      </div>
-    </div>
+          {/* Divider vertical */}
+          <div className="w-[1px] h-6 bg-blue-900"></div>
 
-    {/* Divider vertical */}
-    <div className="w-[1px] h-6 bg-blue-900"></div>
-
-    {/* Botão ajuda mobile */}
-    <div className="flex items-center gap-1 cursor-pointer hover:underline">
-      <HelpCircle size={16} />
-    </div>
-  </div>
-</header>
+          {/* Botão ajuda mobile */}
+          <div className="flex items-center gap-1 cursor-pointer hover:underline">
+            <HelpCircle size={16} />
+          </div>
+        </div>
+      </header>
       
       <div className="max-w-4xl mx-auto px-4 pt-4">
         {renderProgressBar()}

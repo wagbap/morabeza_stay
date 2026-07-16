@@ -438,7 +438,7 @@ export default function DetalhesReservaPage() {
                 🖨️ Imprimir
               </button>
               <Link
-                to="/dashboard/reservas"
+                to="/gest/minhas-reservas"
                 className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors block text-center"
               >
                 📋 Ver Todas

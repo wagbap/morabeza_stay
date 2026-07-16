@@ -721,7 +721,7 @@ export default function Configuracoes() {
                   <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm flex items-start gap-4">
                     <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600"><Home className="w-6 h-6" /></div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900">Anfitrião</h3>
+                      <h3 className="text-lg font-bold text-gray-900">Anfitrião de Alojamentos</h3>
                       <p className="text-sm text-gray-500 mt-1">Permissão ativa para alugar e gerir alojamentos no mapa.</p>
                       <div className="mt-3 flex gap-4 text-sm font-semibold">
                         <button onClick={() => window.location.href = '/alojamento-registro/meus'} className="text-blue-600 hover:underline">Ver meus alojamentos →</button>

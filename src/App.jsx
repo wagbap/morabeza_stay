@@ -1,7 +1,7 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'; // <- Importado o Navigate aqui
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import './i18n'; // Importa a configuração do i18n
+import './i18n';
 
 // Hooks
 import { useFetchHomeData } from './hooks/useFetchHomeData';
@@ -42,10 +42,7 @@ import PropriedadesAdmin from './components/admin/PropriedadesAdmin';
 import ClientesAdmin from './components/admin/ClientesAdmin';
 import GanhosAdmin from './components/admin/GanhosAdmin';
 import ConfiguracoesAdmin from './components/admin/ConfiguracoesAdmin';
-// --- IMPORTA O ROUTER DE GESTÃO ---
 import GestaoRouter from './components/gest/GestaoRouter';
-
-
 
 import EmailsVerificados from './components/admin/EmailsVerificados';
 import Mensagens from './components/admin/Mensagens';
@@ -55,9 +52,12 @@ import Relatorios from './components/admin/Relatorios';
 import Anfitrioes from './components/admin/Anfitrioes';
 import DetalhesConteudo from './components/admin/DetalhesConteudo';
 
-// Adicione as rotas:
-
-
+// PÁGINA SOBRE - IMPORTE AQUI
+import SobrePage from './pages/Sobre'; // Vamos criar essa página
+import PolicyCancellation from './components/PolicyCancellation';
+import TermsConditions from './components/TermsConditions';
+import Faq from './components/Faq';
+import PrivacyPolicy from './components/PrivacyPolicy';
 
 // Layout Principal (Clientes)
 const LayoutPrincipal = ({ children }) => (
@@ -74,18 +74,11 @@ function App() {
   return (
     <HelmetProvider>
       <Router>
-        {/* APENAS UM BLOCO ROUTES PARA TODO O PROJETO */}
         <Routes>
           
-          {/* =========================================================
-              1. ROTAS DO PAINEL ADMINISTRATIVO (ADMIN)
-             ========================================================= */}
-          {/* Rota de Login Isolada (Ecrã inteiro, sem sidebar) */}
+          {/* ROTAS DO PAINEL ADMINISTRATIVO */}
           <Route path="/admin/login" element={<AdminLogin />} />
-
-          {/* Rotas protegidas envolvidas pelo AdminLayout */}
           <Route path="/admin" element={<AdminLayout />}>
-            {/* Se o admin aceder a '/admin', vai direto para o dashboard */}
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<PainelControleAdmin />} />
             <Route path="reservas" element={<ReservasAdmin />} />
@@ -102,21 +95,57 @@ function App() {
             <Route path="/admin/anfitrioes" element={<ClientesAdmin />} />
           </Route>
 
-          {/* =========================================================
-              2. ROTAS DE REGISTO / PARCEIROS (ANÚNCIOS)
-             ========================================================= */}
+          {/* ROTAS DE REGISTO */}
           <Route path="/alojamento-registro/*" element={<AlojamentoRouter />} />
           <Route path="/experiencia-registo/*" element={<ExperienciaRouter />} />
           <Route path="/carro-registo/*" element={<CarroRouter />} />
 
-          {/* =========================================================
-              3. ROTA DE LOGIN GERAL (CLIENTES/PARCEIROS)
-             ========================================================= */}
+          {/* ROTA DE LOGIN */}
           <Route path="/login" element={<Login />} />
 
-          {/* =========================================================
-              4. ROTAS DO LAYOUT PRINCIPAL (PORTAL CLIENTES)
-             ========================================================= */}
+          {/* ROTA SOBRE - ADICIONADA AQUI */}
+          <Route path="/sobre" element={
+            <LayoutPrincipal>
+              <SobrePage />
+            </LayoutPrincipal>
+          } />
+
+
+             {/* ROTA POLITICA DE CANCELAMENTO - ADICIONADA AQUI */}
+          <Route path="/cancelamento" element={
+            <LayoutPrincipal>
+              <PolicyCancellation />
+            </LayoutPrincipal>
+          } />
+
+
+
+          {/* ROTA TEMROS DE CONDIÇÕES - ADICIONADA AQUI */}
+          <Route path="/termos" element={
+            <LayoutPrincipal>
+              <TermsConditions />
+            </LayoutPrincipal>
+          } />
+
+          
+          {/* ROTA PERGUNAS FREQUENTES - ADICIONADA AQUI */}
+          <Route path="/faq" element={
+            <LayoutPrincipal>
+              <Faq />
+            </LayoutPrincipal>
+          } />
+
+
+          {/* ROTA  POLITICA DE PRIVACIDADE - ADICIONADA AQUI */}
+          <Route path="privacidade" element={
+            <LayoutPrincipal>
+              <PrivacyPolicy />
+            </LayoutPrincipal>
+          } />
+          
+          
+
+          {/* ROTAS DO LAYOUT PRINCIPAL */}
           <Route path="/" element={
             <LayoutPrincipal>
               <Home 
@@ -149,12 +178,10 @@ function App() {
           <Route path="/confirmacao" element={<LayoutPrincipal><Confirmacao /></LayoutPrincipal>} />
           <Route path="/favoritos" element={<LayoutPrincipal><Favoritos /></LayoutPrincipal>} />
 
-          {/* =========================================================
-              5. ROTAS DE GESTÃO DO ANFITRIÃO / PARCEIRO
-             ========================================================= */}
+          {/* ROTAS DE GESTÃO */}
           <Route path="/gest/*" element={<GestaoRouter />} />
 
-          {/* Fallback de segurança: Se a rota não existir em lado nenhum, manda para a Home */}
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
 
         </Routes>
