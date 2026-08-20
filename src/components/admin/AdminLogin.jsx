@@ -10,66 +10,93 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // URL da API a partir de variável de ambiente, com fallback
+  const API_URL = process.env.REACT_APP_API_URL || 'https://welovepalop.com/api';
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setErro('');
     setLoading(true);
 
     try {
-      // Tentar autenticação via API
-      const response = await fetch('/api/admin/login.php', {
+      const response = await fetch(`${API_URL}/admin/login.php`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          email: email,
-          senha: senha
-        })
+        body: JSON.stringify({ email, senha })
       });
 
-      // Verificar se a resposta é OK
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // Log para diagnóstico
+      console.log('Status da resposta:', response.status);
+      console.log('Headers:', response.headers);
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Verificar se o utilizador tem permissões de admin
-        const isAdmin = 
-          data.user.role === 'admin' || 
-          data.user.tipo === 'admin' ||
-          (data.user.roles && data.user.roles.includes('admin')) ||
-          data.user.isAdmin === true ||
-          data.user.email === 'admin@morabezastay.com';
-
-        if (isAdmin) {
-          // Guardar dados do admin no localStorage
-          const adminData = {
-            id: data.user.id,
-            nome: data.user.nome || data.user.name,
-            email: data.user.email,
-            role: 'admin',
-            isAdmin: true,
-            foto: data.user.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.user.nome || 'Admin')}&background=003580&color=fff`,
-            token: data.token || null
-          };
-          
-          localStorage.setItem('morabeza_admin', JSON.stringify(adminData));
-          
-          // Redirecionar para o dashboard
-          navigate('/admin/dashboard');
-        } else {
-          setErro('Acesso negado: Não tens permissões de administrador.');
-        }
+      // Tentar ler a resposta mesmo se não for OK
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
       } else {
-        setErro(data.message || 'Email ou palavra-passe incorretos.');
+        // Se não for JSON, ler como texto para debug
+        const text = await response.text();
+        console.error('Resposta não é JSON:', text);
+        throw new Error(`Resposta não é JSON (status ${response.status}): ${text.substring(0, 200)}`);
       }
+
+      // Se a resposta não for OK (ex: 500, 404)
+      if (!response.ok) {
+        throw new Error(data.message || `Erro HTTP: ${response.status}`);
+      }
+
+      // Verificar se a resposta tem a estrutura esperada
+      if (!data.success) {
+        throw new Error(data.message || 'Erro desconhecido na API');
+      }
+
+      // Verificar permissões de admin
+      const user = data.user;
+      const isAdmin = 
+        user.role === 'admin' || 
+        user.tipo === 'admin' ||
+        (user.roles && user.roles.includes('admin')) ||
+        user.isAdmin === true ||
+        user.email === 'admin@morabezastay.com';
+
+      if (!isAdmin) {
+        throw new Error('Acesso negado: Não tens permissões de administrador.');
+      }
+
+      // Guardar dados do admin
+      const adminData = {
+        id: user.id,
+        nome: user.nome || user.name || 'Admin',
+        email: user.email,
+        role: 'admin',
+        isAdmin: true,
+        foto: user.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nome || 'Admin')}&background=003580&color=fff`,
+        token: data.token || null
+      };
+
+      localStorage.setItem('morabeza_admin', JSON.stringify(adminData));
+
+      // Redirecionar
+      navigate('/admin/dashboard');
+
     } catch (error) {
       console.error('Erro no login:', error);
-      setErro('Erro de ligação ao servidor. Tenta novamente.');
+      // Mostrar mensagem mais específica
+      let mensagem = 'Erro de ligação ao servidor. Tenta novamente.';
+      if (error.message) {
+        // Se a mensagem de erro não for muito técnica, mostra-a
+        if (!error.message.includes('Resposta não é JSON')) {
+          mensagem = error.message;
+        } else {
+          // Se for erro de parse, sugerir verificar a API
+          mensagem = 'A API retornou uma resposta inválida. Contacta o suporte.';
+        }
+      }
+      setErro(mensagem);
     } finally {
       setLoading(false);
     }

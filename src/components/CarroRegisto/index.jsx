@@ -1,6 +1,13 @@
 // src/components/CarroRegisto/index.jsx
 
-export { default as CarroRouter } from './CarroRouter';
+// ✅ Exportação PADRÃO (default) para o lazy loading
+import CarroRouter from './CarroRouter';
+export default CarroRouter;
+
+// ✅ Ou simplesmente:
+// export { default } from './CarroRouter';
+
+// ✅ Todas as outras exportações NAMED
 export { default as FluxoRegisto } from './FluxoRegisto';
 export { default as MeusCarros } from './MeusCarros';
 export { default as EditarCarro } from './EditarCarro';

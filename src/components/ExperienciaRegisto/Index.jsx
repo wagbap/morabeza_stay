@@ -1,6 +1,10 @@
 // src/components/ExperienciaRegisto/index.jsx
 
-export { default as ExperienciaRouter } from './ExperienciaRouter';
+// ✅ DEFAULT EXPORT - necessário para o lazy loading
+import ExperienciaRouter from './ExperienciaRouter';
+export default ExperienciaRouter;
+
+// ✅ NAMED EXPORTS - para uso em outros lugares
 export { default as FluxoRegisto } from './FluxoRegisto';
 export { default as MeusExperiencias } from './MeusExperiencias';
 export { default as EditarExperiencia } from './EditarExperiencia';

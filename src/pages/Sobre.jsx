@@ -1,42 +1,186 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
 import { Users, Heart, Award, Globe, MapPin, Coffee, Shield, Star } from 'lucide-react';
 
 const SobrePage = () => {
   const { t } = useTranslation();
+  const [stats, setStats] = useState({
+    alojamentos: 0,
+    carros: 0,
+    experiencias: 0,
+    usuarios: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const counterRefs = useRef({});
 
   // Valores da empresa
   const valores = [
     {
-      icon: <Heart className="w-8 h-8 text-blue-600" />,
+      icon: <Heart className="w-8 h-8" />,
       title: t('sobre_valor1_titulo', 'Paixão por Cabo Verde'),
       description: t('sobre_valor1_desc', 'Amamos partilhar as belezas e cultura das ilhas com cada visitante.')
     },
     {
-      icon: <Shield className="w-8 h-8 text-blue-600" />,
+      icon: <Shield className="w-8 h-8" />,
       title: t('sobre_valor2_titulo', 'Confiança e Segurança'),
       description: t('sobre_valor2_desc', 'Todas as nossas propriedades e serviços são verificados e garantidos.')
     },
     {
-      icon: <Users className="w-8 h-8 text-blue-600" />,
+      icon: <Users className="w-8 h-8" />,
       title: t('sobre_valor3_titulo', 'Experiência Local'),
       description: t('sobre_valor3_desc', 'Trabalhamos com anfitriões locais para oferecer autenticidade.')
     },
     {
-      icon: <Award className="w-8 h-8 text-blue-600" />,
+      icon: <Award className="w-8 h-8" />,
       title: t('sobre_valor4_titulo', 'Qualidade Garantida'),
       description: t('sobre_valor4_desc', 'Selecionamos cuidadosamente cada experiência e alojamento.')
     }
   ];
 
-  // Estatísticas
-  const estatisticas = [
-    { numero: '500+', label: t('sobre_stats_alojamentos', 'Alojamentos') },
-    { numero: '200+', label: t('sobre_stats_carros', 'Viaturas') },
-    { numero: '150+', label: t('sobre_stats_experiencias', 'Experiências') },
-    { numero: '10K+', label: t('sobre_stats_clientes', 'Clientes Satisfeitos') }
-  ];
+  // Função para animação de contagem
+  const animateCounter = (element, target, duration = 2000) => {
+    if (!element) return;
+    
+    const start = 0;
+    const startTime = performance.now();
+    
+    const updateCounter = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function para tornar a animação mais suave
+      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      const current = Math.floor(easeOutQuart * target);
+      
+      element.textContent = current.toLocaleString() + '+';
+      
+      if (progress < 1) {
+        requestAnimationFrame(updateCounter);
+      } else {
+        element.textContent = target.toLocaleString() + '+';
+      }
+    };
+    
+    requestAnimationFrame(updateCounter);
+  };
+
+  // Buscar estatísticas da API
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('https://welovepalop.com/api/statistics.php');
+        const data = await response.json();
+        
+        if (data.success) {
+          const statsData = data.data;
+          setStats({
+            alojamentos: statsData.total_alojamentos?.value || 0,
+            carros: statsData.total_carros?.value || 0,
+            experiencias: statsData.total_experiencias?.value || 0,
+            usuarios: statsData.total_usuarios?.value || 0
+          });
+          
+          setError(null);
+        } else {
+          setError('Erro ao carregar estatísticas');
+        }
+      } catch (err) {
+        console.error('Erro ao buscar estatísticas:', err);
+        setError('Erro ao carregar estatísticas');
+        // Valores fallback caso a API falhe
+        setStats({
+          alojamentos: 29,
+          carros: 15,
+          experiencias: 9,
+          usuarios: 6
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  // Iniciar animações quando os dados estiverem prontos
+  useEffect(() => {
+    if (!isLoading && !error) {
+      // Pequeno delay para garantir que os elementos estejam renderizados
+      setTimeout(() => {
+        const elements = {
+          alojamentos: document.getElementById('counter-alojamentos'),
+          carros: document.getElementById('counter-carros'),
+          experiencias: document.getElementById('counter-experiencias'),
+          usuarios: document.getElementById('counter-usuarios')
+        };
+
+        // Animação para cada contador com velocidade diferente para cada um
+        if (elements.alojamentos) {
+          animateCounter(elements.alojamentos, stats.alojamentos, 2000);
+        }
+        if (elements.carros) {
+          animateCounter(elements.carros, stats.carros, 1800);
+        }
+        if (elements.experiencias) {
+          animateCounter(elements.experiencias, stats.experiencias, 2200);
+        }
+        if (elements.usuarios) {
+          animateCounter(elements.usuarios, stats.usuarios, 2500);
+        }
+      }, 300);
+    }
+  }, [isLoading, error, stats]);
+
+  // Use Intersection Observer para iniciar animação apenas quando visível
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Disparar animações quando a seção ficar visível
+            const elements = {
+              alojamentos: document.getElementById('counter-alojamentos'),
+              carros: document.getElementById('counter-carros'),
+              experiencias: document.getElementById('counter-experiencias'),
+              usuarios: document.getElementById('counter-usuarios')
+            };
+
+            if (elements.alojamentos && !elements.alojamentos.dataset.animated) {
+              elements.alojamentos.dataset.animated = 'true';
+              animateCounter(elements.alojamentos, stats.alojamentos, 2000);
+            }
+            if (elements.carros && !elements.carros.dataset.animated) {
+              elements.carros.dataset.animated = 'true';
+              animateCounter(elements.carros, stats.carros, 1800);
+            }
+            if (elements.experiencias && !elements.experiencias.dataset.animated) {
+              elements.experiencias.dataset.animated = 'true';
+              animateCounter(elements.experiencias, stats.experiencias, 2200);
+            }
+            if (elements.usuarios && !elements.usuarios.dataset.animated) {
+              elements.usuarios.dataset.animated = 'true';
+              animateCounter(elements.usuarios, stats.usuarios, 2500);
+            }
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+
+    const statsSection = document.getElementById('stats-section');
+    if (statsSection) {
+      observer.observe(statsSection);
+    }
+
+    return () => {
+      if (statsSection) {
+        observer.unobserve(statsSection);
+      }
+    };
+  }, [stats]);
 
   return (
     <>
@@ -128,7 +272,7 @@ const SobrePage = () => {
               {valores.map((valor, index) => (
                 <div key={index} className="text-center group">
                   <div className="bg-blue-50 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-600 transition-colors duration-300">
-                    <div className="group-hover:text-white transition-colors duration-300">
+                    <div className="text-blue-600 group-hover:text-white transition-colors duration-300">
                       {valor.icon}
                     </div>
                   </div>
@@ -144,20 +288,61 @@ const SobrePage = () => {
           </div>
         </section>
 
-        {/* Estatísticas */}
-        <section className="py-20 px-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
+        {/* Estatísticas - Seção modificada com os dados da API e efeito counter */}
+        <section id="stats-section" className="py-20 px-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {estatisticas.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-4xl md:text-5xl font-black mb-2">
-                    {stat.numero}
-                  </div>
-                  <div className="text-blue-200 text-sm font-medium uppercase tracking-wider">
-                    {stat.label}
-                  </div>
+              <div className="text-center">
+                <div 
+                  id="counter-alojamentos" 
+                  className="text-4xl md:text-5xl font-black mb-2"
+                  data-animated="false"
+                >
+                  {isLoading ? '...' : '0+'}
                 </div>
-              ))}
+                <div className="text-blue-200 text-sm font-medium uppercase tracking-wider">
+                  {t('sobre_stats_alojamentos', 'Alojamentos')}
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div 
+                  id="counter-carros" 
+                  className="text-4xl md:text-5xl font-black mb-2"
+                  data-animated="false"
+                >
+                  {isLoading ? '...' : '0+'}
+                </div>
+                <div className="text-blue-200 text-sm font-medium uppercase tracking-wider">
+                  {t('sobre_stats_carros', 'Viaturas')}
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div 
+                  id="counter-experiencias" 
+                  className="text-4xl md:text-5xl font-black mb-2"
+                  data-animated="false"
+                >
+                  {isLoading ? '...' : '0+'}
+                </div>
+                <div className="text-blue-200 text-sm font-medium uppercase tracking-wider">
+                  {t('sobre_stats_experiencias', 'Experiências')}
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div 
+                  id="counter-usuarios" 
+                  className="text-4xl md:text-5xl font-black mb-2"
+                  data-animated="false"
+                >
+                  {isLoading ? '...' : '0+'}
+                </div>
+                <div className="text-blue-200 text-sm font-medium uppercase tracking-wider">
+                  {t('sobre_stats_clientes', 'Clientes Satisfeitos')}
+                </div>
+              </div>
             </div>
           </div>
         </section>
