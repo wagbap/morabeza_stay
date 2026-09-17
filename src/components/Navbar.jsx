@@ -35,8 +35,24 @@ const Navbar = () => {
     };
   }, []);
 
+  // 👇 NOVO — Ouvir o evento 'userUpdated' para atualizar a foto em tempo real
+  useEffect(() => {
+    const atualizarUser = () => {
+      const saved = localStorage.getItem('user');
+      if (saved) {
+        setUser(JSON.parse(saved));
+      } else {
+        setUser(null);
+      }
+    };
+
+    window.addEventListener('userUpdated', atualizarUser);
+    return () => window.removeEventListener('userUpdated', atualizarUser);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('morabeza_user');
     setUser(null);
     setUserDropdownOpen(false);
     window.location.reload();
@@ -49,7 +65,7 @@ const Navbar = () => {
 
   const navLinks = [
     { name: t('menu_inicio'), icon: <Home size={18} />, path: '/' },
-    { name: t('menu_sobre', 'Sobre Nós'), icon: <Info size={18} />, path: '/sobre' }, // ADICIONADO DEPOIS DO INÍCIO
+    { name: t('menu_sobre', 'Sobre Nós'), icon: <Info size={18} />, path: '/sobre' },
     { name: t('menu_alojamentos'), icon: <Globe size={18} />, path: '/alojamentos' },
     { name: t('menu_carros'), icon: <Car size={18} />, path: '/carros' },
     { name: t('menu_experiencias'), icon: <Palmtree size={18} />, path: '/experiencias' },

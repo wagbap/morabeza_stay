@@ -1,12 +1,13 @@
+// components/admin/AdminSidebar.jsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  Home, 
-  Calendar, 
+import {
+  Home,
+  Calendar,
   Home as House,
-  Users, 
-  CircleDollarSign, 
-  Settings, 
+  Users,
+  CircleDollarSign,
+  Settings,
   Sun,
   LogOut,
   MailCheck,
@@ -21,10 +22,12 @@ import {
   User,
   Menu,
   X,
+  QrCode,
   BookDashed,
   BookDashedIcon,
   PaintRoller,
-  LayoutDashboardIcon
+  LayoutDashboardIcon,
+  Send,
 } from 'lucide-react';
 
 const AdminSidebar = () => {
@@ -39,7 +42,6 @@ const AdminSidebar = () => {
 
   const navigate = useNavigate();
 
-  // Fechar menu ao redimensionar para desktop
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768 && mobileMenuOpen) {
@@ -50,12 +52,11 @@ const AdminSidebar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [mobileMenuOpen]);
 
-  // Buscar dados do admin logado
   useEffect(() => {
     const buscarAdminLogado = async () => {
       try {
         const userData = localStorage.getItem('morabeza_admin');
-        
+
         if (userData) {
           const parsedUser = JSON.parse(userData);
           setAdminUser({
@@ -68,7 +69,7 @@ const AdminSidebar = () => {
         } else {
           const response = await fetch('/api/admin/me.php');
           const data = await response.json();
-          
+
           if (data.success && data.user) {
             setAdminUser({
               nome: data.user.nome || data.user.full_name || 'Administrador',
@@ -108,31 +109,30 @@ const AdminSidebar = () => {
     } catch (error) {
       console.error('Erro no logout:', error);
     }
-    
+
     localStorage.removeItem('morabeza_admin');
     localStorage.removeItem('admin_token');
     navigate('/admin/login');
   };
 
   const menuItems = [
-    { name: 'Painel de Controlo', icon: <LayoutDashboardIcon size={20} />, path: '/admin/dashboard' },
-    { name: 'Propriedades', icon: <House size={20} />, path: '/admin/propriedades' },
-    { name: 'Anfitriões', icon: <UserCheck size={20} />, path: '/admin/anfitrioes' },
-    { name: 'Verificações', icon: <MailCheck size={20} />, path: '/admin/verificacoes' },
-    { name: 'Reservas', icon: <Calendar size={20} />, path: '/admin/reservas'},
-    { name: 'Mensagens', icon: <MessageSquare size={20} />, path: '/admin/mensagens' },
-    { name: 'Pagamentos', icon: <CreditCard size={20} />, path: '/admin/pagamentos' },
+    { name: 'Visão Geral', icon: <LayoutDashboardIcon size={20} />, path: '/admin/dashboard' },
+    { name: 'Anúncios', icon: <House size={20} />, path: '/admin/propriedades' },
+    { name: 'Prestadores', icon: <UserCheck size={20} />, path: '/admin/anfitrioes' },
+    { name: 'Documentação', icon: <MailCheck size={20} />, path: '/admin/verificacoes' },
+    { name: 'Reservas', icon: <Calendar size={20} />, path: '/admin/reservas' },
+    { name: 'Validar reservas', icon: <QrCode size={20} />, path: '/admin/validar-reservas' },
+    { name: 'Transações', icon: <CreditCard size={20} />, path: '/admin/pagamentos' },
+    { name: 'Financeiro', icon: <CircleDollarSign size={20} />, path: '/admin/ganhos' },
+    { name: 'Repasses', icon: <Send size={20} />, path: '/admin/repasses' },
     { name: 'Denúncias', icon: <AlertTriangle size={20} />, path: '/admin/denuncias' },
     { name: 'Relatórios', icon: <FileText size={20} />, path: '/admin/relatorios' },
     { name: 'Clientes', icon: <Users size={20} />, path: '/admin/clientes' },
-    { name: 'Ganhos', icon: <CircleDollarSign size={20} />, path: '/admin/ganhos' },
     { name: 'Configurações', icon: <Settings size={20} />, path: '/admin/configuracoes' },
   ];
 
-  // Conteúdo da sidebar (usado tanto para desktop quanto mobile)
   const SidebarContent = () => (
     <>
-      {/* Logo Area */}
       <div className="p-6 flex items-center gap-2 sticky top-0 bg-[#003580]">
         <Sun className="text-yellow-400" size={28} />
         <h1 className="text-xl font-semibold tracking-wide text-white">
@@ -140,7 +140,6 @@ const AdminSidebar = () => {
         </h1>
       </div>
 
-      {/* Navegação */}
       <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto">
         {menuItems.map((item, index) => (
           <NavLink
@@ -149,8 +148,8 @@ const AdminSidebar = () => {
             onClick={() => setMobileMenuOpen(false)}
             className={({ isActive }) =>
               `flex items-center justify-between px-4 py-2.5 rounded-lg transition-all duration-200 ${
-                isActive 
-                  ? 'bg-[#1a2c5e] text-white shadow-md' 
+                isActive
+                  ? 'bg-[#1a2c5e] text-white shadow-md'
                   : 'text-white/70 hover:bg-white/10 hover:text-white'
               }`
             }
@@ -168,16 +167,15 @@ const AdminSidebar = () => {
         ))}
       </nav>
 
-      {/* Perfil do Administrador & Botão de Sair */}
       <div className="p-4 border-t border-white/20 sticky bottom-0 bg-[#003580]">
         <div className="flex items-center justify-between hover:bg-white/10 p-2 rounded-lg transition-all group">
-          
+
           <div className="flex items-center gap-3 overflow-hidden">
             {loading ? (
               <div className="w-10 h-10 rounded-full bg-white/20 animate-pulse"></div>
             ) : (
-              <img 
-                src={adminUser.foto} 
+              <img
+                src={adminUser.foto}
                 alt={adminUser.nome}
                 className="w-10 h-10 rounded-full border-2 border-white/50 object-cover flex-shrink-0"
                 onError={(e) => {
@@ -204,7 +202,7 @@ const AdminSidebar = () => {
             </div>
           </div>
 
-          <button 
+          <button
             onClick={handleLogout}
             className="p-2 rounded-md text-white/70 hover:text-red-400 hover:bg-red-400/10 transition-colors"
             title="Terminar Sessão"
@@ -219,15 +217,13 @@ const AdminSidebar = () => {
 
   return (
     <>
-      {/* Overlay para mobile */}
       {mobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Botão Hambúrguer - Mobile (agora à direita) */}
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         className="fixed top-4 right-4 z-50 md:hidden bg-[#003580] text-white p-2 rounded-lg shadow-lg"
@@ -235,12 +231,10 @@ const AdminSidebar = () => {
         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      {/* Sidebar Desktop */}
       <div className="hidden md:block w-64 h-screen bg-[#003580] flex flex-col justify-between text-white shadow-xl flex-shrink-0 overflow-y-auto">
         <SidebarContent />
       </div>
 
-      {/* Sidebar Mobile - Slide In */}
       <div
         className={`
           fixed top-0 left-0 h-full w-72 bg-[#003580] z-50 transform transition-transform duration-300 ease-in-out md:hidden

@@ -1,16 +1,20 @@
+// components/admin/PropriedadesAdmin.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, MapPin, Eye, Check, X, Loader2, Search, 
+import {
+  MapPin, Eye, Check, X, Loader2, Search,
   AlertCircle, Home, Building, Hotel, Trash2,
-  User, Mail, Calendar, DollarSign, Users, 
+  User, Mail, Calendar, DollarSign, Users,
   Car, Compass, Clock, Fuel, Settings, Star,
-  Phone, Bed, Bath, Wifi, Coffee, Tv, Snowflake, Utensils
+  Phone, Bed, Bath, Wifi, Coffee, Tv, Snowflake, Utensils,
+  FileText,
 } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://welovepalop.com/api';
+
 const PropriedadesAdmin = () => {
-  const navigate = useNavigate(); // <-- ADICIONAR ESTA LINHA
-  
+  const navigate = useNavigate();
+
   const [activeTab, setActiveTab] = useState('alojamentos');
   const [alojamentos, setAlojamentos] = useState([]);
   const [experiencias, setExperiencias] = useState([]);
@@ -19,17 +23,10 @@ const PropriedadesAdmin = () => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
   const [stats, setStats] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [motivoRejeicao, setMotivoRejeicao] = useState('');
-  const [rejectItem, setRejectItem] = useState(null);
 
-  // Carregar estatísticas
   const carregarStats = async () => {
     try {
-      const response = await fetch('/api/admin/admin_all_content.php?action=dashboard');
+      const response = await fetch(`${API_URL}/admin/admin_all_content.php?action=dashboard`);
       const data = await response.json();
       if (data.status === 'success') {
         setStats(data.data);
@@ -39,14 +36,13 @@ const PropriedadesAdmin = () => {
     }
   };
 
-  // Carregar conteúdo por tipo
   const carregarConteudo = async () => {
     setLoading(true);
     try {
-      const url = `/api/admin/admin_all_content.php?action=${activeTab}&status=${filterStatus}&search=${encodeURIComponent(search)}`;
+      const url = `${API_URL}/admin/admin_all_content.php?action=${activeTab}&status=${filterStatus}&search=${encodeURIComponent(search)}`;
       const response = await fetch(url);
       const data = await response.json();
-      
+
       if (data.status === 'success') {
         if (activeTab === 'alojamentos') setAlojamentos(data.data);
         if (activeTab === 'experiencias') setExperiencias(data.data);
@@ -66,42 +62,17 @@ const PropriedadesAdmin = () => {
     carregarConteudo();
   }, [activeTab, filterStatus, search]);
 
-  // Atualizar status
-  const atualizarStatus = async (tipo, id, novoStatus, motivo = null) => {
-    setActionLoading(true);
-    try {
-      const response = await fetch('/api/admin/admin_all_content.php?action=aprovar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo, id, status: novoStatus, motivo })
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        carregarConteudo();
-        carregarStats();
-        setShowModal(false);
-        setShowRejectModal(false);
-        setSelectedItem(null);
-        setRejectItem(null);
-        setMotivoRejeicao('');
-        alert(data.message);
-      } else {
-        alert('Erro: ' + data.message);
-      }
-    } catch (err) {
-      console.error('Erro:', err);
-      alert('Erro de conexão');
-    }
-    setActionLoading(false);
-  };
-
-  // Status badge
   const StatusBadge = ({ status }) => {
     const config = {
       aprovado: { bg: 'bg-green-100', text: 'text-green-700', label: '✓ Aprovado', icon: <Check size={12} /> },
+      publicado: { bg: 'bg-green-100', text: 'text-green-700', label: '✓ Publicado', icon: <Check size={12} /> },
       pendente: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: '⏳ Pendente', icon: <Clock size={12} /> },
-      rejeitado: { bg: 'bg-red-100', text: 'text-red-700', label: '✗ Rejeitado', icon: <X size={12} /> }
+      em_analise: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: '⏳ Em análise', icon: <Clock size={12} /> },
+      rejeitado: { bg: 'bg-red-100', text: 'text-red-700', label: '✗ Rejeitado', icon: <X size={12} /> },
+      correcao_necessaria: { bg: 'bg-orange-100', text: 'text-orange-700', label: '⚠ Correção necessária', icon: <AlertCircle size={12} /> },
+      documentacao_necessaria: { bg: 'bg-blue-100', text: 'text-blue-700', label: '📄 Documentação necessária', icon: <FileText size={12} /> },
+      pausado: { bg: 'bg-gray-100', text: 'text-gray-700', label: '⏸ Pausado', icon: <Clock size={12} /> },
+      suspenso: { bg: 'bg-red-100', text: 'text-red-700', label: '⛔ Suspenso', icon: <X size={12} /> },
     };
     const style = config[status?.toLowerCase()] || config.pendente;
     return (
@@ -111,19 +82,16 @@ const PropriedadesAdmin = () => {
     );
   };
 
-  // Formatar preço
   const formatarPreco = (preco) => `${Number(preco || 0).toLocaleString()} CVE`;
 
-  // Ícone do tipo
   const getTipoIcon = (tipo) => {
-    switch(tipo?.toLowerCase()) {
+    switch (tipo?.toLowerCase()) {
       case 'villa': return <Building size={18} />;
       case 'guesthouse': return <Hotel size={18} />;
       default: return <Home size={18} />;
     }
   };
 
-  // Contagens
   const getCurrentItems = () => {
     if (activeTab === 'alojamentos') return alojamentos;
     if (activeTab === 'experiencias') return experiencias;
@@ -131,7 +99,17 @@ const PropriedadesAdmin = () => {
   };
 
   const currentItems = getCurrentItems();
-  const totalPendentes = currentItems.filter(i => i.status === 'pendente').length;
+
+  const totalPendentes = currentItems.filter((i) => {
+    const st = (i.status || i.estado || '').toLowerCase();
+    return st === 'pendente' || st === 'em_analise' || st === 'documentacao_necessaria';
+  }).length;
+
+  const getTipoSlug = () => {
+    if (activeTab === 'alojamentos') return 'alojamento';
+    if (activeTab === 'experiencias') return 'experiencia';
+    return 'carro';
+  };
 
   return (
     <div className="space-y-6">
@@ -140,17 +118,14 @@ const PropriedadesAdmin = () => {
         <div>
           <h1 className="text-3xl font-semibold text-[#003580]">Gestão de Conteúdo</h1>
           <p className="text-gray-600 mt-1">
-            Gerencie alojamentos, experiências e viaturas do sistema.
+            Analise alojamentos, experiências e viaturas antes de os publicar.
             {totalPendentes > 0 && (
               <span className="ml-2 text-yellow-600 font-medium">
-                ({totalPendentes} aguardam aprovação)
+                ({totalPendentes} aguardam análise)
               </span>
             )}
           </p>
         </div>
-        <button className="flex items-center gap-2 bg-[#003580] hover:bg-[#002860] text-white px-5 py-2.5 rounded-xl transition shadow-md">
-          <Plus size={20} /> Novo Conteúdo
-        </button>
       </div>
 
       {/* Tabs */}
@@ -198,16 +173,19 @@ const PropriedadesAdmin = () => {
 
       {/* Filtros e Busca */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex gap-2">
-          {['todos', 'pendente', 'aprovado', 'rejeitado'].map(status => (
+        <div className="flex gap-2 flex-wrap">
+          {['todos', 'pendente', 'aprovado', 'rejeitado'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                filterStatus === status 
-                  ? status === 'pendente' ? 'bg-yellow-500 text-white'
-                    : status === 'aprovado' ? 'bg-green-600 text-white'
-                    : status === 'rejeitado' ? 'bg-red-600 text-white'
+                filterStatus === status
+                  ? status === 'pendente'
+                    ? 'bg-yellow-500 text-white'
+                    : status === 'aprovado'
+                    ? 'bg-green-600 text-white'
+                    : status === 'rejeitado'
+                    ? 'bg-red-600 text-white'
                     : 'bg-[#003580] text-white'
                   : 'bg-white text-gray-600 hover:bg-gray-100'
               }`}
@@ -218,12 +196,12 @@ const PropriedadesAdmin = () => {
         </div>
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Procurar por título ou localização..." 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
-            className="w-full pl-10 pr-4 py-2 bg-white rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#003580]/20" 
+          <input
+            type="text"
+            placeholder="Procurar por título ou localização..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#003580]/20"
           />
         </div>
       </div>
@@ -239,7 +217,9 @@ const PropriedadesAdmin = () => {
           {activeTab === 'alojamentos' && <Home size={48} className="mx-auto mb-4 text-gray-300" />}
           {activeTab === 'experiencias' && <Compass size={48} className="mx-auto mb-4 text-gray-300" />}
           {activeTab === 'carros' && <Car size={48} className="mx-auto mb-4 text-gray-300" />}
-          <p>Nenhum {activeTab === 'alojamentos' ? 'alojamento' : activeTab === 'experiencias' ? 'experiência' : 'veículo'} encontrado</p>
+          <p>
+            Nenhum {activeTab === 'alojamentos' ? 'alojamento' : activeTab === 'experiencias' ? 'experiência' : 'veículo'} encontrado
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -247,15 +227,17 @@ const PropriedadesAdmin = () => {
             <div key={item.id} className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition">
               {/* Imagem */}
               <div className="h-48 overflow-hidden relative">
-                <img 
-                  src={item.imagem_url || item.imagem_principal || 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=500'} 
-                  alt={item.titulo} 
-                  className="w-full h-full object-cover hover:scale-105 transition duration-300" 
+                <img
+                  src={item.imagem_url || item.imagem_principal || 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=500'}
+                  alt={item.titulo}
+                  className="w-full h-full object-cover hover:scale-105 transition duration-300"
                 />
-                <div className="absolute top-3 right-3"><StatusBadge status={item.status} /></div>
+                <div className="absolute top-3 right-3">
+                  <StatusBadge status={item.status || item.estado} />
+                </div>
                 <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 text-white text-xs flex items-center gap-1">
                   {activeTab === 'carros' ? <Car size={14} /> : activeTab === 'experiencias' ? <Compass size={14} /> : getTipoIcon(item.tipo)}
-                  <span>{activeTab === 'carros' ? 'Viatura' : activeTab === 'experiencias' ? 'Experiência' : (item.tipo || 'Apartamento')}</span>
+                  <span>{activeTab === 'carros' ? 'Viatura' : activeTab === 'experiencias' ? 'Experiência' : item.tipo || 'Apartamento'}</span>
                 </div>
               </div>
 
@@ -278,7 +260,6 @@ const PropriedadesAdmin = () => {
                   </div>
                 </div>
 
-                {/* Proprietário */}
                 {(item.proprietario_nome || item.proprietario_email) && (
                   <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
                     <User size={12} /> <span className="truncate">{item.proprietario_nome || 'Anónimo'}</span>
@@ -286,63 +267,26 @@ const PropriedadesAdmin = () => {
                   </div>
                 )}
 
-                {/* Ações */}
+                {/* Ações — só Detalhes e Analisar */}
                 <div className="mt-4 flex gap-2">
-                  <button 
-                    onClick={() => navigate(`/admin/propriedades/${activeTab}/${item.id}`)} 
-                    className="flex-1 flex items-center justify-center gap-1 text-sm font-medium text-[#6b82c6] hover:text-[#003580] bg-gray-50 hover:bg-gray-100 py-2 rounded-lg transition"
+                  <button
+                    onClick={() => navigate(`/admin/propriedades/${activeTab}/${item.id}`)}
+                    className="flex-1 flex items-center justify-center gap-1 text-sm font-medium text-[#6b82c6] hover:text-[#003580] bg-gray-50 hover:bg-gray-100 py-2.5 rounded-lg transition"
                   >
                     <Eye size={16} /> Detalhes
                   </button>
-                  {item.status === 'pendente' && (
-                    <>
-                      <button onClick={() => atualizarStatus(activeTab.slice(0, -1), item.id, 'aprovado')} className="flex-1 flex items-center justify-center gap-1 text-green-600 bg-green-50 hover:bg-green-100 py-2 rounded-lg transition">
-                        <Check size={16} /> Aprovar
-                      </button>
-                      <button onClick={() => { setRejectItem(item); setShowRejectModal(true); }} className="flex-1 flex items-center justify-center gap-1 text-red-600 bg-red-50 hover:bg-red-100 py-2 rounded-lg transition">
-                        <X size={16} /> Rejeitar
-                      </button>
-                    </>
-                  )}
+
+                  <button
+                    onClick={() => navigate(`/admin/analise-anuncio/${getTipoSlug()}/${item.id}`)}
+                    className="flex-1 flex items-center justify-center gap-1 text-sm font-semibold text-white bg-[#003580] hover:bg-[#002860] py-2.5 rounded-lg transition shadow-sm"
+                    title="Abrir análise completa do anúncio"
+                  >
+                    <FileText size={16} /> Analisar
+                  </button>
                 </div>
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Modal de Detalhes - Removido pois agora usa página separada */}
-      {/* O modal foi removido pois os detalhes agora são numa página separada */}
-
-      {/* Modal de Rejeição */}
-      {showRejectModal && rejectItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold mb-2">Rejeitar {activeTab.slice(0, -1)}</h3>
-            <textarea 
-              value={motivoRejeicao} 
-              onChange={(e) => setMotivoRejeicao(e.target.value)} 
-              rows={4} 
-              placeholder="Motivo da rejeição..." 
-              className="w-full border rounded-xl p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-red-500/20" 
-              autoFocus 
-            />
-            <div className="flex gap-3">
-              <button 
-                onClick={() => atualizarStatus(activeTab.slice(0, -1), rejectItem.id, 'rejeitado', motivoRejeicao)} 
-                disabled={!motivoRejeicao.trim() || actionLoading} 
-                className="flex-1 bg-red-600 text-white py-2.5 rounded-xl hover:bg-red-700 transition disabled:opacity-50"
-              >
-                {actionLoading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Confirmar'}
-              </button>
-              <button 
-                onClick={() => { setShowRejectModal(false); setMotivoRejeicao(''); setRejectItem(null); }} 
-                className="flex-1 bg-gray-200 py-2.5 rounded-xl hover:bg-gray-300 transition"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

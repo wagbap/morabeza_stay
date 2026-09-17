@@ -17,6 +17,8 @@ import Avaliacoes from './Avaliacoes';
 import Configuracoes from './Configuracoes';
 import MinhasReservas from './MinhasReservas';
 import DetalhesReserva from './DetalhesReserva';
+import DocumentosSolicitados from './DocumentosSolicitados';
+import DadosRecebimento from './DadosRecebimento';
 
 const LayoutGestao = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -93,6 +95,8 @@ const GestaoRouter = () => {
       <Route path="avaliacoes" element={<LayoutGestao><Avaliacoes /></LayoutGestao>} />
       <Route path="configuracoes" element={<LayoutGestao><Configuracoes /></LayoutGestao>} />
       <Route path="minhas-reservas" element={<LayoutGestao><MinhasReservas /></LayoutGestao>} />
+      <Route path="documentos-solicitados" element={<LayoutGestao><DocumentosSolicitados /></LayoutGestao>} />
+      <Route path="dados-recebimento" element={<LayoutGestao><DadosRecebimento /></LayoutGestao>} />
       
       {/* ROTA AMIGÁVEL PARA DETALHES DA RESERVA */}
       <Route path="reserva/:id/:tipo" element={<LayoutGestao><DetalhesReserva /></LayoutGestao>} />

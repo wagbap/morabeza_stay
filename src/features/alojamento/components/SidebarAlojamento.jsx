@@ -1,51 +1,79 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Star, Calendar, Users, ChevronRight, CheckCircle } from 'lucide-react';
+import { MapPin, Calendar, Users } from 'lucide-react';
 
-export const SidebarReserva = ({ precoPorNoite = 85, estrelas = 4.8, checkIn = "12 Dez, 2024", checkOut = "16 Dez, 2024", numHospedes = 2 }) => {
+export const SearchBar = () => {
   const { t } = useTranslation();
-  
+  const [destino, setDestino] = useState('Santiago');
+  const [datas, setDatas] = useState('');
+  const [hospedes, setHospedes] = useState('1');
+
   return (
-    <div className="w-[400px]">
-      <div className="border border-slate-200 rounded-2xl p-6 shadow-sm sticky top-8 bg-white">
-        <div className="flex justify-between items-end mb-6">
-          <div className="text-3xl font-bold">{precoPorNoite}€ <span className="text-base font-normal text-slate-500">{t('por_noite_curto')}</span></div>
-          <div className="flex items-center gap-1 text-sm font-bold">
-            <Star size={14} className="fill-orange-500 text-orange-500" /> {estrelas}
+    <div className="max-w-6xl mx-auto px-4">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-2.5 flex flex-col md:flex-row items-center gap-2">
+        
+        {/* Campo DESTINO */}
+        <div className="flex-1 flex items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-slate-100 w-full">
+          <MapPin size={20} className="text-blue-600 flex-shrink-0" />
+          <div className="flex flex-col text-left w-full">
+            <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+              {t('destino', 'DESTINO')}
+            </span>
+            <select 
+              value={destino}
+              onChange={(e) => setDestino(e.target.value)}
+              className="text-sm font-bold text-slate-800 bg-transparent outline-none cursor-pointer w-full"
+            >
+              <option value="Santiago">Santiago</option>
+              <option value="Sal">Sal</option>
+              <option value="Boa Vista">Boa Vista</option>
+              <option value="São Vicente">São Vicente</option>
+            </select>
           </div>
         </div>
 
-        <div className="border border-slate-200 rounded-xl overflow-hidden mb-4">
-          <div className="flex border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
-            <div className="flex-1 p-3 border-r border-slate-200">
-              <label>{t('checkin')}</label>
-              <div className="flex items-center gap-2 text-sm text-slate-900 mt-1"><Calendar size={14} /> {checkIn}</div>
-            </div>
-            <div className="flex-1 p-3">
-              <label>{t('checkout')}</label>
-              <div className="flex items-center gap-2 text-sm text-slate-900 mt-1"><Calendar size={14} /> {checkOut}</div>
-            </div>
-          </div>
-          <div className="p-3">
-            <label className="text-[10px] font-bold text-slate-500 uppercase">{t('hospedes')}</label>
-            <div className="flex justify-between items-center text-sm mt-1 font-medium">
-              <div className="flex items-center gap-2"><Users size={14} /> {numHospedes} {numHospedes === 1 ? t('hospede') : t('hospedes')}</div>
-              <ChevronRight size={14} className="rotate-90 text-slate-400" />
-            </div>
+        {/* Campo CHECK-IN — CHECK-OUT */}
+        <div className="flex-1 flex items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-slate-100 w-full">
+          <Calendar size={20} className="text-blue-600 flex-shrink-0" />
+          <div className="flex flex-col text-left w-full">
+            <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+              {t('checkin_checkout', 'CHECK-IN — CHECK-OUT')}
+            </span>
+            <input 
+              type="text"
+              placeholder={t('escolher_data', 'Escolher data')}
+              value={datas}
+              onChange={(e) => setDatas(e.target.value)}
+              className="text-sm font-bold text-slate-800 bg-transparent outline-none placeholder:text-slate-500 w-full"
+            />
           </div>
         </div>
 
-        <button className="w-full bg-blue-900 text-white font-bold py-4 rounded-xl mb-4 hover:bg-blue-800 transition-all">
-          {t('ver_disponibilidade')}
+        {/* Campo HÓSPEDES (Select nativo como na imagem) */}
+        <div className="flex-1 flex items-center gap-3 px-4 py-3 w-full">
+          <Users size={20} className="text-blue-600 flex-shrink-0" />
+          <div className="flex flex-col text-left w-full">
+            <span className="text-[10px] font-black tracking-wider text-slate-400 uppercase">
+              {t('hospedes', 'HÓSPEDES')}
+            </span>
+            <select 
+              value={hospedes}
+              onChange={(e) => setHospedes(e.target.value)}
+              className="text-sm font-bold text-slate-800 bg-transparent outline-none cursor-pointer w-full"
+            >
+              <option value="1">1 Adulto</option>
+              <option value="2">2 Adultos</option>
+              <option value="3">3 Adultos</option>
+              <option value="4">4 Adultos</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Botão BUSCAR */}
+        <button className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-black px-10 py-4 rounded-xl transition-colors tracking-wider text-sm flex-shrink-0 uppercase">
+          {t('buscar', 'BUSCAR')}
         </button>
 
-        <div className="flex items-start gap-3 p-4 bg-green-50 rounded-xl border border-green-100">
-          <CheckCircle className="text-green-600 mt-1" size={18} />
-          <div>
-            <h5 className="text-sm font-bold text-green-800">{t('cancelamento_gratis')}</h5>
-            <p className="text-xs text-green-700">{t('cancelamento_prazo_checkout')}</p>
-          </div>
-        </div>
       </div>
     </div>
   );

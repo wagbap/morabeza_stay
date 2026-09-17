@@ -280,7 +280,7 @@ descricao_padrao_alojamento: "Maravillozu {{tipo}} lokalizadu na {{localizacao}}
 ver_detalhes: "Odja detalhis",
 ver_detalhes_de: "Odja detalhis di {{titulo}}",
 opcoes: "opsoins",
-sugestoes: "Sujestoins",
+sugestoes: "Ordena pa",
 precos_finais_com_taxas: "Presus finais ku taxas incluídas.",
 sincronizar_espacos: "Sinkronizandu espasus...",
 nenhum_alojamento_encontrado: "Nenhum alojamentu atxadu.",
@@ -953,6 +953,7 @@ participante_principal: "Partecipante Principale",
 preencha_dados_participantes: "Prenche dadus pa tudu partisipantis.",
 // ==================== PARTISIPANTI - KRIOLU ====================
 clique_participante_adicionar: "Klika na un partisipanti pa adisiona-l rapidu na reserva atual",
+ver_fotos: "Txeka Fotu"
 
   }
 };

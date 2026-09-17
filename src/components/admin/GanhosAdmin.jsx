@@ -6,7 +6,7 @@
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-      fetch('/api/admin_earnings.php')
+      fetch('https://welovepalop.com/api/admin_earnings.php')
         .then(res => res.json())
         .then(data => { if (data.status === 'success') setFinanceiro(data); setLoading(false); })
         .catch(() => setLoading(false));

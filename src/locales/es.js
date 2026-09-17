@@ -277,7 +277,7 @@ descricao_padrao_alojamento: "Maravilloso {{tipo}} ubicado en {{localizacao}}. P
 ver_detalhes: "Ver detalles",
 ver_detalhes_de: "Ver detalles de {{titulo}}",
 opcoes: "opciones",
-sugestoes: "Sugerencias",
+sugestoes: "Ordenar por",
 precos_finais_com_taxas: "Precios finales con impuestos incluidos.",
 sincronizar_espacos: "Sincronizando espacios...",
 nenhum_alojamento_encontrado: "No se encontraron alojamientos.",
@@ -975,5 +975,6 @@ participante_principal: "Participante Principal",
 preencha_dados_participantes: "Complete los datos para todos los participantes.",
 // ==================== PARTICIPANTES ====================
 clique_participante_adicionar: "Haga clic en un participante para agregarlo rápidamente a la reserva actual",
+ver_fotos: "Ver fotos"
   }
 };

@@ -18,7 +18,7 @@ const Relatorios = () => {
   const fetchReportData = async (tipo) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/admin_reports.php?action=${tipo}`);
+      const response = await fetch(`https://welovepalop.com/api/admin/admin_reports.php?action=${tipo}`);
       const data = await response.json();
       
       if (data.success) {

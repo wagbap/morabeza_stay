@@ -12,7 +12,7 @@ const ClientesAdmin = () => {
   const carregarClientes = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/get_clientes.php');
+      const response = await fetch('https://welovepalop.com/api/admin/get_clientes.php');
       const data = await response.json();
       if (data.status === 'success') {
         setClientes(data.data);
@@ -30,7 +30,7 @@ const ClientesAdmin = () => {
     if (!window.confirm(`Tem a certeza de que deseja ${acao} este cliente?`)) return;
 
     try {
-      const response = await fetch('/api/admin/alterar_status_cliente.php', {
+      const response = await fetch('https://welovepalop.com/api/admin/alterar_status_cliente.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ativo })

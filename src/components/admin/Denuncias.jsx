@@ -23,7 +23,7 @@ const Denuncias = () => {
   const carregarDenuncias = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/get_denuncias.php');
+      const response = await fetch('https://welovepalop.com/api/admin/get_denuncias.php');
       const data = await response.json();
       if (data.status === 'success') {
         setDenuncias(data.data);

@@ -63,6 +63,8 @@ const Denuncias = lazy(() => import('./components/admin/Denuncias'));
 const Relatorios = lazy(() => import('./components/admin/Relatorios'));
 const Anfitrioes = lazy(() => import('./components/admin/Anfitrioes'));
 const DetalhesConteudo = lazy(() => import('./components/admin/DetalhesConteudo'));
+const AdminAnaliseAnuncio = lazy(() => import('./components/admin/AdminAnaliseAnuncio'));
+const RepassesAdmin = lazy(() => import('./components/admin/RepassesAdmin'));
 
 // Componente de Loading (fallback)
 const LoadingSpinner = () => (
@@ -102,16 +104,18 @@ function App() {
             <Route path="dashboard" element={<PainelControleAdmin />} />
             <Route path="reservas" element={<ReservasAdmin />} />
             <Route path="propriedades" element={<PropriedadesAdmin />} />
-            <Route path="clientes" element={<Anfitrioes />} />
-            <Route path="ganhos" element={<GanhosAdmin />} />
             <Route path="propriedades/:tipo/:id" element={<DetalhesConteudo />} />
+            <Route path="analise-anuncio/:tipo/:id" element={<AdminAnaliseAnuncio />} />
+            <Route path="clientes" element={<ClientesAdmin />} />
+            <Route path="anfitrioes" element={<Anfitrioes />} />
+            <Route path="ganhos" element={<GanhosAdmin />} />
+            <Route path="repasses" element={<RepassesAdmin />} />
             <Route path="configuracoes" element={<ConfiguracoesAdmin />} />
-            <Route path="/admin/verificacoes" element={<EmailsVerificados />} />
-            <Route path="/admin/mensagens" element={<Mensagens />} />
-            <Route path="/admin/pagamentos" element={<Pagamentos />} />
-            <Route path="/admin/denuncias" element={<Denuncias />} />
-            <Route path="/admin/relatorios" element={<Relatorios />} />
-            <Route path="/admin/anfitrioes" element={<ClientesAdmin />} />
+            <Route path="verificacoes" element={<EmailsVerificados />} />
+            <Route path="mensagens" element={<Mensagens />} />
+            <Route path="pagamentos" element={<Pagamentos />} />
+            <Route path="denuncias" element={<Denuncias />} />
+            <Route path="relatorios" element={<Relatorios />} />
           </Route>
 
           {/* ROTAS DE REGISTO */}

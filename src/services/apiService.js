@@ -85,14 +85,23 @@ export async function salvarQuartos(alojamentoId, quartos) {
     
     const payload = {
         alojamento_id: alojamentoId,
-        quartos: quartos.map(q => ({
-            tipo_quarto_id: q.tipo_quarto_id,
-            quantidade_disponivel: q.quantidade_disponivel || 1,
-            preco_personalizado: q.preco_personalizado || null
-        }))
+        quartos: quartos.map(q => {
+            const listaFotos = q.fotos || q.imagens || [];
+            const fotosLimpas = listaFotos
+                .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
+                .filter(Boolean);
+
+            return {
+                tipo_quarto_id: q.tipo_quarto_id,
+                quantidade_disponivel: q.quantidade_disponivel || 1,
+                preco_personalizado: q.preco_personalizado || null,
+                fotos: fotosLimpas,
+                imagens: fotosLimpas
+            };
+        })
     };
     
-    console.log('📤 Salvando quartos:', payload);
+    console.log('📤 Salvando quartos com fotos para a tabela quarto_imagens:', payload);
     
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php`, {
@@ -113,18 +122,29 @@ export async function atualizarQuartos(alojamentoId, quartos) {
         throw new Error('ID do alojamento não fornecido');
     }
     
+    const payload = {
+        alojamento_id: alojamentoId,
+        quartos: quartos.map(q => {
+            const listaFotos = q.fotos || q.imagens || [];
+            const fotosLimpas = listaFotos
+                .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
+                .filter(Boolean);
+
+            return {
+                tipo_quarto_id: q.tipo_quarto_id,
+                quantidade_disponivel: q.quantidade_disponivel || 1,
+                preco_personalizado: q.preco_personalizado || null,
+                fotos: fotosLimpas,
+                imagens: fotosLimpas
+            };
+        })
+    };
+    
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                alojamento_id: alojamentoId,
-                quartos: quartos.map(q => ({
-                    tipo_quarto_id: q.tipo_quarto_id,
-                    quantidade_disponivel: q.quantidade_disponivel || 1,
-                    preco_personalizado: q.preco_personalizado || null
-                }))
-            })
+            body: JSON.stringify(payload)
         });
         return await response.json();
     } catch (error) {
@@ -290,23 +310,19 @@ export async function buscarAlojamentoCompleto(id) {
     try {
         console.log(`🔍 Buscando dados para o alojamento #${id}`);
         
-        // 1. Buscar informações básicas do alojamento
         const infoResponse = await buscarInformacoesBasicas(id);
         
         if (!infoResponse?.success || !infoResponse?.data) {
             return { success: false, message: 'Alojamento não encontrado.' };
         }
 
-        // 2. Buscar localização persistente (COM num_apartamento)
         const locPersistente = await buscarLocalizacaoPersistente(id);
         
-        // 3. Preparar objeto base com os dados do alojamento
         const dadosCompletos = {
             id: parseInt(id),
-            // Dados da tabela alojamentos
             titulo: infoResponse.data.titulo || '',
             tipo_propriedade: infoResponse.data.tipo_propriedade || 'Apartamento',
-            capacidade: infoResponse.data.capacidade|| infoResponse.data.capacidade || 2,
+            capacidade: infoResponse.data.capacidade || 2,
             estrelas: infoResponse.data.estrelas || 4.5,
             descricao: infoResponse.data.descricao || '',
             descricao_detalhada: infoResponse.data.descricao_detalhada || '',
@@ -327,7 +343,6 @@ export async function buscarAlojamentoCompleto(id) {
             created_at: infoResponse.data.created_at || null,
             updated_at: infoResponse.data.updated_at || null,
             
-            // Dados da localização (com num_apartamento)
             morada: locPersistente.success ? {
                 id: locPersistente.data.id,
                 alojamento_id: locPersistente.data.alojamento_id,
@@ -343,16 +358,12 @@ export async function buscarAlojamentoCompleto(id) {
                 coordenadas: locPersistente.data.coordenadas
             } : null,
             
-            // Arrays para dados relacionados
             comodidades: [],
             regras: null,
             fotos: [],
             quartos: []
         };
 
-        // 4. Buscar dados relacionados em paralelo
-        console.log('🔄 Buscando dados relacionados em paralelo...');
-        
         const [comResponse, regResponse, imgResponse, quartosResponse] = await Promise.all([
             buscarComodidadesDoAlojamento(id).catch(e => {
                 console.warn('Erro ao buscar comodidades:', e);
@@ -372,13 +383,10 @@ export async function buscarAlojamentoCompleto(id) {
             })
         ]);
 
-        // 5. Processar comodidades
         if (comResponse.success && comResponse.data) {
             dadosCompletos.comodidades = Array.isArray(comResponse.data) ? comResponse.data : [];
-            console.log(`✅ ${dadosCompletos.comodidades.length} comodidades carregadas`);
         }
 
-        // 6. Processar regras
         if (regResponse.success && regResponse.data) {
             let regrasList = [];
             let regrasIds = [];
@@ -398,16 +406,12 @@ export async function buscarAlojamentoCompleto(id) {
                 regras_ids: regrasIds,
                 regras_adicionais: dadosCompletos.regras_adicionais || ''
             };
-            console.log(`✅ ${regrasList.length} regras carregadas`);
         }
 
-        // 7. Processar fotos
         if (imgResponse.success && imgResponse.data) {
             dadosCompletos.fotos = Array.isArray(imgResponse.data) ? imgResponse.data : [];
-            console.log(`✅ ${dadosCompletos.fotos.length} fotos carregadas`);
         }
 
-        // 8. Processar quartos
         if (quartosResponse.success && quartosResponse.data) {
             dadosCompletos.quartos = quartosResponse.data.map(q => ({
                 id: q.id,
@@ -421,21 +425,10 @@ export async function buscarAlojamentoCompleto(id) {
                 icone: q.icone,
                 imagem_url: q.imagem_url,
                 multiplicador_preco: q.multiplicador_preco || 1,
-                ativo: q.ativo !== undefined ? q.ativo : 1
+                ativo: q.ativo !== undefined ? q.ativo : 1,
+                fotos: q.fotos || q.imagens || q.quarto_imagens || []
             }));
-            console.log(`✅ ${dadosCompletos.quartos.length} quartos carregados`);
         }
-
-        // 9. Log final
-        console.log('✅ Dados carregados com sucesso!', {
-            id: dadosCompletos.id,
-            titulo: dadosCompletos.titulo,
-            temMorada: !!dadosCompletos.morada,
-            numComodidades: dadosCompletos.comodidades.length,
-            numRegras: dadosCompletos.regras?.regras?.length || 0,
-            numFotos: dadosCompletos.fotos.length,
-            numQuartos: dadosCompletos.quartos.length
-        });
         
         return { success: true, data: dadosCompletos };
         
@@ -481,14 +474,13 @@ export async function buscarLocalizacaoDoAlojamento(id) {
     }
 }
 
-// ==================== SALVAR FLUXO REGISTO (CORRIGIDO - SEM DUPLICAÇÃO) ====================
+// ==================== SALVAR FLUXO REGISTO ====================
 
 export async function salvarFluxoRegisto(dados, alojamentoId = null) {
     try {
         const isEdicao = !!alojamentoId;
         const informacoes = dados.informacoes || dados;
         
-        // 1. Extrair Comodidades
         let comodidadesIds = [];
         if (dados.comodidades?.length) {
             comodidadesIds = dados.comodidades
@@ -496,7 +488,6 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
                 .filter(id => id != null);
         }
         
-        // 2. Extrair Regras corretamente
         let regrasIds = [];
         let regrasAdicionais = '';
 
@@ -512,27 +503,16 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             regrasAdicionais = dados.regras_adicionais || '';
         }
         
-        // 3. Extrair Imagens - CORRIGIDO: SEM DUPLICAÇÃO
         const urlsVistas = new Set();
         const imagens = (dados.imagens || dados.fotos || [])
             .filter(foto => {
-                // Verificar se tem URL em qualquer formato
                 const url = foto.url || foto.path || foto.caminho_url || foto.src || foto.caminho || '';
-                if (!url) {
-                    console.warn('⚠️ Imagem sem URL encontrada:', foto);
-                    return false;
-                }
-                // Evitar duplicatas
-                if (urlsVistas.has(url)) {
-                    console.warn(`⚠️ URL duplicada ignorada: ${url}`);
-                    return false;
-                }
+                if (!url || urlsVistas.has(url)) return false;
                 urlsVistas.add(url);
                 return true;
             })
             .map((foto, index) => {
                 const url = foto.url || foto.path || foto.caminho_url || foto.src || foto.caminho || '';
-                
                 return {
                     url: url,
                     caminho_url: url,
@@ -540,55 +520,30 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
                     ordem: foto.ordem !== undefined ? foto.ordem : index
                 };
             });
-
-        console.log(`📸 Imagens processadas (${imagens.length} únicas):`, imagens);
         
-        // 4. Extrair Quartos
+        // Mapear quartos e respetivas fotos para a tabela quarto_imagens
         let quartosFormatados = [];
         if (dados.quartos && Array.isArray(dados.quartos)) {
-            quartosFormatados = dados.quartos.map(q => ({
-                tipo_quarto_id: q.tipo_quarto_id,
-                quantidade_disponivel: q.quantidade_disponivel || 1,
-                preco_personalizado: q.preco_personalizado || null
-            }));
+            quartosFormatados = dados.quartos.map(q => {
+                const listaFotos = q.fotos || q.imagens || [];
+                const fotosLimpas = listaFotos
+                    .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
+                    .filter(Boolean);
+
+                return {
+                    tipo_quarto_id: q.tipo_quarto_id,
+                    quantidade_disponivel: q.quantidade_disponivel || 1,
+                    preco_personalizado: q.preco_personalizado || null,
+                    fotos: fotosLimpas,
+                    imagens: fotosLimpas
+                };
+            });
         }
         
-        // 5. Extrair morada
         let morada = dados.morada || null;
-
-        // ✅ EXTRAIR CIDADE E ILHA DE MÚLTIPLAS FONTES
-        let cidade = '';
-        let ilha = '';
+        let cidade = dados.cidade || morada?.cidade || dados.localizacaoDados?.cidade || '';
+        let ilha = dados.ilha || morada?.ilha || dados.localizacaoDados?.ilha || '';
         
-        // Tentar extrair de dados diretos primeiro
-        if (dados.cidade) cidade = dados.cidade;
-        if (dados.ilha) ilha = dados.ilha;
-        
-        // Se não veio, tentar de morada
-        if (!cidade && morada) {
-            cidade = morada.cidade || '';
-            ilha = morada.ilha || '';
-        }
-        
-        // Se ainda não veio, tentar de localizacaoDados
-        if (!cidade && dados.localizacaoDados) {
-            cidade = dados.localizacaoDados.cidade || '';
-            ilha = dados.localizacaoDados.ilha || '';
-        }
-        
-        // Última tentativa: dados de localização no nível raiz
-        if (!cidade && dados.localizacao) {
-            if (typeof dados.localizacao === 'object') {
-                cidade = dados.localizacao.cidade || '';
-                ilha = dados.localizacao.ilha || '';
-            }
-        }
-
-        console.log('📍 Cidade extraída:', cidade);
-        console.log('📍 Ilha extraída:', ilha);
-        console.log('📍 Morada:', morada);
-        
-        // 6. Construir morada completa
         const endereco = dados.endereco || morada?.endereco || morada?.morada || '';
         const num_apartamento = dados.num_apartamento || morada?.num_apartamento || morada?.apartamento || '';
         const codigo_postal = dados.codigo_postal || morada?.codigo_postal || morada?.codigoPostal || '';
@@ -596,12 +551,9 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
         const latitude = dados.latitude || morada?.coordenadas?.lat || morada?.lat || null;
         const longitude = dados.longitude || morada?.coordenadas?.lng || morada?.lng || null;
         
-        // 7. Payload completo
         const payload = {
             proprietario_id: dados.proprietario_id || 1,
             titulo: informacoes.titulo || dados.titulo || 'Propriedade Sem Título',
-            
-            // ✅ CAMPOS DE LOCALIZAÇÃO NO NÍVEL RAIZ
             cidade: cidade,
             ilha: ilha,
             endereco: endereco,
@@ -611,7 +563,6 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             morada_completa: morada_completa,
             latitude: latitude,
             longitude: longitude,
-            
             preco_noite: parseFloat(informacoes.preco_noite || dados.preco_noite) || 0,
             capacidade: parseInt(informacoes.capacidade || dados.capacidade) || 2,
             estrelas: parseFloat(informacoes.estrelas || dados.estrelas) || 4.0,
@@ -624,11 +575,9 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             num_quartos: parseInt(informacoes.quartos || dados.quartos) || 1,
             camas: parseInt(informacoes.camas || dados.camas) || 1,
             casas_banho: parseInt(informacoes.casas_banho || dados.casas_banho) || 1,
-            
             comodidades: comodidadesIds,
             regras_ids: regrasIds,
             regras_adicionais: regrasAdicionais,
-            
             morada: {
                 endereco: endereco,
                 apartamento: num_apartamento,
@@ -641,15 +590,10 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
                 lng: longitude,
                 coordenadas: { lat: latitude, lng: longitude }
             },
-            
             quartos: quartosFormatados,
-            
-            // ==================== IMAGENS CORRIGIDAS ====================
             imagens: imagens
-            // NÃO enviar "fotos" separadamente para evitar duplicação
         };
 
-        // ✅ REMOVER CAMPOS UNDEFINED
         Object.keys(payload).forEach(key => {
             if (payload[key] === undefined || payload[key] === null) {
                 payload[key] = '';
@@ -657,18 +601,17 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
         });
 
         console.log(`📤 Enviando payload para ${isEdicao ? 'edição' : 'criação'}:`, payload);
-        console.log('📍 Cidade no payload:', payload.cidade);
-        console.log('📍 Ilha no payload:', payload.ilha);
-        console.log('📸 Imagens no payload:', payload.imagens.length);
         
         const result = isEdicao 
             ? await atualizarAlojamentoCompleto(alojamentoId, payload)
             : await registrarAlojamentoCompleto(payload);
         
         if (result.success) {
-            if (!isEdicao && quartosFormatados.length > 0 && result.data?.alojamento_id) {
-                console.log('📦 Salvando quartos após criação do alojamento...');
-                const quartosResult = await salvarQuartos(result.data.alojamento_id, quartosFormatados);
+            const finalId = alojamentoId || result.data?.alojamento_id;
+            
+            if (quartosFormatados.length > 0 && finalId) {
+                console.log('📦 Salvando quartos e respetivas fotos na tabela quarto_imagens...');
+                const quartosResult = await salvarQuartos(finalId, quartosFormatados);
                 if (!quartosResult.success) {
                     console.warn('⚠️ Quartos salvos parcialmente:', quartosResult.message);
                 }
@@ -677,7 +620,7 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             return {
                 success: true,
                 message: isEdicao ? 'Alojamento atualizado com sucesso!' : 'Alojamento registado com sucesso!',
-                data: { alojamento_id: alojamentoId || result.data?.alojamento_id }
+                data: { alojamento_id: finalId }
             };
         }
         

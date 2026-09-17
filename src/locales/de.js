@@ -275,7 +275,7 @@ descricao_padrao_alojamento: "Wundervolle {{tipo}} in {{localizacao}}. Perfekt f
 ver_detalhes: "Details anzeigen",
 ver_detalhes_de: "Details anzeigen von {{titulo}}",
 opcoes: "Optionen",
-sugestoes: "Vorschläge",
+sugestoes: "Sortieren nach",
 precos_finais_com_taxas: "Endpreise inklusive Gebühren.",
 sincronizar_espacos: "Räume werden synchronisiert...",
 nenhum_alojamento_encontrado: "Keine Unterkünfte gefunden.",
@@ -938,5 +938,6 @@ nenhum_participante_adicional: "Keine weiteren Teilnehmer hinzugefügt",
 participante_principal: "Hauptteilnehmer",
 // ==================== TEILNEHMER ====================
 clique_participante_adicionar: "Klicken Sie auf einen Teilnehmer, um ihn schnell zur aktuellen Buchung hinzuzufügen",
+ver_fotos: "Fotos ansehen"
   }
 };

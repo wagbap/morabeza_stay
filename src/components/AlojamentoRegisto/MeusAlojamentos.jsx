@@ -2,31 +2,57 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Home, Edit, Trash2, Eye, Star, MapPin, Users, DollarSign, 
-  Image, Plus, Search, Loader, Bed, Bath, CheckCircle, 
-  XCircle, Clock, Calendar, AlertCircle
+import {
+  Home, Edit, Trash2, Eye, MapPin,
+  Image, Plus, Search, Loader, CheckCircle,
+  XCircle, Clock, AlertCircle
 } from 'lucide-react';
 
 const API_URL = 'https://welovepalop.com';
 
-const MeusAlojamentos = ({ proprietarioId = 1 }) => {
+const MeusAlojamentos = () => {
   const navigate = useNavigate();
+  const [proprietarioId, setProprietarioId] = useState(null);
   const [alojamentos, setAlojamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
 
+  // 1. Buscar o ID do utilizador logado no localStorage
+  useEffect(() => {
+    const userData = localStorage.getItem('user'); // Ajusta a chave se necessário
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        if (user && user.id) {
+          setProprietarioId(Number(user.id));
+        } else {
+          navigate('/login');
+        }
+      } catch (e) {
+        console.error('Erro ao ler usuário do localStorage', e);
+        navigate('/login');
+      }
+    } else {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  // 2. Função de busca (depende do proprietarioId)
   const buscarAlojamentos = async () => {
+    if (!proprietarioId) return;
+
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/alojamento/meus_alojamentos.php?proprietario_id=${proprietarioId}`);
-      
+      const response = await fetch(
+        `${API_URL}/api/alojamento/meus_alojamentos.php?proprietario_id=${proprietarioId}`
+      );
+
       if (!response.ok) throw new Error('Erro ao carregar alojamentos');
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setAlojamentos(data.data || []);
       } else {
@@ -40,10 +66,14 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
     }
   };
 
+  // 3. Disparar a busca sempre que o proprietarioId mudar
   useEffect(() => {
-    buscarAlojamentos();
+    if (proprietarioId) {
+      buscarAlojamentos();
+    }
   }, [proprietarioId]);
 
+  // ---------- Handlers ----------
   const handleEditar = (id) => {
     navigate(`/alojamento-registro/editar/${id}`);
   };
@@ -54,13 +84,13 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
 
   const handleExcluir = async (id, titulo) => {
     if (!window.confirm(`Tem certeza que deseja excluir "${titulo}"?`)) return;
-    
+
     try {
-      const response = await fetch(`${API_URL}/api/alojamento/excluir.php?id=${id}`, { 
-        method: 'DELETE' 
+      const response = await fetch(`${API_URL}/api/alojamento/excluir.php?id=${id}`, {
+        method: 'DELETE'
       });
       const data = await response.json();
-      
+
       if (data.success) {
         setAlojamentos(prev => prev.filter(a => a.id !== id));
         alert('Alojamento excluído com sucesso!');
@@ -77,6 +107,7 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
     return new Intl.NumberFormat('pt-PT').format(preco) + ' CVE';
   };
 
+  // ---------- Componente auxiliar de status ----------
   const StatusBadge = ({ status }) => {
     const config = {
       aprovado: { label: 'Aprovado', icon: <CheckCircle size={14} />, class: 'bg-green-100 text-green-800' },
@@ -84,7 +115,7 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
       inativo: { label: 'Inativo', icon: <XCircle size={14} />, class: 'bg-red-100 text-red-800' }
     };
     const { label, icon, class: className } = config[status] || config.pendente;
-    
+
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>
         {icon} {label}
@@ -92,6 +123,7 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
     );
   };
 
+  // Filtragem
   const alojamentosFiltrados = alojamentos.filter(a => {
     const matchSearch = (a.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                         (a.localizacao || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -99,6 +131,7 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
     return matchSearch && matchStatus;
   });
 
+  // ---------- Estados de carregamento / erro ----------
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
@@ -123,6 +156,7 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
     );
   }
 
+  // ---------- Renderização principal ----------
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -216,8 +250,8 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
                     : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                {status === 'todos' ? 'Todos' : 
-                 status === 'aprovado' ? 'Aprovados' : 
+                {status === 'todos' ? 'Todos' :
+                 status === 'aprovado' ? 'Aprovados' :
                  status === 'pendente' ? 'Pendentes' : 'Inativos'}
               </button>
             ))}
@@ -232,8 +266,8 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
             <Home size={64} className="mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum alojamento encontrado</h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm || filtroStatus !== 'todos' 
-                ? 'Tente ajustar os filtros de busca' 
+              {searchTerm || filtroStatus !== 'todos'
+                ? 'Tente ajustar os filtros de busca'
                 : 'Comece cadastrando seu primeiro alojamento'}
             </p>
             <button
@@ -249,8 +283,8 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
               <div key={alojamento.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative h-48 bg-gray-100">
                   {alojamento.imagem_url ? (
-                    <img 
-                      src={alojamento.imagem_url} 
+                    <img
+                      src={alojamento.imagem_url}
                       alt={alojamento.titulo}
                       className="w-full h-full object-cover"
                       onError={(e) => { e.target.src = 'https://placehold.co/400x300?text=Sem+Imagem'; }}
@@ -270,12 +304,12 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
                     <h3 className="text-lg font-semibold text-gray-900">{alojamento.titulo}</h3>
                     <p className="text-lg font-bold text-[#006ce4]">{formatarPreco(alojamento.preco_noite)}</p>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
                     <MapPin size={14} />
                     <span>{alojamento.localizacao || alojamento.cidade || 'Localização não definida'}</span>
                   </div>
-                  
+
                   <div className="flex gap-3 pt-3 border-t border-gray-100">
                     <button
                       onClick={() => handleVer(alojamento.id)}
@@ -289,7 +323,8 @@ const MeusAlojamentos = ({ proprietarioId = 1 }) => {
                     >
                       <Edit size={16} /> Editar
                     </button>
-                    <button                      onClick={() => handleExcluir(alojamento.id, alojamento.titulo)}
+                    <button
+                      onClick={() => handleExcluir(alojamento.id, alojamento.titulo)}
                       className="px-3 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
                     >
                       <Trash2 size={16} />

@@ -15,7 +15,9 @@ import {
   Heart,
   User,
   Car,
-  Compass
+  Compass,
+  FileText,
+  Wallet,
 } from "lucide-react";
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -107,8 +109,8 @@ export default function Sidebar({ isOpen, onClose }) {
       </div>
 
       {/* Header com informações do usuário */}
-<div className="px-4 py-10 border-b border-gray-100">
-  <div className="flex items-center gap-6"> 
+      <div className="px-4 py-10 border-b border-gray-100">
+        <div className="flex items-center gap-6">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003580] to-[#6b82c6] flex items-center justify-center text-white font-bold">
             {user?.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
           </div>
@@ -177,6 +179,15 @@ export default function Sidebar({ isOpen, onClose }) {
                 <span className="text-[15px] truncate">Financeiro</span>
               </Link>
 
+              <Link
+                to="/gest/dados-recebimento"
+                onClick={onClose}
+                className={linkClass('/gest/dados-recebimento')}
+              >
+                <Wallet className={iconClass('/gest/dados-recebimento')} strokeWidth={2} />
+                <span className="text-[15px] truncate">Recebimento</span>
+              </Link>
+
               <Link to="/gest/relatorios" onClick={onClose} className={linkClass('/gest/relatorios')}>
                 <BarChart3 className={iconClass('/gest/relatorios')} strokeWidth={2} />
                 <span className="text-[15px] truncate">Relatórios</span>
@@ -191,6 +202,15 @@ export default function Sidebar({ isOpen, onClose }) {
                 <Star className={iconClass('/gest/avaliacoes')} strokeWidth={2} />
                 <span className="text-[15px] truncate">Avaliações</span>
               </Link>
+
+              <Link
+                to="/gest/documentos-solicitados"
+                onClick={onClose}
+                className={linkClass('/gest/documentos-solicitados')}
+              >
+                <FileText className={iconClass('/gest/documentos-solicitados')} strokeWidth={2} />
+                <span className="text-[15px] truncate">Ver documentos</span>
+              </Link>
             </>
           )}
 
@@ -202,19 +222,16 @@ export default function Sidebar({ isOpen, onClose }) {
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Conta</p>
             </div>
 
-            {/* Perfil - Principal (substitui Configurações) */}
             <Link to="/gest/configuracoes" onClick={onClose} className={linkClass('/perfil')}>
               <User className={iconClass('/perfil')} strokeWidth={2} />
               <span className="text-[15px] truncate">Perfil</span>
             </Link>
 
-            {/* Minhas Reservas */}
             <Link to="/gest/minhas-reservas" onClick={onClose} className={linkClass('/gest/minhas-reservas')}>
               <CalendarCheck className={iconClass('/gest/minhas-reservas')} strokeWidth={2} />
               <span className="text-[15px] truncate">Minhas Reservas</span>
             </Link>
 
-            {/* Favoritos */}
             <Link to="/favoritos" onClick={onClose} className={linkClass('/favoritos')}>
               <Heart className={iconClass('/favoritos')} strokeWidth={2} />
               <span className="text-[15px] truncate">Favoritos</span>

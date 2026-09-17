@@ -271,7 +271,7 @@ descricao_padrao_alojamento: "Meraviglioso {{tipo}} situato a {{localizacao}}. P
 ver_detalhes: "Vedi dettagli",
 ver_detalhes_de: "Vedi dettagli di {{titulo}}",
 opcoes: "opzioni",
-sugestoes: "Suggerimenti",
+sugestoes: "Ordina per",
 precos_finais_com_taxas: "Prezzi finali tasse incluse.",
 sincronizar_espacos: "Sincronizzazione spazi...",
 nenhum_alojamento_encontrado: "Nessun alloggio trovato.",
@@ -956,5 +956,6 @@ nenhum_participante_adicional: "Nessun partecipante aggiuntivo aggiunto",
 preencha_dados_participantes: "Inserisci i dati per tutti i partecipanti.",
 // ==================== PARTECIPANTI ====================
 clique_participante_adicionar: "Clicca su un partecipante per aggiungerlo rapidamente alla prenotazione corrente",
+ver_fotos: "Visualizza le foto"
   }
 };

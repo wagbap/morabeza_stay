@@ -19,7 +19,7 @@ const Pagamentos = () => {
   const carregarPagamentos = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/get_pagamentos.php');
+      const response = await fetch('https://welovepalop.com/api/admin/get_pagamentos.php');
       const data = await response.json();
       if (data.status === 'success') {
         setPagamentos(data.data);

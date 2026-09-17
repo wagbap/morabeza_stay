@@ -96,6 +96,9 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
     );
   }
 
+  // 👇 Fallback robusto para a foto — usa picture, foto, ou avatar gerado
+  const fotoPerfil = user.picture || user.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.nome || 'U')}&background=003580&color=fff`;
+
   return (
     <div className="relative">
       {/* Botão do usuário - Apenas ícone, sem nome */}
@@ -107,10 +110,13 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
         className="flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 p-1.5 rounded-full transition-all z-50 shadow-sm"
       >
         <img 
-          src={user.picture} 
-          alt={user.name} 
+          src={fotoPerfil}
+          alt={user.name || user.nome || 'Utilizador'} 
           className="w-8 h-8 rounded-full border border-white/50 object-cover"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.nome || 'U')}&background=003580&color=fff`;
+          }}
         />
       </button>
 
@@ -197,6 +203,17 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                 Perfil
               </button>
 
+              {/* NOVO LINK: Solicitar Anfitrião (aparece apenas se NÃO for anfitrião aprovado) */}
+              {!canManageAlojamento && (
+                <button 
+                  onClick={() => handleNavigation('/gest/configuracoes?tab=funcoes')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
+                >
+                  <Home size={16} /> 
+                  Solicitar Anfitrião
+                </button>
+              )}
+
               {canAccessDashboard && (
                 <div className="border-t border-gray-100 my-2"></div>
               )}
@@ -207,7 +224,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
                 >                
                   <LayoutDashboard size={16} /> 
-                  Dashboard de Gestão
+                Gerir anúncios e reservas
                 </button>
               )}
             </div>

@@ -1,7 +1,7 @@
 // src/components/AlojamentoRegisto/EditarAlojamento.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, HelpCircle, User, ChevronRight, Loader } from 'lucide-react';
+import { ArrowLeft, Check, HelpCircle, ChevronRight, Loader, CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 import PropMenu from './PropMenu';
 import Comodidades from './Comodidades';
 import InformacoesBasicas from './InformacoesBasicas';
@@ -11,9 +11,96 @@ import RegistarLocalizacao from './RegistarLocalizacao';
 import { salvarFluxoRegisto, buscarAlojamentoParaEdicao, buscarQuartosDoAlojamento, buscarImagensDoAlojamento } from '../../services/apiService';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const EditarAlojamento = () => {
+const API_BASE = 'https://welovepalop.com';
+
+// ==================== TOAST INTERNO ====================
+const ToastContext = createContext(null);
+
+const ToastProviderInterno = ({ children }) => {
+  const [toast, setToast] = useState(null);
+
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3500);
+  }, []);
+
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      {children}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white bg-gray-900 border border-gray-800 transition-all">
+          {toast.type === 'success' && <CheckCircle size={20} className="text-green-400 shrink-0" />}
+          {toast.type === 'error' && <AlertCircle size={20} className="text-red-400 shrink-0" />}
+          {toast.type === 'info' && <Info size={20} className="text-blue-400 shrink-0" />}
+          <span className="text-sm font-medium tracking-wide">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 text-gray-400 hover:text-white transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+    </ToastContext.Provider>
+  );
+};
+
+export const useToast = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast deve ser usado dentro de um ToastProvider');
+  }
+  return context;
+};
+
+// ============================================================
+// CARREGAR IMAGENS DOS QUARTOS FILTRADAS POR ALOJAMENTO
+// ============================================================
+const carregarImagensPorAlojamento = async (alojamentoId) => {
+  try {
+    const res = await fetch(`${API_BASE}/api/alojamento/get_quarto_imagens.php?t=${Date.now()}`, {
+      cache: 'no-store',
+    });
+    const textData = await res.text();
+    let data = null;
+
+    try {
+      data = JSON.parse(textData);
+    } catch (e) {
+      const match = textData.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { data = JSON.parse(match[0]); }
+        catch (err) { console.error('❌ JSON inválido:', err); }
+      }
+    }
+
+    if (!data || !data.success) return {};
+
+    // 🔥 FILTRAR APENAS as imagens DESTE alojamento
+    const imagensPorQuarto = {};
+
+    (data.data || []).forEach((img) => {
+      // img.alojamento_id é o ID do alojamento
+      // img.quarto_id é o ID do alojamento_quarto.id
+      if (Number(img.alojamento_id) !== Number(alojamentoId)) return;
+
+      const quartoId = String(img.quarto_id);
+      if (!imagensPorQuarto[quartoId]) imagensPorQuarto[quartoId] = [];
+      imagensPorQuarto[quartoId].push(img.caminho_url);
+    });
+
+    console.log(`📸 [EditarAlojamento] Imagens do alojamento ${alojamentoId}:`, imagensPorQuarto);
+    return imagensPorQuarto;
+  } catch (err) {
+    console.error('Erro ao carregar imagens:', err);
+    return {};
+  }
+};
+
+// ==================== COMPONENTE PRINCIPAL ====================
+const EditarAlojamentoContent = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { showToast } = useToast();
   
   const [fase, setFase] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,10 +143,10 @@ const EditarAlojamento = () => {
   const [regras, setRegras] = useState([]);
   const [regrasAdicionais, setRegrasAdicionais] = useState('');
   
-  // FASE 5 - Fotos
+  // FASE 5 - Fotos Principais
   const [fotos, setFotos] = useState([]);
   
-  // ==================== CARREGAR DADOS DO ALOJAMENTO ====================
+  // ==================== CARREGAR DADOS ====================
   
   const carregarDadosAlojamento = async (alojamentoIdParam) => {
     if (!alojamentoIdParam) return;
@@ -68,14 +155,11 @@ const EditarAlojamento = () => {
     try {
       console.log(`📥 Carregando alojamento ID: ${alojamentoIdParam} para edição`);
       
-      // 1. Buscar dados completos do alojamento
       const resultado = await buscarAlojamentoParaEdicao(alojamentoIdParam);
-      console.log('📦 Dados carregados:', resultado);
       
       if (resultado.success && resultado.data) {
         const dados = resultado.data;
         
-        // 1. Informações Básicas
         const infoBasicas = {
           titulo: dados.titulo || '',
           tipo_propriedade: dados.tipo_propriedade || 'Apartamento',
@@ -91,7 +175,7 @@ const EditarAlojamento = () => {
         };
         setInformacoesBasicas(infoBasicas);
         
-        // 2. Quartos
+        // 🔥 CARREGAR QUARTOS DESTE ALOJAMENTO
         let quartosDaBd = [];
         if (dados.quartos && Array.isArray(dados.quartos) && dados.quartos.length > 0) {
           quartosDaBd = dados.quartos;
@@ -101,10 +185,34 @@ const EditarAlojamento = () => {
             quartosDaBd = quartosResult.data;
           }
         }
-        setQuartosSelecionados(quartosDaBd);
+
+        // 🔥 CARREGAR IMAGENS SÓ DESTE ALOJAMENTO
+        const imagensPorQuarto = await carregarImagensPorAlojamento(alojamentoIdParam);
+
+        // 🔥 CRUZAR: cada quarto recebe APENAS as suas imagens
+        const quartosMapeados = quartosDaBd.map(q => {
+          const quartoId = String(q.id);
+          const tipoQuartoId = q.tipo_quarto_id || q.tipo_id;
+          
+          // As imagens estão indexadas pelo `quarto_id` (alojamento_quartos.id)
+          let fotosDesteQuarto = imagensPorQuarto[quartoId] || [];
+
+          return {
+            ...q,
+            tipo_quarto_id: tipoQuartoId,
+            fotos: fotosDesteQuarto,
+            imagens: fotosDesteQuarto,
+          };
+        });
+
+        console.log('✅ Quartos com fotos cruzadas:', quartosMapeados.map(q => ({
+          id: q.id,
+          tipo_quarto_id: q.tipo_quarto_id,
+          totalFotos: q.fotos.length,
+        })));
+
+        setQuartosSelecionados(quartosMapeados);
         
-        // 3. Localização
-        console.log('📍 Processando localização...');
         const endereco = dados.localizacao || dados.endereco || '';
         const cidade = dados.cidade || '';
         const ilha = dados.ilha || '';
@@ -133,85 +241,42 @@ const EditarAlojamento = () => {
           longitude: longitude,
           coordenadas: { lat: latitude, lng: longitude }
         };
-        
-        console.log('📍 Localização definida:', localizacao);
         setLocalizacaoDados(localizacao);
         
-        // 4. Comodidades
         const comodidadesList = Array.isArray(dados.comodidades) ? dados.comodidades : [];
         setComodidadesSelecionadas(comodidadesList);
         
-        // 5. Regras
         const regrasList = dados.regras?.regras || [];
         const regrasAdd = dados.regras?.regrasAdicionais || '';
         setRegras(regrasList);
         setRegrasAdicionais(regrasAdd);
         
-        // ==========================================
-        // 🔥 CORREÇÃO: BUSCAR IMAGENS ESPECIFICAMENTE
-        // ==========================================
-        console.log('📸 Buscando imagens do alojamento...');
         try {
           const imagensResult = await buscarImagensDoAlojamento(alojamentoIdParam);
-          console.log('📸 Resposta de imagens:', imagensResult);
-          
           if (imagensResult.success && imagensResult.data) {
-            let fotosList = [];
-            
-            // Verificar se é array ou objeto com dados
-            if (Array.isArray(imagensResult.data)) {
-              fotosList = imagensResult.data;
-            } else if (imagensResult.data.imagens && Array.isArray(imagensResult.data.imagens)) {
-              fotosList = imagensResult.data.imagens;
-            } else if (imagensResult.data.fotos && Array.isArray(imagensResult.data.fotos)) {
-              fotosList = imagensResult.data.fotos;
-            } else if (typeof imagensResult.data === 'object') {
-              // Tentar extrair de qualquer forma
-              fotosList = Object.values(imagensResult.data).filter(item => 
-                typeof item === 'object' && item !== null && (item.url || item.caminho_url || item.path)
-              );
-            }
-            
-            // Mapear para o formato esperado pelo componente ImagensUpload
+            let fotosList = Array.isArray(imagensResult.data) ? imagensResult.data : (imagensResult.data.imagens || []);
             const fotosMapeadas = fotosList.map((foto, index) => ({
               id: foto.id || index,
               url: foto.caminho_url || foto.url || foto.path || '',
               caminho_url: foto.caminho_url || foto.url || foto.path || '',
-              path: foto.caminho_url || foto.url || foto.path || '',
               principal: foto.principal || (index === 0 ? 1 : 0),
-              ordem: foto.ordem || index,
-              alojamento_id: foto.alojamento_id || alojamentoIdParam
+              ordem: foto.ordem || index
             }));
-            
-            console.log('📸 Fotos mapeadas:', fotosMapeadas);
             setFotos(fotosMapeadas);
-          } else {
-            console.warn('⚠️ Nenhuma imagem encontrada para o alojamento');
           }
         } catch (imgError) {
-          console.error('❌ Erro ao buscar imagens:', imgError);
-          // Se não conseguir buscar imagens, manter vazio
+          console.error('Erro ao carregar imagens:', imgError);
         }
         
-        // 7. Salvar no localStorage
         setAlojamentoId(dados.id);
-        localStorage.setItem('propertyAlojamentoId', dados.id);
-        localStorage.setItem('propertyInformacoesBasicas', JSON.stringify(infoBasicas));
-        localStorage.setItem('propertyQuartos', JSON.stringify(quartosDaBd));
-        localStorage.setItem('propertyLocalizacao', JSON.stringify(localizacao));
-        localStorage.setItem('propertyComodidades', JSON.stringify(comodidadesList));
-        localStorage.setItem('propertyRegras', JSON.stringify({ regras: regrasList, regrasAdicionais: regrasAdd }));
-        
-        console.log('✅ Todos os dados carregados com sucesso!');
-        
       } else {
-        alert(`Erro ao carregar dados do alojamento: ${resultado.message}`);
-        navigate('/alojamento-registro/meus');
+        showToast(`Erro ao carregar dados do alojamento: ${resultado.message}`, 'error');
+        setTimeout(() => navigate('/alojamento-registro/meus'), 2000);
       }
     } catch (error) {
-      console.error('❌ Erro ao carregar:', error);
-      alert('Erro ao carregar dados do alojamento. Tente novamente.');
-      navigate('/alojamento-registro/meus');
+      console.error('Erro ao carregar dados:', error);
+      showToast('Erro ao carregar dados do alojamento.', 'error');
+      setTimeout(() => navigate('/alojamento-registro/meus'), 2000);
     } finally {
       setIsLoading(false);
     }
@@ -224,93 +289,60 @@ const EditarAlojamento = () => {
   // ==================== HANDLERS ====================
   
   const handleLocalizacaoChange = (dados) => {
-    console.log('📍 Localização atualizada no EditarAlojamento:', dados);
-    
-    const dadosCompletos = {
-      endereco: dados.endereco || '',
-      cidade: dados.cidade || '',
-      ilha: dados.ilha || '',
-      codigo_postal: dados.codigo_postal || '',
-      num_apartamento: dados.num_apartamento || '',
-      morada_completa: dados.morada_completa || '',
-      latitude: dados.latitude || dados.coordenadas?.lat || null,
-      longitude: dados.longitude || dados.coordenadas?.lng || null,
-      coordenadas: { 
-        lat: dados.latitude || dados.coordenadas?.lat || null, 
-        lng: dados.longitude || dados.coordenadas?.lng || null 
-      }
-    };
-    
-    setLocalizacaoDados(dadosCompletos);
-    localStorage.setItem('propertyLocalizacao', JSON.stringify(dadosCompletos));
+    setLocalizacaoDados(dados);
   };
   
   const handleComodidadesChange = (comodidades) => {
     setComodidadesSelecionadas(comodidades);
-    localStorage.setItem('propertyComodidades', JSON.stringify(comodidades));
   };
   
   const handleRegrasChange = (dadosRegras) => {
     setRegras(dadosRegras.regras || []);
     setRegrasAdicionais(dadosRegras.regrasAdicionais || '');
-    localStorage.setItem('propertyRegras', JSON.stringify(dadosRegras));
   };
   
   const handleQuartosChange = (quartos) => {
     setQuartosSelecionados(quartos);
-    localStorage.setItem('propertyQuartos', JSON.stringify(quartos));
   };
   
   // ==================== NAVEGAÇÃO ====================
   
   const handleSaveInformacoes = () => {
     if (!informacoesBasicas.titulo.trim()) {
-      alert('O título da propriedade é obrigatório');
-      return false;
+      showToast('O título é obrigatório', 'error');
+      return;
     }
     if (!informacoesBasicas.descricao.trim()) {
-      alert('A descrição curta é obrigatória');
-      return false;
+      showToast('A descrição é obrigatória', 'error');
+      return;
     }
     if (!informacoesBasicas.preco_noite) {
-      alert('O preço por noite é obrigatório');
-      return false;
+      showToast('O preço por noite é obrigatório', 'error');
+      return;
     }
     
-    localStorage.setItem('propertyInformacoesBasicas', JSON.stringify(informacoesBasicas));
     setFase(2);
-    return true;
   };
   
   const handleSaveLocalizacao = () => {
-    console.log('📍 Validando localização:', localizacaoDados);
-    
     if (!localizacaoDados.endereco?.trim()) {
-      alert('Por favor, insira o endereço');
-      return false;
+      showToast('Insira o endereço', 'error');
+      return;
     }
     if (!localizacaoDados.cidade?.trim()) {
-      alert('Por favor, insira a cidade');
-      return false;
+      showToast('Insira a cidade', 'error');
+      return;
     }
     if (!localizacaoDados.ilha?.trim()) {
-      alert('Por favor, selecione a ilha');
-      return false;
+      showToast('Selecione a ilha', 'error');
+      return;
     }
     
     setFase(3);
-    return true;
   };
   
-  const handleSaveComodidades = () => {
-    setFase(4);
-    return true;
-  };
-  
-  const handleSaveRegras = () => {
-    setFase(5);
-    return true;
-  };
+  const handleSaveComodidades = () => setFase(4);
+  const handleSaveRegras = () => setFase(5);
   
   // ==================== FINALIZAR ====================
   
@@ -320,45 +352,32 @@ const EditarAlojamento = () => {
     
     try {
       if (fotos.length === 0) {
-        alert('⚠️ Adicione pelo menos uma foto do seu alojamento');
+        showToast('⚠️ Adicione pelo menos uma foto do seu alojamento', 'error');
         setIsSubmitting(false);
         return;
       }
       
-      const quartosFormatados = quartosSelecionados.map(q => ({
-        tipo_quarto_id: q.tipo_quarto_id,
-        quantidade_disponivel: q.quantidade_disponivel || 1,
-        preco_personalizado: q.preco_personalizado || null
-      }));
+      const quartosFormatados = quartosSelecionados.map(q => {
+        // 🔥 Só guarda fotos que NÃO sejam blob (URLs inválidos)
+        const fotosValidas = (q.fotos || [])
+          .map(f => typeof f === 'string' ? f : (f.url || f.caminho_url || f.path || ''))
+          .filter(url => url && !url.startsWith('blob:'));
+
+        return {
+          id: q.id || null,
+          tipo_quarto_id: q.tipo_quarto_id || q.tipo_id || q.id,
+          quantidade_disponivel: q.quantidade_disponivel || 1,
+          preco_personalizado: q.preco_personalizado || null,
+          fotos: fotosValidas,
+          imagens: fotosValidas,
+        };
+      });
       
       const comodidadesIds = comodidadesSelecionadas.map(c => c.id || c);
       const regrasIds = regras.map(r => r.id || r);
       
-      const endereco = localizacaoDados.endereco || '';
-      const cidade = localizacaoDados.cidade || '';
-      const ilha = localizacaoDados.ilha || '';
-      const codigo_postal = localizacaoDados.codigo_postal || '';
-      const num_apartamento = localizacaoDados.num_apartamento || '';
-      const latitude = localizacaoDados.latitude || localizacaoDados.coordenadas?.lat || null;
-      const longitude = localizacaoDados.longitude || localizacaoDados.coordenadas?.lng || null;
-      
-      const partesMorada = [];
-      if (endereco) partesMorada.push(endereco);
-      if (num_apartamento) partesMorada.push(num_apartamento);
-      if (cidade) partesMorada.push(cidade);
-      if (codigo_postal) partesMorada.push(codigo_postal);
-      if (ilha) partesMorada.push(ilha);
-      if (partesMorada.length > 0) partesMorada.push('Cabo Verde');
-      const morada_completa = partesMorada.join(', ');
-      
-      // ==========================================
-      // FORMATAR IMAGENS - MANTENDO AS EXISTENTES
-      // ==========================================
       const imagensFormatadas = fotos
-        .filter(foto => {
-          const url = foto.url || foto.caminho_url || foto.path || '';
-          return !!url;
-        })
+        .filter(foto => !!(foto.url || foto.caminho_url || foto.path))
         .map((foto, index) => {
           const url = foto.url || foto.caminho_url || foto.path || '';
           return {
@@ -370,91 +389,50 @@ const EditarAlojamento = () => {
           };
         });
 
-      console.log('📸 Imagens formatadas para envio:', imagensFormatadas);
-      
       const dadosParaAPI = {
         proprietario_id: 1,
         titulo: informacoesBasicas.titulo,
         tipo_propriedade: informacoesBasicas.tipo_propriedade,
-        tipo: informacoesBasicas.tipo_propriedade,
         descricao: informacoesBasicas.descricao,
         descricao_detalhada: informacoesBasicas.descricao_detalhada || '',
         capacidade: parseInt(informacoesBasicas.capacidade) || 2,
         preco_noite: parseFloat(informacoesBasicas.preco_noite) || 0,
-        estrelas: parseFloat(informacoesBasicas.estrelas) || 4.0,
+        estrelas: parseFloat(informacoesBasicas.estrelas) || 4.5,
         tempo_resposta: informacoesBasicas.tempo_resposta || 'Dentro de 1 hora',
-        quartos: parseInt(informacoesBasicas.quartos) || 1,
-        camas: parseInt(informacoesBasicas.camas) || 1,
-        casas_banho: parseInt(informacoesBasicas.casas_banho) || 1,
-        
-        localizacao: endereco,
-        endereco: endereco,
-        cidade: cidade,
-        ilha: ilha,
-        codigo_postal: codigo_postal,
-        num_apartamento: num_apartamento,
-        morada_completa: morada_completa,
-        latitude: latitude,
-        longitude: longitude,
-        
-        morada: {
-          endereco: endereco,
-          apartamento: num_apartamento,
-          cidade: cidade,
-          ilha: ilha,
-          codigo_postal: codigo_postal,
-          pais: 'Cabo Verde',
-          morada_completa: morada_completa,
-          lat: latitude,
-          lng: longitude,
-          coordenadas: { lat: latitude, lng: longitude }
-        },
-        
-        coordenadas: { lat: latitude, lng: longitude },
+        cidade: localizacaoDados.cidade,
+        ilha: localizacaoDados.ilha,
+        endereco: localizacaoDados.endereco,
+        latitude: localizacaoDados.latitude,
+        longitude: localizacaoDados.longitude,
         comodidades: comodidadesIds,
         regras_ids: regrasIds,
         regras_adicionais: regrasAdicionais,
         quartos: quartosFormatados,
         imagens: imagensFormatadas
       };
-      
-      console.log('📤 Payload final:', JSON.stringify(dadosParaAPI, null, 2));
-      
+
+      console.log('📤 Payload enviado para atualizar:', dadosParaAPI);
+
       const result = await salvarFluxoRegisto(dadosParaAPI, alojamentoId);
       
       if (result.success) {
-        localStorage.removeItem('propertyInformacoesBasicas');
-        localStorage.removeItem('propertyLocalizacao');
-        localStorage.removeItem('propertyComodidades');
-        localStorage.removeItem('propertyRegras');
-        localStorage.removeItem('propertyQuartos');
-        localStorage.removeItem('propertyFotos');
-        
-        alert(`✅ ${result.message}`);
-        navigate('/alojamento-registro/meus');
+        showToast(`✅ ${result.message || 'Alojamento atualizado com sucesso!'}`, 'success');
+        setTimeout(() => navigate('/alojamento-registro/meus'), 1500);
       } else {
-        alert(`⚠️ Erro: ${result.message}`);
+        showToast(`⚠️ Erro: ${result.message || 'Falha ao atualizar'}`, 'error');
       }
     } catch (error) {
-      console.error('❌ Erro ao finalizar:', error);
-      alert('Erro ao processar o registo. Tente novamente.\n' + error.message);
+      console.error('Erro ao finalizar:', error);
+      showToast('Erro ao atualizar alojamento.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
   
   const handleBack = () => {
-    if (fase > 1) {
-      setFase(fase - 1);
-    } else {
-      navigate('/alojamento-registro/meus');
-    }
+    if (fase > 1) setFase(fase - 1);
+    else navigate('/alojamento-registro/meus');
   };
-  
-  const handleEditInfo = () => setFase(1);
-  const handleEditLocation = () => setFase(2);
-  const handleEditComodidades = () => setFase(3);
-  const handleEditRegras = () => setFase(4);
   
   const renderProgressBar = () => {
     const fasesLista = ['Informações', 'Localização', 'Comodidades', 'Regras', 'Fotos'];
@@ -463,7 +441,7 @@ const EditarAlojamento = () => {
         <div className="flex items-center justify-between mb-2">
           {fasesLista.map((nome, index) => (
             <div key={index} className="flex-1 text-center">
-              <div className={`text-xs font-medium ${fase > index + 1 ? 'text-[#006ce4]' : fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>
+              <div className={`text-xs font-bold ${fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>
                 {nome}
               </div>
             </div>
@@ -471,7 +449,7 @@ const EditarAlojamento = () => {
         </div>
         <div className="flex gap-1">
           {fasesLista.map((_, index) => (
-            <div key={index} className={`h-1 flex-1 rounded-full ${fase > index + 1 ? 'bg-[#006ce4]' : fase === index + 1 ? 'bg-[#006ce4] bg-opacity-50' : 'bg-gray-200'}`} />
+            <div key={index} className={`h-1.5 flex-1 rounded-full ${fase >= index + 1 ? 'bg-[#006ce4]' : 'bg-gray-200'}`} />
           ))}
         </div>
       </div>
@@ -482,222 +460,193 @@ const EditarAlojamento = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader size={48} className="animate-spin text-[#006ce4] mx-auto mb-4" />
-          <p className="text-gray-600">Carregando dados do alojamento...</p>
-          <p className="text-sm text-gray-400 mt-2">ID: {id}</p>
+          <Loader size={36} className="animate-spin text-[#006ce4] mx-auto mb-3" />
+          <p className="text-sm font-semibold text-gray-600">A carregar dados do alojamento...</p>
         </div>
       </div>
     );
   }
   
-  // ==================== RENDERIZAÇÃO ====================
-  
-  const renderFaseInformacoes = () => (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-          <ArrowLeft size={20} /><span>Voltar</span>
-        </button>
-        {renderProgressBar()}
-        
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar informações da propriedade</h1>
-          <p className="text-gray-600 mb-8">Atualize os dados principais do seu alojamento.</p>
-          
-          <InformacoesBasicas 
-            dados={informacoesBasicas}
-            onDadosChange={setInformacoesBasicas}
-            onQuartosChange={handleQuartosChange}
-            alojamentoId={alojamentoId}  
-            readOnly={false}
-          />
-          
-          <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
-            <button onClick={handleBack} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg">Voltar</button>
-            <button onClick={handleSaveInformacoes} className="px-6 py-2.5 bg-[#006ce4] text-white rounded-lg flex items-center gap-2">
-              Continuar <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-  
-  const renderFaseLocalizacao = () => (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-2xl mx-auto px-4">
-        <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-          <ArrowLeft size={20} /><span>Voltar</span>
-        </button>
-        {renderProgressBar()}
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold mb-4">📍 Localização do Alojamento</h2>
-          <p className="text-gray-600 mb-6">Onde fica a sua propriedade?</p>
-          
-          <RegistarLocalizacao
-            dados={localizacaoDados}
-            onChange={handleLocalizacaoChange}
-            alojamentoId={alojamentoId}
-            readOnly={false}
-          />
-          
-          <div className="flex justify-between gap-4 mt-6">
-            <button onClick={handleBack} className="px-6 py-2 border rounded-lg hover:bg-gray-50">
-              Voltar
-            </button>
-            <button onClick={handleSaveLocalizacao} className="px-6 py-2 bg-[#006ce4] text-white rounded-lg hover:bg-[#0053b3]">
-              Continuar
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-  
-  const renderFaseComodidades = () => (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-          <ArrowLeft size={20} /><span>Voltar</span>
-        </button>
-        {renderProgressBar()}
-        
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Comodidades da propriedade</h1>
-          <p className="text-gray-600 mb-6">Selecione todas as comodidades disponíveis.</p>
-          
-          <Comodidades 
-            alojamentoId={alojamentoId}
-            onChange={handleComodidadesChange}
-            initialComodidades={comodidadesSelecionadas}
-            readOnly={false}
-          />
-          
-          <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
-            <button onClick={handleBack} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg">Voltar</button>
-            <button onClick={handleSaveComodidades} className="px-6 py-2.5 bg-[#006ce4] text-white rounded-lg flex items-center gap-2">
-              Continuar <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-  
-  const renderFaseRegras = () => (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-          <ArrowLeft size={20} /><span>Voltar</span>
-        </button>
-        {renderProgressBar()}
-        
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Regras da casa</h1>
-          <p className="text-gray-600 mb-6">Defina as regras e políticas da sua propriedade.</p>
-          
-          <Regras 
-            alojamentoId={alojamentoId}
-            onChange={handleRegrasChange}
-            initialRegras={regras}
-            initialRegrasAdicionais={regrasAdicionais}
-            readOnly={false}
-          />
-          
-          <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
-            <button onClick={handleBack} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg">Voltar</button>
-            <button onClick={handleSaveRegras} className="px-6 py-2.5 bg-[#006ce4] text-white rounded-lg flex items-center gap-2">
-              Continuar <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-  
-  const renderFaseFotos = () => (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-          <ArrowLeft size={20} /><span>Voltar</span>
-        </button>
-        {renderProgressBar()}
-        
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Fotos da sua propriedade</h1>
-          <p className="text-gray-600 mb-8">As primeiras impressões são visuais. Adicione fotos de alta qualidade para atrair mais hóspedes.</p>
-          
-          <ImagensUpload 
-            fotos={fotos} 
-            onFotosChange={setFotos} 
-            maxFotos={20} 
-            alojamentoId={alojamentoId}
-          />
-          
-          <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
-            <button onClick={handleBack} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg">Voltar</button>
-            <button 
-              onClick={handleFinalizar} 
-              disabled={isSubmitting}
-              className="flex-1 bg-green-600 text-white py-2.5 rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader size={18} className="animate-spin" />
-                  Atualizando...
-                </>
-              ) : (
-                <>
-                  <Check size={18} />
-                  Atualizar Registo
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-  
   return (
     <>
       <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
-        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
+        <div className="font-bold text-lg tracking-tight">MorabezaStay</div>
         <div className="flex items-center gap-6 text-sm">
-          <div className="text-right">
-            <PropMenu 
-              nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
-              alojamentoId={alojamentoId}
-              onEditName={handleEditInfo} 
-              onEditLocation={handleEditLocation} 
-              onEditComodidades={handleEditComodidades} 
-              onEditRegras={handleEditRegras}
-            />
-            <div className="text-[10px] opacity-80">
-              {fase === 1 && 'Editar informações'}
-              {fase === 2 && 'Editar localização'}
-              {fase === 3 && `${comodidadesSelecionadas.length} comodidade(s)`}
-              {fase === 4 && `${regras.length} regra(s)`}
-              {fase === 5 && `${fotos.length} foto(s)`}
-            </div>
-          </div>
-          <div className="w-[1px] h-8 bg-blue-900"></div>
-       
+          <PropMenu 
+            nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'} 
+            alojamentoId={alojamentoId}
+            onEditName={() => setFase(1)} 
+            onEditLocation={() => setFase(2)} 
+            onEditComodidades={() => setFase(3)} 
+            onEditRegras={() => setFase(4)}
+          />
           <div className="flex items-center gap-2 cursor-pointer hover:underline">
             <span>Ajuda</span> <HelpCircle size={18} />
           </div>
-        
         </div>
       </header>
 
-      {fase === 1 && renderFaseInformacoes()}
-      {fase === 2 && renderFaseLocalizacao()}
-      {fase === 3 && renderFaseComodidades()}
-      {fase === 4 && renderFaseRegras()}
-      {fase === 5 && renderFaseFotos()}
+      {fase === 1 && (
+        <div className="min-h-screen bg-gray-50 py-10">
+          <div className="max-w-4xl mx-auto px-4">
+            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
+              <ArrowLeft size={20} /><span>Voltar</span>
+            </button>
+            {renderProgressBar()}
+            
+            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar informações da propriedade</h1>
+              <p className="text-sm text-gray-500 mb-8">Atualize os dados e a configuração dos quartos.</p>
+              
+              <InformacoesBasicas 
+                dados={informacoesBasicas}
+                onDadosChange={setInformacoesBasicas}
+                onQuartosChange={handleQuartosChange}
+                quartosIniciais={quartosSelecionados}
+                alojamentoId={alojamentoId}  
+                readOnly={false}
+              />
+              
+              <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+                <button onClick={handleBack} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl">Voltar</button>
+                <button onClick={handleSaveInformacoes} className="px-6 py-2.5 bg-[#006ce4] text-white font-bold rounded-xl flex items-center gap-2">
+                  Continuar <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fase === 2 && (
+        <div className="min-h-screen bg-gray-50 py-10">
+          <div className="max-w-2xl mx-auto px-4">
+            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
+              <ArrowLeft size={20} /><span>Voltar</span>
+            </button>
+            {renderProgressBar()}
+            
+            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+              <h2 className="text-xl font-bold mb-4">📍 Localização do Alojamento</h2>
+              
+              <RegistarLocalizacao
+                dados={localizacaoDados}
+                onChange={handleLocalizacaoChange}
+                alojamentoId={alojamentoId}
+                readOnly={false}
+              />
+              
+              <div className="flex justify-between gap-4 mt-8">
+                <button onClick={handleBack} className="px-6 py-2.5 border rounded-xl">Voltar</button>
+                <button onClick={handleSaveLocalizacao} className="px-6 py-2.5 bg-[#006ce4] text-white font-bold rounded-xl">Continuar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fase === 3 && (
+        <div className="min-h-screen bg-gray-50 py-10">
+          <div className="max-w-4xl mx-auto px-4">
+            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
+              <ArrowLeft size={20} /><span>Voltar</span>
+            </button>
+            {renderProgressBar()}
+            
+            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Comodidades da propriedade</h1>
+              
+              <Comodidades 
+                alojamentoId={alojamentoId}
+                onChange={handleComodidadesChange}
+                initialComodidades={comodidadesSelecionadas}
+                readOnly={false}
+              />
+              
+              <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+                <button onClick={handleBack} className="px-6 py-2.5 border rounded-xl">Voltar</button>
+                <button onClick={handleSaveComodidades} className="px-6 py-2.5 bg-[#006ce4] text-white font-bold rounded-xl flex items-center gap-2">
+                  Continuar <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fase === 4 && (
+        <div className="min-h-screen bg-gray-50 py-10">
+          <div className="max-w-3xl mx-auto px-4">
+            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
+              <ArrowLeft size={20} /><span>Voltar</span>
+            </button>
+            {renderProgressBar()}
+            
+            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Regras da casa</h1>
+              
+              <Regras 
+                alojamentoId={alojamentoId}
+                onChange={handleRegrasChange}
+                initialRegras={regras}
+                initialRegrasAdicionais={regrasAdicionais}
+                readOnly={false}
+              />
+              
+              <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+                <button onClick={handleBack} className="px-6 py-2.5 border rounded-xl">Voltar</button>
+                <button onClick={handleSaveRegras} className="px-6 py-2.5 bg-[#006ce4] text-white font-bold rounded-xl flex items-center gap-2">
+                  Continuar <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fase === 5 && (
+        <div className="min-h-screen bg-gray-50 py-10">
+          <div className="max-w-4xl mx-auto px-4">
+            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
+              <ArrowLeft size={20} /><span>Voltar</span>
+            </button>
+            {renderProgressBar()}
+            
+            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Fotos da sua propriedade</h1>
+              <p className="text-sm text-gray-500 mb-8">Adicione fotos de alta qualidade da propriedade.</p>
+              
+              <ImagensUpload 
+                fotos={fotos} 
+                onFotosChange={setFotos} 
+                maxFotos={20} 
+                alojamentoId={alojamentoId}
+              />
+              
+              <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+                <button onClick={handleBack} className="px-6 py-2.5 border rounded-xl">Voltar</button>
+                <button 
+                  onClick={handleFinalizar} 
+                  disabled={isSubmitting}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 py-2.5 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-colors"
+                >
+                  {isSubmitting ? <Loader size={18} className="animate-spin" /> : <Check size={18} />}
+                  Atualizar Registo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
+
+// Wrapper com Provider
+const EditarAlojamento = () => (
+  <ToastProviderInterno>
+    <EditarAlojamentoContent />
+  </ToastProviderInterno>
+);
 
 export default EditarAlojamento;

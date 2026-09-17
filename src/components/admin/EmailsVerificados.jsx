@@ -37,7 +37,7 @@ const Verificacoes = () => {
   const carregarVerificacoes = async () => {
     setLoading(true);
     try {
-      const url = `/api/admin/verificacoes_email.php?action=listar&status=${filterStatus}&search=${encodeURIComponent(search)}`;
+      const url = `https://welovepalop.com/api/admin/verificacoes_email.php?action=listar&status=${filterStatus}&search=${encodeURIComponent(search)}`;
       const response = await fetch(url);
       const data = await response.json();
       if (data.status === 'success') {
@@ -54,7 +54,7 @@ const Verificacoes = () => {
   const carregarDocumentosAprovados = async () => {
     setLoadingDocsAprovados(true);
     try {
-      const url = `/api/admin/verificacoes_email.php?action=listar_documentos_aprovados&search=${encodeURIComponent(search)}`;
+      const url = `https://welovepalop.com/api/admin/verificacoes_email.php?action=listar_documentos_aprovados&search=${encodeURIComponent(search)}`;
       const response = await fetch(url);
       const data = await response.json();
       if (data.status === 'success') {
@@ -70,7 +70,7 @@ const Verificacoes = () => {
   const carregarDocumentosNaoAprovados = async () => {
     setLoadingDocsNaoAprovados(true);
     try {
-      const url = `/api/admin/verificacoes_email.php?action=listar_documentos_nao_aprovados&search=${encodeURIComponent(search)}`;
+      const url = `https://welovepalop.com/api/admin/verificacoes_email.php?action=listar_documentos_nao_aprovados&search=${encodeURIComponent(search)}`;
       const response = await fetch(url);
       const data = await response.json();
       if (data.status === 'success') {
@@ -104,7 +104,7 @@ const Verificacoes = () => {
   const verificarEmail = async (id) => {
     setActionLoading(true);
     try {
-      const response = await fetch('/api/admin/verificacoes_email.php?action=verificar', {
+      const response = await fetch('https://welovepalop.com/api/admin/verificacoes_email.php?action=verificar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
@@ -133,7 +133,7 @@ const Verificacoes = () => {
     
     setActionLoading(true);
     try {
-      const response = await fetch('/api/admin/verificacoes_email.php?action=rejeitar', {
+      const response = await fetch('https://welovepalop.com/api/admin/verificacoes_email.php?action=rejeitar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, motivo: motivoRejeicao })
@@ -163,7 +163,7 @@ const Verificacoes = () => {
     
     setActionLoading(true);
     try {
-      const response = await fetch('/api/admin/verificacoes_email.php?action=remover', {
+      const response = await fetch('https://welovepalop.com/api/admin/verificacoes_email.php?action=remover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
@@ -191,7 +191,7 @@ const Verificacoes = () => {
     
     setActionLoading(true);
     try {
-      const response = await fetch('/api/admin/verificacoes_email.php?action=aprovar_documento', {
+      const response = await fetch('https://welovepalop.com/api/admin/verificacoes_email.php?action=aprovar_documento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documento_id: documentoId })
@@ -223,7 +223,7 @@ const Verificacoes = () => {
     
     setActionLoading(true);
     try {
-      const response = await fetch('/api/admin/verificacoes_email.php?action=rejeitar_documento', {
+      const response = await fetch('https://welovepalop.com/api/admin/verificacoes_email.php?action=rejeitar_documento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documento_id: documentoId, motivo: motivo })

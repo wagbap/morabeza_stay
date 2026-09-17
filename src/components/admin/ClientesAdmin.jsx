@@ -14,7 +14,7 @@ const ClientesAdmin = () => {
   const carregarUsuarios = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin_users.php');
+      const response = await fetch('https://welovepalop.com/api/admin_users.php');
       const data = await response.json();
       if (data.status === 'success') {
         setUsuarios(data.data);
@@ -141,7 +141,7 @@ const ClientesAdmin = () => {
     
     setPdfUrlOriginal(cleanUrl);
     
-    const proxyUrl = `/api/proxy_pdf.php?url=${encodeURIComponent(cleanUrl)}`;
+    const proxyUrl = `https://welovepalop.com/api/proxy_pdf.php?url=${encodeURIComponent(cleanUrl)}`;
     
     try {
       const testResponse = await fetch(proxyUrl, { method: 'HEAD' });
@@ -168,7 +168,7 @@ const ClientesAdmin = () => {
       return;
     }
     
-    const proxyUrl = `/api/proxy_pdf.php?url=${encodeURIComponent(cleanUrl)}`;
+    const proxyUrl = `https://welovepalop.com/api/proxy_pdf.php?url=${encodeURIComponent(cleanUrl)}`;
     
     try {
       const response = await fetch(proxyUrl);
@@ -211,7 +211,7 @@ const ClientesAdmin = () => {
         admin_id: adminSession.id ? parseInt(adminSession.id) : 21
       };
       
-      const response = await fetch('/api/usuarios/aprovar_role.php', {
+      const response = await fetch('https://welovepalop.com/api/usuarios/aprovar_role.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

@@ -7,7 +7,7 @@ const PainelControleAdmin = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/admin/get_dashboard_data.php')
+    fetch('https://welovepalop.com/api/admin/get_dashboard_data.php')
       .then(res => res.json())
       .then(resData => {
         if (resData.status === 'success') {

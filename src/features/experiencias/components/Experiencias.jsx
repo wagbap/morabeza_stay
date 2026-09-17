@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
-import { Loader2, LayoutGrid, List, Info, ArrowRight } from 'lucide-react';
+import { Loader2, LayoutGrid, List, Info, ArrowRight, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -22,11 +22,23 @@ const Experiencias = () => {
   const [experienciasFiltradas, setExperienciasFiltradas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
+  const [ordenar, setOrdenar] = useState('recomendados');
+  const [dropdownAberto, setDropdownAberto] = useState(false);
   
   // Estados de Filtro
   const [orcamento, setOrcamento] = useState(50000);
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [filtroDestino, setFiltroDestino] = useState(queryParams.get('localizacao') || '');
+
+  // Opções de ordenação
+  const opcoesOrdenar = [
+    { value: 'recomendados', label: 'Recomendados' },
+    { value: 'preco_asc', label: 'Preço mais baixo' },
+    { value: 'preco_desc', label: 'Preço mais alto' },
+    { value: 'avaliacao', label: 'Melhor avaliação' },
+  ];
+
+  const labelOrdenarAtual = opcoesOrdenar.find(o => o.value === ordenar)?.label || 'Recomendados';
 
   // Função principal de busca (API)
   const buscarDados = useCallback(async (queryString = '') => {
@@ -54,6 +66,17 @@ const Experiencias = () => {
     buscarDados(currentQuery);
   }, [location.search, buscarDados]);
 
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    const fechar = (e) => {
+      if (!e.target.closest('[data-dropdown-ordernar-exp]')) {
+        setDropdownAberto(false);
+      }
+    };
+    document.addEventListener('mousedown', fechar);
+    return () => document.removeEventListener('mousedown', fechar);
+  }, []);
+
   // Lógica de Filtragem Local
   useEffect(() => {
     const filtradas = experiencias.filter(exp => {
@@ -72,6 +95,21 @@ const Experiencias = () => {
     setExperienciasFiltradas(filtradas);
   }, [experiencias, orcamento, categoriasSelecionadas, filtroDestino]);
 
+  // Lógica de Ordenação
+  const experienciasOrdenadas = [...experienciasFiltradas].sort((a, b) => {
+    if (ordenar === 'preco_asc') {
+      return Number(a.preco || 0) - Number(b.preco || 0);
+    }
+    if (ordenar === 'preco_desc') {
+      return Number(b.preco || 0) - Number(a.preco || 0);
+    }
+    if (ordenar === 'avaliacao') {
+      return Number(b.rating || 0) - Number(a.rating || 0);
+    }
+    // recomendados (default) — mantém ordem da API
+    return 0;
+  });
+
   // Handler para a SearchBar
   const handleSearchBar = (queryString) => {
     const params = new URLSearchParams(queryString);
@@ -85,6 +123,7 @@ const Experiencias = () => {
     setOrcamento(50000);
     setCategoriasSelecionadas([]);
     setFiltroDestino('');
+    setOrdenar('recomendados');
     navigate('/experiencias', { replace: true });
     buscarDados();
   };
@@ -119,7 +158,7 @@ const Experiencias = () => {
               setOrcamento={setOrcamento} 
               tiposSelecionados={categoriasSelecionadas}
               setTiposSelecionados={setCategoriasSelecionadas}
-              totalEncontrados={experienciasFiltradas.length}
+              totalEncontrados={experienciasOrdenadas.length}
             />
           </aside>
 
@@ -129,13 +168,46 @@ const Experiencias = () => {
             {/* HEADER DA LISTAGEM */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
               <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter text-left">
-                {filtroDestino || t('explorar')}: <span className="text-blue-600 text-4xl">{experienciasFiltradas.length}</span> {t('resultados')}
+                {filtroDestino || t('explorar')}: <span className="text-blue-600 text-4xl">{experienciasOrdenadas.length}</span> {t('resultados')}
               </h1>
               
               <div className="flex items-center gap-2 bg-white p-1.5 rounded-full shadow-sm border border-gray-100">
-                <button className="bg-blue-600 text-white px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-                  {t('mais_relevantes')}
-                </button>
+                
+                {/* DROPDOWN ORDENAR POR */}
+                <div className="relative" data-dropdown-ordernar-exp>
+                  <button
+                    onClick={() => setDropdownAberto(!dropdownAberto)}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition"
+                  >
+                    <span className="whitespace-nowrap">Ordenar por: {labelOrdenarAtual}</span>
+                    <ChevronDown size={14} className={`transition-transform ${dropdownAberto ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {dropdownAberto && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+                      {opcoesOrdenar.map((opcao) => (
+                        <button
+                          key={opcao.value}
+                          onClick={() => {
+                            setOrdenar(opcao.value);
+                            setDropdownAberto(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider transition ${
+                            ordenar === opcao.value
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {opcao.label}
+                          {ordenar === opcao.value && (
+                            <span className="float-right text-blue-600">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="w-px h-6 bg-gray-100 mx-1"></div>
                 <button 
                   onClick={() => setViewMode('grid')}
@@ -163,8 +235,8 @@ const Experiencias = () => {
                 ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 text-left" 
                 : "flex flex-col gap-6 text-left"
               }>
-                {experienciasFiltradas.length > 0 ? (
-                  experienciasFiltradas.map(exp => (
+                {experienciasOrdenadas.length > 0 ? (
+                  experienciasOrdenadas.map(exp => (
                     <CardExperiencia key={exp.id} {...exp} isList={viewMode === 'list'} />
                   ))
                 ) : (

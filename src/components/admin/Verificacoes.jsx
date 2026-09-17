@@ -21,7 +21,7 @@ const Verificacoes = () => {
   const carregarVerificacoes = async () => {
     setLoading(true);
     try {
-      const url = `/api/admin/verificacoes_email.php?action=listar&status=${filterStatus}&search=${encodeURIComponent(search)}`;
+      const url = `https://welovepalop.com/api/admin/verificacoes_email.php?action=listar&status=${filterStatus}&search=${encodeURIComponent(search)}`;
       const response = await fetch(url);
       const data = await response.json();
       if (data.status === 'success') {

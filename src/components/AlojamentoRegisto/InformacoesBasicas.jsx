@@ -1,7 +1,9 @@
 // src/components/AlojamentoRegisto/InformacoesBasicas.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { Info, Home, Users, Star, Check, ChevronRight, Clock, AlertCircle, ChevronDown, ChevronUp, Building, BedDouble, Bed, Plus, Trash2, Minus, DollarSign, DoorOpen, Loader } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Info, Home, Users, Star, Check, ChevronRight, Clock, AlertCircle, ChevronDown, ChevronUp, Building, BedDouble, Bed, Plus, Trash2, Minus, DollarSign, DoorOpen, Loader, Camera, X, Upload } from 'lucide-react';
 import { buscarTiposQuarto, buscarQuartosDoAlojamento, salvarQuartos, removerQuarto as removerQuartoApi } from '../../services/apiService';
+
+const UPLOAD_URL = 'https://welovepalop.com/api/alojamento/upload_foto.php';
 
 const TIPOS_PROPRIEDADE = [
   { id: 'Apartamento', nome: 'Apartamento', icone: <Building size={18} />, descricao: 'Espaço privado num edifício' },
@@ -30,7 +32,8 @@ const InformacoesBasicas = ({
   readOnly = false,
   onNext,
   alojamentoId = null,
-  onQuartosChange
+  onQuartosChange,
+  quartosIniciais = []
 }) => {
   const [erros, setErros] = useState({});
   const [expandirDicas, setExpandirDicas] = useState(false);
@@ -38,14 +41,19 @@ const InformacoesBasicas = ({
   const [quartosSelecionados, setQuartosSelecionados] = useState([]);
   const [loadingQuartos, setLoadingQuartos] = useState(false);
   const [savingQuartos, setSavingQuartos] = useState(false);
+  const [uploadingFotos, setUploadingFotos] = useState(false);
   const [toast, setToast] = useState(null);
+
+  const [modalFotoQuarto, setModalFotoQuarto] = useState({ aberto: false, tipoQuartoId: null, fotos: [] });
+  
+  const fileInputRef = useRef(null);
+  const activeQuartoIdRef = useRef(null);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Carregar os tipos de quartos disponíveis (Master Data)
   useEffect(() => {
     const carregarTipos = async () => {
       setLoadingQuartos(true);
@@ -56,8 +64,6 @@ const InformacoesBasicas = ({
     carregarTipos();
   }, []);
 
-  // =============== CORREÇÃO DO LOCALSTORAGE ===============
-  // Puxar os quartos do LocalStorage quando estamos no Modo Registo
   useEffect(() => {
     if (!alojamentoId) {
       const quartosGuardados = localStorage.getItem('propertyQuartos');
@@ -65,13 +71,8 @@ const InformacoesBasicas = ({
         try {
           const parsedQuartos = JSON.parse(quartosGuardados);
           if (Array.isArray(parsedQuartos) && parsedQuartos.length > 0) {
-            console.log('📦 Quartos recuperados do LocalStorage:', parsedQuartos);
             setQuartosSelecionados(parsedQuartos);
-            
-            // Avisa o pai (FluxoRegisto) que recuperou os quartos
-            if (onQuartosChange) {
-              onQuartosChange(parsedQuartos);
-            }
+            if (onQuartosChange) onQuartosChange(parsedQuartos);
           }
         } catch (e) {
           console.error('Erro ao ler quartos do localStorage:', e);
@@ -79,20 +80,53 @@ const InformacoesBasicas = ({
       }
     }
   }, [alojamentoId, onQuartosChange]);
-  // =========================================================
 
-  // Carregar os quartos do alojamento específico da API (Apenas modo Edição)
   useEffect(() => {
     const carregarQuartosBackend = async () => {
       if (!alojamentoId) return;
-      
       try {
         const result = await buscarQuartosDoAlojamento(alojamentoId);
         if (result.success && result.data) {
-          // Proteção contra nome de coluna 'ativo' vs 'activo'
           const ativos = result.data.filter(q => q.ativo === 1 || q.ativo === true || q.activo === 1 || q.activo === true);
-          setQuartosSelecionados(ativos);
-          if (onQuartosChange) onQuartosChange(ativos);
+          
+          let imagensAgrupadas = {};
+          try {
+            const resImgs = await fetch(`https://welovepalop.com/api/alojamento/get_quarto_imagens.php?t=${Date.now()}`);
+            const dataImgs = await resImgs.json();
+            
+            if (dataImgs.success && dataImgs.grouped) {
+              imagensAgrupadas = dataImgs.grouped;
+            }
+          } catch (imgError) {
+            console.error("Não foi possível carregar as imagens:", imgError);
+          }
+
+          const quartosNormalizados = ativos.map(q => {
+            let fotosReais = [];
+            const idQuarto = q.id;
+            const chaveComposta = `${alojamentoId}_${q.tipo_quarto_id}`;
+            
+            if (imagensAgrupadas[chaveComposta] && imagensAgrupadas[chaveComposta].length > 0) {
+              fotosReais = imagensAgrupadas[chaveComposta];
+            } else if (imagensAgrupadas[idQuarto] && imagensAgrupadas[idQuarto].length > 0) {
+              fotosReais = imagensAgrupadas[idQuarto];
+            } else if (imagensAgrupadas["tipo_" + q.tipo_quarto_id] && imagensAgrupadas["tipo_" + q.tipo_quarto_id].length > 0) {
+              fotosReais = imagensAgrupadas["tipo_" + q.tipo_quarto_id];
+            } else if (Array.isArray(q.fotos) && q.fotos.length > 0) {
+              fotosReais = q.fotos;
+            } else if (Array.isArray(q.imagens) && q.imagens.length > 0) {
+              fotosReais = q.imagens;
+            }
+
+            return {
+              ...q,
+              fotos: fotosReais,
+              imagens: fotosReais
+            };
+          });
+
+          setQuartosSelecionados(quartosNormalizados);
+          if (onQuartosChange) onQuartosChange(quartosNormalizados);
         }
       } catch(e) {
         console.error("Erro ao carregar quartos do backend", e);
@@ -101,18 +135,49 @@ const InformacoesBasicas = ({
     carregarQuartosBackend();
   }, [alojamentoId, onQuartosChange]);
 
-  // Sincronizar dados do pai APENAS na carga inicial se o estado local estiver vazio
   useEffect(() => {
-    if (dados?.quartos?.length > 0 && quartosSelecionados.length === 0 && !alojamentoId) {
+    if (quartosIniciais?.length > 0 && quartosSelecionados.length === 0) {
+      setQuartosSelecionados(quartosIniciais);
+    } else if (dados?.quartos?.length > 0 && quartosSelecionados.length === 0 && !alojamentoId) {
       setQuartosSelecionados(dados.quartos);
     }
-  }, [dados?.quartos, quartosSelecionados.length, alojamentoId]);
+  }, [dados?.quartos, quartosIniciais, quartosSelecionados.length, alojamentoId]);
 
-  // =============== LÓGICA ROBUSTA DE QUARTOS (SEM LOOPS) ===============
-  
   const sincronizarComPai = (novosQuartos) => {
     if (onQuartosChange) onQuartosChange(novosQuartos);
     if (onDadosChange) onDadosChange({ ...dados, quartos: novosQuartos });
+  };
+
+  const persistirQuartosNaApiOuStorage = async (novosQuartos) => {
+    setQuartosSelecionados(novosQuartos);
+    sincronizarComPai(novosQuartos);
+
+    if (alojamentoId) {
+      setSavingQuartos(true);
+      try {
+        const payload = novosQuartos.map(q => {
+          const listaFotos = q.fotos || q.imagens || [];
+          return {
+            tipo_quarto_id: q.tipo_quarto_id,
+            quantidade_disponivel: q.quantidade_disponivel || 1,
+            preco_personalizado: q.preco_personalizado || null,
+            fotos: listaFotos,
+            imagens: listaFotos
+          };
+        });
+        
+        const result = await salvarQuartos(alojamentoId, payload);
+        if (!result.success) {
+          showToast(result.message || 'Erro ao salvar dados dos quartos', 'error');
+        }
+      } catch (err) {
+        showToast('Erro de conexão com o servidor', 'error');
+      } finally {
+        setSavingQuartos(false);
+      }
+    } else {
+      localStorage.setItem('propertyQuartos', JSON.stringify(novosQuartos));
+    }
   };
 
   const adicionarQuarto = async (tipoQuarto) => {
@@ -128,85 +193,27 @@ const InformacoesBasicas = ({
       capacidade: tipoQuarto.capacidade || 2,
       camas: tipoQuarto.camas || 1,
       icone: tipoQuarto.icone,
-      imagem_url: tipoQuarto.imagem_url,
-      multiplicador_preco: tipoQuarto.multiplicador_preco || 1
+      multiplicador_preco: tipoQuarto.multiplicador_preco || 1,
+      fotos: [],
+      imagens: []
     };
 
     const novosQuartos = [...quartosSelecionados, novoQuarto];
-    const quartosAnteriores = [...quartosSelecionados];
-
-    // Atualização Optimista (atualiza UI primeiro)
-    setQuartosSelecionados(novosQuartos);
-
-    if (alojamentoId) {
-      setSavingQuartos(true);
-      try {
-        const payload = novosQuartos.map(q => ({
-          tipo_quarto_id: q.tipo_quarto_id,
-          quantidade_disponivel: q.quantidade_disponivel || 1,
-          preco_personalizado: q.preco_personalizado || null
-        }));
-        
-        const result = await salvarQuartos(alojamentoId, payload);
-        if (result.success) {
-          sincronizarComPai(novosQuartos);
-          showToast(`${tipoQuarto.nome} adicionado!`, 'success');
-        } else {
-          // Reverte em caso de erro da API
-          setQuartosSelecionados(quartosAnteriores);
-          showToast(result.message || 'Erro ao adicionar', 'error');
-        }
-      } catch (err) {
-        setQuartosSelecionados(quartosAnteriores);
-        showToast('Erro de conexão', 'error');
-      } finally {
-        setSavingQuartos(false);
-      }
-    } else {
-      // Modo Registo (Apenas LocalStorage)
-      localStorage.setItem('propertyQuartos', JSON.stringify(novosQuartos));
-      sincronizarComPai(novosQuartos);
-      showToast(`${tipoQuarto.nome} adicionado!`, 'success');
-    }
+    await persistirQuartosNaApiOuStorage(novosQuartos);
+    showToast(`${tipoQuarto.nome} adicionado!`, 'success');
   };
 
   const atualizarQuartoPropriedade = async (tipo_quarto_id, campo, valor) => {
-    const quartosAnteriores = [...quartosSelecionados];
     const novosQuartos = quartosSelecionados.map(q => {
       if (q.tipo_quarto_id === tipo_quarto_id) {
-        return { ...q, [campo]: valor };
+        const atualizado = { ...q, [campo]: valor };
+        if (campo === 'fotos') atualizado.imagens = valor;
+        return atualizado;
       }
       return q;
     });
 
-    setQuartosSelecionados(novosQuartos);
-
-    if (alojamentoId) {
-      setSavingQuartos(true);
-      try {
-        const payload = novosQuartos.map(q => ({
-          tipo_quarto_id: q.tipo_quarto_id,
-          quantidade_disponivel: q.quantidade_disponivel || 1,
-          preco_personalizado: q.preco_personalizado || null
-        }));
-        
-        const result = await salvarQuartos(alojamentoId, payload);
-        if (result.success) {
-          sincronizarComPai(novosQuartos);
-        } else {
-          setQuartosSelecionados(quartosAnteriores);
-          showToast('Erro ao atualizar quarto', 'error');
-        }
-      } catch (err) {
-        setQuartosSelecionados(quartosAnteriores);
-        showToast('Erro de conexão', 'error');
-      } finally {
-        setSavingQuartos(false);
-      }
-    } else {
-      localStorage.setItem('propertyQuartos', JSON.stringify(novosQuartos));
-      sincronizarComPai(novosQuartos);
-    }
+    await persistirQuartosNaApiOuStorage(novosQuartos);
   };
 
   const atualizarQuantidade = (tipo_quarto_id, delta) => {
@@ -224,36 +231,122 @@ const InformacoesBasicas = ({
   };
 
   const removerQuartoEspecifico = async (tipo_quarto_id) => {
-    const quartosAnteriores = [...quartosSelecionados];
     const novosQuartos = quartosSelecionados.filter(q => q.tipo_quarto_id !== tipo_quarto_id);
     
     setQuartosSelecionados(novosQuartos);
+    sincronizarComPai(novosQuartos);
 
     if (alojamentoId) {
       setSavingQuartos(true);
       try {
         const result = await removerQuartoApi(alojamentoId, tipo_quarto_id);
         if (result.success) {
-          sincronizarComPai(novosQuartos);
           showToast('Quarto removido', 'success');
         } else {
-          setQuartosSelecionados(quartosAnteriores);
           showToast(result.message || 'Erro ao remover', 'error');
         }
       } catch (err) {
-        setQuartosSelecionados(quartosAnteriores);
         showToast('Erro de conexão', 'error');
       } finally {
         setSavingQuartos(false);
       }
     } else {
       localStorage.setItem('propertyQuartos', JSON.stringify(novosQuartos));
-      sincronizarComPai(novosQuartos);
       showToast('Quarto removido', 'success');
     }
   };
 
-  // =============== RESTO DO COMPONENTE (FORMULÁRIO E RENDER) ===============
+  const dispararSeletorFicheiros = (tipoQuartoId) => {
+    activeQuartoIdRef.current = tipoQuartoId;
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // ============================================================
+  // UPLOAD REAL DOS FICHEIROS PARA O SERVIDOR
+  // ============================================================
+  const handleFicheirosSelecionados = async (e) => {
+    const files = Array.from(e.target.files);
+    const tipoQuartoId = activeQuartoIdRef.current;
+    if (!files.length || !tipoQuartoId) return;
+
+    const quartoAtual = quartosSelecionados.find(q => q.tipo_quarto_id === tipoQuartoId);
+    if (!quartoAtual) return;
+
+    setUploadingFotos(true);
+    showToast(`A enviar ${files.length} foto(s)...`, 'info');
+
+    try {
+      const urlsEnviados = [];
+
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('foto', file);
+        formData.append('tipo', 'quartos');
+
+        const res = await fetch(UPLOAD_URL, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (data.success && data.url) {
+          urlsEnviados.push(data.url);
+        } else {
+          console.error('Erro no upload:', data.message);
+        }
+      }
+
+      if (urlsEnviados.length === 0) {
+        showToast('Nenhuma foto foi enviada.', 'error');
+        setUploadingFotos(false);
+        e.target.value = '';
+        return;
+      }
+
+      const fotosAtuais = quartoAtual.fotos || quartoAtual.imagens || [];
+      const fotosAtualizadas = [...fotosAtuais, ...urlsEnviados];
+
+      await atualizarQuartoPropriedade(tipoQuartoId, 'fotos', fotosAtualizadas);
+      
+      if (modalFotoQuarto.aberto && modalFotoQuarto.tipoQuartoId === tipoQuartoId) {
+        setModalFotoQuarto(prev => ({ ...prev, fotos: fotosAtualizadas }));
+      }
+
+      showToast(`${urlsEnviados.length} foto(s) enviada(s) com sucesso!`, 'success');
+    } catch (err) {
+      console.error('Erro no upload:', err);
+      showToast('Erro ao enviar fotos. Tenta novamente.', 'error');
+    } finally {
+      setUploadingFotos(false);
+      e.target.value = '';
+    }
+  };
+
+  const abrirModalFotos = (quarto) => {
+    const fotosReais = Array.isArray(quarto.fotos) ? quarto.fotos : [];
+
+    setModalFotoQuarto({
+      aberto: true,
+      tipoQuartoId: quarto.tipo_quarto_id,
+      fotos: fotosReais
+    });
+  };
+
+  const removerFotoDoQuarto = (tipoQuartoId, index) => {
+    const quarto = quartosSelecionados.find(q => q.tipo_quarto_id === tipoQuartoId);
+    if (!quarto) return;
+
+    const fotosAtuais = quarto.fotos || quarto.imagens || [];
+    const novasFotos = fotosAtuais.filter((_, i) => i !== index);
+
+    atualizarQuartoPropriedade(tipoQuartoId, 'fotos', novasFotos);
+    if (modalFotoQuarto.aberto) {
+      setModalFotoQuarto(prev => ({ ...prev, fotos: novasFotos }));
+    }
+  };
 
   const handleChange = (campo, valor) => {
     if (onDadosChange) onDadosChange({ ...dados, [campo]: valor });
@@ -298,8 +391,26 @@ const InformacoesBasicas = ({
   return (
     <div className="space-y-6">
       {toast && (
-        <div className={`fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+        <div className={`fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white ${toast.type === 'success' ? 'bg-green-500' : toast.type === 'info' ? 'bg-blue-500' : 'bg-red-500'}`}>
           {toast.message}
+        </div>
+      )}
+
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFicheirosSelecionados} 
+        multiple 
+        accept="image/*" 
+        className="hidden" 
+      />
+
+      {uploadingFotos && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-6 flex items-center gap-3 shadow-2xl">
+            <Loader size={24} className="animate-spin text-[#006ce4]" />
+            <span className="text-sm font-semibold text-gray-700">A enviar fotos para o servidor...</span>
+          </div>
         </div>
       )}
 
@@ -351,7 +462,7 @@ const InformacoesBasicas = ({
         <div className="bg-[#006ce4] text-white p-4">
           <div className="flex items-center gap-2"><Bed size={20} /><span className="font-semibold">🏠 Configure os quartos da propriedade</span></div>
           <p className="text-sm text-blue-100 mt-1">Adicione os tipos de quarto disponíveis. As alterações são salvas automaticamente!</p>
-          {savingQuartos && <div className="mt-2 text-xs text-blue-200 flex items-center gap-1"><Loader size={12} className="animate-spin" />Salvando alterações...</div>}
+          {savingQuartos && <div className="mt-2 text-xs text-blue-200 flex items-center gap-1"><Loader size={12} className="animate-spin" />A sincronizar com a base de dados...</div>}
         </div>
         
         <div className="p-4 bg-white">
@@ -368,7 +479,11 @@ const InformacoesBasicas = ({
                   return (
                     <button key={tipo.id} type="button" onClick={() => adicionarQuarto(tipo)} disabled={jaAdicionado || savingQuartos}
                       className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${jaAdicionado ? 'border-green-300 bg-green-50 opacity-70 cursor-not-allowed' : 'border-gray-200 hover:border-[#006ce4] hover:bg-blue-50 cursor-pointer'}`}>
-                      {tipo.imagem_url && <img src={tipo.imagem_url} alt={tipo.nome} className="w-12 h-12 object-cover rounded-lg" />}
+                      {tipo.imagem_url ? (
+                        <img src={tipo.imagem_url} alt={tipo.nome} className="w-12 h-12 object-cover rounded-lg" />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs">Sem foto</div>
+                      )}
                       <div className="flex-1 text-left"><p className="text-sm font-medium">{tipo.nome}</p><p className="text-xs text-gray-500">👥 {tipo.capacidade} pessoas | 🛏️ {tipo.camas}</p></div>
                       {jaAdicionado ? <Check size={16} className="text-green-500" /> : <Plus size={16} className="text-[#006ce4]" />}
                     </button>
@@ -382,32 +497,93 @@ const InformacoesBasicas = ({
             <div className="mt-4">
               <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2"><Check size={16} className="text-green-500" />Quartos adicionados ({quartosSelecionados.length}):</h4>
               <div className="space-y-3">
-                {quartosSelecionados.map(quarto => (
-                  <div key={quarto.id || quarto.tipo_quarto_id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        {quarto.imagem_url && <img src={quarto.imagem_url} alt={quarto.tipo_nome} className="w-14 h-14 object-cover rounded-lg" />}
-                        <div><h5 className="font-semibold text-gray-900">{quarto.tipo_nome}</h5><p className="text-xs text-gray-500">Capacidade: {quarto.capacidade || 2} pessoas | {quarto.camas || 1} cama(s)</p></div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-600">Quantidade:</span>
-                          <button type="button" onClick={() => atualizarQuantidade(quarto.tipo_quarto_id, -1)} disabled={savingQuartos} className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"><Minus size={14} /></button>
-                          <span className="w-10 text-center font-semibold text-[#006ce4]">{quarto.quantidade_disponivel || 1}</span>
-                          <button type="button" onClick={() => atualizarQuantidade(quarto.tipo_quarto_id, 1)} disabled={savingQuartos} className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"><Plus size={14} /></button>
+                {quartosSelecionados.map(quarto => {
+                  const fotosReais = Array.isArray(quarto.fotos) ? quarto.fotos : [];
+                  const qtdFotosReais = fotosReais.length;
+                  const imagemPrincipalCard = qtdFotosReais > 0 ? fotosReais[0] : null;
+
+                  return (
+                    <div key={quarto.id || quarto.tipo_quarto_id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          {imagemPrincipalCard ? (
+                            <img src={imagemPrincipalCard} alt={quarto.tipo_nome} className="w-14 h-14 object-cover rounded-lg" />
+                          ) : (
+                            <div className="w-14 h-14 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-[10px] text-center p-1">Sem foto</div>
+                          )}
+                          <div>
+                            <h5 className="font-semibold text-gray-900">{quarto.tipo_nome}</h5>
+                            <p className="text-xs text-gray-500">Capacidade: {quarto.capacidade || 2} pessoas</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign size={14} className="text-gray-500" />
-                          <input type="number" value={quarto.preco_personalizado || ''} onChange={(e) => atualizarPrecoPersonalizado(quarto.tipo_quarto_id, e.target.value)}
-                            className="w-28 px-2 py-1 border border-gray-300 rounded-lg text-sm" placeholder="Preço padrão" step="100" disabled={savingQuartos} />
-                          <span className="text-xs text-gray-500">CVE/noite</span>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2 py-1">
+                            <button type="button" onClick={() => atualizarQuantidade(quarto.tipo_quarto_id, -1)} disabled={savingQuartos} className="p-1 rounded-full hover:bg-gray-100 text-gray-600"><Minus size={14} /></button>
+                            <span className="w-6 text-center font-semibold text-sm text-[#006ce4]">{quarto.quantidade_disponivel || 1}</span>
+                            <button type="button" onClick={() => atualizarQuantidade(quarto.tipo_quarto_id, 1)} disabled={savingQuartos} className="p-1 rounded-full hover:bg-gray-100 text-gray-600"><Plus size={14} /></button>
+                          </div>
+
+                          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
+                            <span className="text-xs text-gray-400 font-bold">$</span>
+                            <input type="number" value={quarto.preco_personalizado || ''} onChange={(e) => atualizarPrecoPersonalizado(quarto.tipo_quarto_id, e.target.value)}
+                              className="w-20 px-1 py-0.5 text-sm focus:outline-none bg-transparent" placeholder="Preço" step="100" disabled={savingQuartos} />
+                          </div>
+
+                          <button type="button" onClick={() => removerQuartoEspecifico(quarto.tipo_quarto_id)} disabled={savingQuartos}
+                            className="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100"><Trash2 size={16} /></button>
                         </div>
-                        <button type="button" onClick={() => removerQuartoEspecifico(quarto.tipo_quarto_id)} disabled={savingQuartos}
-                          className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200"><Trash2 size={14} /></button>
                       </div>
+
+                      <div className="mt-3 pt-3 border-t border-gray-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1 text-xs font-semibold text-gray-700">
+                            <Camera size={14} className="text-[#006ce4]" /> Fotos deste quarto ({qtdFotosReais})
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {qtdFotosReais > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => abrirModalFotos(quarto)}
+                              className="text-xs font-semibold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
+                            >
+                              Ver / Gerir Fotos
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => dispararSeletorFicheiros(quarto.tipo_quarto_id)}
+                            disabled={uploadingFotos}
+                            className="flex items-center gap-1 text-xs font-semibold text-[#006ce4] hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors disabled:opacity-50"
+                          >
+                            <Upload size={14} /> + Adicionar Fotos
+                          </button>
+                        </div>
+                      </div>
+
+                      {qtdFotosReais === 0 ? (
+                        <p className="text-[11px] text-gray-400 italic mt-1">Nenhuma foto adicionada para este quarto ainda.</p>
+                      ) : (
+                        <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                          {fotosReais.map((fUrl, fIdx) => (
+                            <div key={fIdx} className="relative w-16 h-12 rounded-md overflow-hidden border border-gray-200 shrink-0 group">
+                              <img src={fUrl} alt="Miniatura" className="w-full h-full object-cover" onError={(e) => { e.target.style.opacity = '0.3'; }} />
+                              <button
+                                type="button"
+                                onClick={() => removerFotoDoQuarto(quarto.tipo_quarto_id, fIdx)}
+                                className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-800">📊 <strong>Resumo:</strong> Capacidade total dos quartos = <strong>{capacidadeTotalQuartos} pessoas</strong>
@@ -426,6 +602,67 @@ const InformacoesBasicas = ({
           )}
         </div>
       </div>
+
+      {modalFotoQuarto.aberto && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-5 relative shadow-xl">
+            <button
+              onClick={() => setModalFotoQuarto({ aberto: false, tipoQuartoId: null, fotos: [] })}
+              className="absolute top-3 right-3 p-1 rounded-full bg-gray-100 hover:bg-gray-200"
+            >
+              <X size={18} />
+            </button>
+            
+            <h3 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <Camera size={18} className="text-[#006ce4]" /> Gerir Fotos do Quarto
+            </h3>
+
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-xs text-gray-500">Total de fotos: {modalFotoQuarto.fotos.length}</p>
+              <button
+                type="button"
+                disabled={uploadingFotos}
+                onClick={() => {
+                  setModalFotoQuarto(prev => ({ ...prev, aberto: false }));
+                  dispararSeletorFicheiros(modalFotoQuarto.tipoQuartoId);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 bg-[#006ce4] text-white rounded-lg text-xs font-semibold hover:bg-[#0053b3] disabled:opacity-50"
+              >
+                <Upload size={14} /> Carregar Mais do Computador
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+              {modalFotoQuarto.fotos.map((url, idx) => (
+                <div key={idx} className="relative h-24 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                  <img src={url} alt={`Foto ${idx+1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removerFotoDoQuarto(modalFotoQuarto.tipoQuartoId, idx)}
+                    className="absolute top-1 right-1 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 shadow-md"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {modalFotoQuarto.fotos.length === 0 && (
+              <p className="text-xs text-gray-400 text-center py-6">Nenhuma foto adicionada a este quarto ainda.</p>
+            )}
+
+            <div className="mt-5 text-right">
+              <button
+                type="button"
+                onClick={() => setModalFotoQuarto({ aberto: false, tipoQuartoId: null, fotos: [] })}
+                className="px-5 py-2 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-800"
+              >
+                Concluído
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">Descrição curta <span className="text-red-500">*</span></label>

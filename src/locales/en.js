@@ -279,7 +279,7 @@ descricao_padrao_alojamento: "Wonderful {{tipo}} located in {{localizacao}}. Per
 ver_detalhes: "View details",
 ver_detalhes_de: "View details of {{titulo}}",
 opcoes: "options",
-sugestoes: "Suggestions",
+sugestoes: "Sort by",
 precos_finais_com_taxas: "Final prices with fees included.",
 sincronizar_espacos: "Syncing spaces...",
 nenhum_alojamento_encontrado: "No accommodations found.",

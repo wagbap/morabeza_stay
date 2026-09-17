@@ -280,7 +280,7 @@ descricao_padrao_alojamento: "Magnifique {{tipo}} situé à {{localizacao}}. Par
 ver_detalhes: "Voir les détails",
 ver_detalhes_de: "Voir les détails de {{titulo}}",
 opcoes: "options",
-sugestoes: "Suggestions",
+sugestoes: "Trier par",
 precos_finais_com_taxas: "Prix finaux taxes incluses.",
 sincronizar_espacos: "Synchronisation des espaces...",
 nenhum_alojamento_encontrado: "Aucun hébergement trouvé.",
@@ -892,5 +892,6 @@ participante_principal: "Participant Principal",
 preencha_dados_participantes: "Remplissez les informations pour tous les participants.",
 // ==================== PARTICIPANTS ====================
 clique_participante_adicionar: "Cliquez sur un participant pour l'ajouter rapidement à la réservation actuelle",
+ver_fotos: "Voir les photos"
   }
 };

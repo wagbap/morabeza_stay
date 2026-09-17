@@ -281,7 +281,7 @@ ver_detalhes_de: "Ver detalhes de {{titulo}}",
 // Para TODOS os idiomas (pt.js, en.js, cv.js, fr.js, es.js, de.js, it.js)
 
 opcoes: "opções",           // PT
-sugestoes: "Sugestões",
+sugestoes: "Ordenar por",
 precos_finais_com_taxas: "Preços finais com taxas incluídas.",
 sincronizar_espacos: "A sincronizar espaços...",
 nenhum_alojamento_encontrado: "Nenhum alojamento encontrado.",
@@ -974,5 +974,6 @@ participante_principal: "Participante Principal",
 preencha_dados_participantes: "Preencha os dados para todos os participantes.",
 // ==================== PARTICIPANTES ====================
 clique_participante_adicionar: "Clique em um participante para adicioná-lo rapidamente à reserva atual",
+ver_fotos: "Ver Fotos"
   }
 };
