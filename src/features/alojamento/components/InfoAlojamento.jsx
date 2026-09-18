@@ -2,8 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import {
@@ -17,6 +15,7 @@ import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
 import useAlojamentoTracking from "../hooks/useAlojamentoTracking";
 import BotaoDenuncia from '../../../components/BotaoDenuncia';
+import CalendarioMorabeza from '../../../components/Calendario/CalendarioMorabeza';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const API_BASE = 'https://welovepalop.com';
@@ -359,6 +358,10 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
   );
 };
 
+// ============================================================
+// SIDEBAR DE RESERVA — mantém o design original.
+// Só troca o DatePicker antigo pelo CalendarioMorabeza.
+// ============================================================
 const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onContinueToCheckout }) => {
   const { t } = useTranslation();
   const [startDate, setStartDate] = useState(null);
@@ -423,17 +426,12 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
 
           {showCalendar && (
             <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl bg-white border border-slate-200 p-3 max-w-[95vw] overflow-x-auto">
-              <DatePicker
-                selected={startDate}
-                onChange={onChange}
+              <CalendarioMorabeza
+                selectsRange
                 startDate={startDate}
                 endDate={endDate}
-                selectsRange
-                monthsShown={window.innerWidth > 768 ? 2 : 1}
-                inline
-                minDate={new Date()}
+                onChange={onChange}
                 excludeDates={datasBloqueadas.map(d => new Date(d))}
-                calendarClassName="morabeza-calendar-inline"
               />
               <div className="p-2 border-t border-slate-100 flex justify-end">
                 <button onClick={() => setShowCalendar(false)} className="text-blue-900 font-bold text-[10px] uppercase">
@@ -673,7 +671,6 @@ export const InfoAlojamento = () => {
   const [quartoSelecionado, setQuartoSelecionado] = useState(null);
   const [precoNoiteDinamico, setPrecoNoiteDinamico] = useState(0);
 
-  // 🔥 FORÇA SCROLL AO TOPO QUANDO O ALOJAMENTO MUDA
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [slug]);
@@ -696,7 +693,6 @@ export const InfoAlojamento = () => {
       setLoading(true);
       setError(null);
 
-      // Helper para garantir URL absoluta
       const resolverUrlImagem = (url) => {
         if (!url || typeof url !== 'string') return null;
         const limpa = url.trim();
@@ -723,7 +719,6 @@ export const InfoAlojamento = () => {
           setPrecoNoiteDinamico(primeiroQuarto.preco_calculado);
         }
 
-        // Prioridade 1: array de imagens da BD
         let fotosUrls = [];
         if (Array.isArray(data.imagens) && data.imagens.length > 0) {
           fotosUrls = data.imagens
@@ -731,13 +726,11 @@ export const InfoAlojamento = () => {
             .filter(Boolean);
         }
 
-        // Prioridade 2: imagem principal da BD
         if (fotosUrls.length === 0 && data.imagem_url) {
           const principal = resolverUrlImagem(data.imagem_url);
           if (principal) fotosUrls.push(principal);
         }
 
-        // Prioridade 3: placeholder (só se a BD não devolveu NENHUMA imagem válida)
         if (fotosUrls.length === 0) {
           fotosUrls.push(
             "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop"
@@ -859,13 +852,12 @@ export const InfoAlojamento = () => {
               <AmenitiesBar infoBasica={alojamento.info_basica} comodidades={alojamento.comodidades} />
             </div>
 
-        <SeccaoEscolhaQuarto
-  quartoSelecionado={quartoSelecionado}
-  onSelecaoQuarto={handleSelecaoQuarto}
-  tiposQuarto={tiposQuarto}
-  alojamentoId={alojamento.id}
-/>
-          
+            <SeccaoEscolhaQuarto
+              quartoSelecionado={quartoSelecionado}
+              onSelecaoQuarto={handleSelecaoQuarto}
+              tiposQuarto={tiposQuarto}
+              alojamentoId={alojamento.id}
+            />
           </div>
 
           <div className="lg:self-start">
@@ -943,11 +935,6 @@ export const InfoAlojamento = () => {
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .react-datepicker__day--in-range { background-color: #f1f5f9 !important; }
-        .react-datepicker__day--range-start, .react-datepicker__day--range-end {
-          background-color: #1e3a8a !important; color: white !important; border-radius: 50% !important;
-        }
-        .react-datepicker__day--disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
     </div>
   );

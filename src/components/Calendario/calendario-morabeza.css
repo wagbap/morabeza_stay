@@ -1,0 +1,167 @@
+/* src/components/Calendario/calendario-morabeza.css */
+
+.morabeza-calendar-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* ---------- Container ---------- */
+.morabeza-calendar-inline.react-datepicker {
+  font-family: inherit;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  font-size: 10px;
+  display: inline-block;
+  background: #ffffff;
+  width: 210px;
+}
+
+/* ---------- Cabeçalho customizado em português ---------- */
+.morabeza-custom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px;
+}
+
+.morabeza-month-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: capitalize;
+}
+
+.morabeza-nav-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: none;
+}
+
+.morabeza-nav-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.morabeza-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---------- Mês ---------- */
+.morabeza-calendar-inline .react-datepicker__month-container {
+  padding: 6px 6px 8px;
+  width: 100%;
+}
+
+.morabeza-calendar-inline .react-datepicker__header {
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 4px 0 2px;
+}
+
+/* Esconde as setas nativas do react-datepicker (usamos o nosso header) */
+.morabeza-calendar-inline .react-datepicker__navigation {
+  display: none;
+}
+
+/* ---------- Dias da semana ---------- */
+.morabeza-calendar-inline .react-datepicker__day-name {
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 8px;
+  width: 22px;
+  line-height: 18px;
+  margin: 0;
+  text-transform: lowercase;
+}
+
+/* ---------- Dias ---------- */
+.morabeza-calendar-inline .react-datepicker__day {
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  margin: 0;
+  font-size: 10px;
+  border-radius: 6px;
+  color: #0f172a;
+  transition: background 0.15s, color 0.15s;
+}
+
+.morabeza-calendar-inline .react-datepicker__day:hover {
+  background: #f1f5f9;
+}
+
+/* Hoje */
+.morabeza-calendar-inline .react-datepicker__day--today {
+  font-weight: 700;
+  color: #006ce4;
+  border: 1px solid #bfdbfe;
+}
+
+/* Selecionado */
+.morabeza-calendar-inline .react-datepicker__day--selected,
+.morabeza-calendar-inline .react-datepicker__day--keyboard-selected {
+  background: #1e3a8a !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+/* ============================================================
+   🔒 BLOQUEIO DE DATAS PASSADAS
+   Aplica-se tanto à classe nativa do react-datepicker,
+   como às classes manuais que o componente injeta.
+   ============================================================ */
+.morabeza-calendar-inline .react-datepicker__day--disabled,
+.morabeza-calendar-inline .react-datepicker__day--excluded,
+.morabeza-calendar-inline .morabeza-dia-passado,
+.morabeza-calendar-inline .morabeza-dia-bloqueado {
+  color: #cbd5e1 !important;
+  text-decoration: line-through !important;
+  cursor: not-allowed !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+.morabeza-calendar-inline .react-datepicker__day--disabled:hover,
+.morabeza-calendar-inline .morabeza-dia-passado:hover,
+.morabeza-calendar-inline .morabeza-dia-bloqueado:hover {
+  background: transparent !important;
+  color: #cbd5e1 !important;
+  transform: none !important;
+}
+
+/* Dias fora do mês */
+.morabeza-calendar-inline .react-datepicker__day--outside-month {
+  visibility: hidden;
+}
+
+/* ---------- Telemóvel ---------- */
+@media (max-width: 480px) {
+  .morabeza-calendar-inline.react-datepicker {
+    width: 240px;
+  }
+
+  .morabeza-calendar-inline .react-datepicker__day {
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    font-size: 11px;
+  }
+
+  .morabeza-calendar-inline .react-datepicker__day-name {
+    width: 28px;
+  }
+}

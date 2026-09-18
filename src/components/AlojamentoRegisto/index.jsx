@@ -20,3 +20,4 @@ export { default as ImagensUpload } from './ImagensUpload';
 export { default as ProprietarioInfo } from './ProprietarioInfo';
 export { default as PrecosDisponibilidade } from './PrecosDisponibilidade';
 export { default as ComodidadesLista } from './ComodidadesLista';
+export { default as ConfiguracaoHorarios } from './ConfiguracaoHorarios';

@@ -1,55 +1,80 @@
-// src/components/AlojamentoRegisto/Regras.jsx - CORRIGIDO (mesmo padrão das comodidades)
-
+// src/components/AlojamentoRegisto/Regras.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Check, Clock, Ban, Moon, Baby, Volume2, Users, Car, AlertCircle, Search, Loader, Shield, DoorOpen, Calendar, XCircle, RefreshCw } from 'lucide-react';
+import {
+  Check, Clock, Ban, Moon, Baby, Volume2, Users, Car,
+  AlertCircle, Search, Loader, Shield, DoorOpen, Calendar,
+  XCircle, RefreshCw,
+} from 'lucide-react';
 
 const API_URL = 'https://welovepalop.com';
 
-const getIcone = (iconeNome) => {
-  const icons = {
-    clock: <Clock size={20} />,
-    ban: <Ban size={20} />,
-    moon: <Moon size={20} />,
-    baby: <Baby size={20} />,
-    volume2: <Volume2 size={20} />,
-    users: <Users size={20} />,
-    car: <Car size={20} />,
-    calendar: <Calendar size={20} />,
-    shield: <Shield size={20} />,
-    doorOpen: <DoorOpen size={20} />,
-  };
-  return icons[iconeNome?.toLowerCase()] || <AlertCircle size={20} />;
+// ==================== SANITIZAÇÃO DEFENSIVA ====================
+// Rejeita regras com lixo no título: "ddd", "0", string vazia, etc.
+const regraValida = (r) => {
+  if (!r || typeof r !== 'object') return false;
+  const titulo = String(r.titulo ?? '').trim();
+  if (!titulo) return false;
+  if (/\bddd\b/i.test(titulo)) return false;   // "ddd" em qualquer posição
+  if (/^0+$/.test(titulo)) return false;        // apenas "0", "00", ...
+  return true;
 };
 
-// ==================== FUNÇÕES DE API (mesmo padrão das comodidades) ====================
+// Normaliza uma regra vinda do backend (removendo qualquer ruído no título)
+const normalizarRegra = (r) => {
+  if (!r) return null;
+  const tituloLimpo = String(r.titulo ?? '')
+    .replace(/\bddd\b/gi, '')   // remove "ddd"
+    .replace(/\s{2,}/g, ' ')     // colapsa espaços duplos
+    .trim();
+  return { ...r, titulo: tituloLimpo };
+};
 
-// Buscar regras disponíveis (GET sem id) - igual ao buscar_comodidades.php
+const getIcone = (iconeNome) => {
+  const icons = {
+    clock:    <Clock size={20} />,
+    ban:      <Ban size={20} />,
+    moon:     <Moon size={20} />,
+    baby:     <Baby size={20} />,
+    volume2:  <Volume2 size={20} />,
+    users:    <Users size={20} />,
+    car:      <Car size={20} />,
+    calendar: <Calendar size={20} />,
+    shield:   <Shield size={20} />,
+    dooropen: <DoorOpen size={20} />,
+  };
+  return icons[String(iconeNome || '').toLowerCase()] || <AlertCircle size={20} />;
+};
+
+// ==================== API ====================
+
 export async function buscarRegrasDisponiveis() {
   try {
     const response = await fetch(`${API_URL}/api/alojamento/regras.php`);
     const data = await response.json();
-    if (data.success) {
-      return data.data || [];
-    }
-    return [];
+    const lista = data.success ? (data.data || []) : [];
+    return lista
+      .map(normalizarRegra)
+      .filter(regraValida);
   } catch (error) {
     console.error('Erro ao buscar regras:', error);
     return [];
   }
 }
 
-// Buscar regras de um alojamento específico com seleção (GET com id) - igual ao comodidades.php?id=xx
 export async function buscarRegrasDoAlojamento(id) {
   try {
     const response = await fetch(`${API_URL}/api/alojamento/regras.php?id=${id}`);
     const data = await response.json();
     if (data.success && data.data) {
+      const regras = (data.data.regras || [])
+        .map(normalizarRegra)
+        .filter(regraValida);
       return {
         success: true,
         data: {
-          regras: data.data.regras || [],
-          regras_adicionais: data.data.regras_adicionais || ''
-        }
+          regras,
+          regras_adicionais: data.data.regras_adicionais || '',
+        },
       };
     }
     return { success: false, data: { regras: [], regras_adicionais: '' } };
@@ -59,7 +84,6 @@ export async function buscarRegrasDoAlojamento(id) {
   }
 }
 
-// Salvar regras (POST) - igual ao comodidades.php POST
 export async function salvarRegras(alojamentoId, regrasIds, regrasAdicionais = '') {
   try {
     const response = await fetch(`${API_URL}/api/alojamento/regras.php`, {
@@ -68,8 +92,8 @@ export async function salvarRegras(alojamentoId, regrasIds, regrasAdicionais = '
       body: JSON.stringify({
         alojamento_id: alojamentoId,
         regras_ids: regrasIds,
-        regras_adicionais: regrasAdicionais
-      })
+        regras_adicionais: regrasAdicionais,
+      }),
     });
     return await response.json();
   } catch (error) {
@@ -78,7 +102,6 @@ export async function salvarRegras(alojamentoId, regrasIds, regrasAdicionais = '
   }
 }
 
-// Alternar status de uma regra (igual ao alternar_comodidade.php)
 export async function alternarStatusRegra(alojamentoId, regraId, ativar) {
   try {
     const response = await fetch(`${API_URL}/api/alojamento/alternar_status_regra.php`, {
@@ -87,8 +110,8 @@ export async function alternarStatusRegra(alojamentoId, regraId, ativar) {
       body: JSON.stringify({
         alojamento_id: alojamentoId,
         regra_id: regraId,
-        ativar: ativar ? 1 : 0
-      })
+        ativar: ativar ? 1 : 0,
+      }),
     });
     return await response.json();
   } catch (error) {
@@ -99,61 +122,61 @@ export async function alternarStatusRegra(alojamentoId, regraId, ativar) {
 
 // ==================== COMPONENTE PRINCIPAL ====================
 
-const Regras = ({ 
-  alojamentoId, 
-  onChange, 
-  readOnly = false, 
-  initialRegras = [], 
-  initialRegrasAdicionais = '' 
+const Regras = ({
+  alojamentoId,
+  onChange,
+  readOnly = false,
+  initialRegras = [],
+  initialRegrasAdicionais = '',
 }) => {
   const [categoriaAtiva, setCategoriaAtiva] = useState('todas');
-  const [busca, setBusca] = useState('');
-  const [regras, setRegras] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [busca, setBusca]                   = useState('');
+  const [regras, setRegras]                 = useState([]);
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [regrasAdicionais, setRegrasAdicionais] = useState(initialRegrasAdicionais || '');
-  const [isSaving, setIsSaving] = useState(false);
-  const [togglingId, setTogglingId] = useState(null);
-  
-  const isInitialMount = useRef(true);
-  const prevAlojamentoId = useRef(alojamentoId);
-  const notifyingParent = useRef(false);
+  const [isSaving, setIsSaving]             = useState(false);
+  const [togglingId, setTogglingId]         = useState(null);
+
+  const isInitialMount    = useRef(true);
+  const prevAlojamentoId  = useRef(alojamentoId);
+  const notifyingParent   = useRef(false);
+  const prevRegrasRef     = useRef(regras);
+  const prevAdicionaisRef = useRef(regrasAdicionais);
 
   const notificarPai = useCallback((novasRegras, novoTextoAdicional) => {
     if (!onChange) return;
     if (notifyingParent.current) return;
-    
+
     const selecionadas = novasRegras.filter(r => r.selecionada === true);
-    const regrasIds = selecionadas.map(r => r.id);
-    
+    const regrasIds    = selecionadas.map(r => r.id);
+
     console.log('📤 Notificando pai - Regras IDs:', regrasIds);
     console.log('📤 Notificando pai - Regras adicionais:', novoTextoAdicional);
-    
+
     notifyingParent.current = true;
-    
     onChange({
       regras: selecionadas,
       regras_ids: regrasIds,
-      regrasAdicionais: novoTextoAdicional
+      regrasAdicionais: novoTextoAdicional,
     });
-    
     setTimeout(() => { notifyingParent.current = false; }, 100);
   }, [onChange]);
 
-  // Carregar regras (igual ao padrão das comodidades)
+  // ==================== CARREGAR REGRAS ====================
   const carregarRegras = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('🔄 Carregando regras - alojamentoId:', alojamentoId);
-      
+
       let regrasLista = [];
       let regrasAdicionaisTexto = '';
-      
+
       if (alojamentoId) {
-        // Modo EDIÇÃO - usar buscarRegrasDoAlojamento (GET com id)
+        // Modo EDIÇÃO
         const resultado = await buscarRegrasDoAlojamento(alojamentoId);
         if (resultado.success && resultado.data) {
           regrasLista = resultado.data.regras || [];
@@ -161,37 +184,37 @@ const Regras = ({
           console.log('✏️ Modo EDIÇÃO - regras carregadas:', regrasLista.length);
         }
       } else {
-        // Modo REGISTO - usar buscarRegrasDisponiveis (GET sem id)
+        // Modo REGISTO
         const regrasDisponiveis = await buscarRegrasDisponiveis();
-        
-        const savedRegrasIds = localStorage.getItem('propertyRegrasSelecionadas');
+
+        const savedRegrasIds       = localStorage.getItem('propertyRegrasSelecionadas');
         const savedRegrasAdicionais = localStorage.getItem('propertyRegrasAdicionais');
-        
+
         if (savedRegrasIds) {
-          const savedIds = JSON.parse(savedRegrasIds);
-          regrasLista = (regrasDisponiveis || []).map(r => ({ 
-            ...r, 
-            selecionada: savedIds.includes(r.id) 
+          let savedIds = [];
+          try { savedIds = JSON.parse(savedRegrasIds); } catch { savedIds = []; }
+          regrasLista = (regrasDisponiveis || []).map(r => ({
+            ...r,
+            selecionada: Array.isArray(savedIds) && savedIds.includes(r.id),
           }));
           console.log('🆕 Modo REGISTO - regras do localStorage IDs:', savedIds);
         } else {
           regrasLista = (regrasDisponiveis || []).map(r => ({ ...r, selecionada: false }));
         }
-        
+
         if (savedRegrasAdicionais) {
           regrasAdicionaisTexto = savedRegrasAdicionais;
         }
-        
+
         console.log('🆕 Modo REGISTO - total regras carregadas:', regrasLista.length);
       }
-      
+
       setRegras(regrasLista);
       setRegrasAdicionais(regrasAdicionaisTexto);
-      
+
       setTimeout(() => {
         notificarPai(regrasLista, regrasAdicionaisTexto);
       }, 50);
-      
     } catch (err) {
       console.error('❌ Erro:', err);
       setError(err.message);
@@ -210,57 +233,50 @@ const Regras = ({
     }
   }, [alojamentoId, carregarRegras]);
 
-  const prevRegrasRef = useRef(regras);
-  const prevRegrasAdicionaisRef = useRef(regrasAdicionais);
-  
+  // ==================== NOTIFICAR PAI QUANDO MUDA ====================
   useEffect(() => {
     if (isInitialMount.current) return;
-    
-    const regrasChanged = JSON.stringify(prevRegrasRef.current) !== JSON.stringify(regras);
-    const adicionaisChanged = prevRegrasAdicionaisRef.current !== regrasAdicionais;
-    
+
+    const regrasChanged    = JSON.stringify(prevRegrasRef.current) !== JSON.stringify(regras);
+    const adicionaisChanged = prevAdicionaisRef.current !== regrasAdicionais;
+
     if ((regrasChanged || adicionaisChanged) && !loading) {
       console.log('🔄 Mudança nas regras detectada, notificando pai...');
       notificarPai(regras, regrasAdicionais);
     }
-    
-    prevRegrasRef.current = regras;
-    prevRegrasAdicionaisRef.current = regrasAdicionais;
+
+    prevRegrasRef.current    = regras;
+    prevAdicionaisRef.current = regrasAdicionais;
   }, [regras, regrasAdicionais, loading, notificarPai]);
 
-  // Alternar regra
+  // ==================== TOGGLE REGRA ====================
   const toggleRegra = async (regraId, currentStatus) => {
     if (readOnly) return;
-    
+
     const novoStatus = !currentStatus;
-    
     console.log(`🔄 Toggle regra ${regraId}: ${currentStatus} -> ${novoStatus}`);
-    
-    // Atualizar UI imediatamente
+
     setRegras(prev => {
-      const novas = prev.map(r => 
+      const novas = prev.map(r =>
         r.id === regraId ? { ...r, selecionada: novoStatus } : r
       );
-      
-      // Modo registo: salvar no localStorage
+
       if (!alojamentoId) {
         const selecionadasIds = novas.filter(r => r.selecionada).map(r => r.id);
         localStorage.setItem('propertyRegrasSelecionadas', JSON.stringify(selecionadasIds));
         localStorage.setItem('propertyRegrasAdicionais', regrasAdicionais);
         console.log('💾 Modo REGISTO - Regras salvas no localStorage:', selecionadasIds);
       }
-      
+
       return novas;
     });
-    
-    // Modo edição: persistir no backend
+
     if (alojamentoId) {
       setTogglingId(regraId);
       setError(null);
-      
+
       try {
         const result = await alternarStatusRegra(alojamentoId, regraId, novoStatus);
-        
         if (result.success) {
           setSuccessMessage(novoStatus ? 'Regra ativada!' : 'Regra desativada!');
           setTimeout(() => setSuccessMessage(null), 2000);
@@ -278,10 +294,11 @@ const Regras = ({
     }
   };
 
+  // ==================== REGRAS ADICIONAIS ====================
   const handleRegrasAdicionaisChange = (e) => {
     const novoTexto = e.target.value;
     setRegrasAdicionais(novoTexto);
-    
+
     if (!alojamentoId) {
       localStorage.setItem('propertyRegrasAdicionais', novoTexto);
       console.log('💾 Regras adicionais salvas no localStorage:', novoTexto);
@@ -302,7 +319,7 @@ const Regras = ({
     try {
       const regrasIds = regras.filter(r => r.selecionada).map(r => r.id);
       const result = await salvarRegras(alojamentoId, regrasIds, regrasAdicionais);
-      
+
       if (result.success) {
         setSuccessMessage('Regras adicionais salvas!');
         setTimeout(() => setSuccessMessage(null), 3000);
@@ -318,16 +335,29 @@ const Regras = ({
     }
   };
 
-  const categorias = ['todas', ...new Set(regras.map(r => r.categoria || 'Gerais').filter(c => c && c !== ''))];
-  
+  // ==================== CATEGORIAS + FILTRO ====================
+  const categorias = [
+    'todas',
+    ...new Set(
+      regras
+        .map(r => r.categoria || 'Gerais')
+        .filter(c => c && String(c).trim() !== '')
+    ),
+  ];
+
   const regrasFiltradas = regras.filter(regra => {
-    if (categoriaAtiva !== 'todas' && (regra.categoria || 'Gerais') !== categoriaAtiva) return false;
-    if (busca && !regra.titulo?.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (categoriaAtiva !== 'todas' && (regra.categoria || 'Gerais') !== categoriaAtiva) {
+      return false;
+    }
+    if (busca && !String(regra.titulo || '').toLowerCase().includes(busca.toLowerCase())) {
+      return false;
+    }
     return true;
   });
 
   const totalSelecionadas = regras.filter(r => r.selecionada === true).length;
 
+  // ==================== RENDER: LOADING ====================
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -337,14 +367,15 @@ const Regras = ({
     );
   }
 
+  // ==================== RENDER: ERRO ====================
   if (error) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <XCircle className="mx-auto text-red-500 mb-3" size={48} />
         <p className="text-red-700 font-medium">Erro</p>
         <p className="text-red-600 text-sm mt-1">{error}</p>
-        <button 
-          onClick={() => carregarRegras()} 
+        <button
+          onClick={() => carregarRegras()}
           className="mt-4 px-4 py-2 bg-[#006ce4] text-white rounded-lg hover:bg-[#0053b3] transition-colors flex items-center gap-2 mx-auto"
         >
           <RefreshCw size={16} /> Tentar novamente
@@ -353,30 +384,35 @@ const Regras = ({
     );
   }
 
+  // ==================== RENDER: SEM REGRAS ====================
   if (regras.length === 0) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
         <Shield className="mx-auto text-yellow-500 mb-3" size={48} />
         <p className="text-yellow-700">⚠️ Nenhuma regra encontrada</p>
-        <button onClick={carregarRegras} className="mt-4 px-4 py-2 bg-[#006ce4] text-white rounded-lg">
+        <button
+          onClick={carregarRegras}
+          className="mt-4 px-4 py-2 bg-[#006ce4] text-white rounded-lg"
+        >
           Recarregar
         </button>
       </div>
     );
   }
 
+  // ==================== RENDER: PRINCIPAL ====================
   return (
     <div className="space-y-6">
       <div className="text-xs text-gray-400 text-right">
         {alojamentoId ? (
           <span className="flex items-center justify-end gap-2">
             <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            ✏️ Modo edição - {totalSelecionadas} regra(s) ativa(s)
+            ✏️ Modo edição — {totalSelecionadas} regra(s) ativa(s)
           </span>
         ) : (
           <span className="flex items-center justify-end gap-2">
             <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-            📝 Modo registo - {totalSelecionadas} regra(s) selecionada(s)
+            📝 Modo registo — {totalSelecionadas} regra(s) selecionada(s)
           </span>
         )}
       </div>
@@ -388,6 +424,7 @@ const Regras = ({
         </div>
       )}
 
+      {/* Pesquisa */}
       <div className="relative">
         <input
           type="text"
@@ -397,9 +434,10 @@ const Regras = ({
           className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#006ce4] focus:border-transparent"
           disabled={readOnly}
         />
-        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
       </div>
 
+      {/* Categorias */}
       {categorias.length > 1 && (
         <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
           {categorias.map(cat => (
@@ -408,8 +446,8 @@ const Regras = ({
               type="button"
               onClick={() => setCategoriaAtiva(cat)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                categoriaAtiva === cat 
-                  ? 'bg-[#006ce4] text-white' 
+                categoriaAtiva === cat
+                  ? 'bg-[#006ce4] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -419,17 +457,18 @@ const Regras = ({
         </div>
       )}
 
+      {/* Lista de regras */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {regrasFiltradas.length === 0 && (
           <div className="col-span-full text-center py-8 text-gray-400">
             {busca ? 'Nenhuma regra encontrada' : 'Nenhuma regra disponível'}
           </div>
         )}
-        
+
         {regrasFiltradas.map(regra => {
-          const isAtiva = regra.selecionada === true;
+          const isAtiva   = regra.selecionada === true;
           const isLoading = togglingId === regra.id;
-          
+
           return (
             <button
               key={regra.id}
@@ -443,32 +482,36 @@ const Regras = ({
               } ${(readOnly || regra.obrigatorio) ? 'cursor-default' : 'cursor-pointer'}
               ${isLoading ? 'opacity-70' : 'opacity-100'}`}
             >
-              <div className={`transition-transform duration-200 ${isAtiva ? 'scale-110' : 'scale-100'} ${isAtiva ? 'text-[#006ce4]' : 'text-gray-500'}`}>
-                {isLoading ? (
-                  <Loader size={20} className="animate-spin" />
-                ) : (
-                  getIcone(regra.icone)
-                )}
+              <div
+                className={`transition-transform duration-200 ${
+                  isAtiva ? 'scale-110 text-[#006ce4]' : 'scale-100 text-gray-500'
+                }`}
+              >
+                {isLoading ? <Loader size={20} className="animate-spin" /> : getIcone(regra.icone)}
               </div>
-              
+
               <div className="flex-1 text-left">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-sm font-medium ${isAtiva ? 'text-[#006ce4]' : 'text-gray-700'}`}>
                     {regra.titulo}
                   </span>
                   {regra.obrigatorio && (
-                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Obrigatório</span>
+                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                      Obrigatório
+                    </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">{regra.descricao}</p>
+                {regra.descricao && (
+                  <p className="text-xs text-gray-500 mt-0.5">{regra.descricao}</p>
+                )}
               </div>
-              
+
               {!regra.obrigatorio && (
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                  isAtiva 
-                    ? 'bg-[#006ce4] border-[#006ce4]' 
-                    : 'border-gray-300 bg-white'
-                }`}>
+                <div
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                    isAtiva ? 'bg-[#006ce4] border-[#006ce4]' : 'border-gray-300 bg-white'
+                  }`}
+                >
                   {isAtiva && <Check size={12} className="text-white" />}
                 </div>
               )}
@@ -477,6 +520,7 @@ const Regras = ({
         })}
       </div>
 
+      {/* Regras adicionais */}
       {!readOnly && (
         <div className="mt-6 border-t pt-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -489,7 +533,7 @@ const Regras = ({
             placeholder="Adicione regras específicas da sua propriedade (ex: Horário de silêncio, Proibido fumar, etc.)"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#006ce4] focus:border-transparent"
           />
-          
+
           <div className="flex justify-end mt-3">
             <button
               onClick={handleSalvarRegrasAdicionais}
@@ -512,6 +556,7 @@ const Regras = ({
         </div>
       )}
 
+      {/* Resumo das selecionadas */}
       {totalSelecionadas > 0 && (
         <div className="bg-gray-50 rounded-lg p-4 mt-4 border border-gray-200">
           <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -520,7 +565,10 @@ const Regras = ({
           </h4>
           <div className="flex flex-wrap gap-2">
             {regras.filter(r => r.selecionada).map(regra => (
-              <span key={regra.id} className="px-3 py-1 bg-white border border-[#006ce4] rounded-full text-sm flex items-center gap-1 text-[#006ce4]">
+              <span
+                key={regra.id}
+                className="px-3 py-1 bg-white border border-[#006ce4] rounded-full text-sm flex items-center gap-1 text-[#006ce4]"
+              >
                 {getIcone(regra.icone)}
                 {regra.titulo}
               </span>
@@ -529,7 +577,7 @@ const Regras = ({
           {regrasAdicionais && (
             <div className="mt-3 pt-2 border-t border-gray-200">
               <p className="text-xs text-gray-500">Regras adicionais:</p>
-              <p className="text-sm text-gray-700 mt-1">{regrasAdicionais}</p>
+              <p className="text-sm text-gray-700 mt-1 whitespace-pre-line">{regrasAdicionais}</p>
             </div>
           )}
         </div>
@@ -547,13 +595,17 @@ const Regras = ({
   );
 };
 
-export const RegrasResumo = ({ regras, regrasAdicionais, className = "" }) => {
-  const regrasAtivas = (regras || []).filter(r => r && (r.selecionada === true || r.id));
-  
+// ==================== RESUMO (usado noutros ecrãs) ====================
+export const RegrasResumo = ({ regras, regrasAdicionais, className = '' }) => {
+  const regrasAtivas = (regras || [])
+    .map(normalizarRegra)
+    .filter(regraValida)
+    .filter(r => r && (r.selecionada === true || r.id));
+
   if (regrasAtivas.length === 0 && !regrasAdicionais) {
     return <p className="text-gray-400 text-sm">Nenhuma regra definida</p>;
   }
-  
+
   return (
     <div className={`space-y-3 ${className}`}>
       {regrasAtivas.map(regra => (
@@ -561,11 +613,13 @@ export const RegrasResumo = ({ regras, regrasAdicionais, className = "" }) => {
           <div className="text-gray-500 mt-0.5">{getIcone(regra.icone)}</div>
           <div>
             <p className="font-medium text-gray-800 text-sm">{regra.titulo}</p>
-            <p className="text-xs text-gray-500">{regra.descricao}</p>
+            {regra.descricao && (
+              <p className="text-xs text-gray-500">{regra.descricao}</p>
+            )}
           </div>
         </div>
       ))}
-      
+
       {regrasAdicionais && (
         <div className="flex items-start gap-3">
           <div className="text-gray-500 mt-0.5"><AlertCircle size={16} /></div>

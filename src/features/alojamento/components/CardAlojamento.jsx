@@ -1,3 +1,4 @@
+// src/features/alojamento/components/CardAlojamento.jsx
 import React, { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MapPin, Star, ArrowRight } from 'lucide-react';
@@ -15,7 +16,10 @@ const CardAlojamento = ({
   localizacao,
   descricao,
   preco_noite,
+  preco_mostrar,
+  preco_rotulo,
   tipo,
+  tipo_propriedade,
   estrelas,
   comodidades,
   imagens_extra,
@@ -41,7 +45,17 @@ const CardAlojamento = ({
     tipo: 'alojamento'
   };
 
-  const precoFormatado = Number(preco_noite).toLocaleString('pt-PT');
+  // 🔑 Tipo a mostrar: prioriza tipo_propriedade sobre tipo (enum antigo)
+  const tipoFinal =
+    (typeof tipo_propriedade === 'string' && tipo_propriedade.trim()) ||
+    (typeof tipo === 'string' && tipo.trim()) ||
+    t('alojamento');
+
+  // 🔑 Preço a mostrar: usa preco_mostrar (calculado pela API) com fallback em preco_noite
+  const precoFinal = Number(preco_mostrar ?? preco_noite ?? 0);
+  const precoFormatado = precoFinal.toLocaleString('pt-PT');
+  const mostrarAPartirDe = preco_rotulo === 'a_partir_de';
+
   const estrelasFormatadas = Number(estrelas || 4.8).toFixed(1);
 
   return (
@@ -69,7 +83,7 @@ const CardAlojamento = ({
         />
 
         <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-md z-10">
-          {tipo || t('alojamento')}
+          {tipoFinal}
         </div>
 
         <BotaoFavorito
@@ -96,7 +110,7 @@ const CardAlojamento = ({
 
           {isList && (
             <p className="text-gray-400 text-sm font-medium mb-4 line-clamp-2 leading-relaxed">
-              {descricao || t('descricao_padrao_alojamento', { tipo: tipo || t('alojamento'), localizacao })}
+              {descricao || t('descricao_padrao_alojamento', { tipo: tipoFinal, localizacao })}
             </p>
           )}
 
@@ -128,12 +142,19 @@ const CardAlojamento = ({
                 ({total_avaliacoes || 0})
               </span>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className={`${isList ? 'text-2xl' : 'text-xl'} font-black text-[#1a2b6d]`}>
-                {precoFormatado}
-              </span>
-              <span className="text-[10px] font-black text-gray-500 uppercase">{t('cve')}</span>
-              <span className="text-xs font-semibold text-gray-400">{t('por_noite_curto')}</span>
+            <div className="flex flex-col">
+              {mostrarAPartirDe && (
+                <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">
+                  {t('a_partir_de') || 'A partir de'}
+                </span>
+              )}
+              <div className="flex items-baseline gap-1">
+                <span className={`${isList ? 'text-2xl' : 'text-xl'} font-black text-[#1a2b6d]`}>
+                  {precoFormatado}
+                </span>
+                <span className="text-[10px] font-black text-gray-500 uppercase">{t('cve')}</span>
+                <span className="text-xs font-semibold text-gray-400">{t('por_noite_curto')}</span>
+              </div>
             </div>
           </div>
 

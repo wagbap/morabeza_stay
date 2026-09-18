@@ -23,10 +23,8 @@ const Home = ({ alojamentos, carros, experiencias, loading }) => {
 
       <main className="max-w-7xl mx-auto py-20 px-6 text-left">
         <div className="flex flex-col mb-12">
-          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
-            {t('menu_alojamentos')}
-          </h2>
-          <div className="h-1.5 w-20 bg-blue-600 mt-2"></div>
+        
+   
         </div>
 
         <TabsComponent 
