@@ -5,9 +5,9 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { 
-  Users, Gauge, Fuel, MapPin, Star, ChevronRight, ChevronLeft, 
-  Camera, CheckCircle, ExternalLink, ChevronDown, 
+import {
+  Users, Gauge, Fuel, MapPin, Star, ChevronRight, ChevronLeft,
+  Camera, CheckCircle, ExternalLink, ChevronDown,
   X, Loader2, Calendar, Paintbrush, Info, CalendarDays,
   ShieldCheck, Infinity, ShieldAlert, Key, Maximize2, Navigation
 } from 'lucide-react';
@@ -17,31 +17,94 @@ import useCarroTracking from "../hooks/useCarroTracking";
 import BotaoDenuncia from '../../../components/BotaoDenuncia';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const API_URL = 'https://welovepalop.com';
+
+// ---------------------------------------------------------------
+// Helper: normaliza qualquer entrada para URL completa
+// ---------------------------------------------------------------
+const normalizarUrlImagem = (item) => {
+  if (!item) return null;
+
+  // Se for string, é o caminho direto
+  let raw = typeof item === 'string'
+    ? item
+    : (item.caminho_url || item.url || item.path || null);
+
+  if (!raw) return null;
+
+  // Data URL ou URL absoluta → devolve como está
+  if (raw.startsWith('http') || raw.startsWith('data:')) return raw;
+
+  // Caminho relativo → prefixa com API_URL
+  // Garante barra inicial
+  if (!raw.startsWith('/')) raw = '/' + raw;
+  return `${API_URL}${raw}`;
+};
+
+// ---------------------------------------------------------------
+// Extrai lista de imagens do payload do backend
+// ---------------------------------------------------------------
+const extrairImagens = (data) => {
+  // Preferir array `imagens`
+  if (Array.isArray(data?.imagens) && data.imagens.length > 0) {
+    return data.imagens
+      .slice()
+      .sort((a, b) => {
+        // Principal primeiro, depois por ordem
+        if (a.principal && !b.principal) return -1;
+        if (!a.principal && b.principal) return 1;
+        return (a.ordem || 0) - (b.ordem || 0);
+      })
+      .map(normalizarUrlImagem)
+      .filter(Boolean);
+  }
+
+  // Fallback: campo único `imagem_url`
+  if (data?.imagem_url) {
+    return [normalizarUrlImagem(data.imagem_url)].filter(Boolean);
+  }
+
+  // Fallback: imagens_extra (string JSON ou array)
+  if (data?.imagens_extra) {
+    try {
+      const extra = typeof data.imagens_extra === 'string'
+        ? JSON.parse(data.imagens_extra)
+        : data.imagens_extra;
+      if (Array.isArray(extra)) {
+        return extra.map(normalizarUrlImagem).filter(Boolean);
+      }
+    } catch {
+      // ignora
+    }
+  }
+
+  return [];
+};
 
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
   const { t } = useTranslation();
-  
+
   const handleModalClick = (e) => {
     e.stopPropagation();
   };
 
   return (
     <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center" onClick={onClose}>
-      <button 
+      <button
         onClick={onClose}
         className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
         aria-label={t('fechar') || "Fechar"}
       >
         <X size={24} />
       </button>
-      <button 
+      <button
         onClick={(e) => { e.stopPropagation(); onPrev(); }}
         className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
         aria-label={t('imagem_anterior') || "Imagem anterior"}
       >
         <ChevronLeft size={24} />
       </button>
-      <button 
+      <button
         onClick={(e) => { e.stopPropagation(); onNext(); }}
         className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
         aria-label={t('proxima_imagem') || "Próxima imagem"}
@@ -51,11 +114,14 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">
         {currentIndex + 1} / {images.length}
       </div>
-      <img 
-        src={images[currentIndex]} 
+      <img
+        src={images[currentIndex]}
         alt={`Imagem ${currentIndex + 1}`}
         className="max-w-[90vw] max-h-[90vh] object-contain cursor-pointer"
         onClick={handleModalClick}
+        onError={(e) => {
+          e.target.src = 'https://via.placeholder.com/1200x800?text=Imagem+indispon%C3%ADvel';
+        }}
       />
     </div>
   );
@@ -63,7 +129,7 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
 
 const TabsNavegacaoCarros = ({ activeTab = 0, onTabChange }) => {
   const { t } = useTranslation();
-  
+
   const tabs = [
     { id: 0, label: t('visao_geral') || 'Visão Geral' },
     { id: 1, label: t('especificacoes') || 'Especificações' }
@@ -92,7 +158,7 @@ const TabsNavegacaoCarros = ({ activeTab = 0, onTabChange }) => {
 
 const EspecificacoesBar = ({ caracteristicas }) => {
   const { t } = useTranslation();
-  
+
   const specs = [
     { icon: Gauge, label: caracteristicas?.transmissao || t('manual') || 'Manual', sub: t('transmissao') || 'Transmissão' },
     { icon: Fuel, label: caracteristicas?.combustivel || t('gasolina') || 'Gasolina', sub: t('combustivel') || 'Combustível' },
@@ -121,7 +187,7 @@ const EspecificacoesBar = ({ caracteristicas }) => {
 
 const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
   const { t } = useTranslation();
-  
+
   const dadosExibicao = inclusoes && inclusoes.length > 0 ? inclusoes : [
     { titulo: t('cancelamento') || 'Cancelamento', valor: t('gratuito') || 'Gratuito', icone: 'CheckCircle', cor_classe: 'text-green-600' },
     { titulo: t('seguro_basico') || 'Seguro básico', valor: t('incluido') || 'Incluído', icone: 'ShieldCheck', cor_classe: 'text-green-600' },
@@ -165,6 +231,8 @@ const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   const { t } = useTranslation();
   const placeholder = "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=600&h=400&fit=crop";
+
+  // images já vem como array de URLs completas
   const img1 = images[0] || placeholder;
   const img2 = images[1] || placeholder;
   const img3 = images[2] || placeholder;
@@ -172,55 +240,67 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
 
   return (
     <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
-      <div 
+      <div
         className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm"
         onClick={() => { onImageChange(0); onOpenModal(); }}
       >
-        <img 
-          src={img1} 
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
-          alt={`${titulo} - Principal`} 
+        <img
+          src={img1}
+          className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]"
+          alt={`${titulo} - Principal`}
+          onError={(e) => {
+            e.target.src = 'https://via.placeholder.com/1200x800?text=Imagem+indispon%C3%ADvel';
+          }}
         />
         <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none tracking-wide font-sans">
-          1 / {images.length || 10}
+          1 / {images.length || 1}
         </div>
       </div>
 
       <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
-        <div 
+        <div
           className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
           onClick={() => { onImageChange(1); onOpenModal(); }}
         >
-          <img 
-            src={img2} 
-            className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
-            alt={`${titulo} - Detalhe`} 
+          <img
+            src={img2}
+            className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]"
+            alt={`${titulo} - Detalhe`}
+            onError={(e) => {
+              e.target.src = 'https://via.placeholder.com/800x600?text=Imagem+indispon%C3%ADvel';
+            }}
           />
         </div>
 
         <div className="h-1/2 flex gap-2.5">
-          <div 
+          <div
             className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
             onClick={() => { onImageChange(2); onOpenModal(); }}
           >
-            <img 
-              src={img3} 
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
-              alt={`${titulo} - Interior`} 
+            <img
+              src={img3}
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]"
+              alt={`${titulo} - Interior`}
+              onError={(e) => {
+                e.target.src = 'https://via.placeholder.com/800x600?text=Imagem+indispon%C3%ADvel';
+              }}
             />
           </div>
-          
-          <div 
+
+          <div
             className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
             onClick={() => { onImageChange(3); onOpenModal(); }}
           >
-            <img 
-              src={img4} 
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" 
-              alt={`${titulo} - Traseira`} 
+            <img
+              src={img4}
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]"
+              alt={`${titulo} - Traseira`}
+              onError={(e) => {
+                e.target.src = 'https://via.placeholder.com/800x600?text=Imagem+indispon%C3%ADvel';
+              }}
             />
 
-            <div 
+            <div
               onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
               className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
             >
@@ -240,12 +320,12 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
   const map = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isMapaInterativoOpen, setIsMapaInterativoOpen] = useState(false);
-  
+
   const temCoordenadas = latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude));
-  
+
   const textoLocalizacao = `${ilha || t('cabo_verde') || 'Cabo Verde'}, ${localizacao || (t('localizacao_nao_informada') || 'Localização não informada')}`;
   const cidadeNome = localizacao || ilha || (t('cabo_verde') || 'Cabo Verde');
-  
+
   const abrirPaginaMapa = () => {
     if (onMapClick) onMapClick();
     if (carroId) {
@@ -254,16 +334,16 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
       navigate('/mapa-carros');
     }
   };
-  
+
   const abrirMapaInterativo = () => {
     if (onMapClick) onMapClick();
     setIsMapaInterativoOpen(true);
   };
-  
+
   const getPontosProximos = () => {
     const localLower = (localizacao || '').toLowerCase();
     const ilhaLower = (ilha || '').toLowerCase();
-    
+
     const pontosMap = {
       'praia': [t('praia_santa_maria') || 'Praia de Santa Maria', t('mirage_beach') || 'Mirage Beach Club', t('aeroporto') || 'Aeroporto Internacional'],
       'santa maria': [t('praia_santa_maria') || 'Praia de Santa Maria', t('mirage_beach') || 'Mirage Beach Club', t('ponta_preta') || 'Ponta Preta'],
@@ -272,13 +352,13 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
       'tarrafal': [t('praia_tarrafal') || 'Praia de Tarrafal', t('cha_tanque') || 'Chã de Tanque', t('monte_graciosa') || 'Monte Graciosa'],
       'sal rei': [t('praia_sal_rei') || 'Praia de Sal Rei', t('deserto_viana') || 'Deserto de Viana', t('morro_areia') || 'Morro de Areia'],
     };
-    
+
     for (const [key, pontos] of Object.entries(pontosMap)) {
       if (localLower.includes(key)) {
         return pontos;
       }
     }
-    
+
     const pontosIlha = {
       'sal': [t('praia_santa_maria') || 'Praia de Santa Maria', t('salinas') || 'Salinas', t('palmeira') || 'Palmeira'],
       'santiago': [t('praia_tarrafal') || 'Praia de Tarrafal', t('cidade_velha') || 'Cidade Velha', t('serra_malagueta') || 'Serra Malagueta'],
@@ -287,28 +367,28 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
       'fogo': [t('cha_caldeiras') || 'Chã das Caldeiras', t('mosteiros') || 'Mosteiros', t('sao_filipe') || 'São Filipe'],
       'boa vista': [t('praia_santa_monica') || 'Praia de Santa Mónica', t('sal_rei') || 'Sal Rei', t('deserto_viana') || 'Deserto de Viana'],
     };
-    
+
     if (ilhaLower && pontosIlha[ilhaLower]) {
       return pontosIlha[ilhaLower];
     }
-    
+
     return [t('centro_cidade') || 'Centro da cidade', t('zona_hoteleira') || 'Zona Hoteleira', t('posto_combustivel') || 'Posto de combustível'];
   };
-  
+
   const pontosProximos = getPontosProximos();
-  
+
   useEffect(() => {
     if (!temCoordenadas || !mapContainer.current || map.current) return;
     if (!MAPBOX_TOKEN) {
       console.error('Mapbox token não configurado');
       return;
     }
-    
+
     mapboxgl.accessToken = MAPBOX_TOKEN;
-    
+
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
-    
+
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
@@ -317,10 +397,10 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
       interactive: false,
       attributionControl: false
     });
-    
+
     map.current.on('load', () => {
       setMapLoaded(true);
-      
+
       new mapboxgl.Marker({
         color: '#1e3a8a',
         scale: 1.2
@@ -328,7 +408,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
         .setLngLat([lng, lat])
         .addTo(map.current);
     });
-    
+
     return () => {
       if (map.current) {
         map.current.remove();
@@ -336,7 +416,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
       }
     };
   }, [temCoordenadas, latitude, longitude]);
-  
+
   return (
     <>
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
@@ -346,13 +426,13 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
             <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
           </div>
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={abrirMapaInterativo}
               className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
             >
               {t('mapa_ilhas') || 'Mapa Ilhas'} <ExternalLink size={10} />
             </button>
-            <button 
+            <button
               onClick={abrirPaginaMapa}
               className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
             >
@@ -360,24 +440,24 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
             </button>
           </div>
         </div>
-        
+
         {temCoordenadas && MAPBOX_TOKEN ? (
           <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-            <div 
-              ref={mapContainer} 
+            <div
+              ref={mapContainer}
               className="relative w-full h-[160px] bg-slate-100"
               style={{ cursor: 'pointer' }}
               onClick={abrirPaginaMapa}
             />
-            
+
             {!mapLoaded && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
                 <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
-            
+
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <button 
+              <button
                 onClick={abrirPaginaMapa}
                 className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
               >
@@ -385,15 +465,15 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
                 {t('ver_localizacao') || 'Ver localização'}
               </button>
             </div>
-            
+
             <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md pointer-events-none">
               <div className="flex items-center gap-1">
                 <MapPin size={10} className="text-red-500" />
                 <span className="text-[9px] font-bold text-slate-700">{cidadeNome}</span>
               </div>
             </div>
-            
-            <button 
+
+            <button
               onClick={abrirPaginaMapa}
               className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
               title={t('expandir_mapa') || "Expandir mapa"}
@@ -402,13 +482,13 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
             </button>
           </div>
         ) : (
-          <div 
+          <div
             onClick={abrirPaginaMapa}
             className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100 cursor-pointer group"
           >
-            <img 
-              src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop" 
-              alt="Mapa ilustrativo" 
+            <img
+              src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop"
+              alt="Mapa ilustrativo"
               className="w-full h-full object-cover opacity-80 transition-transform duration-300 group-hover:scale-105"
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-300">
@@ -421,7 +501,7 @@ const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onM
             </div>
           </div>
         )}
-        
+
         {pontosProximos && pontosProximos.length > 0 && (
           <div className="mt-4 pt-3 border-t border-slate-100">
             <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 {t('proximo_de') || 'Próximo de'}:</p>
@@ -455,7 +535,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
     }
   };
 
-  const dias = startDate && endDate 
+  const dias = startDate && endDate
     ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))
     : 1;
 
@@ -468,7 +548,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
       alert(t('selecione_datas_carro') || "Por favor, selecione as datas de Levantamento e Devolução");
       return;
     }
-    
+
     if (onContinueToCheckout) {
       onContinueToCheckout({
         startDate,
@@ -491,7 +571,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
         <div className="flex justify-between items-end mb-5">
           <div className="text-2xl font-black text-slate-900">
-            {precoDia.toLocaleString()} CVE 
+            {precoDia.toLocaleString()} CVE
             <span className="text-xs font-medium text-slate-400"> / {t('dia') || 'dia'}</span>
           </div>
           <div className="flex items-center gap-1 text-xs font-bold text-slate-900">
@@ -500,7 +580,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
         </div>
 
         <div className="border border-slate-300 rounded-xl mb-4 overflow-visible relative">
-          <div 
+          <div
             className="flex cursor-pointer hover:bg-slate-50 transition-all rounded-xl p-2.5"
             onClick={() => setShowCalendar(!showCalendar)}
           >
@@ -557,12 +637,12 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
             <span>{t('preco_por_dia') || 'Preço por dia'} ({dias} {dias === 1 ? (t('dia') || 'dia') : (t('dias') || 'dias')})</span>
             <span className="font-bold text-slate-900">{subtotal.toLocaleString()} CVE</span>
           </div>
-          
+
           <div className="flex justify-between">
             <span className="flex items-center gap-1">{t('taxa_servico') || 'Taxa de serviço Morabeza Stay'} (10%) <Info size={11} className="text-slate-400" /></span>
             <span className="font-bold text-slate-900">{taxaServico.toLocaleString()} CVE</span>
           </div>
-          
+
           <div className="flex justify-between pt-3 border-t border-slate-200 text-sm font-black text-slate-900">
             <span>{t('total_pago') || 'Total pago'}</span>
             <span className="text-blue-600 text-base font-black">
@@ -571,7 +651,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleContinue}
           disabled={!startDate || !endDate}
           className={`w-full font-black py-3 rounded-xl mb-4 mt-6 transition-all shadow-md text-xs uppercase tracking-wider ${
@@ -580,7 +660,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          {startDate && endDate 
+          {startDate && endDate
             ? `${t('reservar_por') || 'Reservar por'} ${dias} ${dias === 1 ? (t('dia') || 'dia') : (t('dias') || 'dias')}`
             : (t('selecione_datas_continuar') || 'Selecione as datas para continuar')}
         </button>
@@ -599,7 +679,7 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
 
 const TabContent = ({ activeTab, carro }) => {
   const { t } = useTranslation();
-  
+
   if (!carro) return null;
 
   switch(activeTab) {
@@ -609,8 +689,8 @@ const TabContent = ({ activeTab, carro }) => {
           <div>
             <h3 className="text-lg font-bold text-slate-900 mb-4">{t('sobre_veiculo') || 'Sobre este veículo'}</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
-              {carro.descricao || carro.descricao_curta || 
-                `${t('veiculo_disponivel') || 'Veículo'} ${carro.titulo} ${t('disponivel_aluguer') || 'disponível para aluguer em'} ${carro.localizacao}, ${carro.ilha}. 
+              {carro.descricao || carro.descricao_curta ||
+                `${t('veiculo_disponivel') || 'Veículo'} ${carro.titulo} ${t('disponivel_aluguer') || 'disponível para aluguer em'} ${carro.localizacao}, ${carro.ilha}.
                 ${t('perfeito_explorar') || 'Perfeito para explorar a ilha com conforto e segurança.'}`}
             </p>
           </div>
@@ -672,7 +752,7 @@ const TabContent = ({ activeTab, carro }) => {
           </div>
         </div>
       );
-    
+
     default:
       return null;
   }
@@ -691,9 +771,8 @@ export const CarrosDetalhes = () => {
   const [images, setImages] = useState([]);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
 
-  // Inicializar tracking
   const tracking = useCarroTracking(carro?.id, usuarioLogado?.id);
-  
+
   const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
   const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
 
@@ -721,26 +800,29 @@ export const CarrosDetalhes = () => {
       setError(null);
 
       try {
-        const response = await fetch(`https://welovepalop.com/api/get_carro_detalhes.php?slug=${slug}`);
-        
+        const response = await fetch(`${API_URL}/api/get_carro_detalhes.php?slug=${slug}`);
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (data.error) {
           throw new Error(data.error);
         }
-        
+
         if (data.success && data.data) {
           setCarro(data.data);
-          
-          if (data.data.imagens && data.data.imagens.length > 0) {
-            setImages(data.data.imagens);
-          } else if (data.data.imagem_url) {
-            setImages([data.data.imagem_url]);
+
+          // ✅ CORREÇÃO PRINCIPAL: extrair imagens corretamente do /uploads/carros/
+          const imagensExtraidas = extrairImagens(data.data);
+
+          if (imagensExtraidas.length > 0) {
+            setImages(imagensExtraidas);
+            console.log('🖼️ Imagens carregadas:', imagensExtraidas);
           } else {
+            // Fallback visual (nenhuma imagem no servidor)
             setImages([
               "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=1200&h=800&fit=crop",
               "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1200&h=800&fit=crop",
@@ -761,11 +843,10 @@ export const CarrosDetalhes = () => {
   }, [slug, t]);
 
   const handleContinueToCheckout = (reservaInfo) => {
-    // Registrar clique em reserva
     registrarCliqueReserva();
-    
+
     const userLogado = localStorage.getItem('user');
-    
+
     if (!userLogado) {
       alert(t('login_necessario') || "Por favor, faça login com o Google primeiro.");
       return;
@@ -836,8 +917,8 @@ export const CarrosDetalhes = () => {
           <div className="text-red-500 text-xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">{t('erro_carregar_titulo') || 'Erro ao carregar'}</h2>
           <p className="text-slate-600 mb-4">{error || (t('veiculo_nao_encontrado') || 'Veículo não encontrado')}</p>
-          <button 
-            onClick={() => navigate('/carros')} 
+          <button
+            onClick={() => navigate('/carros')}
             className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition"
           >
             {t('voltar_veiculos') || 'Voltar para veículos'}
@@ -854,7 +935,7 @@ export const CarrosDetalhes = () => {
       </Helmet>
 
       {isModalOpen && (
-        <ImageSliderModal 
+        <ImageSliderModal
           images={images}
           currentIndex={currentImageIndex}
           onClose={handleCloseModal}
@@ -874,32 +955,32 @@ export const CarrosDetalhes = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <ImageGallery 
+            <ImageGallery
               images={images}
               onImageChange={handleImageChange}
               onOpenModal={handleOpenModal}
               titulo={carro.titulo}
             />
-            
+
             <div className="mt-6 pt-6 border-t border-slate-100 text-left space-y-6">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 mb-4">{t('especificacoes_veiculo') || 'Especificações do veículo'}</h3>
                 <EspecificacoesBar caracteristicas={carro.caracteristicas} />
               </div>
-              
-              <InclusoesCarroBar 
-                inclusoes={carro.inclusoes} 
-                localizacao={carro.localizacao} 
+
+              <InclusoesCarroBar
+                inclusoes={carro.inclusoes}
+                localizacao={carro.localizacao}
               />
             </div>
           </div>
 
           <div className="lg:self-start">
             <div className="sticky top-24 z-30">
-              <SidebarReservaCarro 
-                precoDia={Number(carro.preco_dia)} 
-                estrelas={carro.estrelas} 
-                totalReviews={carro.total_avaliacoes} 
+              <SidebarReservaCarro
+                precoDia={Number(carro.preco_dia)}
+                estrelas={carro.estrelas}
+                totalReviews={carro.total_avaliacoes}
                 onContinueToCheckout={handleContinueToCheckout}
               />
             </div>
@@ -921,35 +1002,33 @@ export const CarrosDetalhes = () => {
                 <MapPin size={14} className="text-orange-500" /> {carro.ilha}, {carro.localizacao}
               </div>
               <div className="flex items-center gap-1">
-                <Star size={14} className="fill-orange-400 text-orange-400" /> 
-                <span className="text-slate-900 font-bold">{Number(carro.estrelas).toFixed(1)}</span> 
+                <Star size={14} className="fill-orange-400 text-orange-400" />
+                <span className="text-slate-900 font-bold">{Number(carro.estrelas).toFixed(1)}</span>
                 <span className="text-slate-400">({carro.total_avaliacoes || 0} {t('avaliacoes') || 'avaliações'})</span>
               </div>
             </div>
           </div>
-           <BotaoDenuncia 
+          <BotaoDenuncia
             tipo="carro"
             itemId={carro.id}
             itemTitulo={carro.titulo}
             onDenunciaEnviada={() => {
               console.log('Denúncia de carro enviada com sucesso');
-              // Opcional: mostrar toast de sucesso
             }}
           />
-  
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 mt-6 text-left">
         <TabsNavegacaoCarros activeTab={activeTab} onTabChange={setActiveTab} />
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <TabContent activeTab={activeTab} carro={carro} />
           </div>
-          
+
           <div className="space-y-4">
-            <MapLocationCarro 
+            <MapLocationCarro
               localizacao={carro.localizacao}
               ilha={carro.ilha}
               latitude={carro.latitude}
@@ -963,8 +1042,8 @@ export const CarrosDetalhes = () => {
 
       <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12">
         <div className="max-w-7xl mx-auto px-6">
-          <AvaliacoesSeccaoCarro 
-            carroId={carro.id} 
+          <AvaliacoesSeccaoCarro
+            carroId={carro.id}
             usuarioLogado={usuarioLogado}
             onOpenLoginModal={() => alert(t('login_para_avaliar') || "Por favor, faça login com o Google para avaliar.")}
           />

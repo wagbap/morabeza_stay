@@ -1,5 +1,5 @@
 // src/features/alojamento/components/InfoAlojamento.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import mapboxgl from 'mapbox-gl';
@@ -16,12 +16,15 @@ import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
 import useAlojamentoTracking from "../hooks/useAlojamentoTracking";
 import BotaoDenuncia from '../../../components/BotaoDenuncia';
 import CalendarioMorabeza from '../../../components/Calendario/CalendarioMorabeza';
+import { useToast } from "../../../Toast";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const API_BASE = 'https://welovepalop.com';
 
+// ============================================================
+// IMAGE SLIDER MODAL
+// ============================================================
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
-  const { t } = useTranslation();
   const handleModalClick = (e) => e.stopPropagation();
 
   return (
@@ -57,6 +60,9 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
   );
 };
 
+// ============================================================
+// TABS DE NAVEGAÇÃO
+// ============================================================
 const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
   const { t } = useTranslation();
   const tabs = [
@@ -85,15 +91,19 @@ const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
   );
 };
 
+// ============================================================
+// HOST INFO
+// ============================================================
 const HostInfo = ({ proprietario, onContactClick, alojamentoTitulo }) => {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [mostrarOpcoes, setMostrarOpcoes] = useState(false);
   if (!proprietario) return null;
 
   const abrirWhatsApp = (e) => {
     e.stopPropagation();
     if (!proprietario.phone) {
-      alert(t('telefone_nao_disponivel') || "Número de telefone não disponível");
+      showToast(t('telefone_nao_disponivel') || "Número de telefone não disponível", 'error');
       return;
     }
     const numeroLimpo = proprietario.phone.replace(/\D/g, '');
@@ -130,7 +140,7 @@ const HostInfo = ({ proprietario, onContactClick, alojamentoTitulo }) => {
     if (proprietario.phone && !proprietario.email) { abrirWhatsApp(e); return; }
     if (proprietario.email && !proprietario.phone) { enviarEmail(e); return; }
     if (proprietario.phone || proprietario.email) { setMostrarOpcoes(!mostrarOpcoes); }
-    else { alert(t('nenhum_contato_disponivel') || "Nenhum contato disponível"); }
+    else { showToast(t('nenhum_contato_disponivel') || "Nenhum contato disponível", 'error'); }
     if (onContactClick) onContactClick();
   };
 
@@ -220,6 +230,9 @@ const HostInfo = ({ proprietario, onContactClick, alojamentoTitulo }) => {
   );
 };
 
+// ============================================================
+// MAPA
+// ============================================================
 const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitude, alojamentoId, onMapClick }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -359,15 +372,113 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
 };
 
 // ============================================================
-// SIDEBAR DE RESERVA — mantém o design original.
-// Só troca o DatePicker antigo pelo CalendarioMorabeza.
+// HORÁRIOS CHECK-IN / CHECK-OUT
 // ============================================================
-const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onContinueToCheckout }) => {
+const HorariosCheckInOut = ({ alojamento }) => {
   const { t } = useTranslation();
+  if (!alojamento) return null;
+
+  const formatarHora = (h) => {
+    if (!h || typeof h !== 'string') return null;
+    const m = h.match(/^(\d{2}):(\d{2})/);
+    if (!m) return null;
+    if (m[1] === '00' && m[2] === '00') return null;
+    return `${m[1]}:${m[2]}`;
+  };
+
+  const inicio = formatarHora(alojamento.checkin_inicio);
+  const fim    = formatarHora(alojamento.checkin_fim);
+  const limite = formatarHora(alojamento.checkout_limite);
+
+  const flexivel = Number(alojamento.checkin_flexivel) === 1;
+  const nota = (alojamento.checkin_flexivel_nota || '').trim();
+
+  if (flexivel) {
+    return (
+      <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+        <CalendarDays size={18} className="text-blue-900 mt-0.5 shrink-0" />
+        <div>
+          <p className="font-semibold text-slate-900">
+            {t('checkin_flexivel') || 'Check-in flexível'}
+          </p>
+          <p className="text-sm text-slate-600">
+            {nota || (t('contacte_anfitriao_horario') ||
+              'Contacte o anfitrião para combinar o horário de chegada.')}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!inicio && !fim && !limite) return null;
+
+  const textoCheckIn =
+    inicio && fim ? `${t('checkin') || 'Check-in'}: ${inicio} – ${fim}`
+    : inicio      ? `${t('checkin') || 'Check-in'}: ${t('a_partir_de') || 'a partir das'} ${inicio}`
+    : fim         ? `${t('checkin') || 'Check-in'}: ${t('ate') || 'até às'} ${fim}`
+    : null;
+
+  const textoCheckOut = limite
+    ? `${t('checkout') || 'Check-out'}: ${t('ate') || 'até às'} ${limite}`
+    : null;
+
+  return (
+    <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
+      <CalendarDays size={18} className="text-slate-600 mt-0.5 shrink-0" />
+      <div className="space-y-1">
+        {textoCheckIn  && <p className="text-sm font-semibold text-slate-900">{textoCheckIn}</p>}
+        {textoCheckOut && <p className="text-sm font-semibold text-slate-900">{textoCheckOut}</p>}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// SIDEBAR DE RESERVA (multi-quarto + modo inteiro)
+// ============================================================
+const SidebarReserva = ({
+  carrinhoQuartos = [],
+  estrelas,
+  datasBloqueadas = [],
+  onContinueToCheckout,
+  onRemoveQuarto,
+  onDatasChange,
+  vendaPorQuarto = true,
+  capacidadeBase = 2,
+}) => {
+  const { t } = useTranslation();
+  const { showToast } = useToast();
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [numHospedes, setNumHospedes] = useState(2);
   const [showCalendar, setShowCalendar] = useState(false);
+
+  // Capacidade total = soma(capacidade × quantidade) em modo quartos;
+  // em modo inteiro = capacidadeBase
+  const capacidadeTotal = vendaPorQuarto
+    ? Math.max(
+        1,
+        carrinhoQuartos.reduce(
+          (acc, q) => acc + Number(q.capacidade || 1) * Number(q.quantidade || 1),
+          0
+        ) || 2
+      )
+    : Math.max(1, Number(capacidadeBase) || 2);
+
+  const listaHospedes = Array.from({ length: capacidadeTotal }, (_, i) => i + 1);
+
+  useEffect(() => {
+    if (numHospedes > capacidadeTotal) setNumHospedes(capacidadeTotal);
+  }, [capacidadeTotal]);
+
+  useEffect(() => {
+    if (onDatasChange) {
+      onDatasChange({
+        checkIn: startDate ? startDate.toISOString().split('T')[0] : null,
+        checkOut: endDate ? endDate.toISOString().split('T')[0] : null,
+      });
+    }
+  }, [startDate, endDate, onDatasChange]);
 
   const onChange = (dates) => {
     const [start, end] = dates;
@@ -376,28 +487,46 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
     if (start && end) setTimeout(() => setShowCalendar(false), 300);
   };
 
-  const noites = startDate && endDate
-    ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))
-    : 1;
+  const noites =
+    startDate && endDate
+      ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))
+      : 1;
 
-  const totalBase = precoPorNoite * noites;
+  const subtotal = carrinhoQuartos.reduce(
+    (acc, q) => acc + Number(q.precoNoite || 0) * Number(q.quantidade || 1) * noites,
+    0
+  );
+
+  const precoMedioNoite = carrinhoQuartos.length
+    ? carrinhoQuartos.reduce(
+        (acc, q) => acc + Number(q.precoNoite || 0) * Number(q.quantidade || 1),
+        0
+      )
+    : 0;
 
   const handleContinue = () => {
+    if (vendaPorQuarto && !carrinhoQuartos.length) {
+      showToast(t('selecione_quarto', 'Escolha pelo menos um tipo de quarto'), 'error');
+      return;
+    }
     if (!startDate || !endDate) {
-      alert(t('selecione_datas') || "Por favor, selecione as datas de Check-in e Check-out");
+      showToast(t('selecione_datas') || "Por favor, selecione as datas de Check-in e Check-out", 'error');
+      setShowCalendar(true);
       return;
     }
     if (onContinueToCheckout) {
-      onContinueToCheckout({ startDate, endDate, numHospedes, noites, totalBase });
+      onContinueToCheckout({ startDate, endDate, numHospedes, noites, subtotal });
     }
   };
+
+  const podeContinuar = vendaPorQuarto ? carrinhoQuartos.length > 0 : true;
 
   return (
     <div className="lg:block">
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
         <div className="flex justify-between items-end mb-5">
           <div className="text-2xl font-bold text-slate-900">
-            {precoPorNoite.toLocaleString()} CVE
+            {precoMedioNoite.toLocaleString('pt-PT')} CVE
             <span className="text-sm font-normal text-slate-500"> / {t('noite') || 'noite'}</span>
           </div>
           <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
@@ -449,7 +578,7 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
                 onChange={(e) => setNumHospedes(Number(e.target.value))}
                 className="bg-transparent text-xs font-bold text-slate-900 outline-none w-full cursor-pointer appearance-none"
               >
-                {[1, 2, 3, 4, 5, 6].map(num => (
+                {listaHospedes.map(num => (
                   <option key={num} value={num}>
                     {num} {num === 1 ? (t('hospede') || 'hóspede') : (t('hospedes') || 'hóspedes')}
                   </option>
@@ -460,24 +589,61 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
           </div>
         </div>
 
+        {/* Lista de quartos escolhidos */}
+        {carrinhoQuartos.length > 0 && (
+          <div className="pt-3 border-t border-slate-100 space-y-2 mb-3">
+            <p className="text-[10px] font-black text-blue-900 uppercase tracking-wider">
+              {vendaPorQuarto
+                ? t('quartos_escolhidos', 'Quartos escolhidos')
+                : t('alojamento', 'Alojamento')}
+            </p>
+            {carrinhoQuartos.map((q) => (
+              <div
+                key={q.tipoQuartoId || 'inteiro'}
+                className="flex items-start justify-between gap-2 text-xs bg-slate-50 rounded-lg p-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-slate-900 truncate">
+                    {q.modoInteiro ? q.nome : `${q.quantidade}× ${q.nome}`}
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    {q.capacidade * q.quantidade}{' '}
+                    {q.capacidade * q.quantidade === 1
+                      ? t('pessoa', 'pessoa')
+                      : t('pessoas', 'pessoas')}
+                  </p>
+                </div>
+                {!q.modoInteiro && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveQuarto && onRemoveQuarto(q.tipoQuartoId)}
+                    className="text-slate-400 hover:text-red-500 text-[10px] font-bold px-2"
+                  >
+                    {t('remover', 'remover')}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="pt-4 border-t border-slate-100 space-y-3 mt-4">
           <div className="flex justify-between items-center text-xs font-semibold text-slate-600">
             <span>
-              {t('preco_por_noite') || 'Preço por noite'} ({noites} {noites === 1 ? (t('noite') || 'noite') : (t('noites') || 'noites')})
+              {t('subtotal', 'Subtotal')} ({noites} {noites === 1 ? (t('noite') || 'noite') : (t('noites') || 'noites')})
             </span>
-            <span className="font-bold text-slate-900">
-              {precoPorNoite.toLocaleString()} CVE × {noites}
-            </span>
+            <span className="font-bold text-slate-900">{subtotal.toLocaleString('pt-PT')} CVE</span>
           </div>
           <div className="flex justify-between items-center pt-3 border-t border-slate-100">
             <span className="text-sm font-bold text-slate-900">{t('total') || 'Total'}</span>
-            <span className="text-lg font-bold text-blue-900">{totalBase.toLocaleString()} CVE</span>
+            <span className="text-lg font-bold text-blue-900">{subtotal.toLocaleString('pt-PT')} CVE</span>
           </div>
         </div>
 
         <button
           onClick={handleContinue}
-          className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl mb-4 mt-6 hover:bg-blue-950 transition-all shadow-lg text-sm active:scale-98"
+          disabled={!podeContinuar}
+          className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl mb-4 mt-6 hover:bg-blue-950 transition-all shadow-lg text-sm active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t('continuar_para_reserva') || 'Continuar para reserva'}
         </button>
@@ -494,6 +660,9 @@ const SidebarReserva = ({ precoPorNoite, estrelas, datasBloqueadas = [], onConti
   );
 };
 
+// ============================================================
+// AMENITIES BAR
+// ============================================================
 const AmenitiesBar = ({ infoBasica, comodidades }) => {
   const { t } = useTranslation();
 
@@ -548,6 +717,9 @@ const AmenitiesBar = ({ infoBasica, comodidades }) => {
   );
 };
 
+// ============================================================
+// IMAGE GALLERY
+// ============================================================
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   const { t } = useTranslation();
   const placeholder = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop";
@@ -592,6 +764,9 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   );
 };
 
+// ============================================================
+// TAB CONTENT
+// ============================================================
 const TabContent = ({ activeTab, alojamento }) => {
   const { t } = useTranslation();
   if (!alojamento) return null;
@@ -637,6 +812,7 @@ const TabContent = ({ activeTab, alojamento }) => {
       return (
         <div className="space-y-6">
           <h3 className="text-lg font-bold text-slate-900">{t('regras_casa_titulo') || 'Regras da Casa'}</h3>
+          <HorariosCheckInOut alojamento={alojamento} />
           <div className="space-y-4">
             {alojamento.regras_casa?.map((regra, i) => (
               <div key={i} className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
@@ -655,10 +831,14 @@ const TabContent = ({ activeTab, alojamento }) => {
   }
 };
 
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
 export const InfoAlojamento = () => {
   const { t } = useTranslation();
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -668,13 +848,32 @@ export const InfoAlojamento = () => {
   const [images, setImages] = useState([]);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [tiposQuarto, setTiposQuarto] = useState([]);
-  const [quartoSelecionado, setQuartoSelecionado] = useState(null);
-  const [precoNoiteDinamico, setPrecoNoiteDinamico] = useState(0);
 
+  // ---------------------------------------------------------
+  // Multi-quarto
+  // ---------------------------------------------------------
+  const [quantidades, setQuantidades] = useState({}); // { [tipoId]: number }
+  const [quartoSelecionado, setQuartoSelecionado] = useState(null);
+  const [carrinhoDatas, setCarrinhoDatas] = useState({ checkIn: null, checkOut: null });
+  const [stocksPorTipo, setStocksPorTipo] = useState({}); // { [tipoId]: number | null }
+
+  // ---------------------------------------------------------
+  // Deteção do modo de venda
+  // ---------------------------------------------------------
+  const vendaPorQuarto = Array.isArray(tiposQuarto) && tiposQuarto.length > 0;
+  const precoBase = Number(alojamento?.preco_noite || 0);
+  const capacidadeBase = Number(alojamento?.capacidade || 2);
+
+  // ---------------------------------------------------------
+  // Scroll ao topo quando muda slug
+  // ---------------------------------------------------------
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [slug]);
 
+  // ---------------------------------------------------------
+  // Carregar utilizador logado
+  // ---------------------------------------------------------
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -682,6 +881,9 @@ export const InfoAlojamento = () => {
     }
   }, []);
 
+  // ---------------------------------------------------------
+  // Fetch alojamento
+  // ---------------------------------------------------------
   useEffect(() => {
     const fetchAlojamento = async () => {
       if (!slug) {
@@ -710,13 +912,11 @@ export const InfoAlojamento = () => {
         if (data.error) throw new Error(data.error);
 
         setAlojamento(data);
-        setPrecoNoiteDinamico(Number(data.preco_noite));
 
         if (data.tipos_quarto && data.tipos_quarto.length > 0) {
           setTiposQuarto(data.tipos_quarto);
-          const primeiroQuarto = data.tipos_quarto[0];
-          setQuartoSelecionado(primeiroQuarto.id);
-          setPrecoNoiteDinamico(primeiroQuarto.preco_calculado);
+        } else {
+          setTiposQuarto([]);
         }
 
         let fotosUrls = [];
@@ -732,9 +932,7 @@ export const InfoAlojamento = () => {
         }
 
         if (fotosUrls.length === 0) {
-          fotosUrls.push(
-            "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop"
-          );
+          fotosUrls.push("https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop");
         }
 
         setImages(fotosUrls);
@@ -749,26 +947,144 @@ export const InfoAlojamento = () => {
     fetchAlojamento();
   }, [slug, t]);
 
+  // ---------------------------------------------------------
+  // Buscar stock quando datas mudam (só em modo quartos)
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (!vendaPorQuarto) return;
+    if (!tiposQuarto.length || !carrinhoDatas.checkIn || !carrinhoDatas.checkOut) return;
+
+    let cancelado = false;
+    const fetchStocks = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/verificar_stock_multi.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quartos: tiposQuarto.map(tq => ({
+              tipo_quarto_id: tq.id,
+              quantidade: 1,
+            })),
+            checkin: carrinhoDatas.checkIn,
+            checkout: carrinhoDatas.checkOut,
+          }),
+        });
+        const data = await res.json();
+        if (cancelado) return;
+
+        const mapa = {};
+        (data.detalhes || []).forEach(d => {
+          mapa[d.tipo_quarto_id] = d.disponivel;
+        });
+        setStocksPorTipo(mapa);
+      } catch (e) {
+        if (cancelado) return;
+        console.error('Erro ao buscar stocks:', e);
+      }
+    };
+    fetchStocks();
+
+    return () => { cancelado = true; };
+  }, [vendaPorQuarto, tiposQuarto, carrinhoDatas.checkIn, carrinhoDatas.checkOut]);
+
+  // ---------------------------------------------------------
+  // Tracking
+  // ---------------------------------------------------------
   const tracking = useAlojamentoTracking(alojamento?.id || null, usuarioLogado?.id || null);
   const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
   const registrarCliqueContato = tracking?.registrarCliqueContato || (() => {});
   const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
 
-  const handleSelecaoQuarto = (idQuarto, titulo, novoPreco, novaQtd) => {
-    setQuartoSelecionado(idQuarto);
-    if (novoPreco) setPrecoNoiteDinamico(novoPreco);
-  };
+  // ---------------------------------------------------------
+  // Carrinho derivado (modo quartos ou modo inteiro)
+  // ---------------------------------------------------------
+  const carrinhoQuartos = useMemo(() => {
+    // ---------- MODO QUARTOS ----------
+    if (vendaPorQuarto) {
+      return Object.entries(quantidades)
+        .filter(([_, qtd]) => qtd > 0)
+        .map(([tipoId, qtd]) => {
+          const tipo = tiposQuarto.find(tq => String(tq.id) === String(tipoId));
+          if (!tipo) return null;
+          return {
+            tipoQuartoId: tipo.id,
+            nome: tipo.nome || tipo.tipo_nome || 'Quarto',
+            precoNoite: Math.round(
+              Number(tipo.preco_calculado || tipo.preco_personalizado || tipo.preco_noite || 0)
+            ),
+            capacidade: Number(tipo.capacidade || tipo.capacidade_quarto || 2),
+            quantidade: qtd,
+            imagem: tipo.imagem || tipo.foto_capa || null,
+            modoInteiro: false,
+          };
+        })
+        .filter(Boolean);
+    }
 
+    // ---------- MODO INTEIRO ----------
+    if (!alojamento) return [];
+    return [{
+      tipoQuartoId: null,
+      nome: alojamento.titulo || 'Alojamento inteiro',
+      precoNoite: Math.round(precoBase),
+      capacidade: capacidadeBase,
+      quantidade: 1,
+      imagem: images[0] || alojamento.imagem_url || null,
+      modoInteiro: true,
+    }];
+  }, [vendaPorQuarto, quantidades, tiposQuarto, alojamento, images, precoBase, capacidadeBase]);
+
+  // ---------------------------------------------------------
+  // Capacidade total
+  // ---------------------------------------------------------
+  const capacidadeTotal = useMemo(() => {
+    if (!vendaPorQuarto) return capacidadeBase;
+    return carrinhoQuartos.reduce(
+      (acc, q) => acc + Number(q.capacidade) * Number(q.quantidade),
+      0
+    );
+  }, [vendaPorQuarto, carrinhoQuartos, capacidadeBase]);
+
+  // ---------------------------------------------------------
+  // Handlers de quarto
+  // ---------------------------------------------------------
+  const handleQuantidadeChange = useCallback((tipoId, novaQtd) => {
+    setQuantidades(prev => ({ ...prev, [tipoId]: novaQtd }));
+  }, []);
+
+  const handleSelecaoQuarto = useCallback((idQuarto, titulo, novoPreco) => {
+    setQuartoSelecionado(idQuarto);
+    setQuantidades(prev => {
+      const atual = prev[idQuarto] || 0;
+      if (atual === 0) return { ...prev, [idQuarto]: 1 };
+      return prev;
+    });
+  }, []);
+
+  const handleRemoverQuarto = useCallback((tipoId) => {
+    setQuantidades(prev => ({ ...prev, [tipoId]: 0 }));
+  }, []);
+
+  // ---------------------------------------------------------
+  // Continuar para checkout
+  // ---------------------------------------------------------
   const handleContinueToCheckout = (reservaInfo) => {
     registrarCliqueReserva();
     const userLogado = localStorage.getItem('user');
 
     if (!userLogado) {
-      alert(t('login_necessario') || "Por favor, faça login primeiro.");
+      showToast(t('login_necessario') || "Por favor, faça login primeiro.", 'error');
       return;
     }
 
     if (!alojamento) return;
+
+    if (vendaPorQuarto && !carrinhoQuartos.length) {
+      showToast(t('selecione_quarto', 'Escolha pelo menos um tipo de quarto'), 'error');
+      return;
+    }
+
+    const taxaLimpeza = Number(alojamento.taxa_limpeza || alojamento.limpeza || 0);
 
     const dadosParaCheckout = {
       id: alojamento.id,
@@ -776,19 +1092,23 @@ export const InfoAlojamento = () => {
       imagem: images[0] || alojamento.imagem_url,
       localizacao: alojamento.localizacao,
       ilha: alojamento.ilha || 'Cabo Verde',
-      precoNoite: precoNoiteDinamico,
       checkIn: reservaInfo.startDate.toISOString().split('T')[0],
       checkOut: reservaInfo.endDate.toISOString().split('T')[0],
       hospedes: reservaInfo.numHospedes,
-      capacidade: alojamento.capacidade || reservaInfo.numHospedes,
+      capacidade: capacidadeTotal,
       noites: reservaInfo.noites,
-      totalBase: precoNoiteDinamico * reservaInfo.noites,
+      taxaLimpeza,
       descricao: alojamento.descricao,
       comodidades: alojamento.comodidades || [],
-      tipoQuartoId: quartoSelecionado,
+      quartos: carrinhoQuartos,
+      tipoVenda: vendaPorQuarto ? 'quartos' : 'inteiro',
     };
 
     navigate('/checkout-alojamento', { state: { reservaData: dadosParaCheckout } });
+  };
+
+  const handleOpenLoginModal = () => {
+    showToast(t('login_para_avaliar') || "Por favor, faça login para avaliar.", 'info');
   };
 
   if (loading) {
@@ -852,21 +1172,42 @@ export const InfoAlojamento = () => {
               <AmenitiesBar infoBasica={alojamento.info_basica} comodidades={alojamento.comodidades} />
             </div>
 
-            <SeccaoEscolhaQuarto
-              quartoSelecionado={quartoSelecionado}
-              onSelecaoQuarto={handleSelecaoQuarto}
-              tiposQuarto={tiposQuarto}
-              alojamentoId={alojamento.id}
-            />
+            {vendaPorQuarto ? (
+              <SeccaoEscolhaQuarto
+                quartoSelecionado={quartoSelecionado}
+                onSelecaoQuarto={handleSelecaoQuarto}
+                tiposQuarto={tiposQuarto}
+                quantidadesProp={quantidades}
+                onQuantidadeChange={handleQuantidadeChange}
+                stocksPorTipo={stocksPorTipo}
+                alojamentoId={alojamento.id}
+              />
+            ) : (
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-left">
+                <p className="text-xs font-bold text-blue-900">
+                  {t('alojamento_inteiro', 'Este alojamento é reservado na totalidade')}
+                </p>
+                <p className="text-[11px] text-blue-700 mt-1 font-medium">
+                  {t('capacidade_total', 'Capacidade total')}: {capacidadeBase}{' '}
+                  {capacidadeBase === 1
+                    ? t('pessoa', 'pessoa')
+                    : t('pessoas', 'pessoas')}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="lg:self-start">
             <div className="sticky top-24 z-30">
               <SidebarReserva
-                precoPorNoite={precoNoiteDinamico || Number(alojamento.preco_noite)}
+                carrinhoQuartos={carrinhoQuartos}
                 estrelas={alojamento.estrelas}
                 datasBloqueadas={alojamento.datas_bloqueadas || []}
                 onContinueToCheckout={handleContinueToCheckout}
+                onRemoveQuarto={handleRemoverQuarto}
+                onDatasChange={setCarrinhoDatas}
+                vendaPorQuarto={vendaPorQuarto}
+                capacidadeBase={capacidadeBase}
               />
             </div>
           </div>
@@ -927,7 +1268,7 @@ export const InfoAlojamento = () => {
           <AvaliacoesSeccaoAlojamento
             alojamentoId={alojamento.id}
             usuarioLogado={usuarioLogado}
-            onOpenLoginModal={() => alert(t('login_para_avaliar') || "Por favor, faça login para avaliar.")}
+            onOpenLoginModal={handleOpenLoginModal}
           />
         </div>
       </div>

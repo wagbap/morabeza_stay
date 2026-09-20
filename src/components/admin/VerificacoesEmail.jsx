@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   MailCheck, CheckCircle, XCircle, Clock, Search, 
   Loader2, User, Mail, Phone, Calendar, Eye, 
-  Trash2, Check, X, AlertCircle, RefreshCw, Filter
+  Trash2, Check, X, AlertCircle, RefreshCw, Filter, Users
 } from 'lucide-react';
 
-const Verificacoes = () => {
+const VerificacoesEmail = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,6 @@ const Verificacoes = () => {
   const [motivoRejeicao, setMotivoRejeicao] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Carregar verificações
   const carregarVerificacoes = async () => {
     setLoading(true);
     try {
@@ -38,7 +37,6 @@ const Verificacoes = () => {
     carregarVerificacoes();
   }, [filterStatus, search]);
 
-  // Verificar email
   const verificarEmail = async (id) => {
     setActionLoading(true);
     try {
@@ -62,7 +60,6 @@ const Verificacoes = () => {
     setActionLoading(false);
   };
 
-  // Rejeitar verificação
   const rejeitarVerificacao = async (id) => {
     if (!motivoRejeicao.trim()) {
       alert('Por favor, insira um motivo para a rejeição');
@@ -93,7 +90,6 @@ const Verificacoes = () => {
     setActionLoading(false);
   };
 
-  // Remover utilizador
   const removerUtilizador = async (id) => {
     if (!window.confirm('Tem certeza que deseja remover este utilizador? Esta ação não pode ser desfeita.')) {
       return;
@@ -121,14 +117,12 @@ const Verificacoes = () => {
     setActionLoading(false);
   };
 
-  // Formatar data
   const formatarData = (data) => {
     if (!data) return '-';
     const d = new Date(data);
     return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  // Status badge
   const StatusBadge = ({ usuario }) => {
     if (usuario.email_verificado === 1) {
       return (
@@ -137,7 +131,6 @@ const Verificacoes = () => {
         </span>
       );
     }
-    // Considerar como pendente se criado há menos de 7 dias
     const criadoEm = new Date(usuario.criado_em);
     const diasDesdeCriacao = (new Date() - criadoEm) / (1000 * 60 * 60 * 24);
     if (diasDesdeCriacao < 7) {
@@ -198,7 +191,7 @@ const Verificacoes = () => {
 
       {/* Filtros e Busca */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setFilterStatus('todos')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -477,4 +470,4 @@ const Verificacoes = () => {
   );
 };
 
-export default Verificacoes;
+export default VerificacoesEmail;

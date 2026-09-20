@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+// src/components/Common/Toast.jsx
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { CheckCircle, AlertCircle, X, Info } from 'lucide-react';
 
 const ToastContext = createContext(null);
@@ -11,8 +12,10 @@ export const ToastProvider = ({ children }) => {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
+  const value = useMemo(() => ({ showToast }), [showToast]);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       {toast && (
         <div className="fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white bg-gray-900 border border-gray-800">
@@ -29,8 +32,15 @@ export const ToastProvider = ({ children }) => {
   );
 };
 
+// 🔓 Fallback quando NÃO há ToastProvider — não rebenta, só loga
+const fallbackToast = {
+  showToast: (message, type = 'info') => {
+    console.warn(`[Toast:${type}]`, message);
+  },
+};
+
 export const useToast = () => {
   const context = useContext(ToastContext);
-  if (!context) throw new Error('useToast deve ser usado dentro de um ToastProvider');
-  return context;
+  // Em vez de lançar erro, devolve fallback seguro
+  return context || fallbackToast;
 };

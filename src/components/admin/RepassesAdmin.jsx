@@ -242,7 +242,7 @@ export default function RepassesAdmin() {
                         Bruto: <strong>{s.valor_bruto_fmt}</strong>
                       </span>
                       <span className="text-gray-500">
-                        Comissão (20%): <strong>{s.comissao_fmt}</strong>
+                        Comissão (10%): <strong>{s.comissao_fmt}</strong>
                       </span>
                       <span className="text-gray-500">
                         Líquido: <strong>{s.liquido_fmt}</strong>

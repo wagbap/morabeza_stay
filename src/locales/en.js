@@ -947,6 +947,8 @@ participante_principal: "Main Participant",
 preencha_dados_participantes: "Fill in the details for all participants.",
 // ==================== PARTICIPANTS ====================
 clique_participante_adicionar: "Click on a participant to quickly add them to the current booking",
+ver_fotos: "See Pictures",
+enviar_whatsapp: "Send via WhatsApp",
 
   }
 };

@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Info, Home, Users, Star, Check, ChevronRight, Clock, AlertCircle,
   ChevronDown, ChevronUp, Building, BedDouble, Bed, Plus, Trash2,
-  Minus, DoorOpen, Loader, Camera, X, Upload,
+  Minus, DoorOpen, Loader, Camera, X, Upload, Lightbulb, CheckCircle2,
+  Eye, Sparkles,
 } from 'lucide-react';
 import {
   buscarTiposQuarto,
@@ -14,6 +15,15 @@ import {
 import ConfiguracaoHorarios from './ConfiguracaoHorarios';
 
 const UPLOAD_URL = 'https://welovepalop.com/api/alojamento/upload_foto.php';
+
+// Filtro para bloquear URLs inválidas ou externas indesejadas (como Wix)
+const filtrarUrlValida = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  const limpa = url.trim();
+  if (limpa === '') return false;
+  if (limpa.includes('wixstatic.com')) return false;
+  return true;
+};
 
 const TIPOS_PROPRIEDADE = [
   { id: 'Apartamento', nome: 'Apartamento', icone: <Building size={18} />, descricao: 'Espaço privado num edifício' },
@@ -41,6 +51,69 @@ const formatarCVE = (valor) => {
   if (!n && n !== 0) return '0';
   return n.toLocaleString('pt-PT') + ' CVE';
 };
+
+// ============================================================
+// DICAS PARA UM ANÚNCIO DE SUCESSO (item 21 + 22)
+// Orientação sem prometer reservas nem destaque garantido
+// ============================================================
+const DICAS_ANUNCIO = [
+  {
+    id: 'titulo',
+    emoji: '✏️',
+    titulo: 'Título claro e específico',
+    descricao:
+      'Use um nome curto que diga exatamente o que é. Ex: "Apartamento T2 vista mar — Mindelo" em vez de "Casa bonita".',
+  },
+  {
+    id: 'fotos',
+    emoji: '📸',
+    titulo: 'Fotografias reais e completas',
+    descricao:
+      'Fotos bem iluminadas do espaço verdadeiro, de vários ângulos, incluindo quartos, casa de banho e vista. Evite imagens de banco de imagens.',
+  },
+  {
+    id: 'preco',
+    emoji: '💰',
+    titulo: 'Preço competitivo para começar',
+    descricao:
+      'Compare com alojamentos semelhantes na mesma ilha antes de publicar. Um preço inicial ajustado ajuda a conseguir as primeiras reservas e avaliações.',
+  },
+  {
+    id: 'comodidades',
+    emoji: '🛎️',
+    titulo: 'Comodidades corretas',
+    descricao:
+      'Marque apenas o que o espaço realmente oferece. Comodidades erradas geram cancelamentos e más avaliações.',
+  },
+  {
+    id: 'localizacao',
+    emoji: '📍',
+    titulo: 'Descrição da localização',
+    descricao:
+      'Explique onde fica, o que há por perto (praia, mercado, transportes) e como chegar. Ajuda o hóspede a decidir.',
+  },
+  {
+    id: 'calendario',
+    emoji: '📅',
+    titulo: 'Calendário sempre atualizado',
+    descricao:
+      'Bloqueie datas indisponíveis e mantenha o calendário em dia. Isto evita pedidos para datas que já não pode receber.',
+  },
+  {
+    id: 'resposta',
+    emoji: '⚡',
+    titulo: 'Resposta rápida aos hóspedes',
+    descricao:
+      'Responder às mensagens em poucas horas transmite confiança e melhora a experiência de quem reserva.',
+  },
+  {
+    id: 'visibilidade',
+    emoji: '📈',
+    titulo: 'Visibilidade na plataforma',
+    descricao:
+      'A Morabeza Stay pode dar maior destaque a anúncios com melhor qualidade, preço ajustado, disponibilidade atualizada, boas avaliações e histórico de reservas. Não é um destaque garantido — depende do desempenho real de cada anúncio.',
+  },
+];
 
 const InformacoesBasicas = ({
   dados = {},
@@ -84,7 +157,14 @@ const InformacoesBasicas = ({
     const carregarTipos = async () => {
       setLoadingQuartos(true);
       const result = await buscarTiposQuarto();
-      if (result.success) setTiposQuarto(result.data || []);
+      if (result.success) {
+        // Aplica o filtro de URLs válidas na imagem do catálogo
+        const tiposTratados = (result.data || []).map((t) => ({
+          ...t,
+          imagem_url: filtrarUrlValida(t.imagem_url) ? t.imagem_url : null,
+        }));
+        setTiposQuarto(tiposTratados);
+      }
       setLoadingQuartos(false);
     };
     carregarTipos();
@@ -150,14 +230,19 @@ const InformacoesBasicas = ({
               fotosReais = q.imagens;
             }
 
+            // Filtra fotos inválidas ou indesejadas
+            const fotosLimpas = fotosReais
+              .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
+              .filter(filtrarUrlValida);
+
             return {
               ...q,
               tipo_quarto_id: q.tipo_catalogo_id || q.tipo_quarto_id,
               tipo_nome: q.tipo_nome || q.nome,
               quantidade_disponivel: q.quantidade ?? q.quantidade_disponivel ?? 1,
               preco_personalizado: q.preco_noite ?? q.preco_personalizado ?? null,
-              fotos: fotosReais,
-              imagens: fotosReais,
+              fotos: fotosLimpas,
+              imagens: fotosLimpas,
             };
           });
 
@@ -194,6 +279,7 @@ const InformacoesBasicas = ({
       try {
         const payload = novosQuartos.map((q) => {
           const listaFotos = q.fotos || q.imagens || [];
+          const fotosLimpas = listaFotos.filter(filtrarUrlValida);
           return {
             tipo_catalogo_id: q.tipo_quarto_id,
             tipo_quarto_id: q.tipo_quarto_id,
@@ -201,8 +287,8 @@ const InformacoesBasicas = ({
             quantidade_disponivel: q.quantidade_disponivel || 1,
             preco_noite: q.preco_personalizado ?? null,
             preco_personalizado: q.preco_personalizado ?? null,
-            fotos: listaFotos,
-            imagens: listaFotos,
+            fotos: fotosLimpas,
+            imagens: fotosLimpas,
           };
         });
 
@@ -228,6 +314,9 @@ const InformacoesBasicas = ({
     const multiplicador = parseFloat(tipoQuarto.multiplicador_preco) || 1;
     const precoSugerido = precoBase > 0 ? Math.round(precoBase * multiplicador) : null;
 
+    // Filtra imagem do tipo de quarto se for inválida
+    const fotoInicialValida = filtrarUrlValida(tipoQuarto.imagem_url) ? [tipoQuarto.imagem_url] : [];
+
     const novoQuarto = {
       id: Date.now(),
       tipo_quarto_id: tipoQuarto.id,
@@ -238,8 +327,8 @@ const InformacoesBasicas = ({
       camas: tipoQuarto.camas || 1,
       icone: tipoQuarto.icone,
       multiplicador_preco: multiplicador,
-      fotos: [],
-      imagens: [],
+      fotos: fotoInicialValida,
+      imagens: fotoInicialValida,
     };
 
     const novosQuartos = [...quartosSelecionados, novoQuarto];
@@ -333,21 +422,21 @@ const InformacoesBasicas = ({
         const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
         const data = await res.json();
 
-        if (data.success && data.url) {
+        if (data.success && data.url && filtrarUrlValida(data.url)) {
           urlsEnviados.push(data.url);
         } else {
-          console.error('Erro no upload:', data.message);
+          console.error('Erro no upload ou URL inválida:', data.message);
         }
       }
 
       if (urlsEnviados.length === 0) {
-        showToast('Nenhuma foto foi enviada.', 'error');
+        showToast('Nenhuma foto válida foi enviada.', 'error');
         setUploadingFotos(false);
         e.target.value = '';
         return;
       }
 
-      const fotosAtuais = quartoAtual.fotos || quartoAtual.imagens || [];
+      const fotosAtuais = (quartoAtual.fotos || quartoAtual.imagens || []).filter(filtrarUrlValida);
       const fotosAtualizadas = [...fotosAtuais, ...urlsEnviados];
 
       await atualizarQuartoPropriedade(tipoQuartoId, 'fotos', fotosAtualizadas);
@@ -367,7 +456,7 @@ const InformacoesBasicas = ({
   };
 
   const abrirModalFotos = (quarto) => {
-    const fotosReais = Array.isArray(quarto.fotos) ? quarto.fotos : [];
+    const fotosReais = Array.isArray(quarto.fotos) ? quarto.fotos.filter(filtrarUrlValida) : [];
     setModalFotoQuarto({
       aberto: true,
       tipoQuartoId: quarto.tipo_quarto_id,
@@ -379,7 +468,7 @@ const InformacoesBasicas = ({
     const quarto = quartosSelecionados.find((q) => q.tipo_quarto_id === tipoQuartoId);
     if (!quarto) return;
 
-    const fotosAtuais = quarto.fotos || quarto.imagens || [];
+    const fotosAtuais = (quarto.fotos || quarto.imagens || []).filter(filtrarUrlValida);
     const novasFotos = fotosAtuais.filter((_, i) => i !== index);
 
     atualizarQuartoPropriedade(tipoQuartoId, 'fotos', novasFotos);
@@ -628,6 +717,7 @@ const InformacoesBasicas = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {tiposQuarto.map((tipo) => {
                     const jaAdicionado = quartosSelecionados.some((q) => q.tipo_quarto_id === tipo.id);
+                    const imagemValidaCatalogo = filtrarUrlValida(tipo.imagem_url) ? tipo.imagem_url : null;
                     return (
                       <button
                         key={tipo.id}
@@ -640,9 +730,9 @@ const InformacoesBasicas = ({
                             : 'border-gray-200 hover:border-[#006ce4] hover:bg-blue-50 cursor-pointer'
                         }`}
                       >
-                        {tipo.imagem_url ? (
+                        {imagemValidaCatalogo ? (
                           <img
-                            src={tipo.imagem_url}
+                            src={imagemValidaCatalogo}
                             alt={tipo.nome}
                             className="w-12 h-12 object-cover rounded-lg"
                           />
@@ -677,7 +767,7 @@ const InformacoesBasicas = ({
                 </h4>
                 <div className="space-y-3">
                   {quartosSelecionados.map((quarto) => {
-                    const fotosReais = Array.isArray(quarto.fotos) ? quarto.fotos : [];
+                    const fotosReais = Array.isArray(quarto.fotos) ? quarto.fotos.filter(filtrarUrlValida) : [];
                     const qtdFotosReais = fotosReais.length;
                     const imagemPrincipalCard = qtdFotosReais > 0 ? fotosReais[0] : null;
 
@@ -999,53 +1089,78 @@ const InformacoesBasicas = ({
         </div>
       </div>
 
-      {/* DICAS */}
-      <div className="border border-blue-200 rounded-lg overflow-hidden">
+      {/* ============================================================ */}
+      {/* DICAS PARA UM ANÚNCIO DE SUCESSO (item 21)                   */}
+      {/* 8 orientações curtas + nota honesta (sem prometer reservas)  */}
+      {/* ============================================================ */}
+      <div className="border border-blue-200 rounded-2xl overflow-hidden bg-white">
         <button
           type="button"
           onClick={() => setExpandirDicas(!expandirDicas)}
-          className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100"
+          className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 transition-colors"
+          aria-expanded={expandirDicas}
         >
-          <div className="flex items-center gap-2">
-            <AlertCircle size={18} className="text-blue-600" />
-            <span className="font-medium text-blue-800">💡 Dicas para um anúncio de sucesso</span>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-sm shadow-blue-200">
+              <Lightbulb className="text-white" size={18} />
+            </div>
+            <div className="text-left">
+              <h3 className="text-sm font-bold text-blue-900 leading-tight">
+                Dicas para um anúncio de sucesso
+              </h3>
+              <p className="text-[10px] text-blue-700 font-medium mt-0.5">
+                Orientações curtas para melhorar o seu anúncio
+              </p>
+            </div>
           </div>
-          {expandirDicas ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          {expandirDicas ? (
+            <ChevronUp size={18} className="text-blue-700" />
+          ) : (
+            <ChevronDown size={18} className="text-blue-700" />
+          )}
         </button>
+
         {expandirDicas && (
-          <div className="p-4 bg-white space-y-3">
-            <div className="flex gap-3">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-bold">
-                1
-              </div>
-              <div>
-                <p className="font-medium">Título atraente</p>
-                <p className="text-sm text-gray-600">
-                  Use palavras como "Vista mar", "Perto da praia", "Recém renovado"
-                </p>
-              </div>
+          <div className="px-4 pt-4 pb-5 bg-white">
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {DICAS_ANUNCIO.map((dica) => (
+                <li
+                  key={dica.id}
+                  className="flex items-start gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-blue-200 transition-colors"
+                >
+                  <div className="text-lg shrink-0 leading-none mt-0.5">
+                    {dica.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-900 leading-tight">
+                      {dica.titulo}
+                    </p>
+                    <p className="text-[11px] text-slate-600 leading-snug mt-1">
+                      {dica.descricao}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* Nota honesta — critério de aceitação do item 21 + 22 */}
+            <div className="mt-4 pt-3 border-t border-blue-100 flex items-start gap-2">
+              <CheckCircle2 className="text-blue-600 shrink-0 mt-0.5" size={14} />
+              <p className="text-[10px] text-blue-800 leading-snug font-medium">
+                Estas dicas ajudam a melhorar o anúncio. A Morabeza Stay não garante reservas
+                nem destaque automático — o desempenho depende da qualidade real, do preço e do
+                histórico de cada anúncio.
+              </p>
             </div>
-            <div className="flex gap-3">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-bold">
-                2
-              </div>
-              <div>
-                <p className="font-medium">Configure os quartos corretamente</p>
-                <p className="text-sm text-gray-600">
-                  Adicione todos os tipos de quarto disponíveis na sua propriedade
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-bold">
-                3
-              </div>
-              <div>
-                <p className="font-medium">Fotos de qualidade</p>
-                <p className="text-sm text-gray-600">
-                  Fotografias reais e nítidas aumentam a confiança dos hóspedes
-                </p>
-              </div>
+
+            {/* Nota de transparência (não é promessa, é explicação) */}
+            <div className="mt-3 flex items-start gap-2">
+              <Eye className="text-slate-400 shrink-0 mt-0.5" size={14} />
+              <p className="text-[10px] text-slate-500 leading-snug">
+                Alguns anúncios podem receber maior visibilidade conforme a qualidade, o preço,
+                a disponibilidade, as avaliações e o histórico de reservas. Estes fatores são
+                avaliados pela plataforma de forma contínua.
+              </p>
             </div>
           </div>
         )}

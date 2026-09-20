@@ -1,5 +1,5 @@
 // src/components/CarroRegisto/EditarCarro.jsx
-// CORRIGIDO - Localização funcionando corretamente
+// CORRIGIDO - Localização funcionando corretamente + Toast padrão do projeto
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -10,41 +10,45 @@ import Localizacao from './Localizacao';
 import Caracteristicas from './Caracteristicas';
 import ImagensUpload from './ImagensUpload';
 import { buscarCarro, salvarFluxoCarro } from '../../services/carroApiService';
+import { useToast } from '../../Toast';
 
 const EditarCarro = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+  const { showToast } = useToast();
+
   const [fase, setFase] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [carroId, setCarroId] = useState(id ? parseInt(id) : null);
-  
+
   const [informacoes, setInformacoes] = useState({});
   const [especificacoes, setEspecificacoes] = useState({});
+
   // 🔥 CORRIGIDO: Estado da localização com todos os campos
   const [localizacao, setLocalizacao] = useState({
     local: '',
     cidade: '',
     ilha: ''
   });
+
   const [caracteristicas, setCaracteristicas] = useState([]);
   const [imagens, setImagens] = useState([]);
-  
+
   useEffect(() => {
     const carregarCarro = async () => {
       if (!carroId) return;
-      
+
       setLoading(true);
       try {
         console.log(`🚗 Buscando carro ID: ${carroId}`);
         const result = await buscarCarro(carroId);
-        
+
         console.log('📦 Dados recebidos:', result);
-        
+
         if (result.success && result.data) {
           const data = result.data;
-          
+
           setInformacoes({
             titulo: data.titulo || '',
             marca: data.marca || '',
@@ -54,7 +58,7 @@ const EditarCarro = () => {
             descricao: data.descricao || '',
             descricao_detalhada: data.descricao_detalhada || ''
           });
-          
+
           setEspecificacoes({
             ano: data.ano || '',
             passageiros: data.passageiros || 5,
@@ -65,43 +69,43 @@ const EditarCarro = () => {
             cor: data.cor || '',
             quilometragem: data.quilometragem || 0
           });
-          
+
           // 🔥 CORRIGIDO: Carregar localização com todos os campos
           setLocalizacao({
             local: data.localizacao || data.cidade || '',
             cidade: data.cidade || data.localizacao || '',
             ilha: data.ilha || ''
           });
-          
+
           console.log('📍 Localização carregada:', {
             local: data.localizacao,
             cidade: data.cidade,
             ilha: data.ilha
           });
-          
+
           setCaracteristicas(data.caracteristicas || []);
           setImagens(data.imagens || []);
         } else {
-          alert('Erro ao carregar dados do veículo: ' + (result.message || ''));
+          showToast('Erro ao carregar dados do veículo: ' + (result.message || ''), 'error');
           navigate('/carro-registo/meus');
         }
       } catch (error) {
         console.error('❌ Erro ao carregar:', error);
-        alert('Erro ao carregar dados: ' + error.message);
+        showToast('Erro ao carregar dados: ' + error.message, 'error');
         navigate('/carro-registo/meus');
       } finally {
         setLoading(false);
       }
     };
-    
+
     carregarCarro();
-  }, [carroId, navigate]);
-  
+  }, [carroId, navigate, showToast]);
+
   const handleNext = () => {
     setFase(fase + 1);
     window.scrollTo(0, 0);
   };
-  
+
   const handleBack = () => {
     if (fase > 1) {
       setFase(fase - 1);
@@ -110,11 +114,11 @@ const EditarCarro = () => {
       navigate(-1);
     }
   };
-  
+
   const handleFinalizar = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    
+
     try {
       // 🔥 CORRIGIDO: Montar dados completos corretamente
       const dadosCompletos = {
@@ -126,25 +130,25 @@ const EditarCarro = () => {
         caracteristicas: caracteristicas,
         imagens: imagens
       };
-      
+
       console.log('📤 Enviando dados para atualização:', dadosCompletos);
-      
+
       const result = await salvarFluxoCarro(dadosCompletos, carroId);
-      
+
       if (result.success) {
-        alert(`✅ ${result.message}`);
+        showToast(result.message || 'Alterações guardadas com sucesso!', 'success');
         navigate('/carro-registo/meus');
       } else {
-        alert(`⚠️ ${result.message}`);
+        showToast(result.message || 'Erro ao guardar alterações', 'error');
       }
     } catch (error) {
       console.error('❌ Erro ao salvar:', error);
-      alert('Erro ao salvar as alterações.\n' + error.message);
+      showToast('Erro ao salvar as alterações. Tente novamente.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   const renderProgressBar = () => {
     const fasesLista = ['Info', 'Especificações', 'Localização', 'Características', 'Fotos'];
     return (
@@ -166,7 +170,7 @@ const EditarCarro = () => {
       </div>
     );
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -175,11 +179,11 @@ const EditarCarro = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
-        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
+        <div className="font-bold text-2xl tracking-tight"></div>
         <div className="flex items-center gap-6 text-sm">
           <div className="text-right">
             <div className="font-medium">{informacoes.titulo || 'Editar Veículo'}</div>
@@ -192,47 +196,47 @@ const EditarCarro = () => {
             </div>
           </div>
           <div className="w-[1px] h-8 bg-blue-900"></div>
-         
+
           <div className="flex items-center gap-2 cursor-pointer hover:underline">
             <span>Ajuda</span> <HelpCircle size={18} />
           </div>
-         
+
         </div>
       </header>
-      
+
       <div className="max-w-4xl mx-auto px-4 py-8">
         {renderProgressBar()}
-        
+
         <div className="bg-white rounded-lg shadow-md p-8">
           {fase === 1 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Informações</h1>
               <p className="text-gray-600 mb-6">Atualize os dados do veículo.</p>
-              <InformacoesBasicas 
+              <InformacoesBasicas
                 dados={informacoes}
                 onChange={setInformacoes}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {fase === 2 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Especificações</h1>
               <p className="text-gray-600 mb-6">Atualize os detalhes técnicos.</p>
-              <Especificacoes 
+              <Especificacoes
                 dados={especificacoes}
                 onChange={setEspecificacoes}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {fase === 3 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Localização</h1>
               <p className="text-gray-600 mb-6">Atualize onde o veículo está disponível.</p>
-              <Localizacao 
+              <Localizacao
                 dados={localizacao}
                 onChange={setLocalizacao}
                 readOnly={false}
@@ -240,24 +244,24 @@ const EditarCarro = () => {
               />
             </>
           )}
-          
+
           {fase === 4 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Características</h1>
               <p className="text-gray-600 mb-6">Atualize os equipamentos do veículo.</p>
-              <Caracteristicas 
+              <Caracteristicas
                 items={caracteristicas}
                 onChange={setCaracteristicas}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {fase === 5 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Fotos</h1>
               <p className="text-gray-600 mb-6">Atualize as fotos do veículo.</p>
-              <ImagensUpload 
+              <ImagensUpload
                 imagens={imagens}
                 onChange={setImagens}
                 veiculoId={carroId}
@@ -265,7 +269,7 @@ const EditarCarro = () => {
               />
             </>
           )}
-          
+
           <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
             <button
               onClick={handleBack}
@@ -273,7 +277,7 @@ const EditarCarro = () => {
             >
               <ArrowLeft size={18} /> Voltar
             </button>
-            
+
             {fase < 5 && (
               <button
                 onClick={handleNext}
@@ -282,7 +286,7 @@ const EditarCarro = () => {
                 Continuar <ChevronRight size={18} />
               </button>
             )}
-            
+
             {fase === 5 && (
               <button
                 onClick={handleFinalizar}

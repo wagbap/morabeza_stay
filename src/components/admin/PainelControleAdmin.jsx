@@ -115,7 +115,7 @@ const PainelControleAdmin = () => {
       data: valoresTotais
     },
     {
-      name: 'Comissão Morabeza (20%)',
+      name: 'Comissão Morabeza (10%)',
       type: 'area', // Tipo Área com preenchimento gradiente
       data: valoresComissao
     }
@@ -156,7 +156,7 @@ const PainelControleAdmin = () => {
                 <div className="flex gap-8">
                   <div>
                     <p className="text-2xl font-bold text-[#6b82c6]">{statsServer.ganhos_totais}</p>
-                    <p className="text-xs text-gray-500 mt-1">Total Ganhos <span className="text-gray-400">80%</span></p>
+                    <p className="text-xs text-gray-500 mt-1">Total Ganhos <span className="text-gray-400">90%</span></p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -194,7 +194,7 @@ const PainelControleAdmin = () => {
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-sm bg-[#4b7a69]"></span>
-                <span className="text-sm text-gray-600 font-medium">Comissão Morabeza Stay (20%)</span>
+                <span className="text-sm text-gray-600 font-medium">Comissão Morabeza Stay (10%)</span>
               </div>
             </div>
           </div>
@@ -237,10 +237,10 @@ const PainelControleAdmin = () => {
             <div className="relative w-40 h-40 mx-auto mb-6">
               <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90 drop-shadow-md">
                 <path className="text-[#6b82c6]" strokeWidth="8" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path className="text-[#4b7a69]" strokeWidth="8" strokeDasharray="20, 100" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path className="text-[#4b7a69]" strokeWidth="8" strokeDasharray="10, 100" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <span className="text-2xl font-bold text-[#003580]">20%</span>
+                <span className="text-2xl font-bold text-[#003580]">10%</span>
                 <span className="text-[10px] text-gray-500 uppercase tracking-wider">Comissão</span>
               </div>
             </div>
@@ -251,7 +251,7 @@ const PainelControleAdmin = () => {
                   <span className="w-3 h-3 rounded-sm bg-[#6b82c6]"></span>
                   <span className="text-gray-600">Proprietários</span>
                 </div>
-                <span className="font-semibold text-gray-800">80%</span>
+                <span className="font-semibold text-gray-800">90%</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
@@ -259,7 +259,7 @@ const PainelControleAdmin = () => {
                   <span className="text-gray-600">Morabeza Stay</span>
                 </div>
                 <div className="text-right">
-                  <span className="block font-semibold text-gray-800">20%</span>
+                  <span className="block font-semibold text-gray-800">10%</span>
                   <span className="block text-xs font-bold text-gray-500">
                     CVE {Number(statsServer.ganhos_morabeza_puro).toLocaleString('pt-PT')}
                   </span>

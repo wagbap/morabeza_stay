@@ -222,7 +222,7 @@ const PrecosDisponibilidade = ({
                 className="w-5 h-5 text-[#006ce4] rounded"
                 disabled={readOnly}
               />
-              <span className="text-green-600 font-medium">-20%</span>
+              <span className="text-green-600 font-medium">-10%</span>
             </div>
           </div>
           

@@ -36,7 +36,7 @@ const Pagamentos = () => {
       .filter(p => p.status === 'confirmado' || p.status === 'pago')
       .reduce((sum, p) => sum + parseFloat(p.valor || 0), 0);
     
-    const totalComissao = totalRecebido * 0.20;
+    const totalComissao = totalRecebido * 0.10;
     
     const confirmados = pagamentosList.filter(p => p.status === 'confirmado' || p.status === 'pago').length;
     const pendentes = pagamentosList.filter(p => p.status === 'pendente' || p.status === 'aguardando').length;
@@ -134,7 +134,7 @@ const Pagamentos = () => {
         <div className="bg-gradient-to-br from-blue-50 to-white p-5 rounded-xl border border-blue-100">
           <TrendingUp className="text-blue-500 mb-2" size={24} />
           <p className="text-xl font-bold">{formatarMoeda(stats.totalComissao)}</p>
-          <p className="text-xs text-gray-500">Comissão (20%)</p>
+          <p className="text-xs text-gray-500">Comissão (10%)</p>
         </div>
         <div className="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-xl border border-emerald-100">
           <CheckCircle className="text-emerald-500 mb-2" size={24} />
@@ -229,7 +229,7 @@ const Pagamentos = () => {
                       {formatarMoeda(pagamento.valor)}
                     </td>
                     <td className="px-6 py-4 text-right text-gray-500">
-                      {formatarMoeda(pagamento.valor * 0.2)}
+                      {formatarMoeda(pagamento.valor * 0.1)}
                     </td>
                     <td className="px-6 py-4 text-xs text-gray-500">
                       {formatarData(pagamento.data_pagamento || pagamento.created_at)}
@@ -286,12 +286,12 @@ const Pagamentos = () => {
                   <p className="text-xl font-bold text-green-600">{formatarMoeda(selectedPagamento.valor)}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500">Comissão (20%)</p>
-                  <p className="text-xl font-bold text-blue-600">{formatarMoeda(selectedPagamento.valor * 0.2)}</p>
+                  <p className="text-xs text-gray-500">Comissão (10%)</p>
+                  <p className="text-xl font-bold text-blue-600">{formatarMoeda(selectedPagamento.valor * 0.1)}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500">Líquido a Receber</p>
-                  <p className="text-xl font-bold text-purple-600">{formatarMoeda(selectedPagamento.valor * 0.8)}</p>
+                  <p className="text-xl font-bold text-purple-600">{formatarMoeda(selectedPagamento.valor * 0.9)}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500">Data do Pagamento</p>

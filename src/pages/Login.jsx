@@ -271,6 +271,7 @@ export default function Login() {
     }
 
     try {
+      // CORRIGIDO: Agora enviamos 'nova_senha' em vez de 'senha' para alinhar com o backend
       const res = await axios.post(BACKEND_URL, {
         action: 'reset_password',
         user_id: resetUserId,

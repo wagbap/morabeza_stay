@@ -3,52 +3,11 @@ import { useState, useEffect } from 'react';
 
 const ENDPOINT = 'https://welovepalop.com/api/alojamento/get_quarto_imagens.php';
 
-// ============================================================
-// BLOQUEIO DE IMAGENS INVENTADAS (Unsplash / placeholders)
-// ============================================================
-const DOMINIOS_PROIBIDOS = [
-  'images.unsplash.com',
-  'source.unsplash.com',
-  'unsplash.com',
-  'placeholder.com',
-  'via.placeholder.com',
-  'placehold.co',
-  'placehold.it',
-  'dummyimage.com',
-  'lorempixel.com',
-  'picsum.photos',
-];
-
-// Padrões de IDs Unsplash que já apareceram como seed no projeto
-const IDS_PROIBIDOS = [
-  'photo-1616594039964',
-  'photo-1566665797739',
-];
-
-const ehImagemProibida = (url) => {
-  if (!url || typeof url !== 'string') return false;
-  const lower = url.toLowerCase();
-  if (DOMINIOS_PROIBIDOS.some((d) => lower.includes(d))) return true;
-  if (IDS_PROIBIDOS.some((id) => lower.includes(id))) return true;
-  return false;
-};
-
-// ============================================================
-// VALIDAÇÃO — só aceita URLs reais (Cloudinary / welovepalop / data:)
-// ============================================================
 const urlValida = (url) => {
   if (!url || typeof url !== 'string') return false;
   if (url.includes('blob:')) return false;
   if (url.includes('localhost')) return false;
-
-  // Bloqueia Unsplash e outros placeholders genéricos
-  if (ehImagemProibida(url)) return false;
-
-  return (
-    url.startsWith('http://') ||
-    url.startsWith('https://') ||
-    url.startsWith('data:')
-  );
+  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:');
 };
 
 const normalizarUrl = (url) => {
@@ -107,7 +66,7 @@ const buscarImagensNaAPI = async (alojamentoId) => {
 };
 
 // ============================================================
-// HOOK — SEM CACHE, SEM PLACEHOLDER, SEM IMAGENS INVENTADAS
+// HOOK — SEM CACHE, SEM PLACEHOLDER
 // ============================================================
 export function useFotosDoQuarto(quarto, alojamentoId = null) {
   const [fotoCapa, setFotoCapa] = useState(null);
@@ -196,18 +155,11 @@ export function useFotosDoQuarto(quarto, alojamentoId = null) {
         if (u) fotosEncontradas.push(u);
       });
 
-      const capaDireta = quarto.caminho_url || quarto.imagem_url || quarto.foto_capa;
+      const capaDireta = quarto.caminho_url;
       if (capaDireta) fotosEncontradas.unshift(capaDireta);
 
-      // 🔥 Filtro final: válidas + não proibidas + normalizadas + sem duplicados
       const limpas = Array.from(
-        new Set(
-          fotosEncontradas
-            .filter(urlValida)                // rejeita Unsplash, blob, localhost, etc.
-            .filter((u) => !ehImagemProibida(u)) // dupla proteção
-            .map(normalizarUrl)
-            .filter(Boolean)
-        )
+        new Set(fotosEncontradas.filter(urlValida).map(normalizarUrl).filter(Boolean))
       );
 
       if (limpas.length > 0) {
@@ -215,9 +167,9 @@ export function useFotosDoQuarto(quarto, alojamentoId = null) {
         setFotos(limpas);
         setFotoCapa(limpas[0]);      // 🔥 só a primeira
       } else {
-        console.log(`⚠️ Quarto "${quarto.nome || 's/ nome'}": sem fotos reais`);
+        console.log(`⚠️ Quarto "${quarto.nome || 's/ nome'}": sem fotos`);
         setFotos([]);
-        setFotoCapa(null);            // 🔥 sem placeholder inventado
+        setFotoCapa(null);            // 🔥 sem placeholder
       }
       setCarregando(false);
     };

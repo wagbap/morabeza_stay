@@ -544,7 +544,7 @@ const EditarAlojamentoContent = () => {
   return (
     <>
       <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
-        <div className="font-bold text-lg tracking-tight">MorabezaStay</div>
+        <div className="font-bold text-lg tracking-tight"></div>
         <div className="flex items-center gap-6 text-sm">
           <PropMenu
             nomePropriedade={informacoesBasicas.titulo || 'Nova Propriedade'}

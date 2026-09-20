@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Eye, MapPin, Users, Calendar, DollarSign, CheckCircle, XCircle, Loader, AlertCircle, Car, Gauge, Fuel } from 'lucide-react';
+import {
+  Plus, Search, Edit, Trash2, Eye, MapPin, Users, Calendar,
+  CheckCircle, XCircle, Loader, AlertCircle, Car, Gauge, Fuel,
+} from 'lucide-react';
 import { listarCarros, excluirCarro } from '../../services/carroApiService';
 
 const API_URL = 'https://welovepalop.com';
-const USUARIO_ID = 1;
 
 const MeusCarros = () => {
   const navigate = useNavigate();
@@ -15,44 +17,70 @@ const MeusCarros = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [usuarioId, setUsuarioId] = useState(null);
 
-  const carregarCarros = async () => {
+  // ---------------------------------------------------------
+  // Ler user do localStorage (igual em todos os componentes)
+  // ---------------------------------------------------------
+  const getLoggedUser = () => {
+    try {
+      const raw =
+        localStorage.getItem('user') ||
+        localStorage.getItem('morabeza_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const carregarCarros = async (uid) => {
+    setError(null);
     try {
       setLoading(true);
-      const result = await listarCarros(USUARIO_ID);
-      
+      const result = await listarCarros(uid);
+
       if (result.success) {
-        setCarros(result.data.items || []);
+        setCarros(result.data?.items || []);
       } else {
-        setError(result.message);
+        setError(result.message || 'Erro ao carregar veículos');
       }
     } catch (err) {
-      console.error('Erro:', err);
-      setError(err.message);
+      console.error('[MeusCarros] Erro:', err);
+      setError(err.message || 'Erro de rede');
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------------------------------------------------------
+  // Bootstrap: ler user e carregar
+  // ---------------------------------------------------------
   useEffect(() => {
-    carregarCarros();
+    const user = getLoggedUser();
+
+    // Sem sessão → volta para login
+    const uid = user?.id || user?.sub || user?.user_id;
+    if (!uid) {
+      console.warn('[MeusCarros] Sem user no localStorage');
+      navigate('/login');
+      return;
+    }
+
+    setUsuarioId(uid);
+    carregarCarros(uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleEditar = (id) => {
-    navigate(`/carro-registo/editar/${id}`);
-  };
-
-  const handleVer = (id) => {
-    navigate(`/carro-registo/detalhes/${id}`);
-  };
+  const handleEditar = (id) => navigate(`/carro-registo/editar/${id}`);
+  const handleVer = (id) => navigate(`/carro-registo/detalhes/${id}`);
 
   const handleExcluir = async (id, titulo) => {
     if (!window.confirm(`Tem certeza que deseja excluir "${titulo}"?`)) return;
-    
+
     try {
       const result = await excluirCarro(id);
       if (result.success) {
-        setCarros(prev => prev.filter(c => c.id !== id));
+        setCarros((prev) => prev.filter((c) => c.id !== id));
         alert('Carro excluído com sucesso!');
       } else {
         alert(result.message || 'Erro ao excluir');
@@ -64,9 +92,9 @@ const MeusCarros = () => {
 
   const getStatusBadge = (status) => {
     const config = {
-      disponivel: { label: 'Disponível', icon: <CheckCircle size={14} />, class: 'bg-green-100 text-green-800' },
-      indisponivel: { label: 'Indisponível', icon: <XCircle size={14} />, class: 'bg-red-100 text-red-800' },
-      manutencao: { label: 'Manutenção', icon: <AlertCircle size={14} />, class: 'bg-yellow-100 text-yellow-800' }
+      disponivel:   { label: 'Disponível',   icon: <CheckCircle size={14} />,   class: 'bg-green-100 text-green-800' },
+      indisponivel: { label: 'Indisponível', icon: <XCircle size={14} />,       class: 'bg-red-100 text-red-800' },
+      manutencao:   { label: 'Manutenção',   icon: <AlertCircle size={14} />,   class: 'bg-yellow-100 text-yellow-800' },
     };
     const { label, icon, class: className } = config[status] || config.disponivel;
     return (
@@ -76,10 +104,11 @@ const MeusCarros = () => {
     );
   };
 
-  const carrosFiltrados = carros.filter(c => {
-    const matchSearch = (c.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        (c.marca || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        (c.modelo || '').toLowerCase().includes(searchTerm.toLowerCase());
+  const carrosFiltrados = carros.filter((c) => {
+    const matchSearch =
+      (c.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.marca  || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.modelo || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = filtroStatus === 'todos' || c.status === filtroStatus;
     return matchSearch && matchStatus;
   });
@@ -100,7 +129,10 @@ const MeusCarros = () => {
           <AlertCircle size={48} className="text-red-500 mx-auto mb-3" />
           <p className="text-red-700 font-semibold mb-2">Erro ao carregar</p>
           <p className="text-sm text-gray-600 mb-4">{error}</p>
-          <button onClick={carregarCarros} className="px-4 py-2 bg-[#006ce4] text-white rounded-lg">
+          <button
+            onClick={() => usuarioId && carregarCarros(usuarioId)}
+            className="px-4 py-2 bg-[#006ce4] text-white rounded-lg"
+          >
             Tentar novamente
           </button>
         </div>
@@ -115,14 +147,15 @@ const MeusCarros = () => {
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Meus Veículos</h1>
-              <p className="text-gray-500 text-sm mt-1">Gerencie todos os seus carros cadastrados</p>
+              <p className="text-gray-500 text-sm mt-1">
+                Gerencie todos os seus carros cadastrados
+              </p>
             </div>
             <button
               onClick={() => navigate('/carro-registo/fluxo')}
               className="flex items-center gap-2 px-4 py-2 bg-[#006ce4] text-white rounded-lg hover:bg-[#0053b3] transition-colors"
             >
-              <Plus size={18} />
-              Novo Veículo
+              <Plus size={18} /> Novo Veículo
             </button>
           </div>
         </div>
@@ -145,7 +178,7 @@ const MeusCarros = () => {
               <div>
                 <p className="text-sm text-gray-500">Disponíveis</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {carros.filter(c => c.status === 'disponivel').length}
+                  {carros.filter((c) => c.status === 'disponivel').length}
                 </p>
               </div>
               <CheckCircle size={32} className="text-green-500 opacity-50" />
@@ -156,7 +189,7 @@ const MeusCarros = () => {
               <div>
                 <p className="text-sm text-gray-500">Indisponíveis</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {carros.filter(c => c.status === 'indisponivel').length}
+                  {carros.filter((c) => c.status === 'indisponivel').length}
                 </p>
               </div>
               <XCircle size={32} className="text-red-500 opacity-50" />
@@ -167,7 +200,7 @@ const MeusCarros = () => {
               <div>
                 <p className="text-sm text-gray-500">Manutenção</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {carros.filter(c => c.status === 'manutencao').length}
+                  {carros.filter((c) => c.status === 'manutencao').length}
                 </p>
               </div>
               <AlertCircle size={32} className="text-yellow-500 opacity-50" />
@@ -190,7 +223,7 @@ const MeusCarros = () => {
             />
           </div>
           <div className="flex gap-2 flex-wrap">
-            {['todos', 'disponivel', 'indisponivel', 'manutencao'].map(status => (
+            {['todos', 'disponivel', 'indisponivel', 'manutencao'].map((status) => (
               <button
                 key={status}
                 onClick={() => setFiltroStatus(status)}
@@ -200,24 +233,28 @@ const MeusCarros = () => {
                     : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                {status === 'todos' ? 'Todos' : 
-                 status === 'disponivel' ? 'Disponíveis' : 
-                 status === 'indisponivel' ? 'Indisponíveis' : 'Manutenção'}
+                {status === 'todos'
+                  ? 'Todos'
+                  : status === 'disponivel'
+                  ? 'Disponíveis'
+                  : status === 'indisponivel'
+                  ? 'Indisponíveis'
+                  : 'Manutenção'}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Lista de Carros */}
+      {/* Lista */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {carrosFiltrados.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
             <Car size={64} className="mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum veículo encontrado</h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm || filtroStatus !== 'todos' 
-                ? 'Tente ajustar os filtros de busca' 
+              {searchTerm || filtroStatus !== 'todos'
+                ? 'Tente ajustar os filtros de busca'
                 : 'Comece cadastrando seu primeiro veículo'}
             </p>
             <button
@@ -229,24 +266,31 @@ const MeusCarros = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {carrosFiltrados.map(carro => (
-              <div key={carro.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+            {carrosFiltrados.map((carro) => (
+              <div
+                key={carro.id}
+                className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
+              >
                 <div className="relative h-48 bg-gray-100">
                   {carro.imagem_principal ? (
-                    <img 
-                      src={carro.imagem_principal.startsWith('http') ? carro.imagem_principal : `${API_URL}${carro.imagem_principal}`}
+                    <img
+                      src={
+                        carro.imagem_principal.startsWith('http')
+                          ? carro.imagem_principal
+                          : `${API_URL}${carro.imagem_principal}`
+                      }
                       alt={carro.titulo}
                       className="w-full h-full object-cover"
-                      onError={(e) => { e.target.src = 'https://placehold.co/400x300?text=Sem+Imagem'; }}
+                      onError={(e) => {
+                        e.target.src = 'https://placehold.co/400x300?text=Sem+Imagem';
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Car size={48} className="text-gray-400" />
                     </div>
                   )}
-                  <div className="absolute top-3 right-3">
-                    {getStatusBadge(carro.status)}
-                  </div>
+                  <div className="absolute top-3 right-3">{getStatusBadge(carro.status)}</div>
                   <div className="absolute bottom-3 left-3 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-full">
                     {carro.categoria_nome || carro.tipo || 'Veículo'}
                   </div>
@@ -257,17 +301,27 @@ const MeusCarros = () => {
                     <h3 className="text-lg font-semibold text-gray-900">{carro.titulo}</h3>
                     <p className="text-lg font-bold text-[#006ce4]">{carro.preco_dia} CVE/dia</p>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-3">
-                    <span className="flex items-center gap-1"><Calendar size={14} /> {carro.ano || 'N/A'}</span>
-                    <span className="flex items-center gap-1"><Users size={14} /> {carro.passageiros || 5} pessoas</span>
-                    <span className="flex items-center gap-1"><Gauge size={14} /> {carro.transmissao || 'Manual'}</span>
-                    <span className="flex items-center gap-1"><Fuel size={14} /> {carro.combustivel || 'Gasolina'}</span>
-                    <span className="flex items-center gap-1"><MapPin size={14} /> {carro.ilha || carro.localizacao || 'Localização'}</span>
+                    <span className="flex items-center gap-1">
+                      <Calendar size={14} /> {carro.ano || 'N/A'}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users size={14} /> {carro.passageiros || 5} pessoas
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Gauge size={14} /> {carro.transmissao || 'Manual'}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Fuel size={14} /> {carro.combustivel || 'Gasolina'}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin size={14} /> {carro.ilha || carro.localizacao || 'Localização'}
+                    </span>
                   </div>
-                  
+
                   <p className="text-sm text-gray-600 mb-4 line-clamp-2">{carro.descricao}</p>
-                  
+
                   <div className="flex gap-3 pt-3 border-t border-gray-100">
                     <button
                       onClick={() => handleVer(carro.id)}

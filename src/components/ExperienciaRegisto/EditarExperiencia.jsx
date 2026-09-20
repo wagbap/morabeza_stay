@@ -12,16 +12,18 @@ import Idiomas from './Idiomas';
 import ImagensUpload from './ImagensUpload';
 import Disponibilidade from './Disponibilidade';
 import { buscarExperienciaParaEdicao, salvarFluxoExperiencia } from '../../services/experienciaApiService';
+import { useToast } from '../../Toast';
 
 const EditarExperiencia = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+  const { showToast } = useToast();
+
   const [fase, setFase] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [experienciaId, setExperienciaId] = useState(id ? parseInt(id) : null);
-  
+
   const [informacoes, setInformacoes] = useState({});
   const [endereco, setEndereco] = useState({});
   const [categoria, setCategoria] = useState('aventura');
@@ -30,19 +32,19 @@ const EditarExperiencia = () => {
   const [idiomas, setIdiomas] = useState([]);
   const [imagens, setImagens] = useState([]);
   const [disponibilidade, setDisponibilidade] = useState({ dias_disponiveis: [], horarios: [] });
-  
+
   // Carregar dados da experiência
   useEffect(() => {
     const carregarExperiencia = async () => {
       if (!experienciaId) return;
-      
+
       setLoading(true);
       try {
         const result = await buscarExperienciaParaEdicao(experienciaId);
-        
+
         if (result.success && result.data) {
           const data = result.data;
-          
+
           setInformacoes({
             titulo: data.titulo || '',
             descricao_curta: data.descricao_curta || '',
@@ -59,7 +61,7 @@ const EditarExperiencia = () => {
             inclui_refeicao: data.inclui_refeicao == 1,
             ponto_encontro: data.ponto_encontro || ''
           });
-          
+
           setEndereco({
             morada: data.endereco || '',
             cidade: data.localizacao || '',
@@ -67,7 +69,7 @@ const EditarExperiencia = () => {
             lat: data.latitude || null,
             lng: data.longitude || null
           });
-          
+
           setCategoria(data.categoria || 'aventura');
           setInclusoes(data.inclusoes || []);
           setRequisitos(data.requisitos || []);
@@ -78,26 +80,26 @@ const EditarExperiencia = () => {
             horarios: data.horarios || []
           });
         } else {
-          alert('Erro ao carregar experiência');
+          showToast('Erro ao carregar experiência', 'error');
           navigate('/experiencia-registo/meus');
         }
       } catch (error) {
         console.error('Erro:', error);
-        alert('Erro ao carregar dados da experiência');
+        showToast('Erro ao carregar dados da experiência', 'error');
         navigate('/experiencia-registo/meus');
       } finally {
         setLoading(false);
       }
     };
-    
+
     carregarExperiencia();
-  }, [experienciaId, navigate]);
-  
+  }, [experienciaId, navigate, showToast]);
+
   const handleNext = () => {
     setFase(fase + 1);
     window.scrollTo(0, 0);
   };
-  
+
   const handleBack = () => {
     if (fase > 1) {
       setFase(fase - 1);
@@ -106,11 +108,11 @@ const EditarExperiencia = () => {
       navigate(-1);
     }
   };
-  
+
   const handleFinalizar = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    
+
     try {
       const dadosCompletos = {
         ...informacoes,
@@ -122,23 +124,23 @@ const EditarExperiencia = () => {
         imagens,
         ...disponibilidade
       };
-      
+
       const result = await salvarFluxoExperiencia(dadosCompletos, experienciaId);
-      
+
       if (result.success) {
-        alert(`✅ ${result.message}`);
+        showToast(result.message || 'Alterações guardadas com sucesso!', 'success');
         navigate('/experiencia-registo/meus');
       } else {
-        alert(`⚠️ ${result.message}`);
+        showToast(result.message || 'Erro ao guardar alterações', 'error');
       }
     } catch (error) {
       console.error('Erro:', error);
-      alert('Erro ao salvar as alterações.\n' + error.message);
+      showToast('Erro ao salvar as alterações. Tente novamente.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   const renderProgressBar = () => {
     const fasesLista = ['Info', 'Local', 'Categoria', 'Inclusões', 'Requisitos', 'Idiomas', 'Fotos', 'Disponibilidade'];
     return (
@@ -160,7 +162,7 @@ const EditarExperiencia = () => {
       </div>
     );
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -171,11 +173,11 @@ const EditarExperiencia = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
-        <div className="font-bold text-2xl tracking-tight">morabezastay.cv</div>
+        <div className="font-bold text-2xl tracking-tight"></div>
         <div className="flex items-center gap-6 text-sm">
           <div className="text-right">
             <div className="font-medium">{informacoes.titulo || 'Editar Experiência'}</div>
@@ -191,96 +193,96 @@ const EditarExperiencia = () => {
             </div>
           </div>
           <div className="w-[1px] h-8 bg-blue-900"></div>
-      
+
           <div className="flex items-center gap-2 cursor-pointer hover:underline">
             <span>Ajuda</span> <HelpCircle size={18} />
           </div>
-        
+
         </div>
       </header>
-      
+
       <div className="max-w-4xl mx-auto px-4 py-8">
         {renderProgressBar()}
-        
+
         <div className="bg-white rounded-lg shadow-md p-8">
           {fase === 1 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Informações</h1>
               <p className="text-gray-600 mb-6">Atualize os dados da sua experiência.</p>
-              <InformacoesBasicas 
+              <InformacoesBasicas
                 dados={informacoes}
                 onChange={setInformacoes}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {fase === 2 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Localização</h1>
               <p className="text-gray-600 mb-6">Atualize o local da experiência.</p>
-           <Localizacao 
-            dados={endereco}
-            onChange={setEndereco}
-            readOnly={false}
-            experienciaId={experienciaId}  // ← ADICIONE ESTA LINHA
-          />
+              <Localizacao
+                dados={endereco}
+                onChange={setEndereco}
+                readOnly={false}
+                experienciaId={experienciaId}
+              />
             </>
           )}
-          
+
           {fase === 3 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Categoria</h1>
               <p className="text-gray-600 mb-6">Atualize a categoria da experiência.</p>
-              <Categoria 
+              <Categoria
                 value={categoria}
                 onChange={setCategoria}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {fase === 4 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Inclusões</h1>
               <p className="text-gray-600 mb-6">Atualize os itens inclusos na experiência.</p>
-              <Inclusoes 
+              <Inclusoes
                 items={inclusoes}
                 onChange={setInclusoes}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {fase === 5 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Requisitos</h1>
               <p className="text-gray-600 mb-6">Atualize os requisitos da experiência.</p>
-              <Requisitos 
+              <Requisitos
                 items={requisitos}
                 onChange={setRequisitos}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {fase === 6 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Idiomas</h1>
               <p className="text-gray-600 mb-6">Atualize os idiomas falados.</p>
-              <Idiomas 
+              <Idiomas
                 items={idiomas}
                 onChange={setIdiomas}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {fase === 7 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Fotos</h1>
               <p className="text-gray-600 mb-6">Atualize as fotos da experiência.</p>
-              <ImagensUpload 
+              <ImagensUpload
                 imagens={imagens}
                 onChange={setImagens}
                 experienciaId={experienciaId}
@@ -288,19 +290,19 @@ const EditarExperiencia = () => {
               />
             </>
           )}
-          
+
           {fase === 8 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Disponibilidade</h1>
               <p className="text-gray-600 mb-6">Atualize os dias e horários da experiência.</p>
-              <Disponibilidade 
+              <Disponibilidade
                 dados={disponibilidade}
                 onChange={setDisponibilidade}
                 readOnly={false}
               />
             </>
           )}
-          
+
           <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
             <button
               onClick={handleBack}
@@ -308,7 +310,7 @@ const EditarExperiencia = () => {
             >
               <ArrowLeft size={18} /> Voltar
             </button>
-            
+
             {fase < 8 && (
               <button
                 onClick={handleNext}
@@ -317,7 +319,7 @@ const EditarExperiencia = () => {
                 Continuar <ChevronRight size={18} />
               </button>
             )}
-            
+
             {fase === 8 && (
               <button
                 onClick={handleFinalizar}

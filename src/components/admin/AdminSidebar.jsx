@@ -1,8 +1,6 @@
-// components/admin/AdminSidebar.jsx
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Home,
   Calendar,
   Home as House,
   Users,
@@ -11,23 +9,17 @@ import {
   Sun,
   LogOut,
   MailCheck,
-  MessageSquare,
   CreditCard,
   AlertTriangle,
   FileText,
   UserCheck,
-  CheckCircle,
-  Car,
-  Compass,
-  User,
-  Menu,
-  X,
   QrCode,
-  BookDashed,
-  BookDashedIcon,
-  PaintRoller,
   LayoutDashboardIcon,
   Send,
+  ShieldCheck,
+  FileCheck2,
+  Menu,
+  X,
 } from 'lucide-react';
 
 const AdminSidebar = () => {
@@ -119,7 +111,8 @@ const AdminSidebar = () => {
     { name: 'Visão Geral', icon: <LayoutDashboardIcon size={20} />, path: '/admin/dashboard' },
     { name: 'Anúncios', icon: <House size={20} />, path: '/admin/propriedades' },
     { name: 'Prestadores', icon: <UserCheck size={20} />, path: '/admin/anfitrioes' },
-    { name: 'Documentação', icon: <MailCheck size={20} />, path: '/admin/verificacoes' },
+    { name: 'Verificações Email', icon: <MailCheck size={20} />, path: '/admin/verificacoes-email' },
+    { name: 'Documentação', icon: <FileCheck2 size={20} />, path: '/admin/verificacoes-documentos' },
     { name: 'Reservas', icon: <Calendar size={20} />, path: '/admin/reservas' },
     { name: 'Validar reservas', icon: <QrCode size={20} />, path: '/admin/validar-reservas' },
     { name: 'Transações', icon: <CreditCard size={20} />, path: '/admin/pagamentos' },
@@ -129,11 +122,16 @@ const AdminSidebar = () => {
     { name: 'Relatórios', icon: <FileText size={20} />, path: '/admin/relatorios' },
     { name: 'Clientes', icon: <Users size={20} />, path: '/admin/clientes' },
     { name: 'Configurações', icon: <Settings size={20} />, path: '/admin/configuracoes' },
+    { name: 'Recebimento e IBAN', icon: <ShieldCheck size={20} />, path: '/admin/recebimento'}
   ];
+
+
+           
+
 
   const SidebarContent = () => (
     <>
-      <div className="p-6 flex items-center gap-2 sticky top-0 bg-[#003580]">
+      <div className="p-6 flex items-center gap-2 sticky top-0 bg-[#003580] z-10">
         <Sun className="text-yellow-400" size={28} />
         <h1 className="text-xl font-semibold tracking-wide text-white">
           MORABEZA<span className="font-light">.STAY</span>
@@ -164,6 +162,8 @@ const AdminSidebar = () => {
               </span>
             )}
           </NavLink>
+
+
         ))}
       </nav>
 

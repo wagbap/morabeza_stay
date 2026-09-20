@@ -953,7 +953,8 @@ participante_principal: "Partecipante Principale",
 preencha_dados_participantes: "Prenche dadus pa tudu partisipantis.",
 // ==================== PARTISIPANTI - KRIOLU ====================
 clique_participante_adicionar: "Klika na un partisipanti pa adisiona-l rapidu na reserva atual",
-ver_fotos: "Txeka Fotu"
+ver_fotos: "Txeka Fotu",
+enviar_whatsapp: "Envia  whatsapp",
 
   }
 };

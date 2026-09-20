@@ -36,7 +36,7 @@
           <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl border border-white flex items-center gap-4">
             <div className="bg-green-50 p-4 rounded-xl text-green-600"><Wallet size={24} /></div>
             <div>
-              <p className="text-xs text-gray-500 font-medium">Comissão Líquida (20%)</p>
+              <p className="text-xs text-gray-500 font-medium">Comissão Líquida (10%)</p>
               <p className="text-xl font-bold text-green-600">CVE {Number(resumo.comissao).toLocaleString()}</p>
             </div>
           </div>

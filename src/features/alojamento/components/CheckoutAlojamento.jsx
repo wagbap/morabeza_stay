@@ -1,25 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { 
-  Check, ArrowLeft, Loader, AlertCircle, ChevronRight, Calendar, Users, Home, ShieldCheck, Lock
+import {
+  Check, ArrowLeft, Loader, AlertCircle, ChevronRight, Calendar, Users, Home, ShieldCheck, Lock, X
 } from 'lucide-react';
 import DataModalAlojamento from './DataModalAlojamento';
+import { useToast } from '../../../Toast';
+import ResumoReservaAlojamento from './ResumoReservaAlojamento';
 
+const API_BASE = 'https://welovepalop.com';
+const TAXA_COMISSAO = 0.10;
+
+const plural = (n, singular, pluralForm) => `${n} ${n === 1 ? singular : pluralForm}`;
+
+const calcularNoites = (checkIn, checkOut) => {
+  if (!checkIn || !checkOut) return 1;
+  const entrada = new Date(checkIn);
+  const saida = new Date(checkOut);
+  const diff = Math.ceil((saida - entrada) / (1000 * 60 * 60 * 24));
+  return diff > 0 ? diff : 1;
+};
+
+/* Sessão anónima persistente (usada por holds opcionalmente) */
+const getSessionId = () => {
+  let sid = sessionStorage.getItem('morabeza_sid');
+  if (!sid) {
+    sid = (crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString();
+    sessionStorage.setItem('morabeza_sid', sid);
+  }
+  return sid;
+};
+
+// ============================================================
+// HÓSPEDE PRINCIPAL
+// ============================================================
 const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrincipal }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div className="mb-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm text-left">
       <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
         <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-sans">1</span>
         {t('hospede_principal', 'Hóspede Principal')}
       </h3>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1">{t('nome_completo', 'Nome completo')} *</label>
-          <input 
+          <input
             type="text"
             value={participantePrincipal.nome_completo}
             onChange={(e) => updateParticipantePrincipal('nome_completo', e.target.value)}
@@ -27,10 +55,10 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
             placeholder={t('placeholder_nome_documento', 'Nome como consta no documento')}
           />
         </div>
-        
+
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1">{t('email', 'Email')} *</label>
-          <input 
+          <input
             type="email"
             value={participantePrincipal.email}
             onChange={(e) => updateParticipantePrincipal('email', e.target.value)}
@@ -38,10 +66,10 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
             placeholder="seu@email.com"
           />
         </div>
-        
+
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1">{t('telefone', 'Telefone')} *</label>
-          <input 
+          <input
             type="tel"
             value={participantePrincipal.phone}
             onChange={(e) => updateParticipantePrincipal('phone', e.target.value)}
@@ -49,10 +77,10 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
             placeholder="+238 991 23 45"
           />
         </div>
-        
+
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1">{t('pais_nacionalidade', 'País / Nacionalidade')} *</label>
-          <select 
+          <select
             value={participantePrincipal.nacionalidade}
             onChange={(e) => updateParticipantePrincipal('nacionalidade', e.target.value)}
             className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
@@ -72,9 +100,13 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
   );
 };
 
-const ParticipantesAdicionais = ({ participantes, addParticipante, removeParticipante, updateParticipante }) => {
+// ============================================================
+// HÓSPEDES ADICIONAIS
+// ============================================================
+const ParticipantesAdicionais = ({ participantes, addParticipante, removeParticipante, updateParticipante, maxPessoas }) => {
   const { t } = useTranslation();
-  
+  const podeAdicionarMais = participantes.length + 1 < maxPessoas;
+
   return (
     <div className="mb-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm text-left">
       <div className="flex justify-between items-center mb-4">
@@ -82,21 +114,29 @@ const ParticipantesAdicionais = ({ participantes, addParticipante, removePartici
           <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-sans">2</span>
           {t('hospedes_adicionais', 'Hóspedes Adicionais')}
         </h3>
-        <button 
+        <button
           onClick={addParticipante}
-          className="text-blue-600 text-sm font-bold flex items-center gap-1 hover:underline"
+          disabled={!podeAdicionarMais}
+          className={`text-sm font-bold flex items-center gap-1 ${
+            podeAdicionarMais ? 'text-blue-600 hover:underline' : 'text-slate-300 cursor-not-allowed'
+          }`}
+          title={!podeAdicionarMais ? t('limite_hospedes_atingido', 'Limite de hóspedes atingido') : ''}
         >
           + {t('adicionar_hospede', 'Adicionar hóspede')}
         </button>
       </div>
-      
+
+      <p className="text-xs text-slate-500 mb-4 font-medium">
+        {t('capacidade_maxima', 'Capacidade máxima')}: {plural(maxPessoas, t('pessoa', 'pessoa'), t('pessoas', 'pessoas'))}
+      </p>
+
       {participantes.length === 0 ? (
         <p className="text-slate-400 text-sm text-center py-4">{t('nenhum_hospede_adicional', 'Nenhum hóspede adicional adicionado')}</p>
       ) : (
         <div className="space-y-4">
           {participantes.map((p, idx) => (
             <div key={p.id} className="border border-slate-100 rounded-xl p-4 relative bg-slate-50/30">
-              <button 
+              <button
                 onClick={() => removeParticipante(p.id)}
                 className="absolute top-4 right-4 text-red-500 hover:text-red-700 text-xs font-bold"
               >
@@ -105,7 +145,7 @@ const ParticipantesAdicionais = ({ participantes, addParticipante, removePartici
               <h4 className="font-bold text-sm text-slate-700 mb-3">{t('hospede', 'Hóspede')} {idx + 2}</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="md:col-span-1">
-                  <input 
+                  <input
                     type="text"
                     placeholder={t('nome_completo', 'Nome completo')}
                     value={p.nome_completo}
@@ -114,7 +154,7 @@ const ParticipantesAdicionais = ({ participantes, addParticipante, removePartici
                   />
                 </div>
                 <div>
-                  <select 
+                  <select
                     value={p.idade}
                     onChange={(e) => updateParticipante(p.id, 'idade', e.target.value)}
                     className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
@@ -124,7 +164,7 @@ const ParticipantesAdicionais = ({ participantes, addParticipante, removePartici
                   </select>
                 </div>
                 <div>
-                  <select 
+                  <select
                     value={p.nacionalidade}
                     onChange={(e) => updateParticipante(p.id, 'nacionalidade', e.target.value)}
                     className="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
@@ -148,13 +188,16 @@ const ParticipantesAdicionais = ({ participantes, addParticipante, removePartici
   );
 };
 
-const ParticipantesAnterioresTabela = ({ 
+// ============================================================
+// PARTICIPANTES DE RESERVAS ANTERIORES
+// ============================================================
+const ParticipantesAnterioresTabela = ({
   participantesAnteriores, carregandoDados, editandoParticipante, editForm, setEditForm,
-  deletandoParticipante, iniciarEdicao, salvarEdicao, cancelarEdicao, 
-  adicionarParticipanteAnterior, deletarParticipante 
+  deletandoParticipante, iniciarEdicao, salvarEdicao, cancelarEdicao,
+  adicionarParticipanteAnterior, deletarParticipante,
 }) => {
   const { t } = useTranslation();
-  
+
   if (carregandoDados) {
     return (
       <div className="flex justify-center items-center py-8 bg-white border border-slate-200 rounded-2xl shadow-sm mb-8">
@@ -173,13 +216,13 @@ const ParticipantesAnterioresTabela = ({
         {t('hospedes_reservas_anteriores', 'Hóspedes de Reservas Anteriores')}
       </h3>
       <p className="text-xs text-slate-500 mb-4 font-medium">{t('clique_hospede_adicionar', 'Clique para adicionar um hóspede frequente')}</p>
-      
+
       <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
         {participantesAnteriores.map((p) => (
           <div key={p.id || p.nome_completo} className="border border-slate-100 rounded-xl p-3 bg-slate-50/50 hover:bg-slate-50 transition-colors">
             {editandoParticipante === p.nome_completo ? (
               <div className="space-y-2">
-                <input 
+                <input
                   type="text"
                   value={editForm.nome_completo}
                   onChange={(e) => setEditForm(prev => ({ ...prev, nome_completo: e.target.value }))}
@@ -187,7 +230,7 @@ const ParticipantesAnterioresTabela = ({
                   placeholder={t('nome_completo', 'Nome completo')}
                 />
                 <div className="flex flex-wrap gap-2">
-                  <select 
+                  <select
                     value={editForm.idade}
                     onChange={(e) => setEditForm(prev => ({ ...prev, idade: e.target.value }))}
                     className="border border-slate-200 rounded-lg p-2 text-sm text-slate-900 bg-white"
@@ -195,7 +238,7 @@ const ParticipantesAnterioresTabela = ({
                     <option value="adulto">{t('adulto', 'Adulto')}</option>
                     <option value="crianca">{t('crianca', 'Criança')}</option>
                   </select>
-                  <select 
+                  <select
                     value={editForm.nacionalidade}
                     onChange={(e) => setEditForm(prev => ({ ...prev, nacionalidade: e.target.value }))}
                     className="border border-slate-200 rounded-lg p-2 text-sm text-slate-900 bg-white flex-1 min-w-[120px]"
@@ -226,20 +269,20 @@ const ParticipantesAnterioresTabela = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button 
+                  <button
                     onClick={() => adicionarParticipanteAnterior(p)}
                     className="text-blue-600 text-xs font-bold px-3 py-1.5 border border-blue-200 rounded-lg bg-white hover:bg-blue-50 transition-colors"
                   >
                     + {t('adicionar', 'Adicionar')}
                   </button>
-                  <button 
+                  <button
                     onClick={() => iniciarEdicao(p)}
                     className="text-slate-400 hover:text-blue-600 text-sm p-1"
                     title={t('editar', 'Editar')}
                   >
                     ✏️
                   </button>
-                  <button 
+                  <button
                     onClick={() => deletarParticipante(p)}
                     disabled={deletandoParticipante === p.nome_completo}
                     className="text-slate-400 hover:text-red-600 text-sm p-1 disabled:opacity-50"
@@ -256,115 +299,17 @@ const ParticipantesAnterioresTabela = ({
     </div>
   );
 };
-const ResumoReservaAlojamento = ({ reserva, totalHospedes, precoTotal, setDataModalOpen }) => {
-  const { t } = useTranslation();
-  
-  const formatNumber = (value) => {
-    if (value === undefined || value === null) return '0';
-    return Number(value).toLocaleString('pt-PT');
-  };
-  
-  const formatarData = (data) => {
-    if (!data) return t('nao_selecionada', 'Não selecionada');
-    const d = new Date(data);
-    return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
 
-  const noites = reserva?.noites || 1;
-  const precoNoite = Number(reserva?.precoNoite || 0);
-  const subtotalNoites = precoNoite * noites;
-  const taxaLimpeza = Number(reserva?.taxaLimpeza || 0);
-  const totalCalculado = subtotalNoites + taxaLimpeza;
-
-  return (
-    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm sticky top-6 text-left">
-      <h2 className="text-lg font-bold text-blue-900 mb-5">{t('resumo_reserva', 'Resumo da reserva')}</h2>
-      
-      {/* Imagem + Nome do Alojamento */}
-      <div className="flex gap-4 mb-6">
-        <img 
-          src={reserva?.imagem || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'} 
-          className="w-20 h-20 rounded-xl object-cover shrink-0" 
-          alt={reserva?.titulo || t('alojamento', 'Alojamento')}
-          onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'}
-        />
-        <div className="flex-1">
-          <h4 className="text-sm font-bold text-blue-900 leading-tight">{reserva?.titulo || 'Alojamento'}</h4>
-          <p className="text-[10px] text-slate-500 mt-1 font-medium">{reserva?.localizacao || 'Cabo Verde'}</p>
-          <button 
-            type="button"
-            onClick={() => setDataModalOpen && setDataModalOpen(true)}
-            className="text-[10px] text-blue-600 underline mt-2 font-bold block"
-          >
-            {t('alterar_datas', 'Alterar datas')}
-          </button>
-        </div>
-      </div>
-
-      {/* Tabela de Detalhes */}
-      <div className="space-y-4 border-t border-slate-100 pt-5">
-        <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('checkin', 'Check-in')}</span>
-          <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.checkIn)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('checkout', 'Check-out')}</span>
-          <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.checkOut)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('noites', 'noites')}</span>
-          <span className="text-xs font-bold text-blue-900">{noites} {t('noites', 'noites')}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('hospedes', 'Hóspedes')}</span>
-          <span className="text-xs font-bold text-blue-900">{totalHospedes || 1} {t('pessoas', 'pessoas')}</span>
-        </div>
-        
-        {/* Preços sem o bug do {{noites}} */}
-        <div className="pt-3 space-y-2 border-t border-slate-100">
-          <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">{t('preco_por_noite', 'Preço por noite')}</span>
-            <span className="text-slate-800">{formatNumber(precoNoite)} CVE</span>
-          </div>
-          <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">Subtotal ({noites} {noites === 1 ? 'noite' : 'noites'})</span>
-            <span className="text-slate-800">{formatNumber(subtotalNoites)} CVE</span>
-          </div>
-          <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">{t('taxa_limpeza', 'Taxa de limpeza')}</span>
-            <span className="text-slate-800">{formatNumber(taxaLimpeza)} CVE</span>
-          </div>
-        </div>
-
-        {/* Total Final do Cliente */}
-        <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-          <span className="text-base font-bold text-blue-900">{t('total', 'Total')}</span>
-          <span className="text-xl font-bold text-blue-600">{formatNumber(precoTotal || totalCalculado)} CVE</span>
-        </div>
-
-        {/* Avisos Finais */}
-        <div className="bg-emerald-50 p-3 rounded-xl flex gap-2 mt-3 border border-emerald-100">
-          <ShieldCheck className="text-emerald-600 shrink-0" size={18} />
-          <div>
-            <p className="text-[9px] font-bold text-emerald-800">{t('cancelamento_gratis', 'Cancelamento gratuito disponível')}</p>
-            <p className="text-[8px] text-emerald-700 font-medium">{t('cancelamento_prazo_checkout', 'Até 48 horas antes do check-in')}</p>
-          </div>
-        </div>
-
-        <div className="bg-[#F0F7FF] p-3 rounded-xl flex gap-2 border border-blue-50">
-          <Lock className="text-blue-600 shrink-0" size={16} />
-          <p className="text-[8px] text-blue-700 font-medium">{t('dados_protegidos', 'Seus dados estão protegidos e seguros através de encriptação segura de ponta a ponta.')}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
 const CheckoutAlojamento = () => {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const { reservaData } = location.state || {};
-  
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -374,58 +319,73 @@ const CheckoutAlojamento = () => {
   const [deletandoParticipante, setDeletandoParticipante] = useState(null);
   const [editandoParticipante, setEditandoParticipante] = useState(null);
   const [editForm, setEditForm] = useState({ nome_completo: '', idade: '', nacionalidade: '' });
-  
+
+  // Estados para o Modal OTP com 6 caixas individuais
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
+  const [loadingOtp, setLoadingOtp] = useState(false);
+  const inputRefs = useRef([]);
+
   const [participantePrincipal, setParticipantePrincipal] = useState({
     nome_completo: '',
     email: '',
     phone: '',
     idade: 'adulto',
-    nacionalidade: 'Cabo Verde'
+    nacionalidade: 'Cabo Verde',
   });
-  
+
   const [participantes, setParticipantes] = useState([]);
 
-  const calcularNoites = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return 1;
-    const entrada = new Date(checkIn);
-    const saida = new Date(checkOut);
-    const diff = Math.ceil((saida - entrada) / (1000 * 60 * 60 * 24));
-    return diff > 0 ? diff : 1;
-  };
-
-  const precoNoite = Number(reservaData?.precoNoite || 120);
   const noitesInicial = calcularNoites(reservaData?.checkIn, reservaData?.checkOut);
-  const subtotal = precoNoite * noitesInicial;
-  const taxaLimpeza = Number(reservaData?.taxaLimpeza || 2500);
+  const taxaLimpezaInicial = Number(reservaData?.taxaLimpeza || 0);
 
-  // 🔴 CÁLCULO FINANCEIRO REAL: 
-  // O cliente paga apenas: Subtotal + Taxa de Limpeza
-  // A comissão de 10% da Morabeza Stay é descontada internamente do anfitrião
-  const comissaoPlataforma = subtotal * 0.10; 
-  const totalGeralCliente = subtotal + taxaLimpeza;
-  const valorAnfitriaoLiquido = (subtotal - comissaoPlataforma) + taxaLimpeza;
+  const capacidadeMaxima = useMemo(() => {
+    const quartos = reservaData?.quartos || [];
+    if (quartos.length > 0) {
+      return quartos.reduce(
+        (acc, q) => acc + Number(q.capacidade || 0) * Number(q.quantidade || 1),
+        0
+      ) || 2;
+    }
+    return Number(reservaData?.capacidade || reservaData?.maxPessoas || 2);
+  }, [reservaData]);
 
   const [reserva, setReserva] = useState({
     id: reservaData?.id || null,
+    alojamento_id: reservaData?.id || reservaData?.alojamento_id || null,
     titulo: reservaData?.titulo || '',
     imagem: reservaData?.imagem || '',
     localizacao: reservaData?.localizacao || '',
     checkIn: reservaData?.checkIn || '',
     checkOut: reservaData?.checkOut || '',
     noites: noitesInicial,
-    precoNoite: precoNoite,
-    subtotal: subtotal,
-    taxaLimpeza: taxaLimpeza,
-    comissaoPlataforma: comissaoPlataforma,
-    valorAnfitriaoLiquido: valorAnfitriaoLiquido,
-    totalGeral: totalGeralCliente,
-    maxPessoas: reservaData?.capacidade || 10
+    taxaLimpeza: taxaLimpezaInicial,
+    maxPessoas: capacidadeMaxima,
+    capacidade: capacidadeMaxima,
+    quartos: reservaData?.quartos || [],
+    modelo_venda: reservaData?.modelo_venda || 'inteiro',
+    tipo_venda: reservaData?.modelo_venda || reservaData?.tipo_venda || 'inteiro',
   });
+
+  const financeiro = useMemo(() => {
+    const quartos = reserva.quartos || [];
+    const noites = reserva.noites || 1;
+
+    const subtotal = quartos.reduce(
+      (acc, q) => acc + Number(q.precoNoite || 0) * Number(q.quantidade || 1) * noites,
+      0
+    );
+    const comissaoPlataforma = subtotal * TAXA_COMISSAO;
+    const totalGeralCliente = subtotal + Number(reserva.taxaLimpeza || 0);
+    const valorAnfitriaoLiquido = subtotal - comissaoPlataforma + Number(reserva.taxaLimpeza || 0);
+
+    return { subtotal, comissaoPlataforma, totalGeralCliente, valorAnfitriaoLiquido };
+  }, [reserva.quartos, reserva.noites, reserva.taxaLimpeza]);
 
   const buscarDadosUsuario = async (email, googleId) => {
     setCarregandoDados(true);
     try {
-      let url = `https://welovepalop.com/api/checkout_api.php?email=${encodeURIComponent(email)}&category=Alojamento`;
+      let url = `${API_BASE}/api/checkout_api.php?email=${encodeURIComponent(email)}&category=Alojamento`;
       if (googleId) {
         url += `&google_id=${encodeURIComponent(googleId)}`;
       }
@@ -435,9 +395,9 @@ const CheckoutAlojamento = () => {
         if (result.usuario) {
           setParticipantePrincipal(prev => ({
             ...prev,
-            nome_completo: result.usuario.full_name || prev.nome_completo,
+            nome_completo: result.usuario.nome || prev.nome_completo,
             email: result.usuario.email || prev.email,
-            phone: result.usuario.phone || prev.phone
+            phone: result.usuario.phone || prev.phone,
           }));
         }
         setParticipantesAnteriores(result.participantes_anteriores || []);
@@ -453,17 +413,19 @@ const CheckoutAlojamento = () => {
     if (!window.confirm(t('confirmar_remover_hospede', { nome: participante.nome_completo }))) return;
     setDeletandoParticipante(participante.nome_completo);
     try {
-      const response = await fetch('https://welovepalop.com/api/checkout_api.php', {
+      const response = await fetch(`${API_BASE}/api/checkout_api.php`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `nome_completo=${encodeURIComponent(participante.nome_completo)}&email=${encodeURIComponent(participantePrincipal.email)}&category=Alojamento`
+        body: `nome_completo=${encodeURIComponent(participante.nome_completo)}&email=${encodeURIComponent(participantePrincipal.email)}&category=Alojamento`,
       });
       const result = await response.json();
       if (result.success) {
         setParticipantesAnteriores(prev => prev.filter(p => p.nome_completo !== participante.nome_completo));
+        showToast(t('hospede_removido', 'Hóspede removido com sucesso'), 'success');
       }
     } catch (err) {
       console.error('Erro ao deletar:', err);
+      showToast(t('erro_remover', 'Erro ao remover hóspede'), 'error');
     } finally {
       setDeletandoParticipante(null);
     }
@@ -474,18 +436,18 @@ const CheckoutAlojamento = () => {
     setEditForm({
       nome_completo: participante.nome_completo,
       idade: participante.idade,
-      nacionalidade: participante.nacionalidade
+      nacionalidade: participante.nacionalidade,
     });
   };
 
   const salvarEdicao = async (participanteOriginal) => {
     if (!editForm.nome_completo.trim()) {
-      setError(t('erro_nome_vazio', 'O nome não pode estar vazio'));
+      showToast(t('erro_nome_vazio', 'O nome não pode estar vazio'), 'error');
       return;
     }
     setDeletandoParticipante(participanteOriginal.nome_completo);
     try {
-      const response = await fetch('https://welovepalop.com/api/checkout_api.php', {
+      const response = await fetch(`${API_BASE}/api/checkout_api.php`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -494,31 +456,33 @@ const CheckoutAlojamento = () => {
           idade: editForm.idade,
           nacionalidade: editForm.nacionalidade,
           email: participantePrincipal.email,
-          category: 'Alojamento'
-        })
+          category: 'Alojamento',
+        }),
       });
       const result = await response.json();
       if (result.success) {
-        setParticipantesAnteriores(prev => prev.map(p => 
+        setParticipantesAnteriores(prev => prev.map(p =>
           p.nome_completo === participanteOriginal.nome_completo ? {
             ...p,
             nome_completo: editForm.nome_completo,
             idade: editForm.idade,
-            nacionalidade: editForm.nacionalidade
+            nacionalidade: editForm.nacionalidade,
           } : p
         ));
-        setParticipantes(prev => prev.map(p => 
+        setParticipantes(prev => prev.map(p =>
           p.nome_completo === participanteOriginal.nome_completo ? {
             ...p,
             nome_completo: editForm.nome_completo,
             idade: editForm.idade,
-            nacionalidade: editForm.nacionalidade
+            nacionalidade: editForm.nacionalidade,
           } : p
         ));
         setEditandoParticipante(null);
+        showToast(t('hospede_atualizado', 'Hóspede atualizado'), 'success');
       }
     } catch (err) {
       console.error('Erro ao editar:', err);
+      showToast(t('erro_atualizar', 'Erro ao atualizar hóspede'), 'error');
     } finally {
       setDeletandoParticipante(null);
     }
@@ -532,16 +496,20 @@ const CheckoutAlojamento = () => {
   const adicionarParticipanteAnterior = (participante) => {
     const jaExiste = participantes.some(p => p.nome_completo === participante.nome_completo);
     if (jaExiste) {
-      setError(t('erro_hospede_ja_adicionado', { nome: participante.nome_completo }));
-      setTimeout(() => setError(''), 3000);
+      showToast(t('erro_hospede_ja_adicionado', { nome: participante.nome_completo }), 'error');
       return;
     }
-    setParticipantes([...participantes, { 
+    if (participantes.length + 1 >= reserva.maxPessoas) {
+      showToast(t('erro_max_hospedes', { max: reserva.maxPessoas }), 'error');
+      return;
+    }
+    setParticipantes(prev => [...prev, {
       id: Date.now(),
       nome_completo: participante.nome_completo,
       idade: participante.idade || 'adulto',
-      nacionalidade: participante.nacionalidade || 'Cabo Verde'
+      nacionalidade: participante.nacionalidade || 'Cabo Verde',
     }]);
+    showToast(t('hospede_adicionado', 'Hóspede adicionado'), 'success');
   };
 
   useEffect(() => {
@@ -557,13 +525,13 @@ const CheckoutAlojamento = () => {
           ...prev,
           nome_completo: userData.name || userData.full_name || '',
           email: email,
-          phone: userData.phone || ''
+          phone: userData.phone || '',
         }));
       } catch (e) {
         console.error('Erro ao parsear usuário:', e);
       }
     } else {
-      alert(t('login_necessario_continuar', 'Por favor, faça login para continuar'));
+      showToast(t('login_necessario_continuar', 'Por favor, faça login para continuar'), 'error');
       navigate('/');
     }
     window.scrollTo(0, 0);
@@ -576,41 +544,31 @@ const CheckoutAlojamento = () => {
   }, [reservaData, navigate]);
 
   const handleSelectData = (dataObj) => {
-    const novasNoites = dataObj.noites;
-    const novoSubtotal = reserva.precoNoite * novasNoites;
-    const novaComissao = novoSubtotal * 0.10;
-    const novoTotalCliente = novoSubtotal + reserva.taxaLimpeza;
-    const novoValorAnfitriao = (novoSubtotal - novaComissao) + reserva.taxaLimpeza;
-
+    const novasNoites = dataObj.noites || calcularNoites(dataObj.checkIn, dataObj.checkOut);
     setReserva(prev => ({
       ...prev,
       checkIn: dataObj.checkIn,
       checkOut: dataObj.checkOut,
       noites: novasNoites,
-      subtotal: novoSubtotal,
-      comissaoPlataforma: novaComissao,
-      valorAnfitriaoLiquido: novoValorAnfitriao,
-      totalGeral: novoTotalCliente
     }));
     setDataModalOpen(false);
   };
 
   const addParticipante = () => {
     if (participantes.length + 1 >= reserva.maxPessoas) {
-      setError(t('erro_max_hospedes', { max: reserva.maxPessoas }));
-      setTimeout(() => setError(''), 3000);
+      showToast(t('erro_max_hospedes', { max: reserva.maxPessoas }), 'error');
       return;
     }
-    setParticipantes([...participantes, { 
-      id: Date.now(), 
-      nome_completo: '', 
-      idade: 'adulto', 
-      nacionalidade: 'Cabo Verde' 
+    setParticipantes(prev => [...prev, {
+      id: Date.now(),
+      nome_completo: '',
+      idade: 'adulto',
+      nacionalidade: 'Cabo Verde',
     }]);
   };
 
   const removeParticipante = (id) => {
-    setParticipantes(participantes.filter(p => p.id !== id));
+    setParticipantes(prev => prev.filter(p => p.id !== id));
   };
 
   const updateParticipantePrincipal = (field, value) => {
@@ -618,11 +576,13 @@ const CheckoutAlojamento = () => {
   };
 
   const updateParticipante = (id, field, value) => {
-    setParticipantes(participantes.map(p => p.id === id ? { ...p, [field]: value } : p));
+    setParticipantes(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
   const validateForm = () => {
     setError('');
+    const totalHospedes = participantes.length + 1;
+
     if (!participantePrincipal.nome_completo.trim()) {
       setError(t('erro_nome_obrigatorio', 'O nome completo do hóspede principal é obrigatório'));
       return false;
@@ -643,6 +603,10 @@ const CheckoutAlojamento = () => {
       setError(t('erro_datas_obrigatorias', 'As datas da reserva são obrigatórias'));
       return false;
     }
+    if (totalHospedes > reserva.maxPessoas) {
+      setError(t('erro_max_hospedes', { max: reserva.maxPessoas }));
+      return false;
+    }
     for (let i = 0; i < participantes.length; i++) {
       if (!participantes[i].nome_completo.trim()) {
         setError(t('erro_nome_hospede_adicional', { numero: i + 2 }));
@@ -652,53 +616,241 @@ const CheckoutAlojamento = () => {
     return true;
   };
 
-  const handleSubmit = () => {
+  const verificarStock = async () => {
+    const quartos = reserva.quartos || [];
+    const modelo = reserva.modelo_venda || 'inteiro';
+
+    if (modelo === 'inteiro') {
+      try {
+        const url = `${API_BASE}/api/checkout_api.php?action=check_stock&alojamento_id=${encodeURIComponent(reserva.alojamento_id)}&data_checkin=${encodeURIComponent(reserva.checkIn)}&data_checkout=${encodeURIComponent(reserva.checkOut)}`;
+        const res = await fetch(url, { method: 'GET' });
+        const data = await res.json();
+        if (data.success && data.modelo_venda === 'inteiro' && data.disponivel === false) {
+          showToast(t('sem_stock_disponivel', 'Sem disponibilidade para as datas selecionadas'), 'error');
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.error('Erro ao verificar stock (inteiro):', err);
+        return true;
+      }
+    }
+
+    if (!quartos.length) return true;
+
+    try {
+      const url = `${API_BASE}/api/checkout_api.php?action=check_stock&alojamento_id=${encodeURIComponent(reserva.alojamento_id)}&data_checkin=${encodeURIComponent(reserva.checkIn)}&data_checkout=${encodeURIComponent(reserva.checkOut)}`;
+      const res = await fetch(url, { method: 'GET' });
+      const data = await res.json();
+
+      if (!data.success) return true;
+
+      if (data.modelo_venda === 'por_quarto' && Array.isArray(data.quartos)) {
+        const falhados = [];
+        for (const q of quartos) {
+          const info = data.quartos.find(x => x.tipo_quarto_id === q.tipoQuartoId);
+          if (!info || info.quantidade_disponivel < (q.quantidade || 1)) {
+            falhados.push({ tipo_quarto_id: q.tipoQuartoId, disponivel: info?.quantidade_disponivel ?? 0 });
+          }
+        }
+        if (falhados.length > 0) {
+          showToast(t('sem_stock_disponivel', 'Sem disponibilidade para as datas selecionadas'), 'error');
+          return false;
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error('Erro ao verificar stock:', err);
+      return true;
+    }
+  };
+
+  const processarSubmissaoFinal = async () => {
+    const totalHospedes = participantes.length + 1;
+    let holdIds = [];
+    if ((reserva.modelo_venda === 'por_quarto') && reserva.quartos.length > 0) {
+      try {
+        const holdRes = await fetch(`${API_BASE}/api/checkout_api.php?action=create_hold`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alojamento_id: reserva.alojamento_id,
+            sessao_id: getSessionId(),
+            data_checkin: reserva.checkIn,
+            data_checkout: reserva.checkOut,
+            quartos: reserva.quartos.map(q => ({
+              tipo_quarto_id: q.tipoQuartoId,
+              quantidade: q.quantidade || 1,
+            })),
+            minutos: 20,
+          }),
+        });
+        const holdData = await holdRes.json();
+        if (holdData.success && Array.isArray(holdData.hold_ids)) {
+          holdIds = holdData.hold_ids;
+        }
+      } catch (err) {
+        console.warn('Hold não criado (opcional):', err);
+      }
+    }
+
+    const dadosReserva = {
+      reservaData: {
+        ...reserva,
+        totalHospedes,
+        precoTotal: financeiro.totalGeralCliente,
+        tipo_venda: reserva.modelo_venda,
+        hold_ids: holdIds,
+        financeiro: {
+          valorTotalCliente: financeiro.totalGeralCliente,
+          subtotalNoites: financeiro.subtotal,
+          taxaLimpeza: reserva.taxaLimpeza,
+          comissaoMorabeza: financeiro.comissaoPlataforma,
+          valorLiquidoAnfitriao: financeiro.valorAnfitriaoLiquido,
+        },
+      },
+      participantePrincipal,
+      participantesAdicionais: participantes,
+      usuario: user,
+    };
+
+    sessionStorage.setItem('reservaAlojamentoPendente', JSON.stringify(dadosReserva));
+
+    navigate('/pagamento', {
+      state: {
+        reservaData: {
+          ...reserva,
+          totalHospedes,
+          precoTotal: financeiro.totalGeralCliente,
+          tipo: 'alojamento',
+          tipo_venda: reserva.modelo_venda,
+          alojamento_id: reserva.alojamento_id,
+          hold_ids: holdIds,
+          financeiro: dadosReserva.reservaData.financeiro,
+        },
+        dadosParticipantes: { participantePrincipal, participantes },
+        tipo: 'alojamento',
+      },
+    });
+  };
+
+  const handleSubmit = async () => {
     if (!validateForm()) return;
     if (!user || !user.email) {
       setError(t('erro_usuario_nao_logado', 'Sessão inválida. Por favor, faça login novamente.'));
       return;
     }
 
-    const totalHospedes = participantes.length + 1;
+    setLoading(true);
+    const stockOk = await verificarStock();
+    if (!stockOk) {
+      setLoading(false);
+      return;
+    }
 
-    // Dados estruturados incluindo o detalhamento financeiro para o backend
-    const dadosReserva = {
-      reservaData: {
-        ...reserva,
-        totalHospedes: totalHospedes,
-        precoTotal: reserva.totalGeral,
-        financeiro: {
-          valorTotalCliente: reserva.totalGeral,
-          subtotalNoites: reserva.subtotal,
-          taxaLimpeza: reserva.taxaLimpeza,
-          comissaoMorabeza: reserva.comissaoPlataforma, // 10% descontados do anfitrião
-          valorLiquidoAnfitriao: reserva.valorAnfitriaoLiquido
-        }
-      },
-      participantePrincipal,
-      participantesAdicionais: participantes,
-      usuario: user
-    };
+    // Dispara o envio do OTP para o email do hóspede principal e abre o modal idêntico à imagem
+    try {
+      await fetch(`${API_BASE}/api/send_otp.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send_otp', email: participantePrincipal.email }),
+      });
+    } catch (e) {
+      console.error(e);
+    }
 
-    sessionStorage.setItem('reservaAlojamentoPendente', JSON.stringify(dadosReserva));
+    setLoading(false);
+    setShowOtpModal(true);
+  };
 
-    navigate('/pagamento', { 
-      state: { 
-        reservaData: { 
-          ...reserva, 
-          totalHospedes: totalHospedes, 
-          precoTotal: reserva.totalGeral,
-          tipo: 'alojamento',
-          financeiro: dadosReserva.reservaData.financeiro
-        },
-        dadosParticipantes: { participantePrincipal, participantes: participantes },
-        tipo: 'alojamento'
-      } 
-    });
+  // Gestão das caixas individuais do OTP
+  const handleOtpChange = (index, value) => {
+    const val = value.replace(/\D/g, '');
+    if (!val) {
+      const newValues = [...otpValues];
+      newValues[index] = '';
+      setOtpValues(newValues);
+      return;
+    }
+
+    const newValues = [...otpValues];
+    newValues[index] = val[val.length - 1];
+    setOtpValues(newValues);
+
+    if (index < 5 && val) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otpValues[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const mascararEmail = (email) => {
+    if (!email || !email.includes('@')) return 'seu***@gmail.com';
+    const [nome, dominio] = email.split('@');
+    if (nome.length <= 3) return `${nome[0]}***@${dominio}`;
+    return `${nome.substring(0, 3)}***@${dominio}`;
+  };
+
+  const handleVerifyOtpAndProceed = async () => {
+    const codigoCompleto = otpValues.join('');
+    if (codigoCompleto.length < 6) {
+      showToast(t('erro_codigo_incompleto', 'Por favor, insira o código completo de 6 dígitos'), 'error');
+      return;
+    }
+
+    setLoadingOtp(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/send_otp.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify_otp',
+          email: participantePrincipal.email,
+          otp: codigoCompleto,
+        }),
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        setShowOtpModal(false);
+        showToast(t('email_verificado_sucesso', 'Email verificado com sucesso!'), 'success');
+        await processarSubmissaoFinal();
+      } else {
+        showToast(result.message || t('erro_codigo_invalido', 'Código inválido'), 'error');
+      }
+    } catch (err) {
+      console.error('Erro ao verificar OTP:', err);
+      showToast(t('erro_conexao', 'Erro de conexão ao verificar código'), 'error');
+    } finally {
+      setLoadingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/send_otp.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'resend_otp',
+          email: participantePrincipal.email,
+        }),
+      });
+      const result = await response.json();
+      if (result.status === 'success' || result.status === 'otp_sent') {
+        showToast(t('codigo_reenviado', 'Novo código enviado para o seu email'), 'success');
+      } else {
+        showToast(result.message || t('erro_reenviar', 'Erro ao reenviar código'), 'error');
+      }
+    } catch (err) {
+      console.error('Erro ao reenviar OTP:', err);
+    }
   };
 
   const totalHospedes = participantes.length + 1;
-  const precoTotal = reserva.totalGeral;
 
   if (!reservaData) {
     return (
@@ -718,7 +870,7 @@ const CheckoutAlojamento = () => {
   const steps = [
     { n: 1, label: t('step_dados_hospedes', 'Hóspedes'), active: true },
     { n: 2, label: t('step_pagamento', 'Pagamento'), active: false },
-    { n: 3, label: t('step_confirmacao', 'Confirmação'), active: false }
+    { n: 3, label: t('step_confirmacao', 'Confirmação'), active: false },
   ];
 
   return (
@@ -761,33 +913,36 @@ const CheckoutAlojamento = () => {
 
               <div className="bg-slate-50 rounded-xl p-4 mb-6 flex flex-wrap gap-4 text-xs text-left">
                 <div className="flex items-center gap-2">
-                  <Calendar size={14} className="text-blue-600"/>
+                  <Calendar size={14} className="text-blue-600" />
                   <span className="font-medium text-slate-700">{formatarData(reserva.checkIn)} - {formatarData(reserva.checkOut)}</span>
-                  <span className="text-slate-400 font-medium">• {reserva.noites} {t('noites', 'noites')}</span>
+                  <span className="text-slate-400 font-medium">• {plural(reserva.noites, t('noite', 'noite'), t('noites', 'noites'))}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Users size={14} className="text-blue-600"/>
-                  <span className="font-medium text-slate-700">{t('max_pessoas', 'Máx.')} {reserva.maxPessoas} {t('pessoas', 'pessoas')}</span>
+                  <Users size={14} className="text-blue-600" />
+                  <span className="font-medium text-slate-700">
+                    {t('max_pessoas', 'Máx.')} {plural(reserva.maxPessoas, t('pessoa', 'pessoa'), t('pessoas', 'pessoas'))}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Home size={14} className="text-blue-600"/>
+                  <Home size={14} className="text-blue-600" />
                   <span className="font-medium text-slate-700">{reserva.titulo}</span>
                 </div>
               </div>
 
-              <ParticipantePrincipal 
-                participantePrincipal={participantePrincipal} 
-                updateParticipantePrincipal={updateParticipantePrincipal} 
+              <ParticipantePrincipal
+                participantePrincipal={participantePrincipal}
+                updateParticipantePrincipal={updateParticipantePrincipal}
               />
-              
-              <ParticipantesAdicionais 
-                participantes={participantes} 
-                addParticipante={addParticipante} 
-                removeParticipante={removeParticipante} 
+
+              <ParticipantesAdicionais
+                participantes={participantes}
+                addParticipante={addParticipante}
+                removeParticipante={removeParticipante}
                 updateParticipante={updateParticipante}
+                maxPessoas={reserva.maxPessoas}
               />
-              
-              <ParticipantesAnterioresTabela 
+
+              <ParticipantesAnterioresTabela
                 participantesAnteriores={participantesAnteriores}
                 carregandoDados={carregandoDados}
                 editandoParticipante={editandoParticipante}
@@ -802,27 +957,31 @@ const CheckoutAlojamento = () => {
               />
 
               <div className="mt-10 flex flex-col sm:flex-row justify-between gap-3">
-                <button 
-                  onClick={() => navigate(-1)} 
+                <button
+                  onClick={() => navigate(-1)}
                   className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all text-slate-700 shadow-sm"
                 >
-                  <ArrowLeft size={18}/> {t('voltar', 'Voltar')}
+                  <ArrowLeft size={18} /> {t('voltar', 'Voltar')}
                 </button>
-                <button 
+                <button
                   onClick={handleSubmit}
                   disabled={loading}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
                 >
-                  {t('continuar_pagamento', 'Continuar para pagamento')} <ChevronRight size={18}/>
+                  {loading ? (
+                    <><Loader className="animate-spin" size={18} /> {t('a_processar', 'A processar...')}</>
+                  ) : (
+                    <>{t('continuar_pagamento', 'Continuar para pagamento')} <ChevronRight size={18} /></>
+                  )}
                 </button>
               </div>
             </div>
 
             <div className="lg:col-span-4">
-              <ResumoReservaAlojamento 
-                reserva={reserva} 
-                totalHospedes={totalHospedes} 
-                precoTotal={precoTotal}
+              <ResumoReservaAlojamento
+                reserva={reserva}
+                totalHospedes={totalHospedes}
+                precoTotal={financeiro.totalGeralCliente}
                 setDataModalOpen={setDataModalOpen}
               />
             </div>
@@ -831,13 +990,95 @@ const CheckoutAlojamento = () => {
       </div>
 
       {isDataModalOpen && (
-        <DataModalAlojamento 
-          onClose={() => setDataModalOpen(false)} 
-          onSelectData={handleSelectData} 
-          alojamentoTitulo={reserva.titulo} 
+        <DataModalAlojamento
+          onClose={() => setDataModalOpen(false)}
+          onSelectData={handleSelectData}
+          alojamentoTitulo={reserva.titulo}
           currentCheckIn={reserva.checkIn}
           currentCheckOut={reserva.checkOut}
         />
+      )}
+
+
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-sans">
+          <div className="bg-white rounded-3xl max-w-[420px] w-full p-8 shadow-2xl relative border border-slate-100 text-center animate-in fade-in zoom-in duration-200">
+            
+            {/* Botão Fechar */}
+            <button 
+              onClick={() => setShowOtpModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Ícone de Email Circular Azul */}
+            <div className="flex justify-center mb-5">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-inner">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Confirmar email</h3>
+            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+              Enviámos um código de 6 dígitos para<br />
+              <strong className="text-slate-800">{mascararEmail(participantePrincipal.email)}</strong>
+            </p>
+
+            <div className="text-left mb-2">
+              <label className="text-xs font-bold text-slate-700">Código de confirmação</label>
+            </div>
+
+            {/* As 6 Caixas de Input Individuais */}
+            <div className="flex justify-between gap-2 mb-4">
+              {otpValues.map((digit, idx) => (
+                <input
+                  key={idx}
+                  ref={(el) => (inputRefs.current[idx] = el)}
+                  type="text"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(idx, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                  className="w-12 h-12 text-center text-xl font-bold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-900 shadow-sm transition-all"
+                />
+              ))}
+            </div>
+
+            <p className="text-[11px] text-slate-400 mb-6">O código é válido por 5 minutos.</p>
+
+            {/* Botão Principal Azul */}
+            <button
+              type="button"
+              onClick={handleVerifyOtpAndProceed}
+              disabled={loadingOtp || otpValues.some(v => !v)}
+              className="w-full bg-[#003580] hover:bg-[#002560] text-white font-semibold py-3.5 rounded-xl text-sm transition shadow-lg shadow-blue-900/10 disabled:opacity-50"
+            >
+              {loadingOtp ? 'A verificar...' : 'Confirmar email'}
+            </button>
+
+            {/* Links inferiores */}
+            <div className="flex justify-between items-center text-xs mt-6 px-1">
+              <button 
+                type="button" 
+                onClick={handleResendOtp}
+                className="text-blue-600 font-medium hover:underline"
+              >
+                Reenviar código
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setShowOtpModal(false)}
+                className="text-slate-500 font-medium hover:underline"
+              >
+                Alterar email
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
     </>
   );

@@ -84,7 +84,7 @@ const ConfiguracoesAdmin = () => {
           <Lock size={20} />
           <h2>Parâmetros e Regras de Negócio</h2>
         </div>
-        <p className="text-sm text-gray-500">As comissões transacionais do ecossistema estão travadas no modelo contratual padrão de **20% de comissão** por reserva, aplicando-se de forma direta em alojamentos, viaturas e experiências.</p>
+        <p className="text-sm text-gray-500">As comissões transacionais do ecossistema estão travadas no modelo contratual padrão de **10% de comissão** por reserva, aplicando-se de forma direta em alojamentos, viaturas e experiências.</p>
       </div>
     </div>
   );

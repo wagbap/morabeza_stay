@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Users, Bed, Camera, Plus, Minus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFotosDoQuarto } from '../../../hooks/useFotosDoQuarto';
 
-const CartaoQuartoVisual = ({ q, idx, isSelected, qtd, onSelecao, onAlterarQtd, onAbrirModal, alojamentoId }) => {
+const CartaoQuartoVisual = ({
+  q, idx, isSelected, qtd, stockMax, onSelecao, onAlterarQtd, onAbrirModal, alojamentoId,
+}) => {
   const { t } = useTranslation();
   const { fotos, fotoCapa, carregando } = useFotosDoQuarto(q, alojamentoId);
 
@@ -18,6 +20,9 @@ const CartaoQuartoVisual = ({ q, idx, isSelected, qtd, onSelecao, onAlterarQtd, 
     return String(camas).trim().replace(/\s+camas$/i, '').replace(/\s+cama$/i, '');
   };
 
+  const podeIncrementar = stockMax === null || qtd < stockMax;
+  const esgotado = stockMax !== null && stockMax === 0;
+
   return (
     <div
       onClick={() => onSelecao(qId, q.nome || q.tipo_nome, preco)}
@@ -25,7 +30,7 @@ const CartaoQuartoVisual = ({ q, idx, isSelected, qtd, onSelecao, onAlterarQtd, 
         isSelected
           ? 'border-blue-600 bg-blue-50/10 ring-1 ring-blue-600'
           : 'border-slate-200 hover:border-slate-300'
-      }`}
+      } ${esgotado ? 'opacity-60' : ''}`}
     >
       <div className="relative w-[85px] h-[90px] shrink-0 overflow-hidden rounded-lg bg-slate-50 border border-slate-100">
         {carregando ? (
@@ -105,12 +110,27 @@ const CartaoQuartoVisual = ({ q, idx, isSelected, qtd, onSelecao, onAlterarQtd, 
               </button>
             )}
 
-            <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 bg-slate-100 rounded-md px-1.5 py-0.5 border border-slate-200 ml-auto">
-              <button type="button" onClick={(e) => onAlterarQtd(qId, -1, e)} disabled={qtd === 0} className="text-slate-500 hover:text-slate-900 disabled:opacity-30 cursor-pointer">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 bg-slate-100 rounded-md px-1.5 py-0.5 border border-slate-200 ml-auto"
+            >
+              <button
+                type="button"
+                onClick={(e) => onAlterarQtd(qId, -1, e)}
+                disabled={qtd === 0}
+                className="text-slate-500 hover:text-slate-900 disabled:opacity-30 cursor-pointer"
+              >
                 <Minus size={10} />
               </button>
-              <span className="text-[9px] font-bold text-slate-800 min-w-[10px] text-center select-none">{qtd}</span>
-              <button type="button" onClick={(e) => onAlterarQtd(qId, 1, e)} className="text-slate-500 hover:text-slate-900 cursor-pointer">
+              <span className="text-[9px] font-bold text-slate-800 min-w-[10px] text-center select-none">
+                {qtd}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => onAlterarQtd(qId, 1, e)}
+                disabled={!podeIncrementar}
+                className="text-slate-500 hover:text-slate-900 disabled:opacity-30 cursor-pointer"
+              >
                 <Plus size={10} />
               </button>
             </div>
@@ -127,6 +147,7 @@ const SeccaoEscolhaQuarto = ({
   tiposQuarto = [],
   quantidadesProp = null,
   onQuantidadeChange = null,
+  stocksPorTipo = {}, // { [tipoId]: number | null }
   alojamentoId = null,
 }) => {
   const { t } = useTranslation();
@@ -139,6 +160,12 @@ const SeccaoEscolhaQuarto = ({
     e.stopPropagation();
     const qtdAtual = quantidades[quartoId] || (quartoSelecionado === quartoId ? 1 : 0);
     const novaQtd = Math.max(0, qtdAtual + delta);
+
+    // Limite de stock
+    const stockMax = stocksPorTipo[quartoId];
+    if (delta > 0 && stockMax !== undefined && stockMax !== null && novaQtd > stockMax) {
+      return;
+    }
 
     if (onQuantidadeChange) onQuantidadeChange(quartoId, novaQtd);
     else setQuantidadesLocais((prev) => ({ ...prev, [quartoId]: novaQtd }));
@@ -193,9 +220,12 @@ const SeccaoEscolhaQuarto = ({
 
   return (
     <div className="mt-6 mb-4 text-left">
-      <h3 className="text-sm font-bold text-slate-900 mb-3">
+      <h3 className="text-sm font-bold text-slate-900 mb-1">
         {t('escolha_quarto') || 'Escolha o seu quarto'}
       </h3>
+      <p className="text-[11px] text-slate-500 font-medium mb-3">
+        {t('pode_combinar_quartos', 'Pode combinar vários tipos de quarto na mesma reserva.')}
+      </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {tiposQuarto.map((q, idx) => {
@@ -207,6 +237,7 @@ const SeccaoEscolhaQuarto = ({
               ? 1
               : 0;
           const isSelected = qtd > 0 || quartoSelecionado === qId;
+          const stockMax = stocksPorTipo[qId] !== undefined ? stocksPorTipo[qId] : null;
 
           return (
             <CartaoQuartoVisual
@@ -215,6 +246,7 @@ const SeccaoEscolhaQuarto = ({
               idx={idx}
               isSelected={isSelected}
               qtd={qtd}
+              stockMax={stockMax}
               onSelecao={onSelecaoQuarto}
               onAlterarQtd={handleAlterarQuantidade}
               onAbrirModal={abrirModal}

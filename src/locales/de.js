@@ -938,6 +938,13 @@ nenhum_participante_adicional: "Keine weiteren Teilnehmer hinzugefügt",
 participante_principal: "Hauptteilnehmer",
 // ==================== TEILNEHMER ====================
 clique_participante_adicionar: "Klicken Sie auf einen Teilnehmer, um ihn schnell zur aktuellen Buchung hinzuzufügen",
-ver_fotos: "Fotos ansehen"
+ver_fotos: "Fotos ansehen",
+enviar_whatsapp: "Über WhatsApp senden",
+
+
+
+
+
+
   }
 };

@@ -1,21 +1,34 @@
-// Pagamento.jsx - VERSÃO OTIMIZADA (Reduzido de 12s para <2s)
+// Pagamento.jsx - v3 multi-quarto + holds
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Check, CreditCard, ArrowLeft, ChevronRight, 
-  ShieldCheck, Lock, AlertCircle, Loader, 
-  Sparkles
+import {
+  Check, CreditCard, ArrowLeft, ChevronRight,
+  ShieldCheck, Lock, AlertCircle, Loader, Sparkles,
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { useToast } from '../Toast';
 
-// Importação dos Resumos (LAZY LOAD)
 const ResumoReservaExperiencia = React.lazy(() => import('../features/experiencias/components/ResumoReservaExperiencia'));
 const ResumoReservaAlojamento = React.lazy(() => import('../features/alojamento/components/ResumoReservaAlojamento'));
 const ResumoReservaCarro = React.lazy(() => import('../features/carros/components/ResumoReservaCarro'));
 
-// Stripe com cache
+const API_BASE = 'https://welovepalop.com';
+const TAXA_CONVERSAO_CVE_EUR = 110.265;
+const HOLD_MINUTOS = 15;
+
+const CACHE_KEYS = {
+  alojamento: 'reservaAlojamentoPendente',
+  carro: 'reservaCarroPendente',
+  experiencia: 'reservaPendente',
+};
+
+const getTotalPagar = (tipo, reserva) => {
+  if (!reserva) return 0;
+  return Number(reserva.precoTotal || reserva.totalGeral || 0);
+};
+
 let stripePromise = null;
 const getStripePromise = () => {
   if (!stripePromise) {
@@ -24,21 +37,20 @@ const getStripePromise = () => {
   return stripePromise;
 };
 
-// ============================================
-// COMPONENTE PRINCIPAL OTIMIZADO
-// ============================================
 const PagamentoContent = () => {
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const stripe = useStripe();
   const elements = useElements();
 
-  // Refs para evitar re-renders desnecessários
   const isProcessingRef = useRef(false);
   const hasMountedRef = useRef(false);
+  const holdsIdsRef = useRef([]); // ✅ array de holds
+  const holdExpiraRef = useRef(null);
 
-  const { reservaData, dadosParticipantes, tipo: tipoState } = location.state || {};
+  const { reservaData, tipo: tipoState } = location.state || {};
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -46,17 +58,17 @@ const PagamentoContent = () => {
   const [tipo, setTipo] = useState(tipoState || 'experiencia');
   const [cardComplete, setCardComplete] = useState(false);
   const [cardError, setCardError] = useState('');
+  const [holdSegundos, setHoldSegundos] = useState(null);
 
-  // ============================================
-  // CARREGAR DADOS DO CACHE - OTIMIZADO
-  // ============================================
+  // ---------------------------------------------------------
+  // Bootstrap
+  // ---------------------------------------------------------
   useEffect(() => {
     if (hasMountedRef.current) return;
     hasMountedRef.current = true;
-    
+
     window.scrollTo(0, 0);
-    
-    // Se já tem dados, não precisa carregar do cache
+
     if (reservaData && Object.keys(reservaData).length > 0) {
       if (tipoState === 'carro') setTipo('carro');
       else if (tipoState === 'alojamento') setTipo('alojamento');
@@ -64,14 +76,7 @@ const PagamentoContent = () => {
       return;
     }
 
-    // Carregar do cache apenas se necessário
-    const cacheKeys = {
-      alojamento: 'reservaAlojamentoPendente',
-      experiencia: 'reservaPendente',
-      carro: 'reservaCarroPendente'
-    };
-
-    for (const [key, storageKey] of Object.entries(cacheKeys)) {
+    for (const [key, storageKey] of Object.entries(CACHE_KEYS)) {
       const cache = sessionStorage.getItem(storageKey);
       if (cache) {
         try {
@@ -80,32 +85,144 @@ const PagamentoContent = () => {
           setTipo(key);
           break;
         } catch (e) {
-          console.error('Erro ao parse cache:', e);
+          console.error('Erro parse cache:', e);
         }
       }
     }
   }, [reservaData, tipoState]);
 
-  // ============================================
-  // ENVIO DE EMAILS - OTIMIZADO (NÃO BLOQUEIA)
-  // ============================================
+  // ---------------------------------------------------------
+  // Criar holds multi-quarto
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (tipo !== 'alojamento') return;
+    const quartos = reserva?.quartos || [];
+    if (!quartos.length || !reserva.checkIn || !reserva.checkOut) return;
+    if (holdsIdsRef.current.length) return;
+
+    let cancelado = false;
+    const criarHolds = async () => {
+      try {
+        const ids = [];
+        const expiras = [];
+
+        for (const q of quartos) {
+          const res = await fetch(`${API_BASE}/api/criar_hold.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              quarto_id: q.tipoQuartoId,
+              checkin: reserva.checkIn,
+              checkout: reserva.checkOut,
+              quantidade: q.quantidade,
+              minutos: HOLD_MINUTOS,
+            }),
+          });
+          const data = await res.json();
+          if (!data.success || !data.hold_id) {
+            if (data.disponivel === false) {
+              throw new Error(t('sem_stock_disponivel', 'Sem disponibilidade'));
+            }
+            continue;
+          }
+          ids.push(data.hold_id);
+          expiras.push(new Date(data.expira_em).getTime());
+        }
+
+        if (cancelado) return;
+
+        if (ids.length) {
+          holdsIdsRef.current = ids;
+          const menorExpira = Math.min(...expiras);
+          holdExpiraRef.current = menorExpira;
+          const restante = Math.max(0, Math.floor((menorExpira - Date.now()) / 1000));
+          setHoldSegundos(restante);
+        }
+      } catch (err) {
+        if (cancelado) return;
+        console.error('Erro ao criar holds:', err);
+        showToast(err.message || t('erro_hold', 'Erro ao reservar stock'), 'error');
+      }
+    };
+    criarHolds();
+
+    return () => { cancelado = true; };
+  }, [tipo, reserva?.quartos, reserva?.checkIn, reserva?.checkOut, t, showToast]);
+
+  // ---------------------------------------------------------
+  // Contador regressivo
+  // ---------------------------------------------------------
+  useEffect(() => {
+    if (!holdExpiraRef.current) return;
+    const int = setInterval(() => {
+      const restante = Math.max(0, Math.floor((holdExpiraRef.current - Date.now()) / 1000));
+      setHoldSegundos(restante);
+      if (restante === 0) {
+        clearInterval(int);
+        showToast(t('hold_expirado', 'A retenção de stock expirou. Volte a escolher.'), 'error');
+      }
+    }, 1000);
+    return () => clearInterval(int);
+  }, [holdSegundos !== null, t, showToast]);
+
+  // ---------------------------------------------------------
+  // Libertar holds
+  // ---------------------------------------------------------
+  const libertarHolds = useCallback(async () => {
+    if (!holdsIdsRef.current.length) return;
+    for (const id of holdsIdsRef.current) {
+      try {
+        const body = JSON.stringify({ hold_id: id });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(
+            `${API_BASE}/api/libertar_hold.php`,
+            new Blob([body], { type: 'application/json' })
+          );
+        } else {
+          await fetch(`${API_BASE}/api/libertar_hold.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body,
+            keepalive: true,
+          });
+        }
+      } catch {}
+    }
+    holdsIdsRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    const onUnload = () => {
+      if (holdsIdsRef.current.length && !isProcessingRef.current) {
+        for (const id of holdsIdsRef.current) {
+          try {
+            navigator.sendBeacon(
+              `${API_BASE}/api/libertar_hold.php`,
+              new Blob([JSON.stringify({ hold_id: id })], { type: 'application/json' })
+            );
+          } catch {}
+        }
+      }
+    };
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onUnload);
+    };
+  }, []);
+
+  // ---------------------------------------------------------
+  // Emails
+  // ---------------------------------------------------------
   const enviarEmailsConfirmacao = useCallback(async (dadosAPI) => {
     try {
-      console.log('📧 Enviando emails em background...');
-      
-      const keyStorage = tipo === 'alojamento' ? 'reservaAlojamentoPendente' :
-                        tipo === 'carro' ? 'reservaCarroPendente' : 'reservaPendente';
-      
+      const keyStorage = CACHE_KEYS[tipo];
       const cache = sessionStorage.getItem(keyStorage);
       if (!cache) return;
-
       const dados = JSON.parse(cache);
       const { reservaData: rD, participantePrincipal, participantesAdicionais } = dados;
-
       if (!participantePrincipal?.email) return;
 
       let dataFormatada, horarioFormatado, quantidadeLabel;
-      
       if (tipo === 'alojamento') {
         dataFormatada = `${rD?.checkIn || ''} até ${rD?.checkOut || ''}`;
         horarioFormatado = `${rD?.noites || 0} ${t('noites')}`;
@@ -130,42 +247,36 @@ const PagamentoContent = () => {
         data: dataFormatada,
         horario: horarioFormatado,
         quantidade_pessoas: quantidadeLabel,
-        preco_total: tipo === 'alojamento' ? (rD?.totalGeral || 0) : 
-                     tipo === 'carro' ? (rD?.totalGeral || 0) : (rD?.precoTotal || 0),
+        preco_total: getTotalPagar(tipo, rD),
         metodo_pagamento: 'cartao',
         status_pagamento: 'pago',
         participante_principal: {
           nome_completo: participantePrincipal.nome_completo || '',
           email: participantePrincipal.email || '',
-          phone: participantePrincipal.phone || ''
+          phone: participantePrincipal.phone || '',
         },
         participantes_adicionais: (participantesAdicionais || []).map(p => ({
           nome_completo: p?.nome_completo || '',
           email: p?.email || '',
-          phone: p?.phone || ''
-        }))
+          phone: p?.phone || '',
+        })),
       };
 
-      // Enviar em background (não esperar resposta)
-      fetch('https://welovepalop.com/api/send_email.php', {
+      fetch(`${API_BASE}/api/send_email.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailPayload)
-      }).catch(() => {}); // Ignorar erros
-
-      console.log('✅ Email enviado em background');
+        body: JSON.stringify(emailPayload),
+      }).catch(() => {});
     } catch (err) {
       console.error('❌ Erro ao enviar e-mails:', err);
     }
   }, [tipo, t]);
 
-  // ============================================
-  // SALVAR RESERVA - OTIMIZADO
-  // ============================================
+  // ---------------------------------------------------------
+  // Salvar reserva
+  // ---------------------------------------------------------
   const salvarReservaNoBackend = useCallback(async (dadosTransacao) => {
-    const keyStorage = tipo === 'alojamento' ? 'reservaAlojamentoPendente' :
-                      tipo === 'carro' ? 'reservaCarroPendente' : 'reservaPendente';
-    
+    const keyStorage = CACHE_KEYS[tipo];
     const cache = sessionStorage.getItem(keyStorage);
     if (!cache) throw new Error(t('erro_sessao_expirada'));
 
@@ -176,8 +287,9 @@ const PagamentoContent = () => {
       throw new Error(t('erro_participante_nao_encontrado'));
     }
 
+    const fin = rD?.financeiro || {};
     let payload;
-    
+
     if (tipo === 'alojamento') {
       payload = {
         category: 'Alojamento',
@@ -185,21 +297,35 @@ const PagamentoContent = () => {
           email: participantePrincipal.email || '',
           nome_completo: participantePrincipal.nome_completo || '',
           phone: participantePrincipal.phone || '',
-          google_id: usuario?.google_id || null
+          google_id: usuario?.google_id || null,
         },
         reserva: {
           alojamento_id: rD?.id,
+          quartos: (rD?.quartos || []).map(q => ({
+            tipo_quarto_id: q.tipoQuartoId,
+            quantidade: q.quantidade,
+            preco_noite: q.precoNoite,
+            capacidade: q.capacidade,
+          })),
           data_checkin: rD?.checkIn,
           data_checkout: rD?.checkOut,
           quantidade_hospedes: rD?.totalHospedes,
-          preco_total: rD?.totalGeral,
-          noites: rD?.noites
+          preco_total: getTotalPagar('alojamento', rD),
+          noites: rD?.noites,
+          hold_ids: holdsIdsRef.current,
+          financeiro: {
+            subtotalNoites: fin.subtotalNoites || 0,
+            taxaLimpeza: fin.taxaLimpeza || 0,
+            comissaoMorabeza: fin.comissaoMorabeza || 0,
+            valorLiquidoAnfitriao: fin.valorLiquidoAnfitriao || 0,
+            valorTotalCliente: fin.valorTotalCliente || 0,
+          },
         },
         participante_principal: { ...participantePrincipal },
         participantes_adicionais: (participantesAdicionais || []).map(p => ({ ...p })),
         metodo_pagamento: 'cartao',
         status_pagamento: 'pago',
-        stripe_id: dadosTransacao?.id || null
+        stripe_id: dadosTransacao?.id || null,
       };
     } else if (tipo === 'carro') {
       payload = {
@@ -208,26 +334,26 @@ const PagamentoContent = () => {
           email: participantePrincipal.email || '',
           nome_completo: participantePrincipal.nome_completo || '',
           phone: participantePrincipal.phone || '',
-          google_id: usuario?.google_id || null
+          google_id: usuario?.google_id || null,
         },
         reserva: {
           id: rD?.id,
           checkIn: rD?.checkIn,
           checkOut: rD?.checkOut,
           dias: rD?.dias,
-          preco_total: rD?.totalGeral,
-          carro_id: rD?.id
+          preco_total: getTotalPagar('carro', rD),
+          carro_id: rD?.id,
         },
         participante_principal: {
           ...participantePrincipal,
           hora_levantamento: participantePrincipal.hora_levantamento || '10:00',
           carta_conducao_nome: participantePrincipal.carta_conducao_nome || '',
-          observacoes: participantePrincipal.observacoes || ''
+          observacoes: participantePrincipal.observacoes || '',
         },
         participantes_adicionais: [],
         metodo_pagamento: 'cartao',
         status_pagamento: 'pago',
-        stripe_id: dadosTransacao?.id || null
+        stripe_id: dadosTransacao?.id || null,
       };
     } else {
       payload = {
@@ -236,41 +362,38 @@ const PagamentoContent = () => {
           email: participantePrincipal.email || '',
           nome_completo: participantePrincipal.nome_completo || '',
           phone: participantePrincipal.phone || '',
-          google_id: usuario?.google_id || null
+          google_id: usuario?.google_id || null,
         },
         reserva: {
           experiencia_id: rD?.id,
           data_participacao: rD?.dataISO,
           horario: `${rD?.periodo || ''} ${rD?.horario || ''}`.trim(),
           quantidade_pessoas: rD?.participantes,
-          preco_total: rD?.precoTotal
+          preco_total: getTotalPagar('experiencia', rD),
         },
         participante_principal: { ...participantePrincipal },
         participantes_adicionais: (participantesAdicionais || []).map(p => ({ ...p })),
         metodo_pagamento: 'cartao',
         status_pagamento: 'pago',
-        stripe_id: dadosTransacao?.id || null
+        stripe_id: dadosTransacao?.id || null,
       };
     }
 
-    // Timeout de 5 segundos para não travar
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const response = await fetch('https://welovepalop.com/api/checkout_api.php', {
+      const response = await fetch(`${API_BASE}/api/checkout_api.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal: controller.signal
+        signal: controller.signal,
       });
-
       clearTimeout(timeoutId);
       const result = await response.json();
-      
       if (result.success && result.data) {
-        // Enviar email em background
         enviarEmailsConfirmacao(result.data);
+        holdsIdsRef.current = [];
       }
       return result;
     } catch (error) {
@@ -282,114 +405,94 @@ const PagamentoContent = () => {
     }
   }, [tipo, t, enviarEmailsConfirmacao]);
 
-  // ============================================
-  // FINALIZAR PAGAMENTO - OTIMIZADO
-  // ============================================
+  // ---------------------------------------------------------
+  // Finalizar pagamento
+  // ---------------------------------------------------------
   const handleFinalizarPagamento = useCallback(async () => {
-    // Prevenir múltiplos cliques
     if (isProcessingRef.current || loading) return;
     isProcessingRef.current = true;
-    
     setLoading(true);
     setError('');
-    
+
     try {
       if (!stripe || !elements) {
         setError(t('erro_stripe_nao_carregado'));
-        isProcessingRef.current = false;
-        setLoading(false);
         return;
       }
 
-      // Calcular total
-      let totalPagar;
-      if (tipo === 'alojamento') totalPagar = reserva?.totalGeral || 0;
-      else if (tipo === 'carro') totalPagar = reserva?.totalGeral || 0;
-      else totalPagar = reserva?.precoTotal || 0;
-      
-      const taxaConversao = 110.265;
-      let valorEmEUR = totalPagar / taxaConversao;
+      if (tipo === 'alojamento' && holdSegundos === 0) {
+        setError(t('hold_expirado', 'A retenção expirou. Volte atrás.'));
+        return;
+      }
 
-      if (valorEmEUR < 0.50) {
+      const totalPagar = getTotalPagar(tipo, reserva);
+      const valorEmEUR = totalPagar / TAXA_CONVERSAO_CVE_EUR;
+
+      if (valorEmEUR < 0.5) {
         setError(t('erro_valor_minimo_cartao', { valor: valorEmEUR.toFixed(2) }));
-        isProcessingRef.current = false;
-        setLoading(false);
         return;
       }
 
       const valorEmCentavos = Math.round(valorEmEUR * 100);
 
-      // ============================================
-      // 1. CRIAR PAYMENT INTENT (COM TIMEOUT)
-      // ============================================
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
-
       let resIntent, dataIntent;
       try {
-        resIntent = await fetch('https://welovepalop.com/api/create-payment-intent.php', {
+        resIntent = await fetch(`${API_BASE}/api/create-payment-intent.php`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: valorEmCentavos, currency: 'eur' }),
-          signal: controller.signal
+          signal: controller.signal,
         });
-
         clearTimeout(timeoutId);
         dataIntent = await resIntent.json();
-      } catch (error) {
+      } catch (err) {
         clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
+        if (err.name === 'AbortError') {
           throw new Error('Tempo limite excedido. Tente novamente.');
         }
-        throw error;
+        throw err;
       }
-      
+
       if (!resIntent.ok) {
         throw new Error(dataIntent.error || t('erro_servidor_pagamentos'));
       }
 
-      // ============================================
-      // 2. CONFIRMAR PAGAMENTO COM STRIPE
-      // ============================================
       const result = await stripe.confirmCardPayment(dataIntent.clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement),
-        },
+        payment_method: { card: elements.getElement(CardElement) },
       });
 
       if (result.error) {
         setError(result.error.message);
-        isProcessingRef.current = false;
-        setLoading(false);
         return;
       }
 
-      // ============================================
-      // 3. SALVAR RESERVA (COM TIMEOUT)
-      // ============================================
       const saveResult = await salvarReservaNoBackend(result.paymentIntent);
-      
+
       if (saveResult.success) {
-        // Limpar cache
-        const keyStorage = tipo === 'alojamento' ? 'reservaAlojamentoPendente' :
-                          tipo === 'carro' ? 'reservaCarroPendente' : 'reservaPendente';
-        sessionStorage.removeItem(keyStorage);
-        
-        // Redirecionar
-        navigate('/confirmacao', { 
-          state: { 
+        sessionStorage.removeItem(CACHE_KEYS[tipo]);
+        isProcessingRef.current = false;
+        holdsIdsRef.current = [];
+        navigate('/confirmacao', {
+          state: {
             reservaId: saveResult.data?.reserva_id,
             codigoReserva: saveResult.data?.codigo_reserva,
             reservaData: reserva,
             metodoPagamento: 'cartao',
             tipo,
-            status: 'pago'
-          } 
+            status: 'pago',
+          },
         });
+        return;
       } else {
         setError(saveResult.error || t('erro_registar_reserva'));
+        showToast(
+          t('pagamento_cobrado_reserva_falhou',
+            'Pagamento efetuado mas houve um erro ao registar. Contacte o suporte.'),
+          'error'
+        );
       }
-      
     } catch (err) {
       console.error('Erro no pagamento:', err);
       setError(err.message || t('erro_geral_pagamento'));
@@ -397,19 +500,13 @@ const PagamentoContent = () => {
       setLoading(false);
       isProcessingRef.current = false;
     }
-  }, [stripe, elements, reserva, tipo, t, navigate, salvarReservaNoBackend]);
+  }, [stripe, elements, reserva, tipo, t, navigate, salvarReservaNoBackend, showToast, holdSegundos]);
 
-  // ============================================
-  // HANDLE CARD CHANGE
-  // ============================================
   const handleCardChange = useCallback((event) => {
     setCardComplete(event.complete);
     setCardError(event.error ? event.error.message : '');
   }, []);
 
-  // ============================================
-  // RENDER
-  // ============================================
   const getTituloStepper = () => {
     if (tipo === 'alojamento') return t('dados_hospedes');
     if (tipo === 'carro') return t('dados_condutor');
@@ -419,19 +516,21 @@ const PagamentoContent = () => {
   const steps = [
     { n: 1, label: getTituloStepper(), check: true },
     { n: 2, label: t('step_pagamento'), active: true },
-    { n: 3, label: t('step_confirmacao') }
+    { n: 3, label: t('step_confirmacao') },
   ];
+
+  const mm = holdSegundos !== null ? String(Math.floor(holdSegundos / 60)).padStart(2, '0') : null;
+  const ss = holdSegundos !== null ? String(holdSegundos % 60).padStart(2, '0') : null;
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
       <div className="max-w-7xl mx-auto">
-        {/* STEPPER */}
         <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
           {steps.map((s, i, arr) => (
             <React.Fragment key={i}>
               <div className="flex flex-col items-center min-w-[120px]">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-2 ${
-                  s.active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 
+                  s.active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' :
                   s.check ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-400'
                 }`}>
                   {s.check ? <Check size={14} strokeWidth={3} /> : s.n}
@@ -445,11 +544,19 @@ const PagamentoContent = () => {
           ))}
         </div>
 
+        {tipo === 'alojamento' && holdSegundos !== null && holdSegundos > 0 && (
+          <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3 text-amber-800 text-sm font-bold">
+            <Lock size={16} className="text-amber-600" />
+            {t('stock_reservado', 'Stock reservado para si durante')}{' '}
+            <span className="font-mono text-base">{mm}:{ss}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8">
             <h1 className="text-2xl font-bold text-blue-900 mb-2 text-left">{t('pagamento')}</h1>
             <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('pagamento_com_cartao')}</p>
-            
+
             <div className="bg-[#F8FFF9] border border-green-100 rounded-2xl p-4 flex gap-3 mb-8 text-left">
               <ShieldCheck className="text-green-500 shrink-0" size={20} />
               <div>
@@ -466,8 +573,6 @@ const PagamentoContent = () => {
 
             <div className="space-y-4 text-left">
               <h3 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-4">{t('dados_cartao')}</h3>
-              
-              {/* STRIPE - ESTILIZADO */}
               <div className="border-2 border-blue-500 rounded-2xl bg-blue-50/30 shadow-md shadow-blue-100 overflow-hidden">
                 <div className="p-5">
                   <div className="flex items-center gap-3 mb-4">
@@ -484,13 +589,13 @@ const PagamentoContent = () => {
                       <Sparkles className="text-blue-400" size={14} />
                     </div>
                   </div>
-                  
+
                   <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
                       <Lock size={14} className="text-slate-400" />
-                      <span className="text-xs text-slate-500 font-medium">Informações do cartão</span>
+                      <span className="text-xs text-slate-500 font-medium">{t('informacoes_cartao')}</span>
                     </div>
-                    <CardElement 
+                    <CardElement
                       options={{
                         style: {
                           base: {
@@ -515,7 +620,7 @@ const PagamentoContent = () => {
                         <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">🔒 Seguro</span>
                         <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">⚡ Instantâneo</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-medium">Pagamento processado pela Stripe</span>
+                      <span className="text-[10px] text-slate-400 font-medium">Processado pela Stripe</span>
                     </div>
                   </div>
                 </div>
@@ -523,24 +628,25 @@ const PagamentoContent = () => {
             </div>
 
             <div className="mt-12 flex flex-col sm:flex-row justify-between gap-4">
-              <button 
-                onClick={() => navigate(-1)} 
-                className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition text-slate-700 shadow-sm"
+              <button
+                onClick={() => { libertarHolds(); navigate(-1); }}
+                disabled={loading}
+                className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition text-slate-700 shadow-sm disabled:opacity-50"
               >
                 <ArrowLeft size={18}/> {t('voltar')}
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleFinalizarPagamento}
-                disabled={loading || !cardComplete}
+                disabled={loading || !cardComplete || (tipo === 'alojamento' && holdSegundos === 0)}
                 className="flex-1 max-w-md bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-md shadow-blue-200 py-3.5"
               >
                 {loading ? (
-                  <Loader className="animate-spin" size={20} /> 
+                  <Loader className="animate-spin" size={20} />
                 ) : (
                   <>
-                    <Lock size={16} /> 
-                    {t('confirmar_reserva_concluir')} 
+                    <Lock size={16} />
+                    {t('confirmar_reserva_concluir')}
                     <ChevronRight size={18}/>
                   </>
                 )}
@@ -551,25 +657,25 @@ const PagamentoContent = () => {
           <div className="lg:col-span-4">
             <React.Suspense fallback={<div className="p-8 text-center">Carregando...</div>}>
               {tipo === 'alojamento' ? (
-                <ResumoReservaAlojamento 
+                <ResumoReservaAlojamento
                   reserva={reserva}
                   totalHospedes={reserva?.totalHospedes}
-                  precoTotal={reserva?.totalGeral}
+                  precoTotal={getTotalPagar('alojamento', reserva)}
                   showPaymentInfo={true}
                   paymentStatus="pending"
                 />
               ) : tipo === 'carro' ? (
-                <ResumoReservaCarro 
+                <ResumoReservaCarro
                   reserva={reserva}
-                  precoTotal={reserva?.totalGeral}
+                  precoTotal={getTotalPagar('carro', reserva)}
                   showPaymentInfo={true}
                   paymentStatus="pending"
                 />
               ) : (
-                <ResumoReservaExperiencia 
+                <ResumoReservaExperiencia
                   reserva={reserva}
                   totalPessoas={reserva?.participantes}
-                  precoTotal={reserva?.precoTotal}
+                  precoTotal={getTotalPagar('experiencia', reserva)}
                   showPaymentInfo={true}
                   paymentStatus="pending"
                 />
@@ -582,15 +688,10 @@ const PagamentoContent = () => {
   );
 };
 
-// ============================================
-// COMPONENTE PRINCIPAL COM ELEMENTS
-// ============================================
-const Pagamento = () => {
-  return (
-    <Elements stripe={getStripePromise()}>
-      <PagamentoContent />
-    </Elements>
-  );
-};
+const Pagamento = () => (
+  <Elements stripe={getStripePromise()}>
+    <PagamentoContent />
+  </Elements>
+);
 
 export default Pagamento;

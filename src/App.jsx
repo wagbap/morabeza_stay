@@ -56,7 +56,10 @@ const PropriedadesAdmin = lazy(() => import('./components/admin/PropriedadesAdmi
 const ClientesAdmin = lazy(() => import('./components/admin/ClientesAdmin'));
 const GanhosAdmin = lazy(() => import('./components/admin/GanhosAdmin'));
 const ConfiguracoesAdmin = lazy(() => import('./components/admin/ConfiguracoesAdmin'));
-const EmailsVerificados = lazy(() => import('./components/admin/EmailsVerificados'));
+const ConfigRecebimento = lazy(() => import('./components/admin/ConfigRecebimento'));
+
+
+
 const Mensagens = lazy(() => import('./components/admin/Mensagens'));
 const Pagamentos = lazy(() => import('./components/admin/Pagamentos'));
 const Denuncias = lazy(() => import('./components/admin/Denuncias'));
@@ -65,6 +68,8 @@ const Anfitrioes = lazy(() => import('./components/admin/Anfitrioes'));
 const DetalhesConteudo = lazy(() => import('./components/admin/DetalhesConteudo'));
 const AdminAnaliseAnuncio = lazy(() => import('./components/admin/AdminAnaliseAnuncio'));
 const RepassesAdmin = lazy(() => import('./components/admin/RepassesAdmin'));
+const VerificacoesEmail = lazy(() => import('./components/admin/VerificacoesEmail'));
+const VerificacoesDocumentos = lazy(() => import('./components/admin/VerificacoesDocumentos'));
 
 // Componente de Loading (fallback)
 const LoadingSpinner = () => (
@@ -111,11 +116,14 @@ function App() {
             <Route path="ganhos" element={<GanhosAdmin />} />
             <Route path="repasses" element={<RepassesAdmin />} />
             <Route path="configuracoes" element={<ConfiguracoesAdmin />} />
-            <Route path="verificacoes" element={<EmailsVerificados />} />
+            <Route path="/admin/verificacoes-email" element={<VerificacoesEmail />} />
+            <Route path="/admin/verificacoes-documentos" element={<VerificacoesDocumentos />} />
             <Route path="mensagens" element={<Mensagens />} />
             <Route path="pagamentos" element={<Pagamentos />} />
             <Route path="denuncias" element={<Denuncias />} />
             <Route path="relatorios" element={<Relatorios />} />
+            <Route path="/admin/recebimento" element={<ConfigRecebimento />} />
+
           </Route>
 
           {/* ROTAS DE REGISTO */}

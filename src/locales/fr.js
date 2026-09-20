@@ -892,6 +892,7 @@ participante_principal: "Participant Principal",
 preencha_dados_participantes: "Remplissez les informations pour tous les participants.",
 // ==================== PARTICIPANTS ====================
 clique_participante_adicionar: "Cliquez sur un participant pour l'ajouter rapidement à la réservation actuelle",
-ver_fotos: "Voir les photos"
+ver_fotos: "Voir les photos",
+enviar_whatsapp: "Envoyer sur WhatsApp",
   }
 };

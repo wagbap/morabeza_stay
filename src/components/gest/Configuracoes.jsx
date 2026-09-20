@@ -77,6 +77,8 @@ export default function Configuracoes() {
     contacto_email: '',
     contacto_whatsapp: '',
     contacto_telefone: '',
+    contacto_publico: false,
+    contacto_instrucoes: '',
   });
   const [loadingContacto, setLoadingContacto] = useState(false);
   const [editandoContacto, setEditandoContacto] = useState(false);
@@ -351,6 +353,8 @@ export default function Configuracoes() {
           contacto_email: data.data.contacto_email || '',
           contacto_whatsapp: data.data.contacto_whatsapp || '',
           contacto_telefone: data.data.contacto_telefone || '',
+          contacto_publico: Number(data.data.contacto_publico) === 1,
+          contacto_instrucoes: data.data.contacto_instrucoes || '',
         });
       }
     } catch (err) {
@@ -1085,7 +1089,7 @@ export default function Configuracoes() {
               <div className="mb-6">
                 <h1 className="text-[24px] font-bold mb-1">Contacto comercial</h1>
                 <p className="text-[14px] text-[#64748b]">
-                  Estes dados aparecem <strong>publicamente</strong> nos teus anúncios.
+                  Estes dados podem aparecer <strong>publicamente</strong> nos teus anúncios.
                   Não uses os teus dados de login.
                 </p>
               </div>
@@ -1162,10 +1166,22 @@ export default function Configuracoes() {
                             <span className="font-medium text-sm">{contacto.contacto_whatsapp}</span>
                           </div>
                         )}
+                        {contacto.contacto_instrucoes && (
+                          <div className="flex justify-between py-2 border-b border-gray-50">
+                            <span className="text-gray-500 text-sm">Instruções</span>
+                            <span className="font-medium text-sm text-right max-w-[60%]">{contacto.contacto_instrucoes}</span>
+                          </div>
+                        )}
                         <div className="pt-3">
-                          <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
-                            <CheckCircle2 size={14} /> Visível nos anúncios
-                          </span>
+                          {contacto.contacto_publico ? (
+                            <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                              <CheckCircle2 size={14} /> Visível nos anúncios
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
+                              <Shield size={14} /> Só mensagem protegida
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1228,6 +1244,39 @@ export default function Configuracoes() {
                             />
                           </div>
                         </div>
+
+                        <div>
+                          <label className="block text-[13px] font-medium text-[#334155] mb-1">
+                            Instruções (opcional)
+                          </label>
+                          <textarea
+                            rows={2}
+                            maxLength={500}
+                            value={contacto.contacto_instrucoes}
+                            onChange={(e) => setContacto({ ...contacto, contacto_instrucoes: e.target.value })}
+                            placeholder="Ex.: Respondo em menos de 1 hora. Falo crioulo e português."
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Máx. 500 caracteres.</p>
+                        </div>
+
+                        <label className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={contacto.contacto_publico}
+                            onChange={(e) => setContacto({ ...contacto, contacto_publico: e.target.checked })}
+                            className="mt-0.5 accent-blue-900"
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              Mostrar contacto direto no anúncio
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Se desativado, os clientes só poderão enviar mensagem protegida através da plataforma.
+                              Recomendado manter desativado no MVP.
+                            </p>
+                          </div>
+                        </label>
 
                         <div className="flex gap-3 pt-2">
                           {editandoContacto && (
@@ -1592,7 +1641,7 @@ export default function Configuracoes() {
 
                   <ul className="text-sm text-blue-900/90 space-y-1.5 list-disc pl-5">
                     <li>
-                      A comissão da Morabeza Stay é de <strong>20%</strong> sobre cada reserva
+                      A comissão da Morabeza Stay é de <strong>10%</strong> sobre cada reserva
                       confirmada.
                     </li>
                     <li>O anúncio será analisado antes de ser publicado.</li>

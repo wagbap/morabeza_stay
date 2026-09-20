@@ -956,6 +956,7 @@ nenhum_participante_adicional: "Nessun partecipante aggiuntivo aggiunto",
 preencha_dados_participantes: "Inserisci i dati per tutti i partecipanti.",
 // ==================== PARTECIPANTI ====================
 clique_participante_adicionar: "Clicca su un partecipante per aggiungerlo rapidamente alla prenotazione corrente",
-ver_fotos: "Visualizza le foto"
+ver_fotos: "Visualizza le foto",
+enviar_whatsapp: "Invia tramite WhatsApp",
   }
 };

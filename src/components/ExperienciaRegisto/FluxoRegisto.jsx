@@ -12,16 +12,17 @@ import Idiomas from './Idiomas';
 import ImagensUpload from './ImagensUpload';
 import Disponibilidade from './Disponibilidade';
 import { salvarFluxoExperiencia } from '../../services/experienciaApiService';
-
+import { useToast } from '../../Toast';
 
 const FluxoRegisto = () => {
   const navigate = useNavigate();
-  
+  const { showToast } = useToast();
+
   const [fase, setFase] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [experienciaId, setExperienciaId] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Estados do formulário
   const [informacoes, setInformacoes] = useState({
     titulo: '',
@@ -39,7 +40,7 @@ const FluxoRegisto = () => {
     inclui_refeicao: false,
     ponto_encontro: ''
   });
-  
+
   const [endereco, setEndereco] = useState({
     morada: '',
     cidade: '',
@@ -47,7 +48,7 @@ const FluxoRegisto = () => {
     lat: null,
     lng: null
   });
-  
+
   const [categoria, setCategoria] = useState('aventura');
   const [inclusoes, setInclusoes] = useState([]);
   const [requisitos, setRequisitos] = useState([]);
@@ -57,7 +58,7 @@ const FluxoRegisto = () => {
     dias_disponiveis: [],
     horarios: []
   });
-  
+
   // Carregar dados salvos
   useEffect(() => {
     const carregarDados = async () => {
@@ -65,41 +66,41 @@ const FluxoRegisto = () => {
       try {
         const savedInfo = localStorage.getItem('expInformacoes');
         if (savedInfo) setInformacoes(JSON.parse(savedInfo));
-        
+
         const savedEndereco = localStorage.getItem('expEndereco');
         if (savedEndereco) setEndereco(JSON.parse(savedEndereco));
-        
+
         const savedCategoria = localStorage.getItem('expCategoria');
         if (savedCategoria) setCategoria(savedCategoria);
-        
+
         const savedInclusoes = localStorage.getItem('expInclusoes');
         if (savedInclusoes) setInclusoes(JSON.parse(savedInclusoes));
-        
+
         const savedRequisitos = localStorage.getItem('expRequisitos');
         if (savedRequisitos) setRequisitos(JSON.parse(savedRequisitos));
-        
+
         const savedIdiomas = localStorage.getItem('expIdiomas');
         if (savedIdiomas) setIdiomas(JSON.parse(savedIdiomas));
-        
+
         const savedImagens = localStorage.getItem('expImagens');
         if (savedImagens) setImagens(JSON.parse(savedImagens));
-        
+
         const savedDisponibilidade = localStorage.getItem('expDisponibilidade');
         if (savedDisponibilidade) setDisponibilidade(JSON.parse(savedDisponibilidade));
-        
+
         const savedId = localStorage.getItem('expExperienciaId');
         if (savedId) setExperienciaId(parseInt(savedId));
-        
+
       } catch (e) {
         console.warn('Erro ao carregar dados:', e);
       } finally {
         setLoading(false);
       }
     };
-    
+
     carregarDados();
   }, []);
-  
+
   const salvarProgresso = () => {
     localStorage.setItem('expInformacoes', JSON.stringify(informacoes));
     localStorage.setItem('expEndereco', JSON.stringify(endereco));
@@ -111,13 +112,32 @@ const FluxoRegisto = () => {
     localStorage.setItem('expDisponibilidade', JSON.stringify(disponibilidade));
     if (experienciaId) localStorage.setItem('expExperienciaId', experienciaId);
   };
-  
+
   const handleNext = () => {
+    // Validações mínimas por fase
+    if (fase === 1) {
+      if (!informacoes.titulo || !informacoes.titulo.trim()) {
+        showToast('O título da experiência é obrigatório', 'error');
+        return;
+      }
+      if (!informacoes.preco || Number(informacoes.preco) <= 0) {
+        showToast('O preço é obrigatório', 'error');
+        return;
+      }
+    }
+
+    if (fase === 2) {
+      if (!endereco.ilha) {
+        showToast('A ilha é obrigatória', 'error');
+        return;
+      }
+    }
+
     salvarProgresso();
     setFase(fase + 1);
     window.scrollTo(0, 0);
   };
-  
+
   const handleBack = () => {
     if (fase > 1) {
       setFase(fase - 1);
@@ -126,14 +146,19 @@ const FluxoRegisto = () => {
       navigate(-1);
     }
   };
-  
+
   const handleFinalizar = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    
+
     try {
+      // Ler user do localStorage (padrão do projeto)
+      const rawUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const usuarioId = user?.id || user?.sub || user?.user_id || null;
+
       const dadosCompletos = {
-        usuario_id: 1,
+        usuario_id: usuarioId,
         ...informacoes,
         endereco,
         categoria,
@@ -146,11 +171,11 @@ const FluxoRegisto = () => {
         })),
         ...disponibilidade
       };
-      
+
       console.log('📤 Enviando dados:', dadosCompletos);
-      
+
       const result = await salvarFluxoExperiencia(dadosCompletos, experienciaId);
-      
+
       if (result.success) {
         // Limpar localStorage
         localStorage.removeItem('expInformacoes');
@@ -162,20 +187,20 @@ const FluxoRegisto = () => {
         localStorage.removeItem('expImagens');
         localStorage.removeItem('expDisponibilidade');
         localStorage.removeItem('expExperienciaId');
-        
-        alert(`✅ ${result.message}`);
+
+        showToast(result.message || 'Experiência registada com sucesso!', 'success');
         navigate('/experiencia-registo/meus');
       } else {
-        alert(`⚠️ ${result.message}`);
+        showToast(result.message || 'Erro ao registar experiência', 'error');
       }
     } catch (error) {
       console.error('Erro:', error);
-      alert('Erro ao processar o registo. Tente novamente.\n' + error.message);
+      showToast('Erro ao processar o registo. Tente novamente.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   const renderProgressBar = () => {
     const fasesLista = ['Info', 'Local', 'Categoria', 'Inclusões', 'Requisitos', 'Idiomas', 'Fotos', 'Disponibilidade'];
     return (
@@ -197,7 +222,7 @@ const FluxoRegisto = () => {
       </div>
     );
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -208,137 +233,136 @@ const FluxoRegisto = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
+      <header className="bg-[#003580] text-white px-3 py-2 flex items-center justify-between shadow-sm">
+        {/* Lado esquerdo - Logo */}
+        <div className="flex items-center">
+          <div className="font-bold text-base tracking-tight truncate max-w-[130px]">
 
-<header className="bg-[#003580] text-white px-3 py-2 flex items-center justify-between shadow-sm">
-  {/* Lado esquerdo - Logo */}
-  <div className="flex items-center">
-    <div className="font-bold text-base tracking-tight truncate max-w-[130px]">
-      morabezastay.cv
-    </div>
-  </div>
+          </div>
+        </div>
 
-  {/* Lado direito - Menu e ações */}
-  <div className="flex items-center gap-2">
-    {/* Info do passo - versão mobile ultra compacta */}
-    <div className="flex flex-col items-end">
-      <div className="font-medium text-xs truncate max-w-[90px]">
-        {informacoes.titulo || 'Nova Exp.'}
-      </div>
-      <div className="text-[7px] opacity-80 mt-0.5">
-        {fase === 1 && 'Básicas'}
-        {fase === 2 && 'Localização'}
-        {fase === 3 && 'Categoria'}
-        {fase === 4 && `${inclusoes.length} incl.`}
-        {fase === 5 && `${requisitos.length} req.`}
-        {fase === 6 && `${idiomas.length} idiomas`}
-        {fase === 7 && `${imagens.length} fotos`}
-        {fase === 8 && 'Disponib.'}
-      </div>
-    </div>
+        {/* Lado direito - Menu e ações */}
+        <div className="flex items-center gap-2">
+          {/* Info do passo - versão mobile ultra compacta */}
+          <div className="flex flex-col items-end">
+            <div className="font-medium text-xs truncate max-w-[90px]">
+              {informacoes.titulo || 'Nova Exp.'}
+            </div>
+            <div className="text-[7px] opacity-80 mt-0.5">
+              {fase === 1 && 'Básicas'}
+              {fase === 2 && 'Localização'}
+              {fase === 3 && 'Categoria'}
+              {fase === 4 && `${inclusoes.length} incl.`}
+              {fase === 5 && `${requisitos.length} req.`}
+              {fase === 6 && `${idiomas.length} idiomas`}
+              {fase === 7 && `${imagens.length} fotos`}
+              {fase === 8 && 'Disponib.'}
+            </div>
+          </div>
 
-    {/* Divider vertical */}
-    <div className="w-[1px] h-5 bg-blue-900"></div>
+          {/* Divider vertical */}
+          <div className="w-[1px] h-5 bg-blue-900"></div>
 
-    {/* Botão ajuda mobile - apenas ícone */}
-    <div className="flex items-center cursor-pointer hover:opacity-80">
-      <HelpCircle size={15} />
-    </div>
-  </div>
-</header>
-      
+          {/* Botão ajuda mobile - apenas ícone */}
+          <div className="flex items-center cursor-pointer hover:opacity-80">
+            <HelpCircle size={15} />
+          </div>
+        </div>
+      </header>
+
       <div className="max-w-4xl mx-auto px-4 py-8">
         {renderProgressBar()}
-        
+
         <div className="bg-white rounded-lg shadow-md p-8">
           {/* FASE 1 - Informações Básicas */}
           {fase === 1 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Informações da Experiência</h1>
               <p className="text-gray-600 mb-6">Preencha os dados principais da sua experiência.</p>
-              <InformacoesBasicas 
+              <InformacoesBasicas
                 dados={informacoes}
                 onChange={setInformacoes}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {/* FASE 2 - Localização */}
           {fase === 2 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Onde acontece?</h1>
               <p className="text-gray-600 mb-6">Informe o local da experiência.</p>
-              <Localizacao 
+              <Localizacao
                 dados={endereco}
                 onChange={setEndereco}
                 readOnly={false}
-                experienciaId={experienciaId}  // ← ADICIONE ESTA LINHA
+                experienciaId={experienciaId}
               />
             </>
           )}
-          
+
           {/* FASE 3 - Categoria */}
           {fase === 3 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Categoria</h1>
               <p className="text-gray-600 mb-6">Selecione a categoria da experiência.</p>
-              <Categoria 
+              <Categoria
                 value={categoria}
                 onChange={setCategoria}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {/* FASE 4 - Inclusões */}
           {fase === 4 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">O que está incluído?</h1>
               <p className="text-gray-600 mb-6">Liste os itens inclusos na experiência.</p>
-              <Inclusoes 
+              <Inclusoes
                 items={inclusoes}
                 onChange={setInclusoes}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {/* FASE 5 - Requisitos */}
           {fase === 5 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Requisitos</h1>
               <p className="text-gray-600 mb-6">O que os participantes precisam saber?</p>
-              <Requisitos 
+              <Requisitos
                 items={requisitos}
                 onChange={setRequisitos}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {/* FASE 6 - Idiomas */}
           {fase === 6 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Idiomas</h1>
               <p className="text-gray-600 mb-6">Quais idiomas são falados?</p>
-              <Idiomas 
+              <Idiomas
                 items={idiomas}
                 onChange={setIdiomas}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {/* FASE 7 - Fotos */}
           {fase === 7 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Fotos da Experiência</h1>
               <p className="text-gray-600 mb-6">Adicione fotos para mostrar sua experiência.</p>
-              <ImagensUpload 
+              <ImagensUpload
                 imagens={imagens}
                 onChange={setImagens}
                 experienciaId={experienciaId}
@@ -346,20 +370,20 @@ const FluxoRegisto = () => {
               />
             </>
           )}
-          
+
           {/* FASE 8 - Disponibilidade */}
           {fase === 8 && (
             <>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Disponibilidade</h1>
               <p className="text-gray-600 mb-6">Defina os dias e horários da experiência.</p>
-              <Disponibilidade 
+              <Disponibilidade
                 dados={disponibilidade}
                 onChange={setDisponibilidade}
                 readOnly={false}
               />
             </>
           )}
-          
+
           {/* Botões de navegação */}
           <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
             <button
@@ -368,7 +392,7 @@ const FluxoRegisto = () => {
             >
               <ArrowLeft size={18} /> Voltar
             </button>
-            
+
             {fase < 8 && (
               <button
                 onClick={handleNext}
@@ -377,7 +401,7 @@ const FluxoRegisto = () => {
                 Continuar <ChevronRight size={18} />
               </button>
             )}
-            
+
             {fase === 8 && (
               <button
                 onClick={handleFinalizar}

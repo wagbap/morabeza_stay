@@ -33,7 +33,7 @@ const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-12 overflow-hidden">
       
-      {/* 1. SELETOR DE TABS - Versão Ultra Pequena */}
+      {/* 1. SELETOR DE TABS */}
       <div className="flex justify-center mb-6">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
           {tabs.map((tab) => (
@@ -53,7 +53,7 @@ const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
         </div>
       </div>
 
-      {/* 2. TÍTULO E VER TODOS - Alinhados */}
+      {/* 2. TÍTULO E VER TODOS */}
       <div className="flex justify-between items-center mb-4 px-1">
         <h2 className="text-sm md:text-xl font-black text-[#1a2b6d]">
           {t('em_destaque', { categoria: currentTab.label })}
@@ -66,18 +66,18 @@ const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
         </Link>
       </div>
 
-      {/* 3. CONTAINER DO CARROSSEL COM SETAS CORRIGIDAS */}
+      {/* 3. CONTAINER DO CARROSSEL */}
       <div className="relative group px-2 md:px-0">
         
-        {/* Setas - Agora com posicionamento fixo para não "estragar" o layout */}
+        {/* Setas - Visíveis apenas em desktop (md para cima) */}
         <button 
-          className={`${prevButtonId} absolute -left-2 md:-left-5 top-1/2 -translate-y-1/2 z-40 w-8 h-8 md:w-10 md:h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-900 border border-gray-100 disabled:opacity-0 transition-opacity`}
+          className={`${prevButtonId} hidden md:flex absolute -left-5 top-1/2 -translate-y-1/2 z-40 w-10 h-10 bg-white rounded-full shadow-lg items-center justify-center text-gray-900 border border-gray-100 disabled:opacity-0 transition-opacity`}
         >
           <ChevronLeft size={18} strokeWidth={3} />
         </button>
 
         <button 
-          className={`${nextButtonId} absolute -right-2 md:-right-5 top-1/2 -translate-y-1/2 z-40 w-8 h-8 md:w-10 md:h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-900 border border-gray-100 disabled:opacity-0 transition-opacity`}
+          className={`${nextButtonId} hidden md:flex absolute -right-5 top-1/2 -translate-y-1/2 z-40 w-10 h-10 bg-white rounded-full shadow-lg items-center justify-center text-gray-900 border border-gray-100 disabled:opacity-0 transition-opacity`}
         >
           <ChevronRight size={18} strokeWidth={3} />
         </button>
@@ -86,6 +86,7 @@ const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
           modules={[Navigation]}
           spaceBetween={12}
           slidesPerView={1.2}
+          // Ativa a navegação por setas apenas em telas médias e maiores (md: 768px+)
           navigation={{
             prevEl: `.${prevButtonId}`,
             nextEl: `.${nextButtonId}`,
