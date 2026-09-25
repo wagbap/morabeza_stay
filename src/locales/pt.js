@@ -976,5 +976,8 @@ preencha_dados_participantes: "Preencha os dados para todos os participantes.",
 clique_participante_adicionar: "Clique em um participante para adicioná-lo rapidamente à reserva atual",
 ver_fotos: "Ver Fotos",
 enviar_whatsapp: "Enviar whatsapp",
+checkout_email_conta_existente: "Já existe uma conta com este email. Inicie sessão para continuar.",
+erro_verificar_email: "Não foi possível verificar o email. Tente novamente.",
+erro_enviar_codigo: "Não foi possível enviar o código. Tente novamente.",
   }
 };

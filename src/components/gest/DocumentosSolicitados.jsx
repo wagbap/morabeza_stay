@@ -42,12 +42,42 @@ export default function DocumentosSolicitados() {
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState({ tipo: '', texto: '' });
   const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
+  const [usuarioId, setUsuarioId] = useState(null);
 
-  const sessao = JSON.parse(localStorage.getItem('user') || '{}');
   const pollingRef = useRef(null);
 
+  // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
+  useEffect(() => {
+    const obterUserId = () => {
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+        if (token) {
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          const parsed = JSON.parse(jsonPayload);
+          if (parsed.data?.id) return parsed.data.id;
+          if (parsed.id) return parsed.id;
+        }
+        const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          return user.id;
+        }
+      } catch (e) {
+        console.error('Erro ao obter ID:', e);
+      }
+      return null;
+    };
+
+    const id = obterUserId();
+    setUsuarioId(id);
+  }, []);
+
   const carregarNotificacoes = async () => {
-    if (!sessao.id) return;
+    if (!usuarioId) return;
 
     try {
       const res = await fetch(`${API_URL}/usuarios/notificacoes.php`, {
@@ -55,7 +85,7 @@ export default function DocumentosSolicitados() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'listar',
-          usuario_id: sessao.id,
+          usuario_id: usuarioId,
           limite: 20,
         }),
       });
@@ -74,7 +104,7 @@ export default function DocumentosSolicitados() {
   };
 
   const carregarTudo = async () => {
-    if (!sessao.id) {
+    if (!usuarioId) {
       setLoading(false);
       return;
     }
@@ -85,7 +115,7 @@ export default function DocumentosSolicitados() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'listar_pedidos_prestador',
-          prestador_id: sessao.id,
+          prestador_id: usuarioId,
         }),
       });
       const textoPedidos = await resPedidos.text();
@@ -102,7 +132,7 @@ export default function DocumentosSolicitados() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'listar_correcoes_prestador',
-          prestador_id: sessao.id,
+          prestador_id: usuarioId,
         }),
       });
       const textoCorr = await resCorr.text();
@@ -124,26 +154,28 @@ export default function DocumentosSolicitados() {
   };
 
   useEffect(() => {
-    carregarTudo();
+    if (usuarioId) {
+      carregarTudo();
 
-    pollingRef.current = setInterval(() => {
-      carregarNotificacoes();
-    }, 15000);
+      pollingRef.current = setInterval(() => {
+        carregarNotificacoes();
+      }, 15000);
+    }
 
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, []);
+  }, [usuarioId]);
 
   const marcarTodasLidas = async () => {
-    if (!sessao.id) return;
+    if (!usuarioId) return;
     try {
       await fetch(`${API_URL}/admin/anuncios/notificacoes.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'marcar_todas_lidas',
-          usuario_id: sessao.id,
+          usuario_id: usuarioId,
         }),
       });
       carregarNotificacoes();
@@ -153,7 +185,7 @@ export default function DocumentosSolicitados() {
   };
 
   const marcarLida = async (id) => {
-    if (!sessao.id) return;
+    if (!usuarioId) return;
     try {
       await fetch(`${API_URL}/admin/anuncios/notificacoes.php`, {
         method: 'POST',
@@ -161,7 +193,7 @@ export default function DocumentosSolicitados() {
         body: JSON.stringify({
           action: 'marcar_lida',
           notificacao_id: id,
-          usuario_id: sessao.id,
+          usuario_id: usuarioId,
         }),
       });
       carregarNotificacoes();
@@ -209,7 +241,7 @@ export default function DocumentosSolicitados() {
         body: JSON.stringify({
           action: 'enviar_documento',
           pedido_id: pedidoSelecionado.id,
-          prestador_id: sessao.id,
+          prestador_id: usuarioId,
           documento_url: dataUp.documento_url,
         }),
       });
@@ -265,10 +297,10 @@ export default function DocumentosSolicitados() {
 
   const StatusBadge = ({ estado }) => {
     const map = {
-      pendente:  { cls: 'bg-yellow-100 text-yellow-700', ic: <Clock size={12} />,        txt: 'Pendente' },
-      enviado:   { cls: 'bg-blue-100 text-blue-700',     ic: <Upload size={12} />,       txt: 'Enviado' },
+      pendente:  { cls: 'bg-yellow-100 text-yellow-700', ic: <Clock size={12} />,      txt: 'Pendente' },
+      enviado:   { cls: 'bg-blue-100 text-blue-700',     ic: <Upload size={12} />,      txt: 'Enviado' },
       aprovado:  { cls: 'bg-green-100 text-green-700',   ic: <CheckCircle2 size={12} />, txt: 'Aprovado' },
-      rejeitado: { cls: 'bg-red-100 text-red-700',       ic: <XCircle size={12} />,      txt: 'Rejeitado' },
+      rejeitado: { cls: 'bg-red-100 text-red-700',       ic: <XCircle size={12} />,     txt: 'Rejeitado' },
       expirado:  { cls: 'bg-gray-100 text-gray-700',     ic: <AlertCircle size={12} />,  txt: 'Expirado' },
     };
     const s = map[estado] || map.pendente;

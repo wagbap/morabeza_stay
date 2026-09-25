@@ -15,6 +15,35 @@ export default function DetalhesReservaPage() {
   const [error, setError] = useState(null);
   const [canceling, setCanceling] = useState(false);
 
+  // Função auxiliar para obter o ID do utilizador de forma segura (JWT ou LocalStorage)
+  const obterUsuarioId = () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) return userData.id;
+      }
+
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const savedUser = localStorage.getItem(chave);
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          if (user?.id) return user.id;
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID do utilizador:', e);
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (id && tipo) {
       fetchDetalhes();
@@ -25,17 +54,15 @@ export default function DetalhesReservaPage() {
     setLoading(true);
     setError(null);
     try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) {
+      const usuarioId = obterUsuarioId();
+      if (!usuarioId) {
         setError('Usuário não autenticado');
         setLoading(false);
         return;
       }
       
-      const user = JSON.parse(savedUser);
-      
       const response = await fetch(
-        `https://welovepalop.com/api/dashboard/detalhes_reserva.php?reserva_id=${id}&usuario_id=${user.id}&tipo=${tipo}`
+        `https://welovepalop.com/api/dashboard/detalhes_reserva.php?reserva_id=${id}&usuario_id=${usuarioId}&tipo=${tipo}`
       );
       const data = await response.json();
       
@@ -58,13 +85,11 @@ export default function DetalhesReservaPage() {
 
     setCanceling(true);
     try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) {
+      const usuarioId = obterUsuarioId();
+      if (!usuarioId) {
         alert('Usuário não autenticado');
         return;
       }
-      
-      const user = JSON.parse(savedUser);
       
       const response = await fetch('https://welovepalop.com/api/dashboard/minhas_reservas.php', {
         method: 'POST',
@@ -74,7 +99,7 @@ export default function DetalhesReservaPage() {
         body: JSON.stringify({
           reserva_id: parseInt(id),
           tipo: tipo,
-          usuario_id: user.id
+          usuario_id: usuarioId
         })
       });
       
@@ -82,7 +107,7 @@ export default function DetalhesReservaPage() {
       
       if (data.success) {
         alert('Reserva cancelada com sucesso!');
-        navigate('/dashboard/reservas');
+        navigate('/gest/minhas-reservas');
       } else {
         alert(data.message || 'Erro ao cancelar reserva');
       }
@@ -188,7 +213,7 @@ export default function DetalhesReservaPage() {
           <h3 className="text-lg font-bold text-gray-900 mb-2">Erro ao carregar</h3>
           <p className="text-gray-600">{error || 'Reserva não encontrada'}</p>
           <button
-            onClick={() => navigate('/dashboard/reservas')}
+            onClick={() => navigate('/gest/minhas-reservas')}
             className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Voltar para Reservas

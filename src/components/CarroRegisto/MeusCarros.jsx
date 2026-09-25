@@ -20,17 +20,35 @@ const MeusCarros = () => {
   const [usuarioId, setUsuarioId] = useState(null);
 
   // ---------------------------------------------------------
-  // Ler user do localStorage (igual em todos os componentes)
+  // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
   // ---------------------------------------------------------
-  const getLoggedUser = () => {
+  const getLoggedUserId = () => {
     try {
-      const raw =
-        localStorage.getItem('user') ||
-        localStorage.getItem('morabeza_user');
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) return userData.id;
+      }
+
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const raw = localStorage.getItem(chave);
+        if (raw) {
+          const user = JSON.parse(raw);
+          const uid = user?.id || user?.sub || user?.user_id;
+          if (uid) return uid;
+        }
+      }
+    } catch (e) {
+      console.error('[MeusCarros] Erro ao obter ID:', e);
     }
+    return null;
   };
 
   const carregarCarros = async (uid) => {
@@ -56,12 +74,10 @@ const MeusCarros = () => {
   // Bootstrap: ler user e carregar
   // ---------------------------------------------------------
   useEffect(() => {
-    const user = getLoggedUser();
+    const uid = getLoggedUserId();
 
-    // Sem sessão → volta para login
-    const uid = user?.id || user?.sub || user?.user_id;
     if (!uid) {
-      console.warn('[MeusCarros] Sem user no localStorage');
+      console.warn('[MeusCarros] Sem utilizador autenticado');
       navigate('/login');
       return;
     }
@@ -93,7 +109,7 @@ const MeusCarros = () => {
   const getStatusBadge = (status) => {
     const config = {
       disponivel:   { label: 'Disponível',   icon: <CheckCircle size={14} />,   class: 'bg-green-100 text-green-800' },
-      indisponivel: { label: 'Indisponível', icon: <XCircle size={14} />,       class: 'bg-red-100 text-red-800' },
+      indisponivel: { label: 'Indisponível', icon: <XCircle size={14} />,     class: 'bg-red-100 text-red-800' },
       manutencao:   { label: 'Manutenção',   icon: <AlertCircle size={14} />,   class: 'bg-yellow-100 text-yellow-800' },
     };
     const { label, icon, class: className } = config[status] || config.disponivel;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, TrendingUp, Users, DollarSign, Calendar, Activity, Home, Car, Compass, Star, Loader2 } from 'lucide-react';
+import { FileText, Download, TrendingUp, Users, DollarSign, Calendar, Activity, Home, Car, Compass, Star, Loader2, Clock, Wallet, CheckCircle, XCircle, Lock, RotateCcw } from 'lucide-react';
 
 const Relatorios = () => {
   const [stats, setStats] = useState({
@@ -8,6 +8,17 @@ const Relatorios = () => {
     reservasMes: 0,
     avaliacaoMedia: 0,
     crescimento: 0
+  });
+
+  const [financeiro, setFinanceiro] = useState({
+    a_receber:   { bruto: 0, comissao: 0, taxas: 0, liquido: 0 },
+    disponivel:  { bruto: 0, comissao: 0, taxas: 0, liquido: 0 },
+    pago:        { bruto: 0, comissao: 0, taxas: 0, liquido: 0 },
+    falhou:      { bruto: 0, comissao: 0, taxas: 0, liquido: 0 },
+    retido:      { bruto: 0, comissao: 0, taxas: 0, liquido: 0 },
+    reembolsado: { bruto: 0, comissao: 0, taxas: 0, liquido: 0 },
+    totais:      { bruto: 0, comissao: 0, taxas: 0, liquido: 0 },
+    total_reservas: 0,
   });
 
   const [relatorioAtivo, setRelatorioAtivo] = useState('alojamentos');
@@ -39,9 +50,29 @@ const Relatorios = () => {
     setLoading(false);
   };
 
+  // Buscar dados financeiros da conta
+  const fetchFinanceiro = async (contaId = 1) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`https://welovepalop.com/api/admin/admin_reports.php?action=financeiro&conta_id=${contaId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setFinanceiro(data.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados financeiros:', error);
+    }
+    setLoading(false);
+  };
+
   const handleRelatorioClick = (tipo) => {
     setRelatorioAtivo(tipo);
-    fetchReportData(tipo);
+    if (tipo === 'financeiro') {
+      fetchFinanceiro();
+    } else {
+      fetchReportData(tipo);
+    }
   };
 
   const formatarMoeda = (valor) => {
@@ -91,7 +122,7 @@ const Relatorios = () => {
     ];
   };
 
-  // Detalhes para Experiências (com dados reais da API)
+  // Detalhes para Experiências
   const getDetalhesExperiencias = () => {
     if (!apiData) return [];
     const categorias = {
@@ -193,6 +224,7 @@ const Relatorios = () => {
       case 'carros': return 'Relatório de Viaturas';
       case 'experiencias': return 'Relatório de Experiências';
       case 'utilizadores': return 'Relatório de Utilizadores';
+      case 'financeiro': return 'Relatório Financeiro';
       default: return 'Relatório de Alojamentos';
     }
   };
@@ -204,6 +236,7 @@ const Relatorios = () => {
       case 'carros': return getDetalhesCarros();
       case 'experiencias': return getDetalhesExperiencias();
       case 'utilizadores': return getDetalhesUtilizadores();
+      case 'financeiro': return [];
       default: return getDetalhesAlojamentos();
     }
   };
@@ -242,38 +275,132 @@ const Relatorios = () => {
 
       {/* Cards Principais */}
       <div className={`transition-all duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl shadow-sm border border-blue-100">
-            <Users className="text-blue-500 mb-2" size={24} />
-            <p className="text-2xl font-bold">{formatarNumero(stats.total)}</p>
-            <p className="text-sm text-gray-500">
-              {relatorioAtivo === 'utilizadores' ? 'Total de Utilizadores' : 
-               relatorioAtivo === 'alojamentos' ? 'Alojamentos' :
-               relatorioAtivo === 'carros' ? 'Viaturas' : 'Experiências'}
-            </p>
-            {stats.crescimento > 0 && (
-              <p className="text-xs text-green-600 mt-2">+{stats.crescimento}% este mês</p>
-            )}
+        {relatorioAtivo === 'financeiro' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* A receber */}
+            <div className="bg-gradient-to-br from-blue-50 to-white p-5 rounded-2xl shadow-sm border border-blue-100">
+              <Clock className="text-blue-500 mb-2" size={24} />
+              <p className="text-xl font-bold mt-1">{formatarMoeda(financeiro.a_receber.bruto)}</p>
+              <p className="text-sm text-gray-500">A receber</p>
+              <div className="mt-3 text-xs space-y-0.5 border-t border-gray-100 pt-2">
+                <div className="flex justify-between"><span className="text-gray-500">Bruto</span><span className="font-medium">{formatarMoeda(financeiro.a_receber.bruto)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Comissão 10%</span><span className="font-medium text-[#003580]">{formatarMoeda(financeiro.a_receber.comissao)}</span></div>
+                {financeiro.a_receber.taxas > 0 && (
+                  <div className="flex justify-between"><span className="text-gray-500">Taxas</span><span className="font-medium">{formatarMoeda(financeiro.a_receber.taxas)}</span></div>
+                )}
+                <div className="flex justify-between"><span className="text-gray-500">Líquido</span><span className="font-semibold text-green-700">{formatarMoeda(financeiro.a_receber.liquido)}</span></div>
+              </div>
+            </div>
+
+            {/* Disponível */}
+            <div className="bg-gradient-to-br from-green-50 to-white p-5 rounded-2xl shadow-sm border border-green-100">
+              <Wallet className="text-green-500 mb-2" size={24} />
+              <p className="text-xl font-bold mt-1">{formatarMoeda(financeiro.disponivel.bruto)}</p>
+              <p className="text-sm text-gray-500">Disponível</p>
+              <div className="mt-3 text-xs space-y-0.5 border-t border-gray-100 pt-2">
+                <div className="flex justify-between"><span className="text-gray-500">Bruto</span><span className="font-medium">{formatarMoeda(financeiro.disponivel.bruto)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Comissão 10%</span><span className="font-medium text-[#003580]">{formatarMoeda(financeiro.disponivel.comissao)}</span></div>
+                {financeiro.disponivel.taxas > 0 && (
+                  <div className="flex justify-between"><span className="text-gray-500">Taxas</span><span className="font-medium">{formatarMoeda(financeiro.disponivel.taxas)}</span></div>
+                )}
+                <div className="flex justify-between"><span className="text-gray-500">Líquido</span><span className="font-semibold text-green-700">{formatarMoeda(financeiro.disponivel.liquido)}</span></div>
+              </div>
+            </div>
+
+            {/* Pago */}
+            <div className="bg-gradient-to-br from-emerald-50 to-white p-5 rounded-2xl shadow-sm border border-emerald-100">
+              <CheckCircle className="text-emerald-500 mb-2" size={24} />
+              <p className="text-xl font-bold mt-1">{formatarMoeda(financeiro.pago.bruto)}</p>
+              <p className="text-sm text-gray-500">Pago</p>
+              <div className="mt-3 text-xs space-y-0.5 border-t border-gray-100 pt-2">
+                <div className="flex justify-between"><span className="text-gray-500">Bruto</span><span className="font-medium">{formatarMoeda(financeiro.pago.bruto)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Comissão 10%</span><span className="font-medium text-[#003580]">{formatarMoeda(financeiro.pago.comissao)}</span></div>
+                {financeiro.pago.taxas > 0 && (
+                  <div className="flex justify-between"><span className="text-gray-500">Taxas</span><span className="font-medium">{formatarMoeda(financeiro.pago.taxas)}</span></div>
+                )}
+                <div className="flex justify-between"><span className="text-gray-500">Líquido</span><span className="font-semibold text-green-700">{formatarMoeda(financeiro.pago.liquido)}</span></div>
+              </div>
+            </div>
+
+            {/* Falhou */}
+            <div className="bg-gradient-to-br from-red-50 to-white p-5 rounded-2xl shadow-sm border border-red-100">
+              <XCircle className="text-red-500 mb-2" size={24} />
+              <p className="text-xl font-bold mt-1">{formatarMoeda(financeiro.falhou.bruto)}</p>
+              <p className="text-sm text-gray-500">Falhou</p>
+              <div className="mt-3 text-xs space-y-0.5 border-t border-gray-100 pt-2">
+                <div className="flex justify-between"><span className="text-gray-500">Bruto</span><span className="font-medium">{formatarMoeda(financeiro.falhou.bruto)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Comissão 10%</span><span className="font-medium text-[#003580]">{formatarMoeda(financeiro.falhou.comissao)}</span></div>
+                {financeiro.falhou.taxas > 0 && (
+                  <div className="flex justify-between"><span className="text-gray-500">Taxas</span><span className="font-medium">{formatarMoeda(financeiro.falhou.taxas)}</span></div>
+                )}
+                <div className="flex justify-between"><span className="text-gray-500">Líquido</span><span className="font-semibold text-green-700">{formatarMoeda(financeiro.falhou.liquido)}</span></div>
+              </div>
+            </div>
+
+            {/* Retido */}
+            <div className="bg-gradient-to-br from-orange-50 to-white p-5 rounded-2xl shadow-sm border border-orange-100">
+              <Lock className="text-orange-500 mb-2" size={24} />
+              <p className="text-xl font-bold mt-1">{formatarMoeda(financeiro.retido.bruto)}</p>
+              <p className="text-sm text-gray-500">Retido</p>
+              <div className="mt-3 text-xs space-y-0.5 border-t border-gray-100 pt-2">
+                <div className="flex justify-between"><span className="text-gray-500">Bruto</span><span className="font-medium">{formatarMoeda(financeiro.retido.bruto)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Comissão 10%</span><span className="font-medium text-[#003580]">{formatarMoeda(financeiro.retido.comissao)}</span></div>
+                {financeiro.retido.taxas > 0 && (
+                  <div className="flex justify-between"><span className="text-gray-500">Taxas</span><span className="font-medium">{formatarMoeda(financeiro.retido.taxas)}</span></div>
+                )}
+                <div className="flex justify-between"><span className="text-gray-500">Líquido</span><span className="font-semibold text-green-700">{formatarMoeda(financeiro.retido.liquido)}</span></div>
+              </div>
+            </div>
+
+            {/* Reembolsado */}
+            <div className="bg-gradient-to-br from-gray-50 to-white p-5 rounded-2xl shadow-sm border border-gray-100">
+              <RotateCcw className="text-gray-500 mb-2" size={24} />
+              <p className="text-xl font-bold mt-1">{formatarMoeda(financeiro.reembolsado.bruto)}</p>
+              <p className="text-sm text-gray-500">Reembolsado</p>
+              <div className="mt-3 text-xs space-y-0.5 border-t border-gray-100 pt-2">
+                <div className="flex justify-between"><span className="text-gray-500">Bruto</span><span className="font-medium">{formatarMoeda(financeiro.reembolsado.bruto)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Comissão 10%</span><span className="font-medium text-[#003580]">{formatarMoeda(financeiro.reembolsado.comissao)}</span></div>
+                {financeiro.reembolsado.taxas > 0 && (
+                  <div className="flex justify-between"><span className="text-gray-500">Taxas</span><span className="font-medium">{formatarMoeda(financeiro.reembolsado.taxas)}</span></div>
+                )}
+                <div className="flex justify-between"><span className="text-gray-500">Líquido</span><span className="font-semibold text-green-700">{formatarMoeda(financeiro.reembolsado.liquido)}</span></div>
+              </div>
+            </div>
           </div>
-          
-          <div className="bg-gradient-to-br from-green-50 to-white p-6 rounded-2xl shadow-sm border border-green-100">
-            <DollarSign className="text-green-500 mb-2" size={24} />
-            <p className="text-2xl font-bold">{formatarMoeda(stats.faturacaoTotal)}</p>
-            <p className="text-sm text-gray-500">Faturação Total</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl shadow-sm border border-blue-100">
+              <Users className="text-blue-500 mb-2" size={24} />
+              <p className="text-2xl font-bold">{formatarNumero(stats.total)}</p>
+              <p className="text-sm text-gray-500">
+                {relatorioAtivo === 'utilizadores' ? 'Total de Utilizadores' : 
+                 relatorioAtivo === 'alojamentos' ? 'Alojamentos' :
+                 relatorioAtivo === 'carros' ? 'Viaturas' : 'Experiências'}
+              </p>
+              {stats.crescimento > 0 && (
+                <p className="text-xs text-green-600 mt-2">+{stats.crescimento}% este mês</p>
+              )}
+            </div>
+            
+            <div className="bg-gradient-to-br from-green-50 to-white p-6 rounded-2xl shadow-sm border border-green-100">
+              <DollarSign className="text-green-500 mb-2" size={24} />
+              <p className="text-2xl font-bold">{formatarMoeda(stats.faturacaoTotal)}</p>
+              <p className="text-sm text-gray-500">Faturação Total</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-purple-50 to-white p-6 rounded-2xl shadow-sm border border-purple-100">
+              <Calendar className="text-purple-500 mb-2" size={24} />
+              <p className="text-2xl font-bold">{formatarNumero(stats.reservasMes)}</p>
+              <p className="text-sm text-gray-500">Reservas</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl shadow-sm border border-orange-100">
+              <Star className="text-orange-500 mb-2" size={24} />
+              <p className="text-2xl font-bold">{stats.avaliacaoMedia === 0 ? 'N/A' : stats.avaliacaoMedia + ' ★'}</p>
+              <p className="text-sm text-gray-500">Avaliação Média</p>
+            </div>
           </div>
-          
-          <div className="bg-gradient-to-br from-purple-50 to-white p-6 rounded-2xl shadow-sm border border-purple-100">
-            <Calendar className="text-purple-500 mb-2" size={24} />
-            <p className="text-2xl font-bold">{formatarNumero(stats.reservasMes)}</p>
-            <p className="text-sm text-gray-500">Reservas</p>
-          </div>
-          
-          <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl shadow-sm border border-orange-100">
-            <Star className="text-orange-500 mb-2" size={24} />
-            <p className="text-2xl font-bold">{stats.avaliacaoMedia === 0 ? 'N/A' : stats.avaliacaoMedia + ' ★'}</p>
-            <p className="text-sm text-gray-500">Avaliação Média</p>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -335,6 +462,19 @@ const Relatorios = () => {
               <span className="flex-1">Utilizadores</span>
               <span className="text-xs">21</span>
             </button>
+
+            <button 
+              onClick={() => handleRelatorioClick('financeiro')}
+              className={`w-full text-left p-3 rounded-lg transition flex items-center gap-3 ${
+                relatorioAtivo === 'financeiro' 
+                  ? 'bg-[#003580] text-white' 
+                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+              }`}
+            >
+              <DollarSign size={18} />
+              <span className="flex-1">Financeiro</span>
+              <span className="text-xs">€</span>
+            </button>
           </div>
         </div>
 
@@ -351,17 +491,19 @@ const Relatorios = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {getDetalhesAtuais().map((item, index) => (
-                  <div key={index} className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">{item.label}</p>
-                    <p className="text-lg font-bold text-gray-800">{item.valor}</p>
-                    {item.percentual && (
-                      <p className="text-xs text-green-600">{item.percentual}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {relatorioAtivo !== 'financeiro' && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {getDetalhesAtuais().map((item, index) => (
+                    <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-xs text-gray-500">{item.label}</p>
+                      <p className="text-lg font-bold text-gray-800">{item.valor}</p>
+                      {item.percentual && (
+                        <p className="text-xs text-green-600">{item.percentual}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Barra de progresso para alojamentos */}
               {relatorioAtivo === 'alojamentos' && apiData?.distribuicao_tipos && (
@@ -500,6 +642,83 @@ const Relatorios = () => {
                   </div>
                 </div>
               )}
+
+              {/* Detalhes Financeiros */}
+              {relatorioAtivo === 'financeiro' && (
+                <>
+                  {/* Tabela de decomposição */}
+                  <div className="mt-2">
+                    <p className="text-sm font-medium text-gray-700 mb-3">Decomposição Financeira por Estado</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-xs text-gray-500 border-b">
+                            <th className="py-2">Estado</th>
+                            <th className="py-2 text-right">Bruto</th>
+                            <th className="py-2 text-right">Comissão (10%)</th>
+                            <th className="py-2 text-right">Taxas</th>
+                            <th className="py-2 text-right">Líquido prestador</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b last:border-0">
+                            <td className="py-2 text-gray-700">A receber</td>
+                            <td className="py-2 text-right">{formatarMoeda(financeiro.a_receber.bruto)}</td>
+                            <td className="py-2 text-right text-[#003580]">{formatarMoeda(financeiro.a_receber.comissao)}</td>
+                            <td className="py-2 text-right">{financeiro.a_receber.taxas > 0 ? formatarMoeda(financeiro.a_receber.taxas) : '—'}</td>
+                            <td className="py-2 text-right font-semibold text-green-700">{formatarMoeda(financeiro.a_receber.liquido)}</td>
+                          </tr>
+                          <tr className="border-b last:border-0">
+                            <td className="py-2 text-gray-700">Disponível</td>
+                            <td className="py-2 text-right">{formatarMoeda(financeiro.disponivel.bruto)}</td>
+                            <td className="py-2 text-right text-[#003580]">{formatarMoeda(financeiro.disponivel.comissao)}</td>
+                            <td className="py-2 text-right">{financeiro.disponivel.taxas > 0 ? formatarMoeda(financeiro.disponivel.taxas) : '—'}</td>
+                            <td className="py-2 text-right font-semibold text-green-700">{formatarMoeda(financeiro.disponivel.liquido)}</td>
+                          </tr>
+                          <tr className="border-b last:border-0">
+                            <td className="py-2 text-gray-700">Pago</td>
+                            <td className="py-2 text-right">{formatarMoeda(financeiro.pago.bruto)}</td>
+                            <td className="py-2 text-right text-[#003580]">{formatarMoeda(financeiro.pago.comissao)}</td>
+                            <td className="py-2 text-right">{financeiro.pago.taxas > 0 ? formatarMoeda(financeiro.pago.taxas) : '—'}</td>
+                            <td className="py-2 text-right font-semibold text-green-700">{formatarMoeda(financeiro.pago.liquido)}</td>
+                          </tr>
+                          <tr className="border-b last:border-0">
+                            <td className="py-2 text-gray-700">Falhou</td>
+                            <td className="py-2 text-right">{formatarMoeda(financeiro.falhou.bruto)}</td>
+                            <td className="py-2 text-right text-[#003580]">{formatarMoeda(financeiro.falhou.comissao)}</td>
+                            <td className="py-2 text-right">{financeiro.falhou.taxas > 0 ? formatarMoeda(financeiro.falhou.taxas) : '—'}</td>
+                            <td className="py-2 text-right font-semibold text-green-700">{formatarMoeda(financeiro.falhou.liquido)}</td>
+                          </tr>
+                          <tr className="border-b last:border-0">
+                            <td className="py-2 text-gray-700">Retido</td>
+                            <td className="py-2 text-right">{formatarMoeda(financeiro.retido.bruto)}</td>
+                            <td className="py-2 text-right text-[#003580]">{formatarMoeda(financeiro.retido.comissao)}</td>
+                            <td className="py-2 text-right">{financeiro.retido.taxas > 0 ? formatarMoeda(financeiro.retido.taxas) : '—'}</td>
+                            <td className="py-2 text-right font-semibold text-green-700">{formatarMoeda(financeiro.retido.liquido)}</td>
+                          </tr>
+                          <tr className="border-b last:border-0">
+                            <td className="py-2 text-gray-700">Reembolsado</td>
+                            <td className="py-2 text-right">{formatarMoeda(financeiro.reembolsado.bruto)}</td>
+                            <td className="py-2 text-right text-[#003580]">{formatarMoeda(financeiro.reembolsado.comissao)}</td>
+                            <td className="py-2 text-right">{financeiro.reembolsado.taxas > 0 ? formatarMoeda(financeiro.reembolsado.taxas) : '—'}</td>
+                            <td className="py-2 text-right font-semibold text-green-700">{formatarMoeda(financeiro.reembolsado.liquido)}</td>
+                          </tr>
+                          <tr className="bg-gray-50 font-semibold">
+                            <td className="py-2">Total</td>
+                            <td className="py-2 text-right">{formatarMoeda(financeiro.totais.bruto)}</td>
+                            <td className="py-2 text-right text-[#003580]">{formatarMoeda(financeiro.totais.comissao)}</td>
+                            <td className="py-2 text-right">{financeiro.totais.taxas > 0 ? formatarMoeda(financeiro.totais.taxas) : '—'}</td>
+                            <td className="py-2 text-right text-green-700">{formatarMoeda(financeiro.totais.liquido)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      {financeiro.total_reservas} reservas • Regra: 10% Morabeza Stay sobre o valor bruto
+                    </p>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -507,7 +726,7 @@ const Relatorios = () => {
 
       {/* Dica */}
       <div className="text-center text-sm text-gray-400 bg-gray-50 py-3 rounded-lg">
-        💡 Clique nas categorias acima para ver relatórios específicos de Alojamentos, Viaturas, Experiências ou Utilizadores
+        💡 Clique nas categorias acima para ver relatórios específicos de Alojamentos, Viaturas, Experiências, Utilizadores ou Financeiro
       </div>
     </div>
   );

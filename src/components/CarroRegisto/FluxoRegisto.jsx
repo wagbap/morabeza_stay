@@ -22,6 +22,7 @@ const FluxoRegisto = () => {
   const [carroId, setCarroId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mostrarConfirmacaoRemover, setMostrarConfirmacaoRemover] = useState(false);
+  const [usuarioId, setUsuarioId] = useState(null);
 
   const [informacoes, setInformacoes] = useState({
     titulo: '',
@@ -52,6 +53,41 @@ const FluxoRegisto = () => {
 
   const [caracteristicas, setCaracteristicas] = useState([]);
   const [imagens, setImagens] = useState([]);
+
+  // ==================== OBTER ID DO UTILIZADOR (JWT) ====================
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) {
+          setUsuarioId(userData.id);
+          return;
+        }
+      }
+
+      // Fallback para as chaves tradicionais no LocalStorage
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const savedUser = localStorage.getItem(chave);
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          if (user?.id) {
+            setUsuarioId(user.id);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID do utilizador:', e);
+    }
+  }, []);
 
   // ==================== GUARDAR RASCUNHO ====================
   const guardarRascunhoLocal = () => {
@@ -186,12 +222,19 @@ const FluxoRegisto = () => {
   // ==================== FINALIZAR ====================
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+
+    if (!usuarioId) {
+      showToast('Utilizador não autenticado. Faça login novamente.', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const dadosCompletos = {
         ...informacoes,
         ...especificacoes,
+        usuario_id: usuarioId,
         localizacao: localizacao.local || localizacao.cidade || '',
         cidade: localizacao.cidade || localizacao.local || '',
         ilha: localizacao.ilha || '',
@@ -204,9 +247,7 @@ const FluxoRegisto = () => {
       const result = await salvarFluxoCarro(dadosCompletos, carroId);
 
       if (result.success) {
-        // Limpa o rascunho depois de sucesso
         localStorage.removeItem(RASCUNHO_KEY);
-
         showToast(result.message || 'Veículo registado com sucesso!', 'success');
         navigate('/carro-registo/meus');
       } else {
@@ -249,7 +290,6 @@ const FluxoRegisto = () => {
     );
   };
 
-  // ==================== BOTÕES DE AÇÃO ====================
   const temRascunho = !!localStorage.getItem(RASCUNHO_KEY);
 
   if (loading) {
@@ -368,7 +408,6 @@ const FluxoRegisto = () => {
             </button>
 
             <div className="flex flex-wrap gap-3">
-              {/* Guardar rascunho */}
               <button
                 onClick={guardarRascunhoLocal}
                 className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
@@ -377,7 +416,6 @@ const FluxoRegisto = () => {
                 Guardar rascunho
               </button>
 
-              {/* Remover rascunho */}
               {temRascunho && (
                 <button
                   onClick={pedirConfirmacaoRemoverRascunho}
@@ -421,7 +459,6 @@ const FluxoRegisto = () => {
         </div>
       </div>
 
-      {/* ========== CAIXA DE CONFIRMAÇÃO REMOVER RASCUNHO ========== */}
       {mostrarConfirmacaoRemover && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">

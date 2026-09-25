@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/Reservas.jsx
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Reservas() {
@@ -15,23 +16,45 @@ export default function Reservas() {
     concluidas: 0
   });
 
-  // Buscar reservas
-  useEffect(() => {
-    fetchMinhasReservas();
-  }, []);
+  // Função auxiliar para obter o ID do utilizador de forma segura (JWT ou LocalStorage)
+  const obterUsuarioId = () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) return userData.id;
+      }
 
-  const fetchMinhasReservas = async () => {
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const savedUser = localStorage.getItem(chave);
+        if (savedUser) {
+          const user = JSON.parse(savedUser);
+          if (user?.id) return user.id;
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID do utilizador:', e);
+    }
+    return null;
+  };
+
+  const fetchMinhasReservas = useCallback(async () => {
     setLoading(true);
     try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) {
+      const usuarioId = obterUsuarioId();
+      if (!usuarioId) {
         setLoading(false);
         return;
       }
       
-      const user = JSON.parse(savedUser);
-      
-      const response = await fetch(`https://welovepalop.com/api/dashboard/minhas_reservas.php?usuario_id=${user.id}`);
+      const response = await fetch(`https://welovepalop.com/api/dashboard/minhas_reservas.php?usuario_id=${usuarioId}`);
       const data = await response.json();
       
       if (data.success && data.data?.reservas) {
@@ -68,7 +91,12 @@ export default function Reservas() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Buscar reservas
+  useEffect(() => {
+    fetchMinhasReservas();
+  }, [fetchMinhasReservas]);
 
   // Função para cancelar reserva
   const cancelarReserva = async (reservaId, tipo) => {
@@ -79,13 +107,11 @@ export default function Reservas() {
     setCancelingId(reservaId);
     
     try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) {
+      const usuarioId = obterUsuarioId();
+      if (!usuarioId) {
         alert('Usuário não autenticado');
         return;
       }
-      
-      const user = JSON.parse(savedUser);
       
       const response = await fetch('https://welovepalop.com/api/dashboard/minhas_reservas.php', {
         method: 'POST',
@@ -95,7 +121,7 @@ export default function Reservas() {
         body: JSON.stringify({
           reserva_id: reservaId,
           tipo: tipo,
-          usuario_id: user.id
+          usuario_id: usuarioId
         })
       });
       
@@ -202,7 +228,6 @@ export default function Reservas() {
 
   return (
     <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
-  
       <div className="bg-white rounded-xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
         
         <div className="px-5 pt-5 pb-3 border-b border-gray-100">
@@ -376,7 +401,6 @@ export default function Reservas() {
         </div>
 
       </div>
-
     </div>
   );
 }

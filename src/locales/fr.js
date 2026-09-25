@@ -894,5 +894,8 @@ preencha_dados_participantes: "Remplissez les informations pour tous les partici
 clique_participante_adicionar: "Cliquez sur un participant pour l'ajouter rapidement à la réservation actuelle",
 ver_fotos: "Voir les photos",
 enviar_whatsapp: "Envoyer sur WhatsApp",
+checkout_email_conta_existente: "Un compte avec cet e-mail existe déjà. Connectez-vous pour continuer.",
+erro_verificar_email: "Impossible de vérifier l'e-mail. Veuillez réessayer.",
+erro_enviar_codigo: "Impossible d'envoyer le code. Veuillez réessayer.",
   }
 };

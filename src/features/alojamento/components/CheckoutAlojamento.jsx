@@ -1,3 +1,4 @@
+// src/features/alojamento/components/CheckoutAlojamento.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -21,7 +22,6 @@ const calcularNoites = (checkIn, checkOut) => {
   return diff > 0 ? diff : 1;
 };
 
-/* Sessão anónima persistente (usada por holds opcionalmente) */
 const getSessionId = () => {
   let sid = sessionStorage.getItem('morabeza_sid');
   if (!sid) {
@@ -320,7 +320,6 @@ const CheckoutAlojamento = () => {
   const [editandoParticipante, setEditandoParticipante] = useState(null);
   const [editForm, setEditForm] = useState({ nome_completo: '', idade: '', nacionalidade: '' });
 
-  // Estados para o Modal OTP com 6 caixas individuais
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
   const [loadingOtp, setLoadingOtp] = useState(false);
@@ -350,6 +349,11 @@ const CheckoutAlojamento = () => {
     return Number(reservaData?.capacidade || reservaData?.maxPessoas || 2);
   }, [reservaData]);
 
+  const modeloVendaInicial = useMemo(() => {
+    if (reservaData?.quartos && reservaData.quartos.length > 0) return 'por_quarto';
+    return reservaData?.modelo_venda || reservaData?.tipo_venda || 'inteiro';
+  }, [reservaData]);
+
   const [reserva, setReserva] = useState({
     id: reservaData?.id || null,
     alojamento_id: reservaData?.id || reservaData?.alojamento_id || null,
@@ -363,8 +367,8 @@ const CheckoutAlojamento = () => {
     maxPessoas: capacidadeMaxima,
     capacidade: capacidadeMaxima,
     quartos: reservaData?.quartos || [],
-    modelo_venda: reservaData?.modelo_venda || 'inteiro',
-    tipo_venda: reservaData?.modelo_venda || reservaData?.tipo_venda || 'inteiro',
+    modelo_venda: modeloVendaInicial,
+    tipo_venda: modeloVendaInicial,
   });
 
   const financeiro = useMemo(() => {
@@ -520,19 +524,18 @@ const CheckoutAlojamento = () => {
         const email = userData.email;
         const googleId = userData.sub || userData.google_id || null;
         setUser({ ...userData, google_id: googleId, email });
-        buscarDadosUsuario(email, googleId);
+        if (email) {
+          buscarDadosUsuario(email, googleId);
+        }
         setParticipantePrincipal(prev => ({
           ...prev,
-          nome_completo: userData.name || userData.full_name || '',
-          email: email,
-          phone: userData.phone || '',
+          nome_completo: userData.name || userData.full_name || prev.nome_completo,
+          email: email || prev.email,
+          phone: userData.phone || prev.phone,
         }));
       } catch (e) {
         console.error('Erro ao parsear usuário:', e);
       }
-    } else {
-      showToast(t('login_necessario_continuar', 'Por favor, faça login para continuar'), 'error');
-      navigate('/');
     }
     window.scrollTo(0, 0);
   }, []);
@@ -616,59 +619,62 @@ const CheckoutAlojamento = () => {
     return true;
   };
 
-  const verificarStock = async () => {
-    const quartos = reserva.quartos || [];
-    const modelo = reserva.modelo_venda || 'inteiro';
-
-    if (modelo === 'inteiro') {
-      try {
-        const url = `${API_BASE}/api/checkout_api.php?action=check_stock&alojamento_id=${encodeURIComponent(reserva.alojamento_id)}&data_checkin=${encodeURIComponent(reserva.checkIn)}&data_checkout=${encodeURIComponent(reserva.checkOut)}`;
-        const res = await fetch(url, { method: 'GET' });
-        const data = await res.json();
-        if (data.success && data.modelo_venda === 'inteiro' && data.disponivel === false) {
-          showToast(t('sem_stock_disponivel', 'Sem disponibilidade para as datas selecionadas'), 'error');
-          return false;
-        }
-        return true;
-      } catch (err) {
-        console.error('Erro ao verificar stock (inteiro):', err);
-        return true;
-      }
+  const registrarUsuarioCheckout = async () => {
+    if (user && user.email) {
+      return null;
     }
-
-    if (!quartos.length) return true;
 
     try {
-      const url = `${API_BASE}/api/checkout_api.php?action=check_stock&alojamento_id=${encodeURIComponent(reserva.alojamento_id)}&data_checkin=${encodeURIComponent(reserva.checkIn)}&data_checkout=${encodeURIComponent(reserva.checkOut)}`;
-      const res = await fetch(url, { method: 'GET' });
-      const data = await res.json();
+      const res = await fetch(`${API_BASE}/api/registrar_usuario_checkout.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: participantePrincipal.nome_completo,
+          email: participantePrincipal.email,
+          phone: participantePrincipal.phone,
+          nacionalidade: participantePrincipal.nacionalidade,
+          otp_verified: true,
+        }),
+      });
 
-      if (!data.success) return true;
-
-      if (data.modelo_venda === 'por_quarto' && Array.isArray(data.quartos)) {
-        const falhados = [];
-        for (const q of quartos) {
-          const info = data.quartos.find(x => x.tipo_quarto_id === q.tipoQuartoId);
-          if (!info || info.quantidade_disponivel < (q.quantidade || 1)) {
-            falhados.push({ tipo_quarto_id: q.tipoQuartoId, disponivel: info?.quantidade_disponivel ?? 0 });
-          }
-        }
-        if (falhados.length > 0) {
-          showToast(t('sem_stock_disponivel', 'Sem disponibilidade para as datas selecionadas'), 'error');
-          return false;
-        }
+      const raw = await res.text();
+      let result;
+      try {
+        result = JSON.parse(raw);
+      } catch (e) {
+        return null;
       }
-      return true;
+
+      if (result.success && result.user) {
+        try {
+          const sessao = {
+            id: result.user.id,
+            name: result.user.nome,
+            email: result.user.email,
+            phone: participantePrincipal.phone,
+            origem: 'checkout_alojamento',
+            registado_em: new Date().toISOString(),
+          };
+          localStorage.setItem('user', JSON.stringify(sessao));
+          setUser(sessao);
+        } catch (e) {
+          console.warn('Não foi possível guardar sessão leve:', e);
+        }
+        return result.user;
+      }
     } catch (err) {
-      console.error('Erro ao verificar stock:', err);
-      return true;
+      console.error('Erro ao registar utilizador:', err);
     }
+    return null;
   };
 
   const processarSubmissaoFinal = async () => {
     const totalHospedes = participantes.length + 1;
     let holdIds = [];
-    if ((reserva.modelo_venda === 'por_quarto') && reserva.quartos.length > 0) {
+    
+    const tipoVendaFinal = reserva.quartos && reserva.quartos.length > 0 ? 'por_quarto' : (reserva.modelo_venda || 'inteiro');
+
+    if ((tipoVendaFinal === 'por_quarto') && reserva.quartos.length > 0) {
       try {
         const holdRes = await fetch(`${API_BASE}/api/checkout_api.php?action=create_hold`, {
           method: 'POST',
@@ -699,7 +705,8 @@ const CheckoutAlojamento = () => {
         ...reserva,
         totalHospedes,
         precoTotal: financeiro.totalGeralCliente,
-        tipo_venda: reserva.modelo_venda,
+        tipo_venda: tipoVendaFinal,
+        modelo_venda: tipoVendaFinal,
         hold_ids: holdIds,
         financeiro: {
           valorTotalCliente: financeiro.totalGeralCliente,
@@ -723,7 +730,8 @@ const CheckoutAlojamento = () => {
           totalHospedes,
           precoTotal: financeiro.totalGeralCliente,
           tipo: 'alojamento',
-          tipo_venda: reserva.modelo_venda,
+          tipo_venda: tipoVendaFinal,
+          modelo_venda: tipoVendaFinal,
           alojamento_id: reserva.alojamento_id,
           hold_ids: holdIds,
           financeiro: dadosReserva.reservaData.financeiro,
@@ -734,36 +742,79 @@ const CheckoutAlojamento = () => {
     });
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-    if (!user || !user.email) {
-      setError(t('erro_usuario_nao_logado', 'Sessão inválida. Por favor, faça login novamente.'));
-      return;
+  const emailJaRegistado = async (email) => {
+    const url = `${API_BASE}/api/checkout_api.php?email=${encodeURIComponent(email)}&category=Alojamento`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error('Não foi possível verificar o email.');
     }
 
+    const result = await response.json();
+    if (result?.success && result?.usuario && result?.usuario.id) {
+      return true;
+    }
+    if (result?.existe === true || result?.exists === true) {
+      return true;
+    }
+    return false;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
     setLoading(true);
-    const stockOk = await verificarStock();
-    if (!stockOk) {
+
+    const email = participantePrincipal.email.trim().toLowerCase();
+    const utilizadorAtual = user?.email?.trim().toLowerCase();
+
+    try {
+      const contaDoUtilizadorAtual = utilizadorAtual === email;
+      if (!contaDoUtilizadorAtual) {
+        const existe = await emailJaRegistado(email);
+        if (existe) {
+          showToast(
+            t('checkout_email_conta_existente', 'Este email já está registado como utilizador. Inicie sessão para continuar.'),
+            'error'
+          );
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao verificar email:', err);
+      showToast(t('erro_verificar_email', 'Não foi possível verificar o email. Tente novamente.'), 'error');
       setLoading(false);
       return;
     }
 
-    // Dispara o envio do OTP para o email do hóspede principal e abre o modal idêntico à imagem
     try {
-      await fetch(`${API_BASE}/api/send_otp.php`, {
+      const response = await fetch(`${API_BASE}/api/send_otp.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send_otp', email: participantePrincipal.email }),
+        body: JSON.stringify({ action: 'send_otp', email }),
       });
-    } catch (e) {
-      console.error(e);
-    }
+      const result = await response.json();
 
-    setLoading(false);
-    setShowOtpModal(true);
+      if (result.status !== 'otp_sent' && result.status !== 'success') {
+        showToast(result.message || t('erro_enviar_codigo', 'Não foi possível enviar o código. Tente novamente.'), 'error');
+        setLoading(false);
+        return;
+      }
+
+      setOtpValues(['', '', '', '', '', '']);
+      setShowOtpModal(true);
+    } catch (e) {
+      console.error('Erro ao enviar OTP:', e);
+      showToast(t('erro_enviar_codigo', 'Não foi possível enviar o código. Tente novamente.'), 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Gestão das caixas individuais do OTP
   const handleOtpChange = (index, value) => {
     const val = value.replace(/\D/g, '');
     if (!val) {
@@ -817,6 +868,8 @@ const CheckoutAlojamento = () => {
       if (result.status === 'success') {
         setShowOtpModal(false);
         showToast(t('email_verificado_sucesso', 'Email verificado com sucesso!'), 'success');
+
+        await registrarUsuarioCheckout();
         await processarSubmissaoFinal();
       } else {
         showToast(result.message || t('erro_codigo_invalido', 'Código inválido'), 'error');
@@ -999,12 +1052,10 @@ const CheckoutAlojamento = () => {
         />
       )}
 
-
       {showOtpModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-sans">
           <div className="bg-white rounded-3xl max-w-[420px] w-full p-8 shadow-2xl relative border border-slate-100 text-center animate-in fade-in zoom-in duration-200">
             
-            {/* Botão Fechar */}
             <button 
               onClick={() => setShowOtpModal(false)}
               className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition"
@@ -1012,7 +1063,6 @@ const CheckoutAlojamento = () => {
               <X size={20} />
             </button>
 
-            {/* Ícone de Email Circular Azul */}
             <div className="flex justify-center mb-5">
               <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-inner">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -1031,7 +1081,6 @@ const CheckoutAlojamento = () => {
               <label className="text-xs font-bold text-slate-700">Código de confirmação</label>
             </div>
 
-            {/* As 6 Caixas de Input Individuais */}
             <div className="flex justify-between gap-2 mb-4">
               {otpValues.map((digit, idx) => (
                 <input
@@ -1049,7 +1098,6 @@ const CheckoutAlojamento = () => {
 
             <p className="text-[11px] text-slate-400 mb-6">O código é válido por 5 minutos.</p>
 
-            {/* Botão Principal Azul */}
             <button
               type="button"
               onClick={handleVerifyOtpAndProceed}
@@ -1059,7 +1107,6 @@ const CheckoutAlojamento = () => {
               {loadingOtp ? 'A verificar...' : 'Confirmar email'}
             </button>
 
-            {/* Links inferiores */}
             <div className="flex justify-between items-center text-xs mt-6 px-1">
               <button 
                 type="button" 
@@ -1074,7 +1121,7 @@ const CheckoutAlojamento = () => {
                 className="text-slate-500 font-medium hover:underline"
               >
                 Alterar email
-              </button>
+              </button> 
             </div>
 
           </div>

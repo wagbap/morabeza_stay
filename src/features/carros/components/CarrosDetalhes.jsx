@@ -1,3 +1,4 @@
+// src/features/carros/CarrosDetalhes.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -9,132 +10,78 @@ import {
   Users, Gauge, Fuel, MapPin, Star, ChevronRight, ChevronLeft,
   Camera, CheckCircle, ExternalLink, ChevronDown,
   X, Loader2, Calendar, Paintbrush, Info, CalendarDays,
-  ShieldCheck, Infinity, ShieldAlert, Key, Maximize2, Navigation
+  ShieldCheck, Infinity, ShieldAlert, Key, Maximize2, Navigation,
+  AlertTriangle, Minus, Plus
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import AvaliacoesSeccaoCarro from './AvaliacoesSeccaoCarro';
 import useCarroTracking from "../hooks/useCarroTracking";
 import BotaoDenuncia from '../../../components/BotaoDenuncia';
+import { useToast } from '../../../Toast'; // 🔥 NOVO
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const API_URL = 'https://welovepalop.com';
 
-// ---------------------------------------------------------------
-// Helper: normaliza qualquer entrada para URL completa
-// ---------------------------------------------------------------
+// ============================================================
+// HELPERS DE IMAGEM
+// ============================================================
 const normalizarUrlImagem = (item) => {
   if (!item) return null;
-
-  // Se for string, é o caminho direto
-  let raw = typeof item === 'string'
-    ? item
-    : (item.caminho_url || item.url || item.path || null);
-
+  let raw = typeof item === 'string' ? item : (item.caminho_url || item.url || item.path || null);
   if (!raw) return null;
-
-  // Data URL ou URL absoluta → devolve como está
   if (raw.startsWith('http') || raw.startsWith('data:')) return raw;
-
-  // Caminho relativo → prefixa com API_URL
-  // Garante barra inicial
   if (!raw.startsWith('/')) raw = '/' + raw;
   return `${API_URL}${raw}`;
 };
 
-// ---------------------------------------------------------------
-// Extrai lista de imagens do payload do backend
-// ---------------------------------------------------------------
 const extrairImagens = (data) => {
-  // Preferir array `imagens`
   if (Array.isArray(data?.imagens) && data.imagens.length > 0) {
-    return data.imagens
-      .slice()
-      .sort((a, b) => {
-        // Principal primeiro, depois por ordem
-        if (a.principal && !b.principal) return -1;
-        if (!a.principal && b.principal) return 1;
-        return (a.ordem || 0) - (b.ordem || 0);
-      })
-      .map(normalizarUrlImagem)
-      .filter(Boolean);
+    return data.imagens.slice().sort((a, b) => {
+      if (a.principal && !b.principal) return -1;
+      if (!a.principal && b.principal) return 1;
+      return (a.ordem || 0) - (b.ordem || 0);
+    }).map(normalizarUrlImagem).filter(Boolean);
   }
-
-  // Fallback: campo único `imagem_url`
-  if (data?.imagem_url) {
-    return [normalizarUrlImagem(data.imagem_url)].filter(Boolean);
-  }
-
-  // Fallback: imagens_extra (string JSON ou array)
+  if (data?.imagem_url) return [normalizarUrlImagem(data.imagem_url)].filter(Boolean);
   if (data?.imagens_extra) {
     try {
-      const extra = typeof data.imagens_extra === 'string'
-        ? JSON.parse(data.imagens_extra)
-        : data.imagens_extra;
-      if (Array.isArray(extra)) {
-        return extra.map(normalizarUrlImagem).filter(Boolean);
-      }
-    } catch {
-      // ignora
-    }
+      const extra = typeof data.imagens_extra === 'string' ? JSON.parse(data.imagens_extra) : data.imagens_extra;
+      if (Array.isArray(extra)) return extra.map(normalizarUrlImagem).filter(Boolean);
+    } catch {}
   }
-
   return [];
 };
 
+// ============================================================
+// MODAL DE IMAGENS
+// ============================================================
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
-  const { t } = useTranslation();
-
-  const handleModalClick = (e) => {
-    e.stopPropagation();
-  };
-
   return (
     <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center" onClick={onClose}>
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label={t('fechar') || "Fechar"}
-      >
-        <X size={24} />
-      </button>
-      <button
-        onClick={(e) => { e.stopPropagation(); onPrev(); }}
-        className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label={t('imagem_anterior') || "Imagem anterior"}
-      >
-        <ChevronLeft size={24} />
-      </button>
-      <button
-        onClick={(e) => { e.stopPropagation(); onNext(); }}
-        className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"
-        aria-label={t('proxima_imagem') || "Próxima imagem"}
-      >
-        <ChevronRight size={24} />
-      </button>
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">
-        {currentIndex + 1} / {images.length}
-      </div>
+      <button onClick={onClose} className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><X size={24} /></button>
+      <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><ChevronLeft size={24} /></button>
+      <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><ChevronRight size={24} /></button>
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">{currentIndex + 1} / {images.length}</div>
       <img
         src={images[currentIndex]}
         alt={`Imagem ${currentIndex + 1}`}
         className="max-w-[90vw] max-h-[90vh] object-contain cursor-pointer"
-        onClick={handleModalClick}
-        onError={(e) => {
-          e.target.src = 'https://via.placeholder.com/1200x800?text=Imagem+indispon%C3%ADvel';
-        }}
+        onClick={(e) => e.stopPropagation()}
+        onError={(e) => e.target.src = 'https://via.placeholder.com/1200x800?text=Imagem+indispon%C3%ADvel'}
       />
     </div>
   );
 };
 
+// ============================================================
+// TABS
+// ============================================================
 const TabsNavegacaoCarros = ({ activeTab = 0, onTabChange }) => {
   const { t } = useTranslation();
-
   const tabs = [
     { id: 0, label: t('visao_geral') || 'Visão Geral' },
-    { id: 1, label: t('especificacoes') || 'Especificações' }
+    { id: 1, label: t('especificacoes') || 'Especificações' },
   ];
-
   return (
     <div className="border-b border-slate-200 mb-6">
       <div className="flex gap-6 overflow-x-auto no-scrollbar">
@@ -156,9 +103,11 @@ const TabsNavegacaoCarros = ({ activeTab = 0, onTabChange }) => {
   );
 };
 
+// ============================================================
+// ESPECIFICAÇÕES
+// ============================================================
 const EspecificacoesBar = ({ caracteristicas }) => {
   const { t } = useTranslation();
-
   const specs = [
     { icon: Gauge, label: caracteristicas?.transmissao || t('manual') || 'Manual', sub: t('transmissao') || 'Transmissão' },
     { icon: Fuel, label: caracteristicas?.combustivel || t('gasolina') || 'Gasolina', sub: t('combustivel') || 'Combustível' },
@@ -167,14 +116,11 @@ const EspecificacoesBar = ({ caracteristicas }) => {
     { icon: Info, label: caracteristicas?.quilometragem || '0 km', sub: t('quilometragem') || 'Quilometragem' },
     { icon: Paintbrush, label: caracteristicas?.cor || t('nao_informada') || 'Não informada', sub: t('cor_exterior') || 'Cor Exterior' },
   ];
-
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
       {specs.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
-          <div className="text-slate-400 shrink-0">
-            <item.icon size={18} strokeWidth={1.5} />
-          </div>
+          <div className="text-slate-400 shrink-0"><item.icon size={18} strokeWidth={1.5} /></div>
           <div className="flex flex-col">
             <span className="text-[11px] font-bold text-slate-900 leading-tight">{item.label}</span>
             <span className="text-[9px] text-slate-400 font-medium">{item.sub}</span>
@@ -185,41 +131,29 @@ const EspecificacoesBar = ({ caracteristicas }) => {
   );
 };
 
+// ============================================================
+// INCLUSÕES
+// ============================================================
 const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
   const { t } = useTranslation();
-
   const dadosExibicao = inclusoes && inclusoes.length > 0 ? inclusoes : [
     { titulo: t('cancelamento') || 'Cancelamento', valor: t('gratuito') || 'Gratuito', icone: 'CheckCircle', cor_classe: 'text-green-600' },
     { titulo: t('seguro_basico') || 'Seguro básico', valor: t('incluido') || 'Incluído', icone: 'ShieldCheck', cor_classe: 'text-green-600' },
     { titulo: t('quilometragem') || 'Quilometragem', valor: t('ilimitada') || 'Ilimitada', icone: 'Infinity', cor_classe: 'text-green-600' },
-    { titulo: t('assistencia_24h') || 'Assistência 24/7', valor: t('incluida') || 'Incluída', icone: 'ShieldAlert', cor_classe: 'text-green-600' },
-    { titulo: t('levantamento') || 'Levantamento', valor: localizacao || t('aeroporto_praia') || 'Aeroporto da Praia', icone: 'Key', cor_classe: 'text-slate-500' },
-    { titulo: t('combustivel') || 'Combustível', valor: t('cheio_cheio') || 'Cheio a cheio', icone: 'Fuel', cor_classe: 'text-slate-500' }
+    { titulo: t('levantamento') || 'Levantamento', valor: localizacao || t('aeroporto_praia') || 'Espargos - Centro', icone: 'Key', cor_classe: 'text-slate-500' }
   ];
-
-  const iconesMapeados = {
-    CheckCircle: CheckCircle,
-    ShieldCheck: ShieldCheck,
-    Infinity: Infinity,
-    ShieldAlert: ShieldAlert,
-    Key: Key,
-    Fuel: Fuel
-  };
-
+  const iconesMapeados = { CheckCircle, ShieldCheck, Infinity, ShieldAlert, Key, Fuel };
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
+    <div className="grid grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
       {dadosExibicao.map((item, i) => {
         const IconComponent = iconesMapeados[item.icone] || CheckCircle;
         const corClasse = item.cor_classe || 'text-slate-500';
-
         return (
-          <div key={i} className="flex items-center gap-2 border-r last:border-r-0 border-slate-100 pr-1 text-left">
-            <div className="text-slate-400 shrink-0">
-              <IconComponent size={18} strokeWidth={1.5} />
-            </div>
+          <div key={i} className="flex items-center gap-3 border-slate-100 text-left">
+            <div className="text-slate-400 shrink-0"><IconComponent size={20} strokeWidth={1.5} /></div>
             <div className="flex flex-col text-left">
-              <span className="text-[10px] font-semibold text-slate-500 leading-tight">{item.titulo}</span>
-              <span className={`text-[10px] font-bold ${corClasse} mt-0.5`}>{item.valor}</span>
+              <span className="text-xs font-medium text-slate-500 leading-tight">{item.titulo}</span>
+              <span className={`text-xs font-bold ${corClasse} mt-0.5`}>{item.valor}</span>
             </div>
           </div>
         );
@@ -228,83 +162,90 @@ const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
   );
 };
 
+// ============================================================
+// GALERIA ADAPTATIVA
+// ============================================================
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   const { t } = useTranslation();
   const placeholder = "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=600&h=400&fit=crop";
 
-  // images já vem como array de URLs completas
-  const img1 = images[0] || placeholder;
-  const img2 = images[1] || placeholder;
-  const img3 = images[2] || placeholder;
-  const img4 = images[3] || placeholder;
+  const total = Array.isArray(images) ? images.length : 0;
+  const lista = total > 0 ? images : [placeholder];
+  const imagensEscondidas = Math.max(0, total - 4);
+
+  const abrir = (idx) => {
+    onImageChange(Math.min(idx, lista.length - 1));
+    onOpenModal();
+  };
+
+  if (lista.length === 1) {
+    return (
+      <div className="w-full h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
+        <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={(e) => e.target.src = placeholder} />
+        <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 1</div>
+      </div>
+    );
+  }
+
+  if (lista.length === 2) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full">
+        {[0, 1].map((i) => (
+          <div key={i} className="h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(i)}>
+            <img src={lista[i]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - ${i + 1}`} onError={(e) => e.target.src = placeholder} />
+            {i === 0 && <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 2</div>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (lista.length === 3) {
+    return (
+      <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
+        <div className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
+          <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={(e) => e.target.src = placeholder} />
+          <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 3</div>
+        </div>
+        <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(i)}>
+              <img src={lista[i]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - ${i + 1}`} onError={(e) => e.target.src = placeholder} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
-      <div
-        className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm"
-        onClick={() => { onImageChange(0); onOpenModal(); }}
-      >
-        <img
-          src={img1}
-          className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]"
-          alt={`${titulo} - Principal`}
-          onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/1200x800?text=Imagem+indispon%C3%ADvel';
-          }}
-        />
-        <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none tracking-wide font-sans">
-          1 / {images.length || 1}
-        </div>
+      <div className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
+        <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={(e) => e.target.src = placeholder} />
+        <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / {lista.length}</div>
       </div>
 
       <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
-        <div
-          className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
-          onClick={() => { onImageChange(1); onOpenModal(); }}
-        >
-          <img
-            src={img2}
-            className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]"
-            alt={`${titulo} - Detalhe`}
-            onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/800x600?text=Imagem+indispon%C3%ADvel';
-            }}
-          />
+        <div className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(1)}>
+          <img src={lista[1]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 2`} onError={(e) => e.target.src = placeholder} />
         </div>
-
         <div className="h-1/2 flex gap-2.5">
-          <div
-            className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
-            onClick={() => { onImageChange(2); onOpenModal(); }}
-          >
-            <img
-              src={img3}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]"
-              alt={`${titulo} - Interior`}
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/800x600?text=Imagem+indispon%C3%ADvel';
-              }}
-            />
+          <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(2)}>
+            <img src={lista[2]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 3`} onError={(e) => e.target.src = placeholder} />
           </div>
-
-          <div
-            className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm"
-            onClick={() => { onImageChange(3); onOpenModal(); }}
-          >
-            <img
-              src={img4}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]"
-              alt={`${titulo} - Traseira`}
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/800x600?text=Imagem+indispon%C3%ADvel';
-              }}
-            />
-
+          <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(3)}>
+            <img src={lista[3]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 4`} onError={(e) => e.target.src = placeholder} />
+            {imagensEscondidas > 0 && (
+              <div className="absolute inset-0 bg-black/55 flex items-center justify-center pointer-events-none">
+                <span className="text-white font-bold text-sm">+{imagensEscondidas} {t('fotos') || 'fotos'}</span>
+              </div>
+            )}
             <div
-              onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
+              onClick={(e) => { e.stopPropagation(); abrir(0); }}
               className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
             >
-              <Camera size={12} className="text-slate-700" /> {t('ver_todas_fotos') || 'Ver todas as fotos'}
+              <Camera size={12} className="text-slate-700" />
+              {t('ver_todas_fotos') || 'Ver todas as fotos'} ({lista.length})
             </div>
           </div>
         </div>
@@ -313,288 +254,92 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   );
 };
 
-const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onMapClick }) => {
+// ============================================================
+// SIDEBAR DE RESERVA DO CARRO
+// ============================================================
+const SidebarReservaCarro = ({
+  precoDia,
+  estrelas,
+  totalReviews,
+  quantidadeDisponivel = 5,
+  valorCaucao = 20000,
+  onContinueToCheckout,
+  validando = false, // 🔥 NOVO — controla estado de "a verificar"
+}) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const mapContainer = useRef(null);
-  const map = useRef(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [isMapaInterativoOpen, setIsMapaInterativoOpen] = useState(false);
-
-  const temCoordenadas = latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude));
-
-  const textoLocalizacao = `${ilha || t('cabo_verde') || 'Cabo Verde'}, ${localizacao || (t('localizacao_nao_informada') || 'Localização não informada')}`;
-  const cidadeNome = localizacao || ilha || (t('cabo_verde') || 'Cabo Verde');
-
-  const abrirPaginaMapa = () => {
-    if (onMapClick) onMapClick();
-    if (carroId) {
-      navigate(`/mapa-carros?foco=${carroId}`);
-    } else {
-      navigate('/mapa-carros');
-    }
-  };
-
-  const abrirMapaInterativo = () => {
-    if (onMapClick) onMapClick();
-    setIsMapaInterativoOpen(true);
-  };
-
-  const getPontosProximos = () => {
-    const localLower = (localizacao || '').toLowerCase();
-    const ilhaLower = (ilha || '').toLowerCase();
-
-    const pontosMap = {
-      'praia': [t('praia_santa_maria') || 'Praia de Santa Maria', t('mirage_beach') || 'Mirage Beach Club', t('aeroporto') || 'Aeroporto Internacional'],
-      'santa maria': [t('praia_santa_maria') || 'Praia de Santa Maria', t('mirage_beach') || 'Mirage Beach Club', t('ponta_preta') || 'Ponta Preta'],
-      'mindelo': [t('porto_grande') || 'Porto Grande', t('centro_cultural') || 'Centro Cultural', t('praca_estrela') || 'Praça Estrela'],
-      'palmeira': [t('porto_palmeira') || 'Porto da Palmeira', t('farol') || 'Farol da Ponta do Sinó', t('praia_grande') || 'Praia Grande'],
-      'tarrafal': [t('praia_tarrafal') || 'Praia de Tarrafal', t('cha_tanque') || 'Chã de Tanque', t('monte_graciosa') || 'Monte Graciosa'],
-      'sal rei': [t('praia_sal_rei') || 'Praia de Sal Rei', t('deserto_viana') || 'Deserto de Viana', t('morro_areia') || 'Morro de Areia'],
-    };
-
-    for (const [key, pontos] of Object.entries(pontosMap)) {
-      if (localLower.includes(key)) {
-        return pontos;
-      }
-    }
-
-    const pontosIlha = {
-      'sal': [t('praia_santa_maria') || 'Praia de Santa Maria', t('salinas') || 'Salinas', t('palmeira') || 'Palmeira'],
-      'santiago': [t('praia_tarrafal') || 'Praia de Tarrafal', t('cidade_velha') || 'Cidade Velha', t('serra_malagueta') || 'Serra Malagueta'],
-      'são vicente': [t('porto_grande') || 'Porto Grande', t('centro_mindelo') || 'Centro de Mindelo', t('praia_laginha') || 'Praia Laginha'],
-      'santo antão': [t('porto_novo') || 'Porto Novo', t('ribeira_grande') || 'Ribeira Grande', t('miradouro') || 'Miradouro'],
-      'fogo': [t('cha_caldeiras') || 'Chã das Caldeiras', t('mosteiros') || 'Mosteiros', t('sao_filipe') || 'São Filipe'],
-      'boa vista': [t('praia_santa_monica') || 'Praia de Santa Mónica', t('sal_rei') || 'Sal Rei', t('deserto_viana') || 'Deserto de Viana'],
-    };
-
-    if (ilhaLower && pontosIlha[ilhaLower]) {
-      return pontosIlha[ilhaLower];
-    }
-
-    return [t('centro_cidade') || 'Centro da cidade', t('zona_hoteleira') || 'Zona Hoteleira', t('posto_combustivel') || 'Posto de combustível'];
-  };
-
-  const pontosProximos = getPontosProximos();
-
-  useEffect(() => {
-    if (!temCoordenadas || !mapContainer.current || map.current) return;
-    if (!MAPBOX_TOKEN) {
-      console.error('Mapbox token não configurado');
-      return;
-    }
-
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [lng, lat],
-      zoom: 12,
-      interactive: false,
-      attributionControl: false
-    });
-
-    map.current.on('load', () => {
-      setMapLoaded(true);
-
-      new mapboxgl.Marker({
-        color: '#1e3a8a',
-        scale: 1.2
-      })
-        .setLngLat([lng, lat])
-        .addTo(map.current);
-    });
-
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
-  }, [temCoordenadas, latitude, longitude]);
-
-  return (
-    <>
-      <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900 leading-tight">{t('localizacao') || 'Localização'}</h4>
-            <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={abrirMapaInterativo}
-              className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
-            >
-              {t('mapa_ilhas') || 'Mapa Ilhas'} <ExternalLink size={10} />
-            </button>
-            <button
-              onClick={abrirPaginaMapa}
-              className="flex items-center gap-1 text-blue-900 text-[10px] font-bold hover:underline transition-colors"
-            >
-              {t('ver_mapa') || 'Ver Mapa'} <ExternalLink size={10} />
-            </button>
-          </div>
-        </div>
-
-        {temCoordenadas && MAPBOX_TOKEN ? (
-          <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-            <div
-              ref={mapContainer}
-              className="relative w-full h-[160px] bg-slate-100"
-              style={{ cursor: 'pointer' }}
-              onClick={abrirPaginaMapa}
-            />
-
-            {!mapLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
-                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <button
-                onClick={abrirPaginaMapa}
-                className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
-              >
-                <MapPin size={14} className="fill-white" />
-                {t('ver_localizacao') || 'Ver localização'}
-              </button>
-            </div>
-
-            <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md pointer-events-none">
-              <div className="flex items-center gap-1">
-                <MapPin size={10} className="text-red-500" />
-                <span className="text-[9px] font-bold text-slate-700">{cidadeNome}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={abrirPaginaMapa}
-              className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
-              title={t('expandir_mapa') || "Expandir mapa"}
-            >
-              <Maximize2 size={14} className="text-slate-600" />
-            </button>
-          </div>
-        ) : (
-          <div
-            onClick={abrirPaginaMapa}
-            className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100 cursor-pointer group"
-          >
-            <img
-              src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=400&h=200&fit=crop"
-              alt="Mapa ilustrativo"
-              className="w-full h-full object-cover opacity-80 transition-transform duration-300 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-300">
-              <div className="relative bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform group-hover:scale-110">
-                <MapPin size={24} className="text-blue-900 fill-blue-900" />
-              </div>
-            </div>
-            <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 text-[9px] font-bold text-blue-900 shadow-sm">
-              📍 {textoLocalizacao}
-            </div>
-          </div>
-        )}
-
-        {pontosProximos && pontosProximos.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-slate-100">
-            <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 {t('proximo_de') || 'Próximo de'}:</p>
-            <ul className="space-y-1">
-              {pontosProximos.slice(0, 3).map((ponto, i) => (
-                <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">
-                  <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
-                  {ponto}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </>
-  );
-};
-
-const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToCheckout }) => {
-  const { t } = useTranslation();
+  const { showToast } = useToast();
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [quantidade, setQuantidade] = useState(1);
+  const [aviso, setAviso] = useState('');
+  const avisoTimer = useRef(null);
 
   const onChange = (dates) => {
     const [start, end] = dates;
     setStartDate(start);
     setEndDate(end);
-    if (start && end) {
-      setTimeout(() => setShowCalendar(false), 300);
-    }
+    if (start && end) setTimeout(() => setShowCalendar(false), 300);
   };
 
-  const dias = startDate && endDate
-    ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))
-    : 1;
-
-  const subtotal = precoDia * dias;
-  const taxaServico = Math.round(subtotal * 0.10);
-  const totalGeral = subtotal + taxaServico;
-
-  const handleContinue = () => {
-    if (!startDate || !endDate) {
-      alert(t('selecione_datas_carro') || "Por favor, selecione as datas de Levantamento e Devolução");
+  const incrementar = () => {
+    if (quantidade >= quantidadeDisponivel) {
+      const msg = t('limite_carros_atingido', 'Já atingiu o máximo de {{n}} carros disponíveis.', { n: quantidadeDisponivel });
+      showToast(msg, 'error');
+      setAviso(msg);
+      clearTimeout(avisoTimer.current);
+      avisoTimer.current = setTimeout(() => setAviso(''), 3000);
       return;
     }
+    setQuantidade(q => Math.min(q + 1, quantidadeDisponivel));
+  };
 
+  const decrementar = () => setQuantidade(q => Math.max(q - 1, 1));
+
+  const dias = startDate && endDate ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))) : 1;
+  const totalGeral = precoDia * quantidade * dias;
+
+  const handleContinue = async () => {
+    if (!startDate || !endDate) {
+      showToast(t('selecione_datas_carro') || "Por favor, selecione as datas de Levantamento e Devolução", 'error');
+      setShowCalendar(true);
+      return;
+    }
     if (onContinueToCheckout) {
-      onContinueToCheckout({
-        startDate,
-        endDate,
-        dias,
-        subtotal,
-        taxaServico,
-        totalGeral
-      });
+      await onContinueToCheckout({ startDate, endDate, dias, quantidade, totalGeral, caucao: valorCaucao });
     }
   };
 
   const formatarData = (date) => {
     if (!date) return '';
-    return date.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
+    return date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   return (
     <div className="lg:block text-left">
-      <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
-        <div className="flex justify-between items-end mb-5">
-          <div className="text-2xl font-black text-slate-900">
-            {precoDia.toLocaleString()} CVE
-            <span className="text-xs font-medium text-slate-400"> / {t('dia') || 'dia'}</span>
+      <div className="border border-slate-200 rounded-3xl p-6 bg-white shadow-xl shadow-slate-200/50">
+
+        {/* Cabeçalho de Preço */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="text-3xl font-black text-slate-900 flex items-baseline gap-1">
+            {precoDia.toLocaleString('pt-PT')} CVE <span className="text-sm font-medium text-slate-400">/ dia</span>
           </div>
-          <div className="flex items-center gap-1 text-xs font-bold text-slate-900">
-            <Star size={14} className="fill-orange-500 text-orange-500" /> {Number(estrelas).toFixed(1)} <span className="text-slate-400 font-normal">({totalReviews})</span>
+          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+            <Star size={16} className="fill-orange-500 text-orange-500" />
+            {Number(estrelas || 0).toFixed(1)} <span className="text-slate-400 font-normal">({totalReviews || 0})</span>
           </div>
         </div>
 
-        <div className="border border-slate-300 rounded-xl mb-4 overflow-visible relative">
-          <div
-            className="flex cursor-pointer hover:bg-slate-50 transition-all rounded-xl p-2.5"
-            onClick={() => setShowCalendar(!showCalendar)}
-          >
-            <div className="flex-1 border-r border-slate-200 pr-2">
-              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">{t('levantamento') || 'Levantamento'}</label>
-              <div className="text-xs font-bold text-slate-800">
-                {startDate ? formatarData(startDate) : (t('selecionar_data') || 'Selecionar data')}
-              </div>
+        {/* Seleção de Datas */}
+        <div className="border border-slate-300 rounded-2xl mb-4 overflow-visible relative">
+          <div className="flex cursor-pointer transition-all rounded-2xl p-3" onClick={() => setShowCalendar(!showCalendar)}>
+            <div className="flex-1 border-r border-slate-200 pr-3">
+              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{t('levantamento') || 'Levantamento'}</label>
+              <div className="text-sm font-bold text-slate-900">{startDate ? formatarData(startDate) : '__/__/____'}</div>
             </div>
-            <div className="flex-1 pl-3">
-              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">{t('devolucao') || 'Devolução'}</label>
-              <div className="text-xs font-bold text-slate-800">
-                {endDate ? formatarData(endDate) : (t('selecionar_data') || 'Selecionar data')}
-              </div>
+            <div className="flex-1 pl-4">
+              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{t('devolucao') || 'Devolução'}</label>
+              <div className="text-sm font-bold text-slate-900">{endDate ? formatarData(endDate) : '__/__/____'}</div>
             </div>
           </div>
 
@@ -606,103 +351,191 @@ const SidebarReservaCarro = ({ precoDia, estrelas, totalReviews, onContinueToChe
                 startDate={startDate}
                 endDate={endDate}
                 selectsRange
-                monthsShown={2}
+                monthsShown={1}
                 inline
                 minDate={new Date()}
-                calendarClassName="morabeza-calendar-inline"
               />
             </div>
           )}
         </div>
 
+        {/* Info Período */}
         {startDate && endDate && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
-            <div className="flex items-center justify-between">
+          <div className="mb-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <CalendarDays size={16} className="text-blue-600" />
-                <span className="text-xs font-bold text-blue-800">{t('periodo') || 'Período'}:</span>
+                <span className="text-sm font-bold text-blue-700">{t('periodo') || 'Período'}:</span>
               </div>
-              <span className="text-sm font-black text-blue-600">
-                {dias} {dias === 1 ? (t('dia') || 'dia') : (t('dias') || 'dias')}
-              </span>
+              <span className="text-sm font-bold text-blue-700">{dias} {dias === 1 ? 'dia' : 'dias'}</span>
             </div>
-            <p className="text-[10px] text-blue-600 mt-1">
-              {formatarData(startDate)} → {formatarData(endDate)}
-            </p>
+            <p className="text-xs font-medium text-blue-500 mt-1 pl-6">{formatarData(startDate)} → {formatarData(endDate)}</p>
           </div>
         )}
 
-        <div className="pt-4 border-t border-slate-100 space-y-2.5 text-xs font-medium text-slate-600">
-          <div className="flex justify-between">
-            <span>{t('preco_por_dia') || 'Preço por dia'} ({dias} {dias === 1 ? (t('dia') || 'dia') : (t('dias') || 'dias')})</span>
-            <span className="font-bold text-slate-900">{subtotal.toLocaleString()} CVE</span>
+        {/* Disponibilidade */}
+        <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-xl border border-emerald-100 mb-6">
+          <CheckCircle className="text-emerald-500" size={16} />
+          <span className="text-xs font-bold text-emerald-700">Disponibilidade: {quantidadeDisponivel} carros disponíveis</span>
+        </div>
+
+        {/* Quantidade e Cálculos */}
+        <div className="space-y-4 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-slate-700">Quantidade de carros</span>
+            <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
+              <button onClick={decrementar} className="text-blue-600 p-1 disabled:opacity-30 cursor-pointer" disabled={quantidade <= 1}><Minus size={16} /></button>
+              <span className="font-bold text-blue-700 min-w-[50px] text-center">{quantidade} {quantidade === 1 ? 'carro' : 'carros'}</span>
+              <button onClick={incrementar} className="text-blue-600 p-1 cursor-pointer"><Plus size={16} /></button>
+            </div>
           </div>
 
-          <div className="flex justify-between">
-            <span className="flex items-center gap-1">{t('taxa_servico') || 'Taxa de serviço Morabeza Stay'} (10%) <Info size={11} className="text-slate-400" /></span>
-            <span className="font-bold text-slate-900">{taxaServico.toLocaleString()} CVE</span>
-          </div>
+          {startDate && endDate && (
+            <div className="flex justify-between text-slate-600 font-medium pt-2">
+              <span>{precoDia.toLocaleString('pt-PT')} CVE × {quantidade} {quantidade === 1 ? 'carro' : 'carros'} × {dias} {dias === 1 ? 'dia' : 'dias'}</span>
+              <span className="font-bold text-slate-900">{totalGeral.toLocaleString('pt-PT')} CVE</span>
+            </div>
+          )}
 
-          <div className="flex justify-between pt-3 border-t border-slate-200 text-sm font-black text-slate-900">
-            <span>{t('total_pago') || 'Total pago'}</span>
-            <span className="text-blue-600 text-base font-black">
-              {totalGeral.toLocaleString()} CVE
-            </span>
+          <div className="flex justify-between pt-4 pb-2 border-t border-slate-100 text-lg font-black text-slate-900">
+            <span>Total pago agora</span>
+            <span className="text-blue-700">{startDate && endDate ? totalGeral.toLocaleString('pt-PT') : '0'} CVE</span>
           </div>
         </div>
 
+        {/* Aviso de limite atingido */}
+        {aviso && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-start gap-2">
+            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+            <span>{aviso}</span>
+          </div>
+        )}
+
+        {/* Caução Box */}
+        <div className="mt-4 p-4 bg-orange-50/70 border border-orange-200 rounded-2xl">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={18} className="text-orange-500 shrink-0 mt-0.5" />
+            <div>
+              <h5 className="text-sm font-bold text-slate-900 mb-1">Caução: {valorCaucao.toLocaleString('pt-PT')} CVE</h5>
+              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">Paga diretamente ao proprietário no levantamento. Não está incluída no total da reserva.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Botão Reservar */}
         <button
           onClick={handleContinue}
-          disabled={!startDate || !endDate}
-          className={`w-full font-black py-3 rounded-xl mb-4 mt-6 transition-all shadow-md text-xs uppercase tracking-wider ${
-            startDate && endDate
+          disabled={!startDate || !endDate || validando}
+          className={`w-full font-bold py-4 rounded-2xl mt-6 transition-all shadow-md text-sm uppercase tracking-widest flex items-center justify-center gap-2 ${
+            startDate && endDate && !validando
               ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          {startDate && endDate
-            ? `${t('reservar_por') || 'Reservar por'} ${dias} ${dias === 1 ? (t('dia') || 'dia') : (t('dias') || 'dias')}`
-            : (t('selecione_datas_continuar') || 'Selecione as datas para continuar')}
+          {validando ? (
+            <>
+              <Loader2 className="animate-spin" size={16} />
+              {t('verificando_disponibilidade', 'A verificar disponibilidade...')}
+            </>
+          ) : startDate && endDate ? (
+            `Reservar ${quantidade} ${quantidade === 1 ? 'carro' : 'carros'}`
+          ) : (
+            'Selecione as datas'
+          )}
         </button>
 
-        <div className="flex items-start gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
-          <CheckCircle className="text-green-600 mt-0.5" size={14} />
-          <div>
-            <h5 className="text-[11px] font-bold text-green-800">{t('cancelamento_gratis') || 'Cancelamento gratuito'}</h5>
-            <p className="text-[10px] text-green-700 leading-tight">{t('cancelamento_prazo_carro') || 'Até 48 horas antes do levantamento'}</p>
+        {/* Footer info */}
+        <div className="flex items-start gap-2 mt-5 justify-center text-center">
+          <CheckCircle className="text-emerald-500 mt-0.5 shrink-0" size={16} />
+          <div className="text-left">
+            <h5 className="text-xs font-bold text-emerald-700">Cancelamento gratuito disponível</h5>
+            <p className="text-[10px] text-emerald-600/80 font-medium mt-0.5">Até 48 horas antes do levantamento</p>
           </div>
         </div>
+
       </div>
     </div>
   );
 };
 
+// ============================================================
+// MAPA
+// ============================================================
+const MapLocationCarro = ({ localizacao, ilha, latitude, longitude, carroId, onMapClick }) => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const temCoordenadas = latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude));
+  const textoLocalizacao = `${ilha || 'Cabo Verde'}, ${localizacao || 'Localização não informada'}`;
+
+  const abrirPaginaMapa = () => {
+    if (onMapClick) onMapClick();
+    navigate(carroId ? `/mapa-carros?foco=${carroId}` : '/mapa-carros');
+  };
+
+  useEffect(() => {
+    if (!temCoordenadas || !mapContainer.current || map.current) return;
+    if (!MAPBOX_TOKEN) return;
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    const lat = parseFloat(latitude), lng = parseFloat(longitude);
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [lng, lat],
+      zoom: 12,
+      interactive: false,
+      attributionControl: false
+    });
+    map.current.on('load', () => {
+      setMapLoaded(true);
+      new mapboxgl.Marker({ color: '#1e3a8a', scale: 1.2 }).setLngLat([lng, lat]).addTo(map.current);
+    });
+    return () => { if (map.current) { map.current.remove(); map.current = null; } };
+  }, [temCoordenadas, latitude, longitude]);
+
+  return (
+    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm text-left">
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <h4 className="text-sm font-bold text-slate-900 leading-tight">{t('localizacao') || 'Localização'}</h4>
+          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
+        </div>
+      </div>
+      {temCoordenadas && MAPBOX_TOKEN ? (
+        <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+          <div ref={mapContainer} className="relative w-full h-[160px] bg-slate-100 cursor-pointer" onClick={abrirPaginaMapa} />
+          {!mapLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div onClick={abrirPaginaMapa} className="relative w-full h-[140px] rounded-xl overflow-hidden bg-slate-100 border border-slate-100 cursor-pointer group">
+          <div className="absolute inset-0 flex items-center justify-center"><MapPin size={24} className="text-blue-900" /></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================
+// CONTEÚDO DAS TABS
+// ============================================================
 const TabContent = ({ activeTab, carro }) => {
   const { t } = useTranslation();
-
   if (!carro) return null;
-
-  switch(activeTab) {
+  switch (activeTab) {
     case 0:
       return (
         <div className="space-y-6 text-left">
           <div>
             <h3 className="text-lg font-bold text-slate-900 mb-4">{t('sobre_veiculo') || 'Sobre este veículo'}</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
-              {carro.descricao || carro.descricao_curta ||
-                `${t('veiculo_disponivel') || 'Veículo'} ${carro.titulo} ${t('disponivel_aluguer') || 'disponível para aluguer em'} ${carro.localizacao}, ${carro.ilha}.
-                ${t('perfeito_explorar') || 'Perfeito para explorar a ilha com conforto e segurança.'}`}
+              {carro.descricao || carro.descricao_curta || `${t('veiculo_disponivel') || 'Veículo'} ${carro.titulo} disponível em ${carro.localizacao}.`}
             </p>
-          </div>
-
-          <div className="border-t border-slate-100 pt-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">{t('caracteristicas_principais') || 'Características principais'}</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">{t('ar_condicionado') || 'Ar condicionado'}</span></div>
-              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">{t('direcao_assistida') || 'Direção assistida'}</span></div>
-              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">{t('vidros_eletricos') || 'Vidros elétricos'}</span></div>
-              <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" /><span className="text-sm text-slate-600">{t('sistema_som') || 'Sistema de som'}</span></div>
-            </div>
           </div>
         </div>
       );
@@ -714,54 +547,28 @@ const TabContent = ({ activeTab, carro }) => {
             <div className="bg-slate-50 rounded-xl p-4">
               <h4 className="font-semibold text-slate-900 mb-3">{t('informacoes_gerais') || 'Informações gerais'}</h4>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">{t('tipo_veiculo') || 'Tipo de veículo'}</span>
-                  <span className="font-medium text-slate-900">{carro.tipo || 'SUV'}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">{t('ano_fabrico') || 'Ano de fabrico'}</span>
-                  <span className="font-medium text-slate-900">{carro.ano || '2024'}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">{t('transmissao') || 'Transmissão'}</span>
-                  <span className="font-medium text-slate-900">{carro.transmissao || t('manual') || 'Manual'}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">{t('combustivel') || 'Combustível'}</span>
-                  <span className="font-medium text-slate-900">{carro.combustivel || t('gasolina') || 'Gasolina'}</span>
-                </div>
-              </div>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-4">
-              <h4 className="font-semibold text-slate-900 mb-3">{t('capacidade_dimensoes') || 'Capacidade e dimensões'}</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">{t('passageiros') || 'Passageiros'}</span>
-                  <span className="font-medium text-slate-900">{carro.passageiros || 5} {t('pessoas') || 'pessoas'}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">{t('quilometragem') || 'Quilometragem'}</span>
-                  <span className="font-medium text-slate-900">{carro.quilometragem ? Number(carro.quilometragem).toLocaleString() : '0'} km</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">{t('cor_exterior') || 'Cor exterior'}</span>
-                  <span className="font-medium text-slate-900">{carro.cor || t('nao_informada') || 'Não informada'}</span>
-                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100"><span className="text-slate-500">{t('tipo_veiculo') || 'Tipo'}</span><span className="font-medium text-slate-900">{carro.tipo || 'SUV'}</span></div>
+                <div className="flex justify-between py-1 border-b border-slate-100"><span className="text-slate-500">{t('ano_fabrico') || 'Ano'}</span><span className="font-medium text-slate-900">{carro.ano || '2024'}</span></div>
               </div>
             </div>
           </div>
         </div>
       );
-
     default:
       return null;
   }
 };
 
-export const CarrosDetalhes = () => {
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
+export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
   const { t } = useTranslation();
-  const { slug } = useParams();
+  const params = useParams();
+  const slug = slugOverride || params?.slug;
   const navigate = useNavigate();
+  const { showToast } = useToast(); // 🔥 NOVO
+
   const [activeTab, setActiveTab] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -770,93 +577,115 @@ export const CarrosDetalhes = () => {
   const [error, setError] = useState(null);
   const [images, setImages] = useState([]);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
+  const [validandoDisponibilidade, setValidandoDisponibilidade] = useState(false); // 🔥 NOVO
 
   const tracking = useCarroTracking(carro?.id, usuarioLogado?.id);
-
   const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
   const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
 
+  // Bloqueia scroll do body em modo embedded
+  useEffect(() => {
+    if (!embedded) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prevOverflow; };
+  }, [embedded]);
+
+  // Fecha com ESC em modo embedded
+  useEffect(() => {
+    if (!embedded || !onClose) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [embedded, onClose]);
+
+  // Carrega utilizador (opcional — para tracking)
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        setUsuarioLogado(user);
-      } catch (e) {
-        console.error('Erro ao carregar usuário:', e);
-      }
+      try { setUsuarioLogado(JSON.parse(savedUser)); } catch (e) {}
     }
   }, []);
 
+  // 🔥 NOVO — Fetch do carro (sem login)
   useEffect(() => {
     const fetchCarro = async () => {
-      if (!slug) {
-        setError(t('slug_nao_fornecido') || 'Slug do veículo não fornecido');
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-
+      if (!slug) { setError(t('slug_nao_fornecido') || 'Slug não fornecido'); setLoading(false); return; }
+      setLoading(true); setError(null);
       try {
-        const response = await fetch(`${API_URL}/api/get_carro_detalhes.php?slug=${slug}`);
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        const response = await fetch(`${API_URL}/api/get_carro_detalhes.php?slug=${encodeURIComponent(slug)}&t=${Date.now()}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
-
-        if (data.error) {
-          throw new Error(data.error);
-        }
+        if (data.error) throw new Error(data.error);
 
         if (data.success && data.data) {
           setCarro(data.data);
-
-          // ✅ CORREÇÃO PRINCIPAL: extrair imagens corretamente do /uploads/carros/
           const imagensExtraidas = extrairImagens(data.data);
-
           if (imagensExtraidas.length > 0) {
             setImages(imagensExtraidas);
-            console.log('🖼️ Imagens carregadas:', imagensExtraidas);
           } else {
-            // Fallback visual (nenhuma imagem no servidor)
-            setImages([
-              "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=1200&h=800&fit=crop",
-              "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1200&h=800&fit=crop",
-            ]);
+            setImages(["https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=1200&h=800&fit=crop"]);
           }
         } else {
-          throw new Error(data.error || (t('erro_carregar_veiculo') || 'Erro ao carregar dados do veículo'));
+          throw new Error(data.error || 'Erro ao carregar dados');
         }
       } catch (err) {
-        console.error('Erro ao buscar veículo:', err);
-        setError(err.message || (t('erro_carregar_veiculo') || 'Erro ao carregar dados do veículo'));
+        setError(err.message || 'Erro ao carregar dados do veículo');
       } finally {
         setLoading(false);
       }
     };
-
     fetchCarro();
   }, [slug, t]);
 
-  const handleContinueToCheckout = (reservaInfo) => {
+  // 🔥 NOVO — Verificação de disponibilidade + navegação para checkout (SEM LOGIN)
+  const handleContinueToCheckout = async (reservaInfo) => {
     registrarCliqueReserva();
 
-    const userLogado = localStorage.getItem('user');
-
-    if (!userLogado) {
-      alert(t('login_necessario') || "Por favor, faça login com o Google primeiro.");
-      return;
-    }
-
     if (!carro) {
-      alert(t('erro_veiculo') || "Erro ao carregar dados do veículo. Tente novamente.");
+      showToast(t('erro_veiculo') || "Erro ao carregar dados do veículo.", 'error');
       return;
     }
 
+    const checkInStr = reservaInfo.startDate.toISOString().split('T')[0];
+    const checkOutStr = reservaInfo.endDate.toISOString().split('T')[0];
+
+    setValidandoDisponibilidade(true);
+
+    try {
+      // Chama a API de verificação de disponibilidade do carro
+      const url = `${API_URL}/api/verificar_disponibilidade_carro.php?carro_id=${encodeURIComponent(carro.id)}&checkin=${encodeURIComponent(checkInStr)}&checkout=${encodeURIComponent(checkOutStr)}&quantidade=${encodeURIComponent(reservaInfo.quantidade)}`;
+      const res = await fetch(url, { method: 'GET' });
+      const data = await res.json();
+
+      // Se o backend disser que NÃO está disponível → bloqueia
+      if (data.success && data.disponivel === false) {
+        showToast(
+          data.mensagem || t('sem_stock_carro', 'Não há carros suficientes disponíveis para as datas selecionadas.'),
+          'error'
+        );
+        setValidandoDisponibilidade(false);
+        return;
+      }
+
+      // Se houver erro de comunicação (success=false), avisa mas deixa passar? NÃO — melhor avisar.
+      if (data.success === false && data.error) {
+        console.warn('Aviso da API de disponibilidade:', data.error);
+        // Não bloqueia — assume que pode prosseguir (fallback seguro)
+      }
+    } catch (err) {
+      console.error('Erro ao verificar disponibilidade:', err);
+      showToast(
+        t('erro_verificar_disponibilidade', 'Erro ao verificar disponibilidade. Tente novamente.'),
+        'error'
+      );
+      setValidandoDisponibilidade(false);
+      return;
+    }
+
+    setValidandoDisponibilidade(false);
+
+    // 🔥 Passa para o checkout SEM exigir login
     const dadosParaCheckout = {
       id: carro.id,
       titulo: carro.titulo,
@@ -864,114 +693,95 @@ export const CarrosDetalhes = () => {
       localizacao: carro.localizacao,
       ilha: carro.ilha || 'Cabo Verde',
       precoDia: Number(carro.preco_dia),
-      checkIn: reservaInfo.startDate.toISOString().split('T')[0],
-      checkOut: reservaInfo.endDate.toISOString().split('T')[0],
+      checkIn: checkInStr,
+      checkOut: checkOutStr,
       dias: reservaInfo.dias,
-      subtotal: reservaInfo.subtotal,
-      taxaServico: reservaInfo.taxaServico,
+      quantidade: reservaInfo.quantidade,
       totalGeral: reservaInfo.totalGeral,
+      caucao: reservaInfo.caucao,
       tipo: carro.tipo,
       ano: carro.ano,
       transmissao: carro.transmissao,
-      descricao: carro.descricao
     };
 
+    if (onClose) onClose();
     navigate('/checkout-carro', { state: { reservaData: dadosParaCheckout } });
   };
 
-  const handlePrevImage = () => {
-    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  const irPara = (rota) => {
+    if (onClose) onClose();
+    navigate(rota);
   };
 
-  const handleNextImage = () => {
-    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  };
-
-  const handleImageChange = (index) => {
-    setCurrentImageIndex(index);
-  };
-
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
+  // 🔥 Estados de loading/erro
   if (loading) {
     return (
-      <div className="w-full min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 size={48} className="animate-spin text-blue-900 mx-auto mb-4" />
-          <p className="text-slate-600">{t('carregando_veiculo') || 'Carregando informações do veículo...'}</p>
-        </div>
+      <div className="w-full min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={48} className="animate-spin text-blue-900" />
       </div>
     );
   }
 
   if (error || !carro) {
     return (
-      <div className="w-full min-h-screen bg-white flex items-center justify-center text-center">
-        <div>
-          <div className="text-red-500 text-xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">{t('erro_carregar_titulo') || 'Erro ao carregar'}</h2>
-          <p className="text-slate-600 mb-4">{error || (t('veiculo_nao_encontrado') || 'Veículo não encontrado')}</p>
-          <button
-            onClick={() => navigate('/carros')}
-            className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition"
-          >
-            {t('voltar_veiculos') || 'Voltar para veículos'}
-          </button>
-        </div>
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center text-center px-6">
+        <div className="text-red-500 text-xl mb-4">⚠️</div>
+        <h2 className="text-xl font-bold text-slate-800 mb-2">{t('erro_carregar_titulo') || 'Erro ao carregar'}</h2>
+        <p className="text-slate-600 mb-4">{error || (t('carro_nao_encontrado') || 'Veículo não encontrado')}</p>
+        <button onClick={() => irPara(-1)} className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition">
+          {t('voltar') || 'Voltar'}
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-white font-sans pb-20">
-      <Helmet>
-        <title>MorabezaStay | {carro.titulo}</title>
-      </Helmet>
+    <div className={`w-full bg-white font-sans pb-20 relative ${embedded ? 'rounded-3xl' : ''}`}>
+      {!embedded && <Helmet><title>MorabezaStay | {carro.titulo}</title></Helmet>}
+
+      {/* Botão fechar em modo embedded */}
+      {embedded && onClose && (
+        <button
+          onClick={onClose}
+          aria-label="Fechar"
+          className="fixed top-4 right-4 z-[400] bg-white hover:bg-slate-100 text-slate-800 rounded-full p-3 shadow-2xl border border-slate-200 transition-all active:scale-95"
+        >
+          <X size={22} />
+        </button>
+      )}
 
       {isModalOpen && (
         <ImageSliderModal
           images={images}
           currentIndex={currentImageIndex}
-          onClose={handleCloseModal}
-          onPrev={handlePrevImage}
-          onNext={handleNextImage}
+          onClose={() => setIsModalOpen(false)}
+          onPrev={() => setCurrentImageIndex(p => p === 0 ? images.length - 1 : p - 1)}
+          onNext={() => setCurrentImageIndex(p => p === images.length - 1 ? 0 : p + 1)}
         />
       )}
 
+      {/* Breadcrumb */}
       <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500 text-left">
-        <span onClick={() => navigate('/')} className="hover:text-blue-900 cursor-pointer">{t('inicio') || 'Início'}</span>
+        <span onClick={() => irPara('/')} className="hover:text-blue-900 cursor-pointer">{t('inicio') || 'Início'}</span>
         <ChevronRight size={10} />
-        <span onClick={() => navigate('/carros')} className="hover:text-blue-900 cursor-pointer">{t('veiculos') || 'Veículos'}</span>
+        <span onClick={() => irPara('/carros')} className="hover:text-blue-900 cursor-pointer">{t('veiculos') || 'Veículos'}</span>
         <ChevronRight size={10} />
         <span className="text-slate-500 font-semibold truncate">{carro.titulo}</span>
       </nav>
 
+      {/* Conteúdo principal */}
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <ImageGallery
               images={images}
-              onImageChange={handleImageChange}
-              onOpenModal={handleOpenModal}
+              onImageChange={setCurrentImageIndex}
+              onOpenModal={() => setIsModalOpen(true)}
               titulo={carro.titulo}
             />
-
             <div className="mt-6 pt-6 border-t border-slate-100 text-left space-y-6">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 mb-4">{t('especificacoes_veiculo') || 'Especificações do veículo'}</h3>
-                <EspecificacoesBar caracteristicas={carro.caracteristicas} />
-              </div>
-
-              <InclusoesCarroBar
-                inclusoes={carro.inclusoes}
-                localizacao={carro.localizacao}
-              />
+              <EspecificacoesBar caracteristicas={carro.caracteristicas} />
+              <InclusoesCarroBar inclusoes={carro.inclusoes} localizacao={carro.localizacao} />
             </div>
           </div>
 
@@ -981,52 +791,36 @@ export const CarrosDetalhes = () => {
                 precoDia={Number(carro.preco_dia)}
                 estrelas={carro.estrelas}
                 totalReviews={carro.total_avaliacoes}
+                quantidadeDisponivel={carro.quantidade_disponivel || 5}
+                valorCaucao={carro.valor_caucao || 20000}
                 onContinueToCheckout={handleContinueToCheckout}
+                validando={validandoDisponibilidade} // 🔥 NOVO
               />
             </div>
           </div>
         </div>
       </div>
 
+      {/* Título + Denúncia */}
       <div className="max-w-7xl mx-auto px-6 mt-8 text-left">
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl md:text-3xl font-bold">{carro.titulo}</h1>
-              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">
-                {carro.tipo || 'SUV'}
-              </span>
-            </div>
-            <div className="flex items-center gap-4 text-sm mt-2 flex-wrap">
-              <div className="flex items-center gap-1 text-slate-500">
-                <MapPin size={14} className="text-orange-500" /> {carro.ilha}, {carro.localizacao}
-              </div>
-              <div className="flex items-center gap-1">
-                <Star size={14} className="fill-orange-400 text-orange-400" />
-                <span className="text-slate-900 font-bold">{Number(carro.estrelas).toFixed(1)}</span>
-                <span className="text-slate-400">({carro.total_avaliacoes || 0} {t('avaliacoes') || 'avaliações'})</span>
-              </div>
+              <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">{carro.tipo || 'SUV'}</span>
             </div>
           </div>
-          <BotaoDenuncia
-            tipo="carro"
-            itemId={carro.id}
-            itemTitulo={carro.titulo}
-            onDenunciaEnviada={() => {
-              console.log('Denúncia de carro enviada com sucesso');
-            }}
-          />
+          <BotaoDenuncia tipo="carro" itemId={carro.id} itemTitulo={carro.titulo} />
         </div>
       </div>
 
+      {/* Tabs + Mapa */}
       <div className="max-w-7xl mx-auto px-6 mt-6 text-left">
         <TabsNavegacaoCarros activeTab={activeTab} onTabChange={setActiveTab} />
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <TabContent activeTab={activeTab} carro={carro} />
           </div>
-
           <div className="space-y-4">
             <MapLocationCarro
               localizacao={carro.localizacao}
@@ -1040,12 +834,13 @@ export const CarrosDetalhes = () => {
         </div>
       </div>
 
+      {/* Avaliações */}
       <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12">
         <div className="max-w-7xl mx-auto px-6">
           <AvaliacoesSeccaoCarro
             carroId={carro.id}
             usuarioLogado={usuarioLogado}
-            onOpenLoginModal={() => alert(t('login_para_avaliar') || "Por favor, faça login com o Google para avaliar.")}
+            onOpenLoginModal={() => showToast(t('login_para_avaliar') || "Por favor, faça login para avaliar.", 'info')}
           />
         </div>
       </div>
@@ -1054,12 +849,7 @@ export const CarrosDetalhes = () => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .react-datepicker__day--in-range { background-color: #f1f5f9 !important; }
-        .react-datepicker__day--range-start, .react-datepicker__day--range-end {
-          background-color: #1e3a8a !important;
-          color: white !important;
-          border-radius: 50% !important;
-        }
-        .react-datepicker__day--disabled { opacity: 0.5; cursor: not-allowed; }
+        .react-datepicker__day--range-start, .react-datepicker__day--range-end { background-color: #2563eb !important; color: white !important; border-radius: 50% !important; }
       `}</style>
     </div>
   );

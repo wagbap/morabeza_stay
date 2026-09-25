@@ -7,14 +7,12 @@ const LoginGoogle = ({ onLoginSuccess }) => {
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        // Buscar dados do usuário no Google
         const userInfo = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
         });
         
         const googleUser = userInfo.data;
         
-        // Enviar para o backend
         const response = await axios.post('https://welovepalop.com/api/auth_google.php', {
           action: 'google_login',
           google_id: googleUser.sub,
@@ -24,28 +22,18 @@ const LoginGoogle = ({ onLoginSuccess }) => {
         });
         
         if (response.data.status === 'success') {
-          
-          // 1. Salvar no localStorage de forma IDÊNTICA ao login com email
-          const userForStorage = {
-            id: response.data.user.id,
-            sub: response.data.user.id,
-            name: response.data.user.nome,
-            email: response.data.user.email,
-            picture: response.data.user.foto || googleUser.picture,
-            full_name: response.data.user.nome,
-            phone: response.data.user.phone || '',
-            roles: response.data.user.roles || ['hospede'] // -> Faltava isto!
-          };
-          
-          // 2. Grava nas DUAS chaves para garantir que o sistema não te expulsa
-          localStorage.setItem('user', JSON.stringify(userForStorage));
-          localStorage.setItem('morabeza_user', JSON.stringify(userForStorage));
-          
-          if (onLoginSuccess) {
-            onLoginSuccess(userForStorage);
+          // 🔑 SEGURANÇA MÁXIMA: Guardar APENAS o token JWT assinado.
+          // Nenhum dado pessoal (email, nome, roles) fica exposto no localStorage.
+          const token = response.data.token;
+          if (token) {
+            localStorage.setItem('token', token);
+            localStorage.setItem('morabeza_token', token);
           }
           
-          // 3. A CORREÇÃO: Forçar a ida para a Home (em vez de fazer reload na página de login)
+          if (onLoginSuccess) {
+            onLoginSuccess(response.data.user);
+          }
+          
           setTimeout(() => {
             window.location.replace('/');
           }, 100);
@@ -79,4 +67,4 @@ const LoginGoogle = ({ onLoginSuccess }) => {
   );
 };
 
-export default LoginGoogle;
+export default LoginGoogle; 

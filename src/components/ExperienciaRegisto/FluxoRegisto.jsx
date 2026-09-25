@@ -1,8 +1,7 @@
 // src/components/ExperienciaRegisto/FluxoRegisto.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, ChevronRight, HelpCircle, User, Loader } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, HelpCircle, Loader, Save, X, AlertCircle } from 'lucide-react';
 import InformacoesBasicas from './InformacoesBasicas';
 import Localizacao from './Localizacao';
 import Categoria from './Categoria';
@@ -14,6 +13,9 @@ import Disponibilidade from './Disponibilidade';
 import { salvarFluxoExperiencia } from '../../services/experienciaApiService';
 import { useToast } from '../../Toast';
 
+// ==================== CHAVE DO RASCUNHO ====================
+const RASCUNHO_KEY = 'morabeza_rascunho_experiencia';
+
 const FluxoRegisto = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -22,6 +24,8 @@ const FluxoRegisto = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [experienciaId, setExperienciaId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [mostrarConfirmacaoRemover, setMostrarConfirmacaoRemover] = useState(false);
+  const [usuarioId, setUsuarioId] = useState(null);
 
   // Estados do formulário
   const [informacoes, setInformacoes] = useState({
@@ -59,40 +63,139 @@ const FluxoRegisto = () => {
     horarios: []
   });
 
-  // Carregar dados salvos
+  // ==================== OBTER ID DO UTILIZADOR (JWT) ====================
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) {
+          setUsuarioId(userData.id);
+          return;
+        }
+      }
+
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const raw = localStorage.getItem(chave);
+        if (raw) {
+          const user = JSON.parse(raw);
+          const uid = user?.id || user?.sub || user?.user_id;
+          if (uid) {
+            setUsuarioId(uid);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID do utilizador:', e);
+    }
+  }, []);
+
+  // ==================== GUARDAR RASCUNHO ====================
+  const guardarRascunhoLocal = () => {
+    const dados = {
+      fase,
+      informacoes,
+      endereco,
+      categoria,
+      inclusoes,
+      requisitos,
+      idiomas,
+      imagens,
+      disponibilidade,
+      experienciaId,
+      atualizadoEm: new Date().toISOString()
+    };
+
+    try {
+      localStorage.setItem(RASCUNHO_KEY, JSON.stringify(dados));
+      showToast('Rascunho guardado localmente', 'success');
+    } catch (err) {
+      console.error('Erro ao guardar rascunho:', err);
+      showToast('Não foi possível guardar o rascunho', 'error');
+    }
+  };
+
+  // ==================== ABRIR CONFIRMAÇÃO ====================
+  const pedirConfirmacaoRemoverRascunho = () => {
+    setMostrarConfirmacaoRemover(true);
+  };
+
+  // ==================== CONFIRMAR E REMOVER ====================
+  const confirmarRemoverRascunho = () => {
+    localStorage.removeItem(RASCUNHO_KEY);
+
+    setInformacoes({
+      titulo: '',
+      descricao_curta: '',
+      descricao_longa: '',
+      descricao_completa: '',
+      preco: '',
+      preco_crianca: '',
+      preco_bebe: '',
+      duracao: '2 horas',
+      max_pessoas: 10,
+      min_pessoas: 1,
+      inclui_guia: true,
+      inclui_transporte: false,
+      inclui_refeicao: false,
+      ponto_encontro: ''
+    });
+    setEndereco({
+      morada: '',
+      cidade: '',
+      ilha: '',
+      lat: null,
+      lng: null
+    });
+    setCategoria('aventura');
+    setInclusoes([]);
+    setRequisitos([]);
+    setIdiomas([]);
+    setImagens([]);
+    setDisponibilidade({
+      dias_disponiveis: [],
+      horarios: []
+    });
+    setFase(1);
+    setExperienciaId(null);
+
+    setMostrarConfirmacaoRemover(false);
+    showToast('Rascunho removido', 'success');
+  };
+
+  // ==================== CARREGAR RASCUNHO ====================
   useEffect(() => {
     const carregarDados = async () => {
       setLoading(true);
       try {
-        const savedInfo = localStorage.getItem('expInformacoes');
-        if (savedInfo) setInformacoes(JSON.parse(savedInfo));
+        const raw = localStorage.getItem(RASCUNHO_KEY);
+        if (raw) {
+          const dados = JSON.parse(raw);
 
-        const savedEndereco = localStorage.getItem('expEndereco');
-        if (savedEndereco) setEndereco(JSON.parse(savedEndereco));
+          if (dados.informacoes) setInformacoes(dados.informacoes);
+          if (dados.endereco) setEndereco(dados.endereco);
+          if (dados.categoria) setCategoria(dados.categoria);
+          if (dados.inclusoes) setInclusoes(dados.inclusoes);
+          if (dados.requisitos) setRequisitos(dados.requisitos);
+          if (dados.idiomas) setIdiomas(dados.idiomas);
+          if (dados.imagens) setImagens(dados.imagens);
+          if (dados.disponibilidade) setDisponibilidade(dados.disponibilidade);
+          if (dados.fase) setFase(dados.fase);
+          if (dados.experienciaId) setExperienciaId(dados.experienciaId);
 
-        const savedCategoria = localStorage.getItem('expCategoria');
-        if (savedCategoria) setCategoria(savedCategoria);
-
-        const savedInclusoes = localStorage.getItem('expInclusoes');
-        if (savedInclusoes) setInclusoes(JSON.parse(savedInclusoes));
-
-        const savedRequisitos = localStorage.getItem('expRequisitos');
-        if (savedRequisitos) setRequisitos(JSON.parse(savedRequisitos));
-
-        const savedIdiomas = localStorage.getItem('expIdiomas');
-        if (savedIdiomas) setIdiomas(JSON.parse(savedIdiomas));
-
-        const savedImagens = localStorage.getItem('expImagens');
-        if (savedImagens) setImagens(JSON.parse(savedImagens));
-
-        const savedDisponibilidade = localStorage.getItem('expDisponibilidade');
-        if (savedDisponibilidade) setDisponibilidade(JSON.parse(savedDisponibilidade));
-
-        const savedId = localStorage.getItem('expExperienciaId');
-        if (savedId) setExperienciaId(parseInt(savedId));
-
+          showToast('Rascunho recuperado', 'info');
+        }
       } catch (e) {
-        console.warn('Erro ao carregar dados:', e);
+        console.warn('Erro ao carregar rascunho:', e);
+        localStorage.removeItem(RASCUNHO_KEY);
       } finally {
         setLoading(false);
       }
@@ -101,20 +204,8 @@ const FluxoRegisto = () => {
     carregarDados();
   }, []);
 
-  const salvarProgresso = () => {
-    localStorage.setItem('expInformacoes', JSON.stringify(informacoes));
-    localStorage.setItem('expEndereco', JSON.stringify(endereco));
-    localStorage.setItem('expCategoria', categoria);
-    localStorage.setItem('expInclusoes', JSON.stringify(inclusoes));
-    localStorage.setItem('expRequisitos', JSON.stringify(requisitos));
-    localStorage.setItem('expIdiomas', JSON.stringify(idiomas));
-    localStorage.setItem('expImagens', JSON.stringify(imagens));
-    localStorage.setItem('expDisponibilidade', JSON.stringify(disponibilidade));
-    if (experienciaId) localStorage.setItem('expExperienciaId', experienciaId);
-  };
-
+  // ==================== NAVEGAÇÃO ====================
   const handleNext = () => {
-    // Validações mínimas por fase
     if (fase === 1) {
       if (!informacoes.titulo || !informacoes.titulo.trim()) {
         showToast('O título da experiência é obrigatório', 'error');
@@ -133,7 +224,6 @@ const FluxoRegisto = () => {
       }
     }
 
-    salvarProgresso();
     setFase(fase + 1);
     window.scrollTo(0, 0);
   };
@@ -147,16 +237,18 @@ const FluxoRegisto = () => {
     }
   };
 
+  // ==================== FINALIZAR ====================
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+
+    if (!usuarioId) {
+      showToast('Utilizador não autenticado. Faça login novamente.', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Ler user do localStorage (padrão do projeto)
-      const rawUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
-      const user = rawUser ? JSON.parse(rawUser) : null;
-      const usuarioId = user?.id || user?.sub || user?.user_id || null;
-
       const dadosCompletos = {
         usuario_id: usuarioId,
         ...informacoes,
@@ -177,17 +269,7 @@ const FluxoRegisto = () => {
       const result = await salvarFluxoExperiencia(dadosCompletos, experienciaId);
 
       if (result.success) {
-        // Limpar localStorage
-        localStorage.removeItem('expInformacoes');
-        localStorage.removeItem('expEndereco');
-        localStorage.removeItem('expCategoria');
-        localStorage.removeItem('expInclusoes');
-        localStorage.removeItem('expRequisitos');
-        localStorage.removeItem('expIdiomas');
-        localStorage.removeItem('expImagens');
-        localStorage.removeItem('expDisponibilidade');
-        localStorage.removeItem('expExperienciaId');
-
+        localStorage.removeItem(RASCUNHO_KEY);
         showToast(result.message || 'Experiência registada com sucesso!', 'success');
         navigate('/experiencia-registo/meus');
       } else {
@@ -201,6 +283,7 @@ const FluxoRegisto = () => {
     }
   };
 
+  // ==================== BARRA DE PROGRESSO ====================
   const renderProgressBar = () => {
     const fasesLista = ['Info', 'Local', 'Categoria', 'Inclusões', 'Requisitos', 'Idiomas', 'Fotos', 'Disponibilidade'];
     return (
@@ -216,12 +299,20 @@ const FluxoRegisto = () => {
         </div>
         <div className="flex gap-1">
           {fasesLista.map((_, index) => (
-            <div key={index} className={`h-1 flex-1 rounded-full ${fase > index + 1 ? 'bg-[#006ce4]' : fase === index + 1 ? 'bg-[#006ce4]' : 'bg-gray-200'}`} />
+            <div
+              key={index}
+              className={`h-1 flex-1 rounded-full ${
+                fase > index + 1 ? 'bg-[#006ce4]' :
+                fase === index + 1 ? 'bg-[#006ce4]' : 'bg-gray-200'
+              }`}
+            />
           ))}
         </div>
       </div>
     );
   };
+
+  const temRascunho = !!localStorage.getItem(RASCUNHO_KEY);
 
   if (loading) {
     return (
@@ -238,16 +329,11 @@ const FluxoRegisto = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-[#003580] text-white px-3 py-2 flex items-center justify-between shadow-sm">
-        {/* Lado esquerdo - Logo */}
         <div className="flex items-center">
-          <div className="font-bold text-base tracking-tight truncate max-w-[130px]">
-
-          </div>
+          <div className="font-bold text-base tracking-tight truncate max-w-[130px]"></div>
         </div>
 
-        {/* Lado direito - Menu e ações */}
         <div className="flex items-center gap-2">
-          {/* Info do passo - versão mobile ultra compacta */}
           <div className="flex flex-col items-end">
             <div className="font-medium text-xs truncate max-w-[90px]">
               {informacoes.titulo || 'Nova Exp.'}
@@ -264,10 +350,8 @@ const FluxoRegisto = () => {
             </div>
           </div>
 
-          {/* Divider vertical */}
           <div className="w-[1px] h-5 bg-blue-900"></div>
 
-          {/* Botão ajuda mobile - apenas ícone */}
           <div className="flex items-center cursor-pointer hover:opacity-80">
             <HelpCircle size={15} />
           </div>
@@ -384,46 +468,104 @@ const FluxoRegisto = () => {
             </>
           )}
 
-          {/* Botões de navegação */}
-          <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+          {/* ==================== BOTÕES ==================== */}
+          <div className="flex flex-wrap justify-between gap-3 mt-8 pt-6 border-t border-gray-100">
             <button
               onClick={handleBack}
-              className="flex items-center gap-2 px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
+              className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
             >
               <ArrowLeft size={18} /> Voltar
             </button>
 
-            {fase < 8 && (
+            <div className="flex flex-wrap gap-3">
+              {/* Guardar rascunho */}
               <button
-                onClick={handleNext}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#006ce4] text-white rounded-lg font-semibold hover:bg-[#0053b3]"
+                onClick={guardarRascunhoLocal}
+                className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
               >
-                Continuar <ChevronRight size={18} />
+                <Save size={18} />
+                Guardar rascunho
               </button>
-            )}
 
-            {fase === 8 && (
-              <button
-                onClick={handleFinalizar}
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader size={18} className="animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  <>
-                    <Check size={18} />
-                    Finalizar Registo
-                  </>
-                )}
-              </button>
-            )}
+              {/* Remover rascunho */}
+              {temRascunho && (
+                <button
+                  onClick={pedirConfirmacaoRemoverRascunho}
+                  className="flex items-center gap-2 px-5 py-2.5 border border-red-300 text-red-600 rounded-lg font-semibold hover:bg-red-50"
+                >
+                  <X size={18} />
+                  Remover rascunho
+                </button>
+              )}
+
+              {fase < 8 && (
+                <button
+                  onClick={handleNext}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#006ce4] text-white rounded-lg font-semibold hover:bg-[#0053b3]"
+                >
+                  Continuar <ChevronRight size={18} />
+                </button>
+              )}
+
+              {fase === 8 && (
+                <button
+                  onClick={handleFinalizar}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader size={18} className="animate-spin" />
+                      A enviar...
+                    </>
+                  ) : (
+                    <>
+                      <Check size={18} />
+                      Finalizar Registo
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* ========== CAIXA DE CONFIRMAÇÃO REMOVER RASCUNHO ========== */}
+      {mostrarConfirmacaoRemover && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="text-red-600" size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900 mb-1">
+                  Remover rascunho?
+                </h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  Tens a certeza que queres apagar o rascunho? Esta ação não pode ser desfeita.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setMostrarConfirmacaoRemover(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarRemoverRascunho}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+              >
+                Sim, apagar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

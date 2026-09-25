@@ -23,6 +23,7 @@ const EditarExperiencia = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [experienciaId, setExperienciaId] = useState(id ? parseInt(id) : null);
+  const [usuarioId, setUsuarioId] = useState(null);
 
   const [informacoes, setInformacoes] = useState({});
   const [endereco, setEndereco] = useState({});
@@ -32,6 +33,41 @@ const EditarExperiencia = () => {
   const [idiomas, setIdiomas] = useState([]);
   const [imagens, setImagens] = useState([]);
   const [disponibilidade, setDisponibilidade] = useState({ dias_disponiveis: [], horarios: [] });
+
+  // ==================== OBTER ID DO UTILIZADOR (JWT) ====================
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) {
+          setUsuarioId(userData.id);
+          return;
+        }
+      }
+
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const raw = localStorage.getItem(chave);
+        if (raw) {
+          const user = JSON.parse(raw);
+          const uid = user?.id || user?.sub || user?.user_id;
+          if (uid) {
+            setUsuarioId(uid);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID do utilizador:', e);
+    }
+  }, []);
 
   // Carregar dados da experiência
   useEffect(() => {
@@ -111,10 +147,17 @@ const EditarExperiencia = () => {
 
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+
+    if (!usuarioId) {
+      showToast('Utilizador não autenticado. Faça login novamente.', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const dadosCompletos = {
+        usuario_id: usuarioId,
         ...informacoes,
         endereco,
         categoria,

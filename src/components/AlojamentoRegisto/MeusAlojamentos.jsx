@@ -10,6 +10,23 @@ import {
 
 const API_URL = 'https://welovepalop.com';
 
+// Função para extrair o ID do utilizador do Token JWT de forma segura
+const obterUserIdDoToken = () => {
+  try {
+    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+    if (!token) return null;
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    const payload = JSON.parse(jsonPayload);
+    return payload.data?.id || null;
+  } catch (e) {
+    return null;
+  }
+};
+
 const MeusAlojamentos = () => {
   const navigate = useNavigate();
   const [proprietarioId, setProprietarioId] = useState(null);
@@ -19,34 +36,32 @@ const MeusAlojamentos = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
 
-  // 1. Buscar o ID do utilizador logado no localStorage
+  // 1. Buscar o ID do utilizador logado através do Token JWT
   useEffect(() => {
-    const userData = localStorage.getItem('user'); // Ajusta a chave se necessário
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        if (user && user.id) {
-          setProprietarioId(Number(user.id));
-        } else {
-          navigate('/login');
-        }
-      } catch (e) {
-        console.error('Erro ao ler usuário do localStorage', e);
-        navigate('/login');
-      }
+    const userId = obterUserIdDoToken();
+    if (userId) {
+      setProprietarioId(Number(userId));
     } else {
       navigate('/login');
     }
   }, [navigate]);
 
-  // 2. Função de busca (depende do proprietarioId)
+  // 2. Função de busca (depende do proprietarioId e envia o Token JWT no cabeçalho)
   const buscarAlojamentos = async () => {
     if (!proprietarioId) return;
 
     try {
       setLoading(true);
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+
       const response = await fetch(
-        `${API_URL}/api/alojamento/meus_alojamentos.php?proprietario_id=${proprietarioId}`
+        `${API_URL}/api/alojamento/meus_alojamentos.php?proprietario_id=${proprietarioId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        }
       );
 
       if (!response.ok) throw new Error('Erro ao carregar alojamentos');
@@ -86,8 +101,13 @@ const MeusAlojamentos = () => {
     if (!window.confirm(`Tem certeza que deseja excluir "${titulo}"?`)) return;
 
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
       const response = await fetch(`${API_URL}/api/alojamento/excluir.php?id=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
       });
       const data = await response.json();
 

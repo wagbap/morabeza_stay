@@ -2,15 +2,60 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://welovepalop.com/api';
 
-// ==================== HELPER ====================
+// ==================== HELPER PARA TOKEN E USER ID ====================
+function obterTokenSeguro() {
+    return localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+}
+
+function obterUserIdDoToken() {
+    try {
+        const token = obterTokenSeguro();
+        if (!token) return null;
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        return payload.data?.id || payload.id || null;
+    } catch (e) {
+        return null;
+    }
+}
+
+export function obterDadosUtilizadorDoToken() {
+    try {
+        const token = obterTokenSeguro();
+        if (!token) return null;
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        return payload.data || payload; 
+    } catch (e) {
+        return null;
+    }
+}
+
+// ==================== HELPER DE REQUISIÇÃO ====================
 async function apiRequest(endpoint, method, data = null) {
+    const token = obterTokenSeguro();
+
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const options = {
         method: method,
         mode: 'cors',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
+        headers: headers,
     };
 
     if (data && (method === 'POST' || method === 'PUT')) {
@@ -101,12 +146,15 @@ export async function salvarQuartos(alojamentoId, quartos) {
         })
     };
     
-    console.log('📤 Salvando quartos com fotos para a tabela quarto_imagens:', payload);
+    const token = obterTokenSeguro();
     
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
             body: JSON.stringify(payload)
         });
         const result = await response.json();
@@ -140,10 +188,15 @@ export async function atualizarQuartos(alojamentoId, quartos) {
         })
     };
     
+    const token = obterTokenSeguro();
+
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
             body: JSON.stringify(payload)
         });
         return await response.json();
@@ -158,10 +211,15 @@ export async function removerQuarto(alojamentoId, tipoQuartoId) {
         throw new Error('ID do alojamento e tipo de quarto são obrigatórios');
     }
     
+    const token = obterTokenSeguro();
+
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php?alojamento_id=${alojamentoId}&tipo_quarto_id=${tipoQuartoId}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
         });
         return await response.json();
     } catch (error) {
@@ -175,10 +233,15 @@ export async function removerQuartoPorId(id) {
         throw new Error('ID do quarto é obrigatório');
     }
     
+    const token = obterTokenSeguro();
+
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php?id=${id}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
         });
         return await response.json();
     } catch (error) {
@@ -481,6 +544,8 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
         const isEdicao = !!alojamentoId;
         const informacoes = dados.informacoes || dados;
         
+        const userIdAutenticado = obterUserIdDoToken();
+        
         let comodidadesIds = [];
         if (dados.comodidades?.length) {
             comodidadesIds = dados.comodidades
@@ -521,7 +586,6 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
                 };
             });
         
-        // Mapear quartos e respetivas fotos para a tabela quarto_imagens
         let quartosFormatados = [];
         if (dados.quartos && Array.isArray(dados.quartos)) {
             quartosFormatados = dados.quartos.map(q => {
@@ -552,7 +616,7 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
         const longitude = dados.longitude || morada?.coordenadas?.lng || morada?.lng || null;
         
         const payload = {
-            proprietario_id: dados.proprietario_id || 1,
+            proprietario_id: dados.proprietario_id || userIdAutenticado,
             titulo: informacoes.titulo || dados.titulo || 'Propriedade Sem Título',
             cidade: cidade,
             ilha: ilha,
@@ -662,5 +726,6 @@ export default {
     buscarAlojamentoParaEdicao,
     buscarAlojamentoCompleto,
     buscarLocalizacaoPersistente,
-    buscarLocalizacaoDoAlojamento
+    buscarLocalizacaoDoAlojamento,
+    obterDadosUtilizadorDoToken
 };

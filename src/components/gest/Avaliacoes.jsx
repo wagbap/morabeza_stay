@@ -1,3 +1,4 @@
+// src/components/gest/Avaliacoes.jsx
 import React, { useState, useEffect } from 'react';
 import { Star, Loader2, Home, Car, Compass, Award } from 'lucide-react';
 
@@ -16,16 +17,46 @@ export default function Avaliacoes() {
   });
   const [tiposDisponiveis, setTiposDisponiveis] = useState([]);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        setUsuarioLogado(user);
-        fetchUserRoles(user.id);
-      } catch (e) {
-        console.error('Erro ao carregar usuário:', e);
+  // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
+  const obterUserId = () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        if (parsed.data?.id) return parsed.data.id;
+        if (parsed.id) return parsed.id;
       }
+      const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        return user.id;
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID:', e);
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    const userId = obterUserId();
+    if (userId) {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      // Criar objeto utilizador básico com base no ID se necessário
+      let userObj = { id: userId };
+      try {
+        const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+        if (savedUser) {
+          userObj = JSON.parse(savedUser);
+        }
+      } catch (e) {}
+
+      setUsuarioLogado(userObj);
+      fetchUserRoles(userId);
     }
   }, []);
 
@@ -51,7 +82,6 @@ export default function Avaliacoes() {
           proprietarioVeiculos: isProprietarioVeiculos
         });
         
-        // Se o filtro atual não está disponível, mudar para 'todos' ou o primeiro disponível
         if (filtro !== 'todos' && !tipos.includes(filtro)) {
           setFiltro('todos');
         }
@@ -70,13 +100,10 @@ export default function Avaliacoes() {
   const fetchAvaliacoes = async () => {
     setLoading(true);
     try {
-      // Buscar avaliações de todos os tipos que o usuário tem permissão
       let todasAvaliacoes = [];
       let todasEstatisticas = [];
       
-      // Buscar por tipo específico ou todos
       if (filtro === 'todos') {
-        // Buscar cada tipo separadamente
         for (const tipo of tiposDisponiveis) {
           const response = await fetch(`https://welovepalop.com/api/avaliacoes/listar.php?usuario_id=${usuarioLogado.id}&tipo=${tipo}`);
           const data = await response.json();
@@ -89,7 +116,6 @@ export default function Avaliacoes() {
           }
         }
       } else {
-        // Buscar apenas o tipo selecionado
         const response = await fetch(`https://welovepalop.com/api/avaliacoes/listar.php?usuario_id=${usuarioLogado.id}&tipo=${filtro}`);
         const data = await response.json();
         
@@ -102,7 +128,6 @@ export default function Avaliacoes() {
       setAvaliacoes(todasAvaliacoes);
       setEstatisticas(todasEstatisticas);
       
-      // Calcular média geral
       if (todasAvaliacoes.length > 0) {
         const soma = todasAvaliacoes.reduce((acc, curr) => acc + curr.rating, 0);
         setMediaGeral((soma / todasAvaliacoes.length).toFixed(1));
@@ -143,15 +168,6 @@ export default function Avaliacoes() {
     }
   };
 
-  const getTipoLabel = (tipo) => {
-    switch(tipo) {
-      case 'alojamento': return 'Alojamento';
-      case 'carro': return 'Carro';
-      case 'experiencia': return 'Experiência';
-      default: return tipo;
-    }
-  };
-
   const RenderStars = ({ count }) => {
     return (
       <div className="flex gap-1">
@@ -178,7 +194,6 @@ export default function Avaliacoes() {
     );
   };
 
-  // Verificar se tem pelo menos uma role aprovada
   const hasAnyRole = userRoles.anfitrion || userRoles.guia || userRoles.proprietarioVeiculos;
 
   if (loading) {
@@ -189,7 +204,6 @@ export default function Avaliacoes() {
     );
   }
 
-  // Se não tem nenhuma role aprovada
   if (!hasAnyRole) {
     return (
       <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
@@ -210,12 +224,10 @@ export default function Avaliacoes() {
 
   return (
     <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
-      
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h1 className="text-[22px] font-bold">Avaliações dos Clientes</h1>
         
         <div className="flex flex-wrap gap-2">
-          {/* Sempre mostrar o botão "Todos" se houver mais de um tipo disponível */}
           {tiposDisponiveis.length > 1 && (
             <button
               onClick={() => setFiltro('todos')}
@@ -262,9 +274,7 @@ export default function Avaliacoes() {
         </div>
       </div>
 
-      {/* Resumo das Avaliações - sempre mostrar mesmo que seja 0 */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-6 md:p-8 mb-8 flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-16">
-        
         <div className="flex flex-col items-center justify-center flex-shrink-0">
           <h3 className="text-[14px] font-bold text-[#0f172a] mb-2">Avaliação Média</h3>
           <span className="text-[48px] font-bold leading-none mb-2">{mediaGeral > 0 ? mediaGeral : '0.0'}</span>
@@ -300,7 +310,6 @@ export default function Avaliacoes() {
         </div>
       </div>
 
-      {/* Lista de Comentários */}
       <div className="space-y-4">
         {avaliacoes.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
@@ -310,14 +319,13 @@ export default function Avaliacoes() {
             <p className="text-gray-400">Nenhuma avaliação encontrada</p>
             <p className="text-sm text-gray-300 mt-2">
               {filtro !== 'todos' && tiposDisponiveis.length > 1
-                ? `Nenhuma avaliação para ${filtro === 'alojamentos' ? 'alojamentos' : filtro === 'carros' ? 'carros' : 'experiências'} ainda`
+                ? `Nenhuma avaliação para esta categoria ainda`
                 : 'As avaliações dos clientes aparecerão aqui assim que receber feedback'}
             </p>
           </div>
         ) : (
           avaliacoes.map((review) => (
             <div key={review.id} className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-5 md:p-6 transition-all hover:shadow-md">
-              
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3 md:gap-4">
                   <img 
@@ -347,12 +355,10 @@ export default function Avaliacoes() {
               <p className="text-[14px] text-[#334155] leading-relaxed">
                 {review.comentario}
               </p>
-
             </div>
           ))
         )}
       </div>
-
     </div>
   );
 }

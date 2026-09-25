@@ -121,8 +121,9 @@ const AdminSidebar = () => {
     { name: 'Denúncias', icon: <AlertTriangle size={20} />, path: '/admin/denuncias' },
     { name: 'Relatórios', icon: <FileText size={20} />, path: '/admin/relatorios' },
     { name: 'Clientes', icon: <Users size={20} />, path: '/admin/clientes' },
-    { name: 'Configurações', icon: <Settings size={20} />, path: '/admin/configuracoes' },
-    { name: 'Recebimento e IBAN', icon: <ShieldCheck size={20} />, path: '/admin/recebimento'}
+    { name: 'Recebimento e IBAN', icon: <ShieldCheck size={20} />, path: '/admin/recebimento'},
+    { name: 'Configurações', icon: <Settings size={20} />, path: '/admin/configuracoes' }
+
   ];
 
 

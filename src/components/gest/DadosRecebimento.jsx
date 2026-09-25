@@ -13,6 +13,8 @@ export default function DadosRecebimento() {
   const [editando, setEditando] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ tipo: '', texto: '' });
+  const [usuarioId, setUsuarioId] = useState(null);
+  const [nomeUtilizador, setNomeUtilizador] = useState('');
 
   const [form, setForm] = useState({
     titular: '',
@@ -22,13 +24,56 @@ export default function DadosRecebimento() {
     nif: '',
   });
 
-  const sessao = JSON.parse(localStorage.getItem('user') || '{}');
+  // ---------------------------------------------------------
+  // Obter ID e dados do utilizador de forma segura (JWT ou LocalStorage)
+  // ---------------------------------------------------------
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) {
+          setUsuarioId(userData.id);
+          setNomeUtilizador(userData.nome || userData.name || '');
+          return;
+        }
+      }
 
-  // ============================================================
-  // CARREGAR DADOS
-  // ============================================================
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const raw = localStorage.getItem(chave);
+        if (raw) {
+          const user = JSON.parse(raw);
+          const uid = user?.id || user?.sub || user?.user_id;
+          if (uid) {
+            setUsuarioId(uid);
+            setNomeUtilizador(user.nome || user.name || '');
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID no DadosRecebimento:', e);
+    }
+  }, []);
+
+  // Carregar dados bancários assim que tivermos o ID
+  useEffect(() => {
+    if (usuarioId) {
+      carregar();
+    } else if (usuarioId === null && !loading) {
+      setLoading(false);
+    }
+  }, [usuarioId]);
+
   const carregar = async () => {
-    if (!sessao.id) {
+    if (!usuarioId) {
       setLoading(false);
       return;
     }
@@ -40,7 +85,7 @@ export default function DadosRecebimento() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'obter',
-          usuario_id: sessao.id,
+          usuario_id: usuarioId,
         }),
       });
       const data = await res.json();
@@ -56,10 +101,9 @@ export default function DadosRecebimento() {
         });
       } else {
         setDados(null);
-        // Preencher titular com nome do utilizador
         setForm((f) => ({
           ...f,
-          titular: sessao.nome || '',
+          titular: nomeUtilizador || '',
         }));
         setEditando(true);
       }
@@ -71,16 +115,14 @@ export default function DadosRecebimento() {
     }
   };
 
-  useEffect(() => {
-    carregar();
-  }, []);
-
-  // ============================================================
-  // GUARDAR
-  // ============================================================
   const guardar = async (e) => {
     e.preventDefault();
     setMsg({ tipo: '', texto: '' });
+
+    if (!usuarioId) {
+      setMsg({ tipo: 'erro', texto: 'Utilizador não identificado.' });
+      return;
+    }
 
     if (!form.titular || form.titular.trim().length < 3) {
       setMsg({ tipo: 'erro', texto: 'Indica o nome do titular.' });
@@ -101,7 +143,7 @@ export default function DadosRecebimento() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'guardar',
-          usuario_id: sessao.id,
+          usuario_id: usuarioId,
           titular: form.titular.trim(),
           iban: form.iban,
           banco: form.banco.trim(),
@@ -127,9 +169,6 @@ export default function DadosRecebimento() {
     }
   };
 
-  // ============================================================
-  // LOADING
-  // ============================================================
   if (loading) {
     return (
       <div className="h-64 w-full flex flex-col justify-center items-center gap-2 text-gray-500">
@@ -141,7 +180,6 @@ export default function DadosRecebimento() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-      {/* Cabeçalho */}
       <div>
         <h1 className="text-2xl font-bold text-[#003580] flex items-center gap-2">
           <Wallet size={24} /> Dados de recebimento
@@ -151,7 +189,6 @@ export default function DadosRecebimento() {
         </p>
       </div>
 
-      {/* Mensagem */}
       {msg.texto && (
         <div
           className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
@@ -165,7 +202,6 @@ export default function DadosRecebimento() {
         </div>
       )}
 
-      {/* Aviso se não tem dados */}
       {!dados && !editando && (
         <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-2xl flex items-start gap-3">
           <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={22} />
@@ -175,7 +211,7 @@ export default function DadosRecebimento() {
             </p>
             <p className="text-xs text-yellow-800 mt-1">
               Sem estes dados, a Morabeza Stay <strong>não pode fazer repasses</strong> dos teus
-              80% de cada reserva. Adiciona o teu IBAN abaixo.
+              repasses de cada reserva. Adiciona o teu IBAN abaixo.
             </p>
             <button
               onClick={() => setEditando(true)}
@@ -187,9 +223,7 @@ export default function DadosRecebimento() {
         </div>
       )}
 
-      {/* Card principal */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <CreditCard className="text-[#003580]" size={20} />
@@ -207,9 +241,6 @@ export default function DadosRecebimento() {
         </div>
 
         <div className="p-5">
-          {/* ============================================ */}
-          {/* MODO VISUALIZAÇÃO */}
-          {/* ============================================ */}
           {dados && !editando && (
             <div className="space-y-3">
               <div className="flex justify-between py-3 border-b border-gray-100">
@@ -259,12 +290,8 @@ export default function DadosRecebimento() {
             </div>
           )}
 
-          {/* ============================================ */}
-          {/* MODO EDIÇÃO */}
-          {/* ============================================ */}
           {(!dados || editando) && (
             <form onSubmit={guardar} className="space-y-4">
-              {/* Titular */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                   Nome do titular *
@@ -279,7 +306,6 @@ export default function DadosRecebimento() {
                 />
               </div>
 
-              {/* IBAN */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                   IBAN *
@@ -297,7 +323,6 @@ export default function DadosRecebimento() {
                 </p>
               </div>
 
-              {/* Banco + NIF */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
@@ -326,7 +351,6 @@ export default function DadosRecebimento() {
                 </div>
               </div>
 
-              {/* País */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                   País
@@ -344,7 +368,6 @@ export default function DadosRecebimento() {
                 </select>
               </div>
 
-              {/* Ações */}
               <div className="flex gap-3 pt-2">
                 {dados && (
                   <button
@@ -381,13 +404,12 @@ export default function DadosRecebimento() {
         </div>
       </div>
 
-      {/* Info de segurança */}
       <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
         <h4 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-2">
           <Shield size={16} /> Porque pedimos isto?
         </h4>
         <ul className="text-xs text-blue-800 space-y-1">
-          <li>• É para onde enviamos os teus <strong>80%</strong> de cada reserva confirmada.</li>
+          <li>• É para onde enviamos os teus repasses de cada reserva confirmada.</li>
           <li>• O IBAN fica guardado de forma protegida.</li>
           <li>• Só a Morabeza Stay e tu têm acesso.</li>
           <li>• Nunca partilhamos com terceiros.</li>

@@ -7,9 +7,46 @@ import { Home, Car, Palmtree, Trash2, MapPin, Star } from 'lucide-react';
 
 const Favoritos = () => {
   const { t } = useTranslation();
-  const { favoritos, isLoggedIn, user, removeFavorito, recarregar, loading } = useFavoritos();
+  const { favoritos, removeFavorito, recarregar, loading } = useFavoritos();
   const [activeTab, setActiveTab] = useState('alojamentos');
   const [removendoId, setRemovendoId] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+
+  // Verificação segura de autenticação (JWT + LocalStorage)
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) {
+          setIsLoggedIn(true);
+          setUser(userData);
+          return;
+        }
+      }
+
+      // Fallback para as chaves tradicionais de utilizador no LocalStorage
+      const savedUser = localStorage.getItem('user') || 
+                        localStorage.getItem('morabeza_user') || 
+                        localStorage.getItem('morabeza_admin');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser) {
+          setIsLoggedIn(true);
+          setUser(parsedUser);
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao verificar autenticação:', e);
+    }
+  }, []);
 
   const tabs = [
     { id: 'alojamentos', label: t('alojamentos'), icon: <Home size={14} />, count: favoritos.alojamentos?.length || 0 },
@@ -46,8 +83,10 @@ const Favoritos = () => {
   const currentItems = favoritos[activeTab] || [];
 
   useEffect(() => {
-    recarregar();
-  }, [activeTab, recarregar]);
+    if (isLoggedIn) {
+      recarregar();
+    }
+  }, [activeTab, isLoggedIn, recarregar]);
 
   if (!isLoggedIn) {
     return (
@@ -78,7 +117,7 @@ const Favoritos = () => {
           </h1>
           <div className="h-1.5 w-20 bg-blue-600 mt-2"></div>
           <p className="text-sm text-slate-500 mt-3">
-            {t('olá')}, <span className="font-bold text-blue-600">{user?.name || user?.nome || user?.full_name}</span>! 
+            {t('olá')}, <span className="font-bold text-blue-600">{user?.name || user?.nome || user?.full_name || 'Utilizador'}</span>! 
             {t('estes_sao_seus_favoritos')}
           </p>
         </div>

@@ -3,17 +3,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { HelmetProvider } from 'react-helmet-async';
 import './i18n';
 
-// Hooks (mantém import normal - são leves)
+// Hooks
 import { useFetchHomeData } from './hooks/useFetchHomeData';
 
-// Componentes Globais (import normal - são usados em toda a app)
+// Componentes Globais
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
 // === LAZY LOADING PARA PÁGINAS PESADAS ===
-// Isso reduz o bundle inicial de 4.2MB para ~500KB
-
-// Páginas principais (lazy)
 const Home = lazy(() => import('./pages/Home'));
 const Alojamentos = lazy(() => import('./features/alojamento/components/Alojamentos'));
 const Carros = lazy(() => import('./features/carros/components/Carros'));
@@ -58,8 +55,6 @@ const GanhosAdmin = lazy(() => import('./components/admin/GanhosAdmin'));
 const ConfiguracoesAdmin = lazy(() => import('./components/admin/ConfiguracoesAdmin'));
 const ConfigRecebimento = lazy(() => import('./components/admin/ConfigRecebimento'));
 
-
-
 const Mensagens = lazy(() => import('./components/admin/Mensagens'));
 const Pagamentos = lazy(() => import('./components/admin/Pagamentos'));
 const Denuncias = lazy(() => import('./components/admin/Denuncias'));
@@ -78,7 +73,7 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// Layout Principal memoizado para evitar re-renders desnecessários
+// Layout Principal memoizado
 const LayoutPrincipal = React.memo(({ children }) => (
   <div className="min-h-screen bg-[#f8f9fc] flex flex-col">
     <Navbar />
@@ -86,13 +81,6 @@ const LayoutPrincipal = React.memo(({ children }) => (
     <Footer />
   </div>
 ));
-
-// Componente Wrapper com Suspense
-const withSuspense = (Component) => (props) => (
-  <Suspense fallback={<LoadingSpinner />}>
-    <Component {...props} />
-  </Suspense>
-);
 
 function App() {
   const { alojamentos, carros, experiencias, loading } = useFetchHomeData();
@@ -123,7 +111,6 @@ function App() {
             <Route path="denuncias" element={<Denuncias />} />
             <Route path="relatorios" element={<Relatorios />} />
             <Route path="/admin/recebimento" element={<ConfigRecebimento />} />
-
           </Route>
 
           {/* ROTAS DE REGISTO */}

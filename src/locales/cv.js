@@ -954,6 +954,9 @@ preencha_dados_participantes: "Prenche dadus pa tudu partisipantis.",
 // ==================== PARTISIPANTI - KRIOLU ====================
 clique_participante_adicionar: "Klika na un partisipanti pa adisiona-l rapidu na reserva atual",
 ver_fotos: "Txeka Fotu",
+checkout_email_conta_existente: "Já ten un konta ku es email. Inisia seson pa kontinua.",
+erro_verificar_email: "Nu ka konsigi verifica email. Tenta otu bes.",
+erro_enviar_codigo: "Nu ka konsigi manda kódigu. Tenta otu bes.",
 enviar_whatsapp: "Envia  whatsapp",
 
   }

@@ -1,14 +1,17 @@
-// Pagamento.jsx - v3 multi-quarto + holds
+// Pagamento.jsx - v3 multi-quarto + holds + FormularioPagamentoStripe UI
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  Check, CreditCard, ArrowLeft, ChevronRight,
-  ShieldCheck, Lock, AlertCircle, Loader, Sparkles,
-} from 'lucide-react';
+import { Check, ArrowLeft, ShieldCheck, Lock, AlertCircle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import {
+  Elements,
+  useStripe,
+  useElements,
+  CardNumberElement,
+} from '@stripe/react-stripe-js';
 import { useToast } from '../Toast';
+import FormularioPagamentoStripe from './FormularioPagamentoStripe';
 
 const ResumoReservaExperiencia = React.lazy(() => import('../features/experiencias/components/ResumoReservaExperiencia'));
 const ResumoReservaAlojamento = React.lazy(() => import('../features/alojamento/components/ResumoReservaAlojamento'));
@@ -56,8 +59,6 @@ const PagamentoContent = () => {
   const [error, setError] = useState('');
   const [reserva, setReserva] = useState(reservaData || {});
   const [tipo, setTipo] = useState(tipoState || 'experiencia');
-  const [cardComplete, setCardComplete] = useState(false);
-  const [cardError, setCardError] = useState('');
   const [holdSegundos, setHoldSegundos] = useState(null);
 
   // ---------------------------------------------------------
@@ -406,9 +407,9 @@ const PagamentoContent = () => {
   }, [tipo, t, enviarEmailsConfirmacao]);
 
   // ---------------------------------------------------------
-  // Finalizar pagamento
+  // Finalizar pagamento (chamado pelo FormularioPagamentoStripe)
   // ---------------------------------------------------------
-  const handleFinalizarPagamento = useCallback(async () => {
+  const handleFinalizarPagamento = useCallback(async ({ zip } = {}) => {
     if (isProcessingRef.current || loading) return;
     isProcessingRef.current = true;
     setLoading(true);
@@ -417,6 +418,12 @@ const PagamentoContent = () => {
     try {
       if (!stripe || !elements) {
         setError(t('erro_stripe_nao_carregado'));
+        return;
+      }
+
+      const cardNumberElement = elements.getElement(CardNumberElement);
+      if (!cardNumberElement) {
+        setError(t('erro_cartao_invalido', 'Dados do cartão inválidos.'));
         return;
       }
 
@@ -460,7 +467,10 @@ const PagamentoContent = () => {
       }
 
       const result = await stripe.confirmCardPayment(dataIntent.clientSecret, {
-        payment_method: { card: elements.getElement(CardElement) },
+        payment_method: {
+          card: cardNumberElement,
+          billing_details: zip ? { address: { postal_code: zip } } : undefined,
+        },
       });
 
       if (result.error) {
@@ -500,12 +510,7 @@ const PagamentoContent = () => {
       setLoading(false);
       isProcessingRef.current = false;
     }
-  }, [stripe, elements, reserva, tipo, t, navigate, salvarReservaNoBackend, showToast, holdSegundos]);
-
-  const handleCardChange = useCallback((event) => {
-    setCardComplete(event.complete);
-    setCardError(event.error ? event.error.message : '');
-  }, []);
+  }, [stripe, elements, reserva, tipo, t, navigate, salvarReservaNoBackend, showToast, holdSegundos, loading]);
 
   const getTituloStepper = () => {
     if (tipo === 'alojamento') return t('dados_hospedes');
@@ -572,84 +577,25 @@ const PagamentoContent = () => {
             )}
 
             <div className="space-y-4 text-left">
-              <h3 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-4">{t('dados_cartao')}</h3>
-              <div className="border-2 border-blue-500 rounded-2xl bg-blue-50/30 shadow-md shadow-blue-100 overflow-hidden">
-                <div className="p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md shadow-blue-200">
-                      <CreditCard className="text-white" size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-blue-900">{t('cartao_credito_debito')}</p>
-                      <p className="text-xs text-slate-500 font-medium">Pagamento seguro com Stripe</p>
-                    </div>
-                    <div className="flex gap-2 shrink-0 ml-auto">
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/9/98/Visa_Inc._logo_%282005%E2%80%932014%29.svg" alt="Visa" className="h-4" />
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-4" />
-                      <Sparkles className="text-blue-400" size={14} />
-                    </div>
-                  </div>
+              <h3 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-4">
+                {t('dados_cartao')}
+              </h3>
 
-                  <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Lock size={14} className="text-slate-400" />
-                      <span className="text-xs text-slate-500 font-medium">{t('informacoes_cartao')}</span>
-                    </div>
-                    <CardElement
-                      options={{
-                        style: {
-                          base: {
-                            fontSize: '16px',
-                            color: '#0f172a',
-                            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-                            fontWeight: '500',
-                            padding: '12px 0',
-                            '::placeholder': { color: '#94a3b8', fontWeight: '400' },
-                          },
-                          invalid: { color: '#ef4444' },
-                        },
-                        hidePostalCode: true,
-                      }}
-                      onChange={handleCardChange}
-                    />
-                    {cardError && (
-                      <p className="text-xs text-red-500 mt-2 font-medium">{cardError}</p>
-                    )}
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                      <div className="flex gap-2">
-                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">🔒 Seguro</span>
-                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">⚡ Instantâneo</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-medium">Processado pela Stripe</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* ✅ UI do FormularioPagamentoStripe */}
+              <FormularioPagamentoStripe
+                valorTotal={getTotalPagar(tipo, reserva)}
+                moeda="CVE"
+                onPagar={handleFinalizarPagamento}
+              />
             </div>
 
-            <div className="mt-12 flex flex-col sm:flex-row justify-between gap-4">
+            <div className="mt-8 flex flex-col sm:flex-row justify-start gap-4">
               <button
                 onClick={() => { libertarHolds(); navigate(-1); }}
                 disabled={loading}
                 className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition text-slate-700 shadow-sm disabled:opacity-50"
               >
                 <ArrowLeft size={18}/> {t('voltar')}
-              </button>
-
-              <button
-                onClick={handleFinalizarPagamento}
-                disabled={loading || !cardComplete || (tipo === 'alojamento' && holdSegundos === 0)}
-                className="flex-1 max-w-md bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-md shadow-blue-200 py-3.5"
-              >
-                {loading ? (
-                  <Loader className="animate-spin" size={20} />
-                ) : (
-                  <>
-                    <Lock size={16} />
-                    {t('confirmar_reserva_concluir')}
-                    <ChevronRight size={18}/>
-                  </>
-                )}
               </button>
             </div>
           </div>

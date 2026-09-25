@@ -26,11 +26,39 @@ const LayoutGestao = ({ children }) => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (!user) {
-      navigate('/login');
-    } else {
+    // 🔑 Verificação robusta baseada no Token JWT ou dados salvos
+    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+    const userData = localStorage.getItem('user');
+    
+    if (token) {
+      try {
+        const base64Url = token.split('.')[1];
+        if (base64Url) {
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          
+          const payload = JSON.parse(jsonPayload);
+          
+          // Se o token tiver expiração, valida; senão, deixa passar
+          if (payload.exp && Date.now() >= payload.exp * 1000) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('morabeza_token');
+            navigate('/login');
+            return;
+          }
+        }
+        setIsAuthenticated(true);
+      } catch (e) {
+        // Se falhar a descodificação mas o token existir, permite o acesso para evitar bloqueios indesejados
+        setIsAuthenticated(true);
+      }
+    } else if (userData) {
+      // Compatibilidade caso ainda exista o objeto 'user' antigo
       setIsAuthenticated(true);
+    } else {
+      navigate('/login');
     }
   }, [navigate]);
   

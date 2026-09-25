@@ -8,13 +8,41 @@ import MeusCarros from './MeusCarros';
 import EditarCarro from './EditarCarro';
 import InfoCarro from './InfoCarro';
 
-// Layout com verificação de login SIMPLES E DIRETA
+// Função auxiliar robusta para verificar autenticação (JWT + LocalStorage)
+const verificarAutenticacao = () => {
+  try {
+    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+    if (token) {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const parsed = JSON.parse(jsonPayload);
+      const userData = parsed.data || parsed;
+      if (userData?.id) return true;
+    }
+
+    const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+    for (const chave of chaves) {
+      const raw = localStorage.getItem(chave);
+      if (raw) {
+        const user = JSON.parse(raw);
+        if (user?.id || user?.sub || user?.user_id) return true;
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao verificar autenticação no router:', e);
+  }
+  return false;
+};
+
+// Layout com verificação de login segura
 const LayoutRegisto = ({ children }) => {
-  // Verifica se tem usuário logado
-  const user = localStorage.getItem('user');
+  const estaAutenticado = verificarAutenticacao();
   
-  // Se não tiver usuário, manda pro login na hora
-  if (!user) {
+  // Se não estiver autenticado de nenhuma forma, manda pro login
+  if (!estaAutenticado) {
     return <Navigate to="/login" replace />;
   }
   

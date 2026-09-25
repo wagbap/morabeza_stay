@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
-import { Loader2, LayoutGrid, List, Info, ChevronDown } from 'lucide-react';
+import { Loader2, LayoutGrid, List, Info } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 import CarrosHero from './CarrosHero';
@@ -18,23 +18,11 @@ const Carros = () => {
   const [carrosFiltrados, setCarrosFiltrados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
-  const [ordenar, setOrdenar] = useState('recomendados');
-  const [dropdownAberto, setDropdownAberto] = useState(false);
 
   // Estados de Filtro
   const [orcamento, setOrcamento] = useState(30000); 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
   const [filtroBusca, setFiltroBusca] = useState(queryParams.get('search') || '');
-
-  // Opções de ordenação
-  const opcoesOrdenar = [
-    { value: 'recomendados', label: 'Recomendados' },
-    { value: 'preco_asc', label: 'Preço mais baixo' },
-    { value: 'preco_desc', label: 'Preço mais alto' },
-    { value: 'avaliacao', label: 'Melhor avaliação' },
-  ];
-
-  const labelOrdenarAtual = opcoesOrdenar.find(o => o.value === ordenar)?.label || 'Recomendados';
 
   // Busca na API
   const buscarDados = async (queryString = '') => {
@@ -61,27 +49,19 @@ const Carros = () => {
     buscarDados();
   }, []);
 
-  // Fechar dropdown ao clicar fora
-  useEffect(() => {
-    const fechar = (e) => {
-      if (!e.target.closest('[data-dropdown-ordernar-car]')) {
-        setDropdownAberto(false);
-      }
-    };
-    document.addEventListener('mousedown', fechar);
-    return () => document.removeEventListener('mousedown', fechar);
-  }, []);
-
   // Lógica de Filtragem Local corrigida
   useEffect(() => {
     const filtrados = carros.filter(carro => {
+      // 1. Filtro de Preço (Garante que compara números)
       const preco = Number(carro.preco_dia || carro.preco_diaria || 0);
       const atendePreco = preco <= orcamento;
       
+      // 2. Filtro por Categoria/Tipo
       const atendeCategoria = categoriasSelecionadas.length === 0 || 
                                categoriasSelecionadas.includes(carro.tipo) ||
                                categoriasSelecionadas.includes(carro.combustivel);
       
+      // 3. Filtro de Busca Texto
       const busca = filtroBusca.toLowerCase();
       const atendeBusca = !filtroBusca || 
                            carro.titulo?.toLowerCase().includes(busca) ||
@@ -93,20 +73,6 @@ const Carros = () => {
     setCarrosFiltrados(filtrados);
   }, [carros, orcamento, categoriasSelecionadas, filtroBusca]);
 
-  // Lógica de Ordenação
-  const carrosOrdenados = [...carrosFiltrados].sort((a, b) => {
-    if (ordenar === 'preco_asc') {
-      return Number(a.preco_dia || a.preco_diaria || 0) - Number(b.preco_dia || b.preco_diaria || 0);
-    }
-    if (ordenar === 'preco_desc') {
-      return Number(b.preco_dia || b.preco_diaria || 0) - Number(a.preco_dia || a.preco_diaria || 0);
-    }
-    if (ordenar === 'avaliacao') {
-      return Number(b.estrelas || 0) - Number(a.estrelas || 0);
-    }
-    return 0;
-  });
-
   const handleSearchBar = (queryString) => {
     const params = new URLSearchParams(queryString);
     setFiltroBusca(params.get('localizacao') || '');
@@ -117,7 +83,6 @@ const Carros = () => {
     setOrcamento(30000);
     setCategoriasSelecionadas([]);
     setFiltroBusca('');
-    setOrdenar('recomendados');
     buscarDados();
   };
 
@@ -144,54 +109,17 @@ const Carros = () => {
               setOrcamento={setOrcamento} 
               tiposSelecionados={categoriasSelecionadas}
               setTiposSelecionados={setCategoriasSelecionadas}
-              totalEncontrados={carrosOrdenados.length}
+              totalEncontrados={carrosFiltrados.length}
             />
           </aside>
 
           <div className="w-full lg:col-span-9">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
               <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter">
-                {filtroBusca || "Veículos"}: <span className="text-blue-600 text-4xl">{carrosOrdenados.length}</span> disponíveis
+                {filtroBusca || "Veículos"}: <span className="text-blue-600 text-4xl">{carrosFiltrados.length}</span> disponíveis
               </h1>
               
               <div className="flex items-center gap-2 bg-white p-1.5 rounded-full shadow-sm border border-gray-100">
-                
-                {/* DROPDOWN ORDENAR POR */}
-                <div className="relative" data-dropdown-ordernar-car>
-                  <button
-                    onClick={() => setDropdownAberto(!dropdownAberto)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition"
-                  >
-                    <span className="whitespace-nowrap">Ordenar por: {labelOrdenarAtual}</span>
-                    <ChevronDown size={14} className={`transition-transform ${dropdownAberto ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {dropdownAberto && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
-                      {opcoesOrdenar.map((opcao) => (
-                        <button
-                          key={opcao.value}
-                          onClick={() => {
-                            setOrdenar(opcao.value);
-                            setDropdownAberto(false);
-                          }}
-                          className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider transition ${
-                            ordenar === opcao.value
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          {opcao.label}
-                          {ordenar === opcao.value && (
-                            <span className="float-right text-blue-600">✓</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="w-px h-6 bg-gray-100 mx-1"></div>
                 <button 
                   onClick={() => setViewMode('grid')}
                   className={`p-3 rounded-full transition-all ${viewMode === 'grid' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:bg-gray-50'}`}
@@ -217,9 +145,9 @@ const Carros = () => {
                 ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8" 
                 : "flex flex-col gap-6"
               }>
-                {carrosOrdenados.length > 0 ? (
-                  carrosOrdenados.map(carro => (
-                    <CardCarro key={carro.id} carro={carro} />
+                {carrosFiltrados.length > 0 ? (
+                  carrosFiltrados.map(carro => (
+                    <CardCarro key={carro.id} carro={carro} isList={viewMode === 'list'} />
                   ))
                 ) : (
                   <div className="col-span-full py-24 text-center bg-white rounded-[40px] border-2 border-dashed border-gray-100 flex flex-col items-center gap-4">

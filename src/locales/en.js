@@ -949,6 +949,9 @@ preencha_dados_participantes: "Fill in the details for all participants.",
 clique_participante_adicionar: "Click on a participant to quickly add them to the current booking",
 ver_fotos: "See Pictures",
 enviar_whatsapp: "Send via WhatsApp",
+checkout_email_conta_existente: "An account with this email already exists. Sign in to continue.",
+erro_verificar_email: "We could not verify the email. Please try again.",
+erro_enviar_codigo: "We could not send the code. Please try again.",
 
   }
 };

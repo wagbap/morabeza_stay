@@ -957,6 +957,9 @@ preencha_dados_participantes: "Inserisci i dati per tutti i partecipanti.",
 // ==================== PARTECIPANTI ====================
 clique_participante_adicionar: "Clicca su un partecipante per aggiungerlo rapidamente alla prenotazione corrente",
 ver_fotos: "Visualizza le foto",
+checkout_email_conta_existente: "Esiste già un account con questa email. Accedi per continuare.",
+erro_verificar_email: "Non è stato possibile verificare l'email. Riprova.",
+erro_enviar_codigo: "Non è stato possibile inviare il codice. Riprova.",
 enviar_whatsapp: "Invia tramite WhatsApp",
   }
 };

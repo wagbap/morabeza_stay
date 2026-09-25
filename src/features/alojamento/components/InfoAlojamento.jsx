@@ -414,7 +414,7 @@ const HorariosCheckInOut = ({ alojamento }) => {
 
   const textoCheckIn =
     inicio && fim ? `${t('checkin') || 'Check-in'}: ${inicio} – ${fim}`
-    : inicio      ? `${t('checkin') || 'Check-in'}: ${t('a_partir_de') || 'a partir das'} ${inicio}`
+    : inicio     ? `${t('checkin') || 'Check-in'}: ${t('a_partir_de') || 'a partir das'} ${inicio}`
     : fim         ? `${t('checkin') || 'Check-in'}: ${t('ate') || 'até às'} ${fim}`
     : null;
 
@@ -452,9 +452,8 @@ const SidebarReserva = ({
   const [endDate, setEndDate] = useState(null);
   const [numHospedes, setNumHospedes] = useState(2);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [validandoStock, setValidandoStock] = useState(false);
 
-  // Capacidade total = soma(capacidade × quantidade) em modo quartos;
-  // em modo inteiro = capacidadeBase
   const capacidadeTotal = vendaPorQuarto
     ? Math.max(
         1,
@@ -504,7 +503,7 @@ const SidebarReserva = ({
       )
     : 0;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (vendaPorQuarto && !carrinhoQuartos.length) {
       showToast(t('selecione_quarto', 'Escolha pelo menos um tipo de quarto'), 'error');
       return;
@@ -514,9 +513,12 @@ const SidebarReserva = ({
       setShowCalendar(true);
       return;
     }
+
+    setValidandoStock(true);
     if (onContinueToCheckout) {
-      onContinueToCheckout({ startDate, endDate, numHospedes, noites, subtotal });
+      await onContinueToCheckout({ startDate, endDate, numHospedes, noites, subtotal });
     }
+    setValidandoStock(false);
   };
 
   const podeContinuar = vendaPorQuarto ? carrinhoQuartos.length > 0 : true;
@@ -589,7 +591,6 @@ const SidebarReserva = ({
           </div>
         </div>
 
-        {/* Lista de quartos escolhidos */}
         {carrinhoQuartos.length > 0 && (
           <div className="pt-3 border-t border-slate-100 space-y-2 mb-3">
             <p className="text-[10px] font-black text-blue-900 uppercase tracking-wider">
@@ -642,10 +643,17 @@ const SidebarReserva = ({
 
         <button
           onClick={handleContinue}
-          disabled={!podeContinuar}
-          className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl mb-4 mt-6 hover:bg-blue-950 transition-all shadow-lg text-sm active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!podeContinuar || validandoStock}
+          className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl mb-4 mt-6 hover:bg-blue-950 transition-all shadow-lg text-sm active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {t('continuar_para_reserva') || 'Continuar para reserva'}
+          {validandoStock ? (
+            <>
+              <Loader2 className="animate-spin" size={16} />
+              {t('verificando_disponibilidade', 'A verificar disponibilidade...')}
+            </>
+          ) : (
+            t('continuar_para_reserva') || 'Continuar para reserva'
+          )}
         </button>
 
         <div className="flex items-start gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
@@ -849,31 +857,19 @@ export const InfoAlojamento = () => {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [tiposQuarto, setTiposQuarto] = useState([]);
 
-  // ---------------------------------------------------------
-  // Multi-quarto
-  // ---------------------------------------------------------
-  const [quantidades, setQuantidades] = useState({}); // { [tipoId]: number }
+  const [quantidades, setQuantidades] = useState({});
   const [quartoSelecionado, setQuartoSelecionado] = useState(null);
   const [carrinhoDatas, setCarrinhoDatas] = useState({ checkIn: null, checkOut: null });
-  const [stocksPorTipo, setStocksPorTipo] = useState({}); // { [tipoId]: number | null }
+  const [stocksPorTipo, setStocksPorTipo] = useState({});
 
-  // ---------------------------------------------------------
-  // Deteção do modo de venda
-  // ---------------------------------------------------------
   const vendaPorQuarto = Array.isArray(tiposQuarto) && tiposQuarto.length > 0;
   const precoBase = Number(alojamento?.preco_noite || 0);
   const capacidadeBase = Number(alojamento?.capacidade || 2);
 
-  // ---------------------------------------------------------
-  // Scroll ao topo quando muda slug
-  // ---------------------------------------------------------
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [slug]);
 
-  // ---------------------------------------------------------
-  // Carregar utilizador logado
-  // ---------------------------------------------------------
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -881,9 +877,6 @@ export const InfoAlojamento = () => {
     }
   }, []);
 
-  // ---------------------------------------------------------
-  // Fetch alojamento
-  // ---------------------------------------------------------
   useEffect(() => {
     const fetchAlojamento = async () => {
       if (!slug) {
@@ -947,9 +940,6 @@ export const InfoAlojamento = () => {
     fetchAlojamento();
   }, [slug, t]);
 
-  // ---------------------------------------------------------
-  // Buscar stock quando datas mudam (só em modo quartos)
-  // ---------------------------------------------------------
   useEffect(() => {
     if (!vendaPorQuarto) return;
     if (!tiposQuarto.length || !carrinhoDatas.checkIn || !carrinhoDatas.checkOut) return;
@@ -987,19 +977,12 @@ export const InfoAlojamento = () => {
     return () => { cancelado = true; };
   }, [vendaPorQuarto, tiposQuarto, carrinhoDatas.checkIn, carrinhoDatas.checkOut]);
 
-  // ---------------------------------------------------------
-  // Tracking
-  // ---------------------------------------------------------
   const tracking = useAlojamentoTracking(alojamento?.id || null, usuarioLogado?.id || null);
   const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
   const registrarCliqueContato = tracking?.registrarCliqueContato || (() => {});
   const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
 
-  // ---------------------------------------------------------
-  // Carrinho derivado (modo quartos ou modo inteiro)
-  // ---------------------------------------------------------
   const carrinhoQuartos = useMemo(() => {
-    // ---------- MODO QUARTOS ----------
     if (vendaPorQuarto) {
       return Object.entries(quantidades)
         .filter(([_, qtd]) => qtd > 0)
@@ -1021,7 +1004,6 @@ export const InfoAlojamento = () => {
         .filter(Boolean);
     }
 
-    // ---------- MODO INTEIRO ----------
     if (!alojamento) return [];
     return [{
       tipoQuartoId: null,
@@ -1034,9 +1016,6 @@ export const InfoAlojamento = () => {
     }];
   }, [vendaPorQuarto, quantidades, tiposQuarto, alojamento, images, precoBase, capacidadeBase]);
 
-  // ---------------------------------------------------------
-  // Capacidade total
-  // ---------------------------------------------------------
   const capacidadeTotal = useMemo(() => {
     if (!vendaPorQuarto) return capacidadeBase;
     return carrinhoQuartos.reduce(
@@ -1045,42 +1024,46 @@ export const InfoAlojamento = () => {
     );
   }, [vendaPorQuarto, carrinhoQuartos, capacidadeBase]);
 
-  // ---------------------------------------------------------
-  // Handlers de quarto
-  // ---------------------------------------------------------
   const handleQuantidadeChange = useCallback((tipoId, novaQtd) => {
     setQuantidades(prev => ({ ...prev, [tipoId]: novaQtd }));
   }, []);
 
   const handleSelecaoQuarto = useCallback((idQuarto, titulo, novoPreco) => {
-    setQuartoSelecionado(idQuarto);
     setQuantidades(prev => {
       const atual = prev[idQuarto] || 0;
-      if (atual === 0) return { ...prev, [idQuarto]: 1 };
-      return prev;
+      if (atual > 0) {
+        return { ...prev, [idQuarto]: 0 };
+      }
+      return { ...prev, [idQuarto]: 1 };
     });
+    setQuartoSelecionado(prev => (prev === idQuarto ? null : idQuarto));
   }, []);
 
   const handleRemoverQuarto = useCallback((tipoId) => {
     setQuantidades(prev => ({ ...prev, [tipoId]: 0 }));
   }, []);
 
-  // ---------------------------------------------------------
-  // Continuar para checkout
-  // ---------------------------------------------------------
-  const handleContinueToCheckout = (reservaInfo) => {
+  // 🔥 VALIDAÇÃO PROFISSIONAL DE DISPONIBILIDADE ANTES DE ENTRAR NO CHECKOUT
+const handleContinueToCheckout = async (reservaInfo) => {
     registrarCliqueReserva();
-    const userLogado = localStorage.getItem('user');
-
-    if (!userLogado) {
-      showToast(t('login_necessario') || "Por favor, faça login primeiro.", 'error');
-      return;
-    }
-
     if (!alojamento) return;
 
-    if (vendaPorQuarto && !carrinhoQuartos.length) {
-      showToast(t('selecione_quarto', 'Escolha pelo menos um tipo de quarto'), 'error');
+    const checkInStr = reservaInfo.startDate.toISOString().split('T')[0];
+    const checkOutStr = reservaInfo.endDate.toISOString().split('T')[0];
+
+    try {
+      // Chama a nova API dedicada de verificação de disponibilidade
+const url = `${API_BASE}/api/verificar_disponibilidade.php?alojamento_id=${encodeURIComponent(alojamento.id)}&checkin=${encodeURIComponent(checkInStr)}&checkout=${encodeURIComponent(checkOutStr)}`;
+const res = await fetch(url, { method: 'GET' });
+      const data = await res.json();
+
+      if (data.success && data.disponivel === false) {
+        showToast(t('sem_stock_disponivel', 'Este alojamento não está disponível ou não tem registo para as datas selecionadas.'), 'error');
+        return; // Interrompe o fluxo e impede de avançar para o checkout!
+      }
+    } catch (err) {
+      console.error('Erro ao verificar disponibilidade:', err);
+      showToast(t('erro_verificar_disponibilidade', 'Erro ao verificar disponibilidade. Tente novamente.'), 'error');
       return;
     }
 
@@ -1092,8 +1075,8 @@ export const InfoAlojamento = () => {
       imagem: images[0] || alojamento.imagem_url,
       localizacao: alojamento.localizacao,
       ilha: alojamento.ilha || 'Cabo Verde',
-      checkIn: reservaInfo.startDate.toISOString().split('T')[0],
-      checkOut: reservaInfo.endDate.toISOString().split('T')[0],
+      checkIn: checkInStr,
+      checkOut: checkOutStr,
       hospedes: reservaInfo.numHospedes,
       capacidade: capacidadeTotal,
       noites: reservaInfo.noites,
@@ -1105,7 +1088,7 @@ export const InfoAlojamento = () => {
     };
 
     navigate('/checkout-alojamento', { state: { reservaData: dadosParaCheckout } });
-  };
+  };  
 
   const handleOpenLoginModal = () => {
     showToast(t('login_para_avaliar') || "Por favor, faça login para avaliar.", 'info');

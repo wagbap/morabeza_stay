@@ -19,6 +19,23 @@ import { modeloVendaPorTipo } from '../../utils/tipoAlojamento';
 
 const API_BASE = 'https://welovepalop.com';
 
+// Função para extrair o ID do utilizador do Token JWT de forma segura
+const obterUserIdDoToken = () => {
+  try {
+    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+    if (!token) return null;
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    const payload = JSON.parse(jsonPayload);
+    return payload.data?.id || null;
+  } catch (e) {
+    return null;
+  }
+};
+
 // ==================== TOAST INTERNO ====================
 const ToastContext = createContext(null);
 
@@ -223,15 +240,6 @@ const EditarAlojamentoContent = () => {
           };
         });
 
-        console.log(
-          '✅ Quartos com fotos cruzadas:',
-          quartosMapeados.map((q) => ({
-            id: q.id,
-            tipo_quarto_id: q.tipo_quarto_id,
-            totalFotos: q.fotos.length,
-          }))
-        );
-
         setQuartosSelecionados(quartosMapeados);
 
         const endereco = dados.localizacao || dados.endereco || '';
@@ -342,7 +350,6 @@ const EditarAlojamentoContent = () => {
       return;
     }
 
-    // Validação check-in / check-out
     if (informacoesBasicas.checkin_flexivel && !informacoesBasicas.checkin_flexivel_nota?.trim()) {
       showToast('Explique como o hóspede faz o check-in.', 'error');
       return;
@@ -430,7 +437,6 @@ const EditarAlojamentoContent = () => {
           };
         });
 
-      // Capacidade derivada dos quartos
       const capacidadeQuartos = quartosFormatados.reduce(
         (total, q) => total + ((q.capacidade_efetiva || q.capacidade || 2) * (q.quantidade || 1)),
         0
@@ -440,8 +446,11 @@ const EditarAlojamentoContent = () => {
         ? capacidadeQuartos || informacoesBasicas.capacidade || 2
         : parseInt(informacoesBasicas.capacidade) || 2;
 
+      // 🔥 Obter com segurança o ID do utilizador autenticado através do token JWT
+      const userIdAutenticado = obterUserIdDoToken();
+
       const dadosParaAPI = {
-        proprietario_id: 1,
+        proprietario_id: userIdAutenticado,
         titulo: informacoesBasicas.titulo,
         tipo_propriedade: informacoesBasicas.tipo_propriedade,
         tipo: informacoesBasicas.tipo_propriedade,
@@ -459,14 +468,8 @@ const EditarAlojamentoContent = () => {
         comodidades: comodidadesIds,
         regras_ids: regrasIds,
         regras_adicionais: regrasAdicionais,
-
-        // 🔑 MODELO DE VENDA
         modelo_venda: modeloVenda,
-
-        // 🔑 Quartos
         quartos: mostraQuartos ? quartosFormatados : [],
-
-        // 🔑 CHECK-IN / CHECK-OUT
         checkin_inicio: informacoesBasicas.checkin_flexivel
           ? null
           : informacoesBasicas.checkin_inicio || '14:00',
@@ -478,7 +481,6 @@ const EditarAlojamentoContent = () => {
         checkin_flexivel_nota: informacoesBasicas.checkin_flexivel
           ? informacoesBasicas.checkin_flexivel_nota || ''
           : null,
-
         imagens: imagensFormatadas,
       };
 

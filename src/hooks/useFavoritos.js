@@ -13,16 +13,38 @@ export const useFavoritos = () => {
   const [loading, setLoading] = useState(false);
   const [totalFavoritos, setTotalFavoritos] = useState(0);
 
-  // Carregar usuário
+  // Obter ID/Utilizador de forma segura (JWT ou LocalStorage)
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-      } catch (e) {
-        console.error('Erro ao carregar usuário:', e);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id) {
+          setUser(userData);
+          return;
+        }
       }
+
+      // Fallback para as chaves tradicionais no LocalStorage
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const savedUser = localStorage.getItem(chave);
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          if (userData) {
+            setUser(userData);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao carregar usuário:', e);
     }
   }, []);
 
@@ -87,7 +109,6 @@ export const useFavoritos = () => {
         const total = novosFavoritos.alojamentos.length + novosFavoritos.carros.length + novosFavoritos.experiencias.length;
         setTotalFavoritos(total);
         
-        // Disparar evento para atualizar outros componentes
         window.dispatchEvent(new CustomEvent('favoritosAtualizados', { detail: { total } }));
       } else {
         setTotalFavoritos(0);
@@ -99,14 +120,12 @@ export const useFavoritos = () => {
     }
   }, [user?.email, user?.id]);
 
-  // Carregar quando usuário mudar
   useEffect(() => {
     if (user?.email || user?.id) {
       carregarFavoritos();
     }
   }, [user?.email, user?.id, carregarFavoritos]);
 
-  // Verificar se um item está nos favoritos
   const isFavorito = (tipo, itemId) => {
     const tipoMap = {
       'alojamento': 'alojamentos',
@@ -118,7 +137,6 @@ export const useFavoritos = () => {
     return lista.some(item => item.id === itemId);
   };
 
-  // Adicionar favorito
   const adicionarFavorito = async (tipo, item) => {
     if (!user?.email && !user?.id) {
       alert('🔐 Faça login para adicionar aos favoritos');
@@ -158,7 +176,7 @@ export const useFavoritos = () => {
       const result = await response.json();
       
       if (result.success) {
-        await carregarFavoritos(); // Recarregar para garantir consistência
+        await carregarFavoritos();
         return true;
       } else {
         alert(result.error || 'Erro ao adicionar favorito');
@@ -173,7 +191,6 @@ export const useFavoritos = () => {
     }
   };
 
-  // Remover favorito
   const removeFavorito = async (tipo, itemId) => {
     if (!user?.email && !user?.id) return false;
     
@@ -198,7 +215,7 @@ export const useFavoritos = () => {
       const result = await response.json();
       
       if (result.success) {
-        await carregarFavoritos(); // Recarregar para garantir consistência
+        await carregarFavoritos();
         return true;
       } else {
         alert(result.error || 'Erro ao remover favorito');
@@ -213,7 +230,6 @@ export const useFavoritos = () => {
     }
   };
 
-  // Toggle favorito
   const toggleFavorito = async (tipo, item) => {
     if (isFavorito(tipo, item.id)) {
       return await removeFavorito(tipo, item.id);

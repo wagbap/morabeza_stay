@@ -1,3 +1,4 @@
+// src/components/gest/Financeiro.jsx
 import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronDown, ArrowUpRight, Loader2, Home, Car, Compass, Award, TrendingUp, MousePointer } from 'lucide-react';
 
@@ -21,21 +22,43 @@ export default function Financeiro() {
     }
   });
 
-  // Buscar roles e dados do usuário
+  // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
+  const obterUserId = () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        if (parsed.data?.id) return parsed.data.id;
+        if (parsed.id) return parsed.id;
+      }
+      const savedUser = localStorage.getItem('morabeza_user') || localStorage.getItem('user');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        return user.id;
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID:', e);
+    }
+    return null;
+  };
+
   useEffect(() => {
     const fetchAllData = async () => {
       setLoading(true);
       try {
-        const savedUser = localStorage.getItem('user');
-        if (!savedUser) {
+        const userId = obterUserId();
+        if (!userId) {
           setLoading(false);
           return;
         }
         
-        const user = JSON.parse(savedUser);
-        
         // Buscar roles
-        const rolesResponse = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${user.id}`);
+        const rolesResponse = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
         const rolesData = await rolesResponse.json();
         
         let isAnfitrion = false;
@@ -55,16 +78,14 @@ export default function Financeiro() {
         }
         
         // Buscar estatísticas
-        const statsResponse = await fetch(`https://welovepalop.com/api/dashboard/estatisticas.php?usuario_id=${user.id}`);
+        const statsResponse = await fetch(`https://welovepalop.com/api/dashboard/estatisticas.php?usuario_id=${userId}`);
         const statsData = await statsResponse.json();
         
         if (statsData.success && statsData.data) {
           const alojamentos = statsData.data.alojamentos || {};
           const carros = statsData.data.carros || {};
           const experiencias = statsData.data.experiencias || {};
-          const totais = statsData.data.totais || {};
           
-          // Calcular receita (apenas para tipos que o usuário tem role)
           let receitaAlojamentos = 0;
           let receitaCarros = 0;
           let receitaExperiencias = 0;
@@ -130,7 +151,6 @@ export default function Financeiro() {
     fetchAllData();
   }, []);
 
-  // Verificar se tem pelo menos uma role aprovada
   const hasAnyRole = userRoles.anfitrion || userRoles.guia || userRoles.proprietarioVeiculos;
 
   if (loading) {
@@ -141,7 +161,6 @@ export default function Financeiro() {
     );
   }
 
-  // Se não tem nenhuma role aprovada
   if (!hasAnyRole) {
     return (
       <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
@@ -152,22 +171,19 @@ export default function Financeiro() {
           <h2 className="text-xl font-bold text-gray-800 mb-2">Acesso Restrito</h2>
           <p className="text-gray-500 max-w-md mx-auto">
             Você não tem permissão para aceder à área financeira.
-            É necessário ter uma das seguintes funções aprovadas:
-            Anfitrião, Guia de Experiências ou Proprietário de Veículos.
+            É necessário ter uma das seguintes funções aprovadas: Anfitrião, Guia de Experiências ou Proprietário de Veículos.
           </p>
         </div>
       </div>
     );
   }
 
-  // Calcular totais para o gráfico
   const totalAnuncios = dadosFinanceiros.desempenhoPorTipo.alojamentos.total + 
                         dadosFinanceiros.desempenhoPorTipo.carros.total + 
                         dadosFinanceiros.desempenhoPorTipo.experiencias.total;
   
   const percAlojamentos = totalAnuncios > 0 ? (dadosFinanceiros.desempenhoPorTipo.alojamentos.total / totalAnuncios * 100) : 0;
   const percCarros = totalAnuncios > 0 ? (dadosFinanceiros.desempenhoPorTipo.carros.total / totalAnuncios * 100) : 0;
-  const percExperiencias = totalAnuncios > 0 ? (dadosFinanceiros.desempenhoPorTipo.experiencias.total / totalAnuncios * 100) : 0;
   
   const getConicGradient = () => {
     let gradient = '';
@@ -187,7 +203,6 @@ export default function Financeiro() {
 
   return (
     <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
-      {/* Cards de Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
         <MetricCard 
           title="Cliques em Reserva" 
@@ -207,7 +222,6 @@ export default function Financeiro() {
         />
       </div>
 
-      {/* Desempenho por Tipo */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
         <h3 className="text-[15px] font-bold mb-6">Desempenho por Tipo</h3>
         
@@ -241,7 +255,6 @@ export default function Financeiro() {
         </div>
       </div>
 
-      {/* Gráfico de Pizza */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mt-6">
         <h3 className="text-[15px] font-bold mb-6">Distribuição de Anúncios</h3>
         <div className="flex flex-col md:flex-row items-center justify-center gap-8">

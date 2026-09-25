@@ -145,47 +145,76 @@ export default function Configuracoes() {
   const fetchUserData = async () => {
     setLoading(true);
     try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) {
+      // 🔑 Ler o token JWT do localStorage
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (!token) {
+        setLoading(false);
+        navigate('/login');
+        return;
+      }
+
+      // Decodificar o payload do token JWT
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      
+      const payload = JSON.parse(jsonPayload);
+      const userFromToken = payload.data || payload;
+
+      if (!userFromToken || !userFromToken.id) {
         setLoading(false);
         return;
       }
-      const user = JSON.parse(savedUser);
 
-      const response = await fetch(`${API_URL}/usuarios/buscar.php?usuario_id=${user.id}`);
+      // 🌟 Captação ultra-robusta da foto do Gmail/Google/Token em qualquer chave possível
+      const fotoDoToken = 
+        userFromToken.foto || 
+        userFromToken.picture || 
+        userFromToken.avatar || 
+        userFromToken.image || 
+        userFromToken.user_metadata?.avatar_url || '';
+
+      // Buscar dados atualizados da base de dados usando o ID do token
+      const response = await fetch(`${API_URL}/usuarios/buscar.php?usuario_id=${userFromToken.id}`);
       const data = await response.json();
 
       if (data.success && data.data) {
         const userData = data.data;
+        const fotoFinal = userData.foto || userData.picture || userData.avatar || fotoDoToken;
 
-        const fotoFinal =
-          userData.foto ||
-          user.foto ||
-          user.picture ||
-          '';
-
-        setUsuarioLogado({
+        const utilizadorCompleto = {
           ...userData,
           foto: fotoFinal,
-        });
+          picture: fotoFinal
+        };
+
+        setUsuarioLogado(utilizadorCompleto);
 
         setFormData({
-          nome: userData.nome || '',
-          nome_exibicao: userData.nome_exibicao || userData.nome || '',
-          email: userData.email || '',
-          telefone: userData.phone || '',
+          nome: userData.nome || userFromToken.nome || userFromToken.name || '',
+          nome_exibicao: userData.nome_exibicao || userData.nome || userFromToken.name || '',
+          email: userData.email || userFromToken.email || '',
+          telefone: userData.phone || userFromToken.phone || '',
           foto: fotoFinal,
         });
 
         setEmailVerificado(userData.email_verificado == 1 || userData.email_verificado === true);
       } else {
-        setUsuarioLogado(user);
+        const utilizadorCompleto = {
+          ...userFromToken,
+          foto: fotoDoToken,
+          picture: fotoDoToken
+        };
+
+        setUsuarioLogado(utilizadorCompleto);
         setFormData({
-          nome: user.nome || user.name || '',
-          nome_exibicao: user.nome || user.name || '',
-          email: user.email || '',
-          telefone: user.phone || '',
-          foto: user.foto || user.picture || '',
+          nome: userFromToken.nome || userFromToken.name || '',
+          nome_exibicao: userFromToken.nome || userFromToken.name || '',
+          email: userFromToken.email || '',
+          telefone: userFromToken.phone || '',
+          foto: fotoDoToken,
         });
       }
     } catch (error) {
@@ -241,7 +270,7 @@ export default function Configuracoes() {
         setMessage({ type: 'success', text: data.message });
 
         setFormData((f) => ({ ...f, foto: data.foto }));
-        setUsuarioLogado((u) => ({ ...u, foto: data.foto }));
+        setUsuarioLogado((u) => ({ ...u, foto: data.foto, picture: data.foto }));
 
         const saved = JSON.parse(localStorage.getItem('user') || '{}');
         saved.foto = data.foto;
@@ -249,6 +278,7 @@ export default function Configuracoes() {
         localStorage.setItem('user', JSON.stringify(saved));
 
         window.dispatchEvent(new Event('userUpdated'));
+        window.dispatchEvent(new Event('utilizadorAtualizado'));
 
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       } else {
@@ -519,6 +549,7 @@ export default function Configuracoes() {
         setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
 
         window.dispatchEvent(new Event('userUpdated'));
+        window.dispatchEvent(new Event('utilizadorAtualizado'));
 
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       } else {
@@ -1517,7 +1548,7 @@ export default function Configuracoes() {
                       <Shield size={14} /> Porque pedimos isto?
                     </h4>
                     <ul className="text-xs text-blue-800 space-y-1">
-                      <li>• É para onde enviamos os teus 80% de cada reserva.</li>
+                      <li>• É para onde enviamos os teus 90% de cada reserva.</li>
                       <li>• O IBAN fica guardado de forma protegida.</li>
                       <li>• Só a Morabeza Stay e tu têm acesso.</li>
                       <li>• Não partilhamos com ninguém.</li>

@@ -58,7 +58,7 @@ const Footer = () => {
             <div className="w-6 h-0.5 bg-emerald-500 mb-6"></div>
 
             <ul className="space-y-3 text-xs text-gray-600 font-medium">
-              <li><Link to="/sobre-nos" className="hover:text-blue-600 transition-colors">{t('footer_about', 'Sobre Nós')}</Link></li>
+              <li><Link to="/sobre-nos" className="hover:text-blue-600 transition-colors">{t('sobre_titulo', 'Sobre Nós')}</Link></li>
               <li><Link to="/contactos" className="hover:text-blue-600 transition-colors">{t('footer_contacts', 'Contactos')}</Link></li>
               <li><Link to="/privacidade" className="hover:text-blue-600 transition-colors">{t('footer_privacy', 'Política de Privacidade')}</Link></li>
               <li><Link to="/termos" className="hover:text-blue-600 transition-colors">{t('footer_terms', 'Termos e Condições')}</Link></li>

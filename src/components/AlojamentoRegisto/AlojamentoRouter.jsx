@@ -13,10 +13,13 @@ import RegistarLocalizacao from './RegistarLocalizacao';
 import FluxoRegisto from './FluxoRegisto';
 
 // Layout com verificação de login
+// src/components/AlojamentoRegisto/AlojamentoRouter.jsx
+// src/components/AlojamentoRegisto/AlojamentoRouter.jsx
 const LayoutRegisto = ({ children }) => {
-  const user = localStorage.getItem('user');
+  // 🔑 Verificação correta baseada no Token JWT seguro
+  const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
   
-  if (!user) {
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
   

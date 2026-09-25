@@ -13,17 +13,41 @@ export const useFavoritosDB = () => {
     experiencias: new Set()
   });
 
-  // Obter utilizador logado
+  // Obter utilizador logado de forma segura (JWT ou LocalStorage)
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        console.log('👤 Usuário logado:', userData);
-        setUser(userData);
-      } catch (e) {
-        console.error('Erro ao carregar usuário:', e);
+    try {
+      // 1. Tentar extrair do Token JWT
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        const userData = parsed.data || parsed;
+        if (userData?.id || userData?.email) {
+          console.log('👤 Usuário logado via JWT:', userData);
+          setUser(userData);
+          return;
+        }
       }
+
+      // 2. Tentar pelas chaves tradicionais no LocalStorage
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
+      for (const chave of chaves) {
+        const savedUser = localStorage.getItem(chave);
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          if (userData?.id || userData?.email) {
+            console.log('👤 Usuário logado via LocalStorage:', userData);
+            setUser(userData);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao carregar usuário:', e);
     }
   }, []);
 
@@ -36,8 +60,13 @@ export const useFavoritosDB = () => {
     
     setLoading(true);
     try {
-      // Usar email para buscar o usuário_id no backend
-      const url = `${API_URL}?action=listar&email=${encodeURIComponent(user.email)}`;
+      let url = `${API_URL}?action=listar`;
+      if (user?.email) {
+        url += `&email=${encodeURIComponent(user.email)}`;
+      } else if (user?.id) {
+        url += `&usuario_id=${user.id}`;
+      }
+      
       console.log('📡 Buscando favoritos:', url);
       
       const response = await fetch(url);
@@ -45,7 +74,7 @@ export const useFavoritosDB = () => {
       
       console.log('📦 Resposta da API:', result);
       
-      if (result.success) {
+      if (result.success && result.data) {
         setFavoritos(result.data);
         
         const novosIds = {
@@ -55,12 +84,12 @@ export const useFavoritosDB = () => {
         };
         
         result.data.forEach(item => {
-          if (item.tipo === 'alojamento') {
-            novosIds.alojamentos.add(item.item_id);
-          } else if (item.tipo === 'carro') {
-            novosIds.carros.add(item.item_id);
-          } else if (item.tipo === 'experiencia') {
-            novosIds.experiencias.add(item.item_id);
+          if (item.tipo === 'alojamento' || item.tipo === 'alojamentos') {
+            novosIds.alojamentos.add(Number(item.item_id));
+          } else if (item.tipo === 'carro' || item.tipo === 'carros') {
+            novosIds.carros.add(Number(item.item_id));
+          } else if (item.tipo === 'experiencia' || item.tipo === 'experiencias') {
+            novosIds.experiencias.add(Number(item.item_id));
           }
         });
         
@@ -75,35 +104,44 @@ export const useFavoritosDB = () => {
   }, [user?.email, user?.id]);
 
   useEffect(() => {
-    if (user?.email) {
+    if (user?.email || user?.id) {
       carregarFavoritos();
     }
-  }, [user?.email, carregarFavoritos]);
+  }, [user?.email, user?.id, carregarFavoritos]);
 
   const isFavorito = (tipo, itemId) => {
     const tipoMap = {
+      'alojamento': 'alojamentos',
       'alojamentos': 'alojamentos',
+      'carro': 'carros',
       'carros': 'carros', 
+      'experiencia': 'experiencias',
       'experiencias': 'experiencias'
     };
     const key = tipoMap[tipo] || tipo;
-    const result = favoritosIds[key]?.has(itemId) || false;
-    console.log(`🔍 isFavorito(${tipo}, ${itemId}): ${result}`);
+    const result = favoritosIds[key]?.has(Number(itemId)) || false;
     return result;
   };
 
   const adicionarFavorito = async (tipo, item) => {
-    if (!user?.email) {
+    if (!user?.email && !user?.id) {
       alert('🔐 Faça login para adicionar aos favoritos');
       return false;
     }
     
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}?action=adicionar&email=${encodeURIComponent(user.email)}`, {
+      let url = `${API_URL}?action=adicionar`;
+      if (user?.email) {
+        url += `&email=${encodeURIComponent(user.email)}`;
+      } else if (user?.id) {
+        url += `&usuario_id=${user.id}`;
+      }
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo, item_id: item.id })
+        body: JSON.stringify({ tipo, item_id: Number(item.id) })
       });
       
       const result = await response.json();
@@ -113,7 +151,7 @@ export const useFavoritosDB = () => {
         await carregarFavoritos();
         return true;
       } else {
-        alert(result.error);
+        alert(result.error || 'Erro ao adicionar favorito');
         return false;
       }
     } catch (error) {
@@ -126,12 +164,21 @@ export const useFavoritosDB = () => {
   };
 
   const removerFavorito = async (tipo, itemId) => {
-    if (!user?.email) return false;
+    if (!user?.email && !user?.id) return false;
     
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}?action=remover&email=${encodeURIComponent(user.email)}&tipo=${tipo}&item_id=${itemId}`, {
-        method: 'DELETE'
+      let url = `${API_URL}?action=remover`;
+      if (user?.email) {
+        url += `&email=${encodeURIComponent(user.email)}`;
+      } else if (user?.id) {
+        url += `&usuario_id=${user.id}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, item_id: Number(itemId) })
       });
       
       const result = await response.json();
@@ -151,8 +198,8 @@ export const useFavoritosDB = () => {
   };
 
   const toggleFavorito = async (tipo, item) => {
-    if (!user?.email) {
-      alert('🔐 Faça login para adicionar aos favoritos');
+    if (!user?.email && !user?.id) {
+      alert('🔐 Faça login para gerir favoritos');
       return false;
     }
     
@@ -176,7 +223,7 @@ export const useFavoritosDB = () => {
     toggleFavorito,
     loading,
     user,
-    isLoggedIn: !!user,
+    isLoggedIn: !!(user?.email || user?.id),
     recarregar: carregarFavoritos
   };
 };

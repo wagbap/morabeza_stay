@@ -1,7 +1,9 @@
 // components/admin/AdminLogin.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, Loader2, Shield, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -10,33 +12,6 @@ const AdminLogin = () => {
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  // Se já existir sessão válida, redireciona direto para o dashboard
-  useEffect(() => {
-    const verificarSessao = async () => {
-      try {
-        const res = await fetch('/api/admin/me.php', {
-          method: 'GET',
-          credentials: 'include',
-          headers: { Accept: 'application/json' },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.success) {
-            navigate('/admin/dashboard', { replace: true });
-          }
-        } else {
-          // Sessão inválida → limpar resíduos antigos
-          localStorage.removeItem('morabeza_admin');
-        }
-      } catch {
-        // silencioso — o utilizador continua no login
-      }
-    };
-
-    verificarSessao();
-  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -57,47 +32,51 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin/login.php', {
+      const response = await fetch(`https://welovepalop.com/api/admin/login.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Accept: 'application/json',
+          'Accept': 'application/json',
         },
-        credentials: 'include', // essencial para receber o cookie de sessão
-        body: JSON.stringify({ email: emailLimpo, senha }),
+        body: JSON.stringify({
+          email: emailLimpo,
+          senha,
+        }),
       });
 
-      // Bloqueio por tentativas repetidas
       if (response.status === 429) {
         setErro('Demasiadas tentativas. Tenta novamente em 15 minutos.');
         return;
       }
 
-      // Erros HTTP genéricos
-      if (!response.ok && response.status !== 401 && response.status !== 403) {
-        setErro('Erro de ligação ao servidor. Tenta novamente.');
+      // Lê como texto primeiro para não explodir se vier HTML
+      const raw = await response.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        console.error('Resposta não-JSON do servidor:', raw.slice(0, 200));
+        setErro('Resposta inválida do servidor. Verifica a API.');
         return;
       }
-
-      const data = await response.json();
 
       if (!data?.success) {
         setErro(data?.message || 'Email ou palavra-passe incorretos.');
         return;
       }
 
-      // Verificação dupla de permissões no cliente (o servidor já validou)
       const isAdmin =
         data.user?.role === 'admin' ||
+        data.user?.tipo === 'admin' ||
         data.user?.isAdmin === true ||
-        (Array.isArray(data.user?.roles) && data.user.roles.includes('admin'));
+        (Array.isArray(data.user?.roles) && data.user.roles.includes('admin')) ||
+        data.user?.email === 'admin@morabezastay.com';
 
       if (!isAdmin) {
-        setErro('Acesso negado: não tens permissões de administrador.');
+        setErro('Acesso negado: Não tens permissões de administrador.');
         return;
       }
 
-      // Guardar apenas dados de UI (NUNCA token)
       const adminData = {
         id: data.user.id,
         nome: data.user.nome || data.user.name || 'Admin',
@@ -109,12 +88,12 @@ const AdminLogin = () => {
           `https://ui-avatars.com/api/?name=${encodeURIComponent(
             data.user.nome || 'Admin'
           )}&background=003580&color=fff`,
-        expires_at: data.expires_at || null,
+        token: data.token || null,
       };
 
       localStorage.setItem('morabeza_admin', JSON.stringify(adminData));
 
-      navigate('/admin/dashboard', { replace: true });
+      navigate('/admin/dashboard');
     } catch (error) {
       console.error('Erro no login:', error);
       setErro('Erro de ligação ao servidor. Tenta novamente.');
@@ -137,7 +116,7 @@ const AdminLogin = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-[#003580]/80 to-[#001a40]/90 backdrop-blur-sm"></div>
 
       <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-md px-4">
-        {/* Card */}
+        {/* Glassmorphism Card */}
         <div className="w-full p-8 bg-white/10 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl">
           <div className="flex flex-col items-center mb-6">
             <div className="bg-white/20 p-4 rounded-full mb-3 shadow-inner backdrop-blur-sm">
@@ -157,47 +136,51 @@ const AdminLogin = () => {
           )}
 
           <form onSubmit={handleLogin} className="space-y-6" noValidate>
-            <div className="relative">
-              <Mail
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70"
-                size={20}
-              />
-              <input
-                type="email"
-                placeholder="Email do Administrador"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/20 border border-white/30 text-white placeholder-white/60 rounded-xl px-10 py-3 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
-                required
-                autoComplete="email"
-                disabled={loading}
-              />
+            <div>
+              <div className="relative">
+                <Mail
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70"
+                  size={20}
+                />
+                <input
+                  type="email"
+                  placeholder="Email do Administrador"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white/20 border border-white/30 text-white placeholder-white/60 rounded-xl px-10 py-3 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+                  required
+                  autoComplete="email"
+                  disabled={loading}
+                />
+              </div>
             </div>
 
-            <div className="relative">
-              <Lock
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70"
-                size={20}
-              />
-              <input
-                type={mostrarSenha ? 'text' : 'password'}
-                placeholder="Palavra-passe"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="w-full bg-white/20 border border-white/30 text-white placeholder-white/60 rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
-                required
-                autoComplete="current-password"
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={() => setMostrarSenha((v) => !v)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white transition-colors"
-                aria-label={mostrarSenha ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'}
-                tabIndex={-1}
-              >
-                {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+            <div>
+              <div className="relative">
+                <Lock
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70"
+                  size={20}
+                />
+                <input
+                  type={mostrarSenha ? 'text' : 'password'}
+                  placeholder="Palavra-passe"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  className="w-full bg-white/20 border border-white/30 text-white placeholder-white/60 rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+                  required
+                  autoComplete="current-password"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenha((v) => !v)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/70 hover:text-white transition-colors"
+                  aria-label={mostrarSenha ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'}
+                  tabIndex={-1}
+                >
+                  {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button

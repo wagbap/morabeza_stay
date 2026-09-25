@@ -1,3 +1,4 @@
+// src/components/gest/Relatorios.jsx
 import React, { useState, useEffect } from 'react';
 import { Loader2, Home, Car, Compass, Award, TrendingUp, DollarSign, Percent } from 'lucide-react';
 
@@ -20,6 +21,31 @@ export default function Relatorios() {
     }
   });
 
+  // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
+  const obterUserId = () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        if (parsed.data?.id) return parsed.data.id;
+        if (parsed.id) return parsed.id;
+      }
+      const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        return user.id;
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID:', e);
+    }
+    return null;
+  };
+
   useEffect(() => {
     fetchRelatorios();
   }, []);
@@ -27,16 +53,14 @@ export default function Relatorios() {
   const fetchRelatorios = async () => {
     setLoading(true);
     try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) {
+      const userId = obterUserId();
+      if (!userId) {
         setLoading(false);
         return;
       }
       
-      const user = JSON.parse(savedUser);
-      
       // Buscar roles do usuário
-      const rolesResponse = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${user.id}`);
+      const rolesResponse = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
       const rolesData = await rolesResponse.json();
       
       let isAnfitrion = false;
@@ -56,7 +80,7 @@ export default function Relatorios() {
       }
       
       // Buscar estatísticas
-      const statsResponse = await fetch(`https://welovepalop.com/api/dashboard/estatisticas.php?usuario_id=${user.id}`);
+      const statsResponse = await fetch(`https://welovepalop.com/api/dashboard/estatisticas.php?usuario_id=${userId}`);
       const statsData = await statsResponse.json();
       
       let totalRecebido = 0;
@@ -128,7 +152,6 @@ export default function Relatorios() {
     }
   };
 
-  // Verificar se tem pelo menos uma role aprovada
   const hasAnyRole = userRoles.anfitrion || userRoles.guia || userRoles.proprietarioVeiculos;
 
   if (loading) {
@@ -139,7 +162,6 @@ export default function Relatorios() {
     );
   }
 
-  // Se não tem nenhuma role aprovada
   if (!hasAnyRole) {
     return (
       <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
@@ -150,8 +172,7 @@ export default function Relatorios() {
           <h2 className="text-xl font-bold text-gray-800 mb-2">Acesso Restrito</h2>
           <p className="text-gray-500 max-w-md mx-auto">
             Você não tem permissão para aceder aos relatórios financeiros.
-            É necessário ter uma das seguintes funções aprovadas:
-            Anfitrião, Guia de Experiências ou Proprietário de Veículos.
+            É necessário ter uma das seguintes funções aprovadas: Anfitrião, Guia de Experiências ou Proprietário de Veículos.
           </p>
         </div>
       </div>
@@ -163,7 +184,6 @@ export default function Relatorios() {
       <h1 className="text-[24px] font-bold mb-6">Resumo Financeiro</h1>
 
       <div className="space-y-10">
-        {/* Cards de Saldo */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <ResumoCard 
             title="Total Recebido (Bruto)" 
@@ -191,7 +211,6 @@ export default function Relatorios() {
           />
         </div>
 
-        {/* Detalhamento por Tipo */}
         <div>
           <h2 className="text-[16px] font-bold mb-4">Detalhamento por Tipo de Anúncio</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -225,7 +244,6 @@ export default function Relatorios() {
           </div>
         </div>
 
-        {/* Tabela de Detalhamento */}
         <div>
           <h2 className="text-[16px] font-bold mb-4">Detalhamento Financeiro</h2>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -256,7 +274,6 @@ export default function Relatorios() {
           </div>
         </div>
 
-        {/* Informação da Comissão */}
         <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">

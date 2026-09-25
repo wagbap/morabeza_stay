@@ -1,3 +1,4 @@
+// src/components/gest/Reservas.jsx
 import React, { useState, useEffect } from 'react';
 import { Eye, RefreshCw, Home, Car, Compass, CheckCircle, XCircle, AlertCircle, PauseCircle, Trash2, DollarSign } from 'lucide-react';
 import ReembolsoModal from './ReembolsoModal';
@@ -43,14 +44,38 @@ export default function Reservas() {
   const fetchReservas = async () => {
     setLoading(true);
     try {
-      const savedUser = localStorage.getItem('morabeza_user') || localStorage.getItem('user');
-      if (!savedUser) {
+      // 🔑 Obter ID de forma segura através do Token JWT ou chaves locais
+      let userId = null;
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      
+      if (token) {
+        try {
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          const parsed = JSON.parse(jsonPayload);
+          userId = parsed.data?.id || parsed.id;
+        } catch (e) {
+          console.error('Erro ao ler token:', e);
+        }
+      }
+
+      if (!userId) {
+        const savedUser = localStorage.getItem('morabeza_user') || localStorage.getItem('user');
+        if (savedUser) {
+          const userObj = JSON.parse(savedUser);
+          userId = userObj.id;
+        }
+      }
+
+      if (!userId) {
         setLoading(false);
         return;
       }
       
-      const user = JSON.parse(savedUser);
-      const response = await fetch(`https://welovepalop.com/api/dashboard/reservas_recentes.php?usuario_id=${user.id}`);
+      const response = await fetch(`https://welovepalop.com/api/dashboard/reservas_recentes.php?usuario_id=${userId}`);
       const data = await response.json();
       
       if (data.success && data.data?.reservas) {

@@ -1,3 +1,4 @@
+// src/components/gest/Mensagens.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, MoreHorizontal, Paperclip, Send, ChevronLeft, Search, X } from 'lucide-react';
 
@@ -14,29 +15,50 @@ export default function Mensagens() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Carregar usuário logado
+  // Carregar usuário logado de forma segura (JWT ou LocalStorage)
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
+    const obterDadosDoToken = () => {
       try {
-        const user = JSON.parse(savedUser);
-        setUsuarioLogado(user);
+        const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+        if (!token) return null;
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        return parsed.data || parsed || null;
       } catch (e) {
-        console.error('Erro ao carregar usuário:', e);
+        return null;
+      }
+    };
+
+    const userData = obterDadosDoToken();
+    if (userData && userData.id) {
+      setUsuarioLogado(userData);
+    } else {
+      const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+      if (savedUser) {
+        try {
+          const user = JSON.parse(savedUser);
+          setUsuarioLogado(user);
+        } catch (e) {
+          console.error('Erro ao carregar usuário:', e);
+        }
       }
     }
   }, []);
 
   // Buscar contactos
   useEffect(() => {
-    if (usuarioLogado) {
+    if (usuarioLogado?.id) {
       fetchContactos();
     }
   }, [usuarioLogado, searchTerm]);
 
   // Buscar mensagens quando mudar o contacto ativo
   useEffect(() => {
-    if (activeContact && usuarioLogado) {
+    if (activeContact && usuarioLogado?.id) {
       fetchMensagens();
       marcarMensagensComoLidas();
     }
@@ -55,7 +77,7 @@ export default function Mensagens() {
       const response = await fetch(url);
       const data = await response.json();
       
-      if (data.success) {
+      if (data.success && data.data) {
         setContactos(data.data);
         if (data.data.length > 0 && !activeContact) {
           setActiveContact(data.data[0]);
@@ -69,20 +91,17 @@ export default function Mensagens() {
   };
 
   const fetchMensagens = async () => {
-    setLoading(true);
     try {
       const response = await fetch(
         `https://welovepalop.com/api/mensagens/conversa.php?usuario_id=${usuarioLogado.id}&outro_usuario_id=${activeContact.id}`
       );
       const data = await response.json();
       
-      if (data.success) {
+      if (data.success && data.data) {
         setMensagens(data.data);
       }
     } catch (error) {
       console.error('Erro ao buscar mensagens:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -102,7 +121,7 @@ export default function Mensagens() {
   };
 
   const enviarMensagem = async () => {
-    if (!novaMensagem.trim()) return;
+    if (!novaMensagem.trim() || !activeContact) return;
     
     const mensagemEnviar = novaMensagem;
     setNovaMensagem('');
@@ -119,22 +138,20 @@ export default function Mensagens() {
       const data = await response.json();
       
       if (data.success) {
-        // Adicionar mensagem à lista localmente
         setMensagens(prev => [...prev, {
-          id: data.data.id,
+          id: data.data?.id || Date.now(),
           remetente_id: usuarioLogado.id,
           destinatario_id: activeContact.id,
           mensagem: mensagemEnviar,
-          created_at: data.data.created_at,
+          created_at: data.data?.created_at || new Date().toISOString(),
           lida: 0,
-          remetente_nome: usuarioLogado.nome,
-          remetente_foto: usuarioLogado.foto
+          remetente_nome: usuarioLogado.nome || usuarioLogado.name,
+          remetente_foto: usuarioLogado.foto || usuarioLogado.picture
         }]);
         
-        // Atualizar a última mensagem na lista de contactos
         setContactos(prev => prev.map(c => 
           c.id === activeContact.id 
-            ? { ...c, ultima_mensagem: mensagemEnviar, ultima_mensagem_data: data.data.created_at }
+            ? { ...c, ultima_mensagem: mensagemEnviar, ultima_mensagem_data: data.data?.created_at || new Date().toISOString() }
             : c
         ));
       }
@@ -172,14 +189,14 @@ export default function Mensagens() {
   };
 
   const getTipoContaBadge = (tipo) => {
-    if (tipo === 'proprietario') {
+    if (tipo === 'proprietario' || tipo === 'anfitrion') {
       return <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Anfitrião</span>;
     }
     return null;
   };
 
   const filteredContactos = contactos.filter(c => 
-    c.nome.toLowerCase().includes(searchTerm.toLowerCase())
+    c.nome?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -188,7 +205,6 @@ export default function Mensagens() {
       {/* --- PAINEL ESQUERDO: Lista de Conversas --- */}
       <div className={`w-full md:w-[320px] lg:w-[350px] flex-shrink-0 flex flex-col border-r border-gray-100 ${isChatOpenMobile ? 'hidden md:flex' : 'flex'}`}>
         
-        {/* Cabeçalho da Lista */}
         <div className="flex items-center justify-between p-4 border-b border-gray-50 h-[72px]">
           <h2 className="text-[18px] font-bold">Mensagens</h2>
           <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
@@ -196,7 +212,6 @@ export default function Mensagens() {
           </button>
         </div>
 
-        {/* Busca */}
         <div className="p-3 border-b border-gray-50">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -218,14 +233,13 @@ export default function Mensagens() {
           </div>
         </div>
 
-        {/* Lista de Contactos */}
         <div className="flex-1 overflow-y-auto scrollbar-hide">
           {loading && contactos.length === 0 ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900 mx-auto"></div>
             </div>
           ) : filteredContactos.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-gray-400 text-sm">
               Nenhum contato encontrado
             </div>
           ) : (
@@ -235,13 +249,13 @@ export default function Mensagens() {
                 onClick={() => openChat(contacto)}
                 className={`flex items-start gap-3 p-4 cursor-pointer transition-colors border-l-2 ${
                   activeContact?.id === contacto.id 
-                    ? 'bg-[#eff6ff] border-[#2563eb]'
+                    ? 'bg-[#eff6ff] border-[#2563eb]' 
                     : 'bg-white border-transparent hover:bg-gray-50'
                 }`}
               >
                 <div className="relative flex-shrink-0">
                   <img 
-                    src={contacto.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(contacto.nome)}&background=0D8ABC&color=fff`} 
+                    src={contacto.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(contacto.nome || 'Utilizador')}&background=0D8ABC&color=fff`} 
                     alt={contacto.nome} 
                     className="w-11 h-11 rounded-full object-cover border border-gray-200"
                   />
@@ -254,7 +268,7 @@ export default function Mensagens() {
                   <div className="flex justify-between items-baseline mb-0.5">
                     <div className="flex items-center gap-2">
                       <span className={`text-[14px] font-bold truncate ${activeContact?.id === contacto.id ? 'text-[#2563eb]' : 'text-[#0f172a]'}`}>
-                        {contacto.nome}
+                        {contacto.nome || 'Utilizador'}
                       </span>
                       {getTipoContaBadge(contacto.tipo_conta)}
                     </div>
@@ -282,7 +296,6 @@ export default function Mensagens() {
         
         {activeContact ? (
           <>
-            {/* Cabeçalho do Chat */}
             <div className="bg-white flex items-center justify-between p-4 border-b border-gray-100 h-[72px] shadow-sm z-10">
               <div className="flex items-center gap-3">
                 <button 
@@ -293,13 +306,13 @@ export default function Mensagens() {
                 </button>
 
                 <img 
-                  src={activeContact.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeContact.nome)}&background=0D8ABC&color=fff`} 
+                  src={activeContact.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeContact.nome || 'Utilizador')}&background=0D8ABC&color=fff`} 
                   alt={activeContact.nome} 
                   className="w-10 h-10 rounded-full object-cover border border-gray-200"
                 />
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <span className="text-[15px] font-bold text-[#0f172a]">{activeContact.nome}</span>
+                    <span className="text-[15px] font-bold text-[#0f172a]">{activeContact.nome || 'Utilizador'}</span>
                     {getTipoContaBadge(activeContact.tipo_conta)}
                   </div>
                   {activeContact.online ? (
@@ -315,19 +328,18 @@ export default function Mensagens() {
               </button>
             </div>
 
-            {/* Área das Mensagens */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
               {mensagens.map((msg, index) => {
-                const isRemetente = msg.remetente_id === usuarioLogado?.id;
+                const isRemetente = Number(msg.remetente_id) === Number(usuarioLogado?.id);
                 return (
                   <div key={msg.id || index} className={`flex ${isRemetente ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] md:max-w-[70%] ${isRemetente ? 'order-1' : 'order-1'}`}>
+                    <div className="max-w-[85%] md:max-w-[70%]">
                       <div className={`p-3.5 rounded-2xl ${isRemetente ? 'bg-[#2563eb] text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-[#0f172a] rounded-tl-sm shadow-[0_1px_2px_rgba(0,0,0,0.02)]'}`}>
                         <p className="text-[14px] leading-relaxed break-words">{msg.mensagem}</p>
                         <span className={`text-[10px] font-medium block text-right mt-1.5 ${isRemetente ? 'text-blue-200' : 'text-[#94a3b8]'}`}>
                           {formatarData(msg.created_at)}
-                          {isRemetente && msg.lida === 1 && <span className="ml-1">✓✓</span>}
-                          {isRemetente && msg.lida === 0 && <span className="ml-1">✓</span>}
+                          {isRemetente && Number(msg.lida) === 1 && <span className="ml-1">✓✓</span>}
+                          {isRemetente && Number(msg.lida) === 0 && <span className="ml-1">✓</span>}
                         </span>
                       </div>
                     </div>
@@ -337,7 +349,6 @@ export default function Mensagens() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input de Mensagem */}
             <div className="p-4 bg-white border-t border-gray-100">
               <div className="flex items-center gap-3 bg-[#f8fafc] border border-gray-200 rounded-full px-2 py-1.5 focus-within:ring-2 focus-within:ring-[#2563eb]/20 focus-within:border-[#2563eb] transition-all">
                 <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100">
@@ -382,7 +393,6 @@ export default function Mensagens() {
           </div>
         )}
       </div>
-
     </div>
   );
 }

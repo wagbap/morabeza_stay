@@ -1,7 +1,7 @@
 // src/components/UserDropdown.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Car, Compass, Heart, User, LogOut, ChevronDown, LayoutDashboard, Calendar } from 'lucide-react';
+import { Home, Car, Compass, Heart, User, LogOut, LayoutDashboard, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useFavoritos } from '../hooks/useFavoritos';
 
@@ -10,25 +10,92 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
   const navigate = useNavigate();
   const { totalFavoritos: totalFromHook, recarregar } = useFavoritos();
   const [totalFavoritos, setTotalFavoritos] = useState(0);
-  
+  const [sessionUser, setSessionUser] = useState(user);
+
+  // 🔑 Função ultra-abrangente para extrair dados e procurar a foto em qualquer lugar possível
+  const obterDadosSessao = useCallback(() => {
+    try {
+      // 1. Verificar se foi passado via props diretamente e tem foto
+      if (user) {
+        const f = user.foto || user.picture || user.avatar || user.image || user.user_metadata?.avatar_url || user.data?.picture;
+        if (f) return user;
+      }
+
+      // 2. Tenta extrair do token JWT no localStorage
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      let tokenData = null;
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        tokenData = parsed.data || parsed;
+      }
+
+      // 3. Procura nas chaves de utilizador do localStorage
+      let localData = null;
+      const chaves = ['user', 'morabeza_user', 'morabeza_admin', 'usuario', 'dados_utilizador'];
+      for (const chave of chaves) {
+        const raw = localStorage.getItem(chave);
+        if (raw) {
+          try {
+            const parsedUser = JSON.parse(raw);
+            if (parsedUser) {
+              localData = parsedUser.data || parsedUser;
+              break;
+            }
+          } catch (err) {
+            // Ignorar erros de parse se não for JSON válido
+          }
+        }
+      }
+
+      // Funde tudo priorizando quem tem uma foto válida guardada
+      const merged = { ...(tokenData || {}), ...(localData || {}), ...(user || {}) };
+      return merged;
+    } catch (e) {
+      console.error('Erro ao ler dados da sessão:', e);
+    }
+    return user || null;
+  }, [user]);
+
+  // Sincronizar sessão em tempo real
+  useEffect(() => {
+    setSessionUser(obterDadosSessao());
+
+    const atualizarSessaoEmTempoReal = () => {
+      setSessionUser(obterDadosSessao());
+    };
+
+    window.addEventListener('storage', atualizarSessaoEmTempoReal);
+    window.addEventListener('userUpdated', atualizarSessaoEmTempoReal);
+    window.addEventListener('utilizadorAtualizado', atualizarSessaoEmTempoReal);
+
+    return () => {
+      window.removeEventListener('storage', atualizarSessaoEmTempoReal);
+      window.removeEventListener('userUpdated', atualizarSessaoEmTempoReal);
+      window.removeEventListener('utilizadorAtualizado', atualizarSessaoEmTempoReal);
+    };
+  }, [user, obterDadosSessao]);
+
+  const usuarioAtual = sessionUser || obterDadosSessao();
+
   // Estados das roles
   const [canManageAlojamento, setCanManageAlojamento] = useState(false);
   const [canManageCarros, setCanManageCarros] = useState(false);
   const [canManageExperiencias, setCanManageExperiencias] = useState(false);
   const [canAccessDashboard, setCanAccessDashboard] = useState(false);
-  const [loadingRoles, setLoadingRoles] = useState(true);
-  const [temQualquerRole, setTemQualquerRole] = useState(false);
 
-  // Buscar roles do usuário
+  // Buscar roles do utilizador de forma segura
   useEffect(() => {
     const fetchUserRoles = async () => {
-      if (!user?.id) {
-        setLoadingRoles(false);
-        return;
-      }
+      const userId = usuarioAtual?.id;
+      if (!userId) return;
       
       try {
-        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${user.id}`);
+        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
         const data = await response.json();
         
         if (data.success && data.roles) {
@@ -42,27 +109,19 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
           setCanManageCarros(isProprietarioVeiculosApproved);
           setCanManageExperiencias(isGuiaApproved);
           setCanAccessDashboard(hasAnyRole);
-          setTemQualquerRole(hasAnyRole);
-        } else {
-          setTemQualquerRole(false);
         }
       } catch (error) {
         console.error('Erro ao buscar roles do usuário:', error);
-        setTemQualquerRole(false);
-      } finally {
-        setLoadingRoles(false);
       }
     };
 
     fetchUserRoles();
-  }, [user?.id]);
+  }, [usuarioAtual?.id]);
 
-  // Sincronizar com o hook
   useEffect(() => {
     setTotalFavoritos(totalFromHook);
   }, [totalFromHook]);
 
-  // Ouvir eventos de atualização
   useEffect(() => {
     const handleUpdate = (event) => {
       if (event.detail?.total !== undefined) {
@@ -73,7 +132,6 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
     };
     
     window.addEventListener('favoritosAtualizados', handleUpdate);
-    
     return () => {
       window.removeEventListener('favoritosAtualizados', handleUpdate);
     };
@@ -84,24 +142,33 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
     navigate(path);
   };
 
-  // Se NÃO ESTIVER LOGADO, mostra o botão "Registar sua propriedade" que vai para o /login
-  if (!user) {
+  // Se NÃO HOUVER UTILIZADOR nem TOKEN VÁLIDO
+  if (!usuarioAtual || (!usuarioAtual.id && !usuarioAtual.email)) {
     return (
       <button 
         onClick={() => navigate('/login')}
         className="flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 px-4 py-2 rounded-lg transition-all shadow-sm text-white font-medium text-sm"
       >
-        Registar sua propriedade
+        Regista a sua Propriedade
       </button>
     );
   }
 
-  // 👇 Fallback robusto para a foto — usa picture, foto, ou avatar gerado
-  const fotoPerfil = user.picture || user.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.nome || 'U')}&background=003580&color=fff`;
+  const emailExibicao = usuarioAtual.email || usuarioAtual.correo || 'utilizador@morabezastay.com';
+  
+  // 🌟 Captação exaustiva da foto em qualquer nivel ou chave possível (Google, Gmail, Local, etc.)
+  const fotoPerfil = 
+    usuarioAtual.foto || 
+    usuarioAtual.picture || 
+    usuarioAtual.avatar || 
+    usuarioAtual.image || 
+    usuarioAtual.user_metadata?.avatar_url || 
+    usuarioAtual.data?.picture || 
+    usuarioAtual.data?.foto ||
+    null;
 
   return (
     <div className="relative">
-      {/* Botão do usuário - Apenas ícone, sem nome */}
       <button 
         onClick={(e) => {
           e.stopPropagation();
@@ -109,15 +176,21 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
         }}
         className="flex items-center justify-center bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 p-1.5 rounded-full transition-all z-50 shadow-sm"
       >
-        <img 
-          src={fotoPerfil}
-          alt={user.name || user.nome || 'Utilizador'} 
-          className="w-8 h-8 rounded-full border border-white/50 object-cover"
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.nome || 'U')}&background=003580&color=fff`;
-          }}
-        />
+        {fotoPerfil ? (
+          <img 
+            src={fotoPerfil} 
+            alt="Perfil" 
+            className="w-8 h-8 rounded-full object-cover"
+            onError={(e) => {
+              // Se a imagem falhar ao carregar por algum motivo de CORS ou URL expirada, esconde e mostra a letra
+              e.target.style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+            {emailExibicao ? emailExibicao.charAt(0).toUpperCase() : 'U'}
+          </div>
+        )}
       </button>
 
       {isOpen && (
@@ -129,23 +202,20 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
           
           <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl py-3 z-50 border border-gray-100 animate-in fade-in zoom-in duration-200 text-left">
             
-            {/* Header do dropdown - apenas email do usuário */}
             <div className="px-6 py-3 border-b border-gray-50 mb-2 bg-gradient-to-r from-[#003580] to-[#1a4d8c] mx-2 rounded-xl">
               <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">
                 {t('minha_conta')}
               </p>
-              <p className="text-sm font-bold text-white truncate">{user.email}</p>
+              <p className="text-sm font-bold text-white truncate">{emailExibicao}</p>
             </div>
             
             <div className="px-2 space-y-1">
-              {/* Seções de anúncio - apenas com role aprovada */}
               {canManageAlojamento && (
                 <button 
                   onClick={() => handleNavigation('/alojamento-registro/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
                 >
-                  <Home size={16} /> 
-                  Anuncie Alojamento
+                  <Home size={16} /> Anuncie Alojamento
                 </button>
               )}
 
@@ -154,8 +224,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   onClick={() => handleNavigation('/carro-registo/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
                 >
-                  <Car size={16} /> 
-                  Anuncie Carros
+                  <Car size={16} /> Anuncie Carros
                 </button>
               )}
 
@@ -164,8 +233,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   onClick={() => handleNavigation('/experiencia-registo/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
                 >
-                  <Compass size={16} /> 
-                  Anuncie Experiência
+                  <Compass size={16} /> Anuncie Experiência
                 </button>
               )}
 
@@ -173,13 +241,11 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                 <div className="border-t border-gray-100 my-2"></div>
               )}
 
-              {/* Seções comuns */}
               <button 
                 onClick={() => handleNavigation('/favoritos')}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
               >
-                <Heart size={16} /> 
-                {t('favoritos')}
+                <Heart size={16} /> {t('favoritos')}
                 {totalFavoritos > 0 && (
                   <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
                     {totalFavoritos}
@@ -191,26 +257,22 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                 onClick={() => handleNavigation('/gest/minhas-reservas')}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
               >
-                <Calendar size={16} /> 
-                Minhas Reservas
+                <Calendar size={16} /> Minhas Reservas
               </button>
 
               <button 
                 onClick={() => handleNavigation('/gest/configuracoes')}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
-              >                
-                <User size={16} /> 
-                Perfil
+              >
+                <User size={16} /> Perfil
               </button>
 
-              {/* NOVO LINK: Solicitar Anfitrião (aparece apenas se NÃO for anfitrião aprovado) */}
               {!canManageAlojamento && (
                 <button 
                   onClick={() => handleNavigation('/gest/configuracoes?tab=funcoes')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
                 >
-                  <Home size={16} /> 
-                  Solicitar Anfitrião
+                  <Home size={16} /> Solicitar Anfitrião
                 </button>
               )}
 
@@ -222,14 +284,12 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                 <button 
                   onClick={() => handleNavigation('/gest/dashboard')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
-                >                
-                  <LayoutDashboard size={16} /> 
-                Gerir anúncios e reservas
+                >
+                  <LayoutDashboard size={16} /> Gerir anúncios e reservas
                 </button>
               )}
             </div>
 
-            {/* Logout */}
             <div className="mt-2 pt-2 border-t border-gray-100 px-2">
               <button 
                 onClick={() => {
@@ -238,8 +298,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                 }} 
                 className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-bold text-xs uppercase tracking-widest"
               >
-                <LogOut size={16} /> 
-                {t('terminar_sessao')}
+                <LogOut size={16} /> {t('terminar_sessao')}
               </button>
             </div>
           </div>

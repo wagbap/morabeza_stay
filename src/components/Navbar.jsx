@@ -1,3 +1,4 @@
+// src/components/Navbar.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Home, Car, Palmtree, Globe, ChevronDown, Info } from 'lucide-react';
@@ -14,13 +15,27 @@ const Navbar = () => {
   const location = useLocation();
   const langRef = useRef(null);
 
-  // ✅ MAPEAMENTO COMPLETO: Todas as páginas com Hero Banner agora têm a Navbar transparente por cima
   const paginasComHero = ['/', '/experiencias', '/alojamentos', '/carros', '/sobre'];
   const isHeroPage = paginasComHero.includes(location.pathname);
 
+  // 🔑 Função segura para verificar se existe um token JWT válido
+  const verificarUtilizadorLogado = () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+    if (!token) return null;
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload).data || { logged: true };
+    } catch (e) {
+      return null;
+    }
+  };
+
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    setUser(verificarUtilizadorLogado());
 
     const handleClickOutside = (event) => {
       if (langRef.current && !langRef.current.contains(event.target)) {
@@ -29,33 +44,31 @@ const Navbar = () => {
     };
     
     document.addEventListener("mousedown", handleClickOutside);
-    
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
-  // 👇 NOVO — Ouvir o evento 'userUpdated' para atualizar a foto em tempo real
+  // Ouvir eventos de atualização do utilizador/token
   useEffect(() => {
     const atualizarUser = () => {
-      const saved = localStorage.getItem('user');
-      if (saved) {
-        setUser(JSON.parse(saved));
-      } else {
-        setUser(null);
-      }
+      setUser(verificarUtilizadorLogado());
     };
 
     window.addEventListener('userUpdated', atualizarUser);
-    return () => window.removeEventListener('userUpdated', atualizarUser);
+    window.addEventListener('storage', atualizarUser);
+    return () => {
+      window.removeEventListener('userUpdated', atualizarUser);
+      window.removeEventListener('storage', atualizarUser);
+    };
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('morabeza_user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('morabeza_token');
     setUser(null);
     setUserDropdownOpen(false);
-    window.location.reload();
+    window.location.replace('/');
   };
 
   const changeLanguage = (lng) => {
@@ -131,7 +144,7 @@ const Navbar = () => {
             </button>
 
             {langDropdownOpen && (
-              <div className="absolute right-0 mt-3 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-2 overflow-hidden">
+              <div className="absolute right-0 mt-3 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-2 overflow-hidden z-50">
                 {languages.map((lng) => (
                   <button
                     key={lng.code}
@@ -147,7 +160,7 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* BOTÃO DE REGISTAR PROPRIEDADE */}
+          {/* BOTÃO DE REGISTAR PROPRIEDADE OU USER DROPDOWN */}
           {!user ? (
             <Link 
               to="/login"

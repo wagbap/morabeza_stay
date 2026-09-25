@@ -18,19 +18,35 @@ const BotaoDenuncia = ({ tipo, itemId, itemTitulo, onDenunciaEnviada }) => {
     const [enviando, setEnviando] = useState(false);
     const [usuarioId, setUsuarioId] = useState(null);
 
+    // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
     useEffect(() => {
-        // Tentar diferentes chaves no localStorage
-        const userData = localStorage.getItem('morabeza_user') || 
-                        localStorage.getItem('user') || 
-                        localStorage.getItem('morabeza_admin');
-        
-        if (userData) {
-            try {
+        try {
+            const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+            if (token) {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                const parsed = JSON.parse(jsonPayload);
+                const userData = parsed.data || parsed;
+                if (userData?.id) {
+                    setUsuarioId(userData.id);
+                    return;
+                }
+            }
+
+            // Fallback para as chaves antigas no LocalStorage
+            const userData = localStorage.getItem('morabeza_user') || 
+                             localStorage.getItem('user') || 
+                             localStorage.getItem('morabeza_admin');
+            
+            if (userData) {
                 const user = JSON.parse(userData);
                 setUsuarioId(user.id || user.user_id);
-            } catch (e) {
-                console.error('Erro ao fazer parse do usuário:', e);
             }
+        } catch (e) {
+            console.error('Erro ao obter ID do utilizador:', e);
         }
     }, []);
 

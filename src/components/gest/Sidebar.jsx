@@ -33,16 +33,44 @@ export default function Sidebar({ isOpen, onClose }) {
   useEffect(() => {
     const fetchUserRoles = async () => {
       try {
-        const savedUser = localStorage.getItem('user');
-        if (!savedUser) {
+        // 🔑 Ler dados do Token JWT de forma segura
+        const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+        let userId = null;
+        let userData = null;
+
+        if (token) {
+          try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            
+            const payload = JSON.parse(jsonPayload);
+            userData = payload.data || payload;
+            userId = userData?.id;
+          } catch (e) {
+            console.error('Erro ao desodificar token na sidebar:', e);
+          }
+        }
+
+        // Fallback para o 'user' antigo caso o token não exista
+        if (!userId) {
+          const savedUser = localStorage.getItem('user');
+          if (savedUser) {
+            userData = JSON.parse(savedUser);
+            userId = userData?.id;
+          }
+        }
+
+        if (!userId) {
           setLoading(false);
           return;
         }
-        
-        const userData = JSON.parse(savedUser);
+
         setUser(userData);
         
-        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userData.id}`);
+        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
         const data = await response.json();
         
         if (data.success && data.roles) {
@@ -93,6 +121,9 @@ export default function Sidebar({ isOpen, onClose }) {
     );
   }
 
+  const nomeExibicao = user?.nome || user?.name || 'Utilizador';
+  const emailExibicao = user?.email || '';
+
   return (
     <div className={`
       w-[260px] h-full bg-white border-r border-gray-100 flex flex-col flex-shrink-0
@@ -110,13 +141,13 @@ export default function Sidebar({ isOpen, onClose }) {
 
       {/* Header com informações do usuário */}
       <div className="px-4 py-10 border-b border-gray-100">
-        <div className="flex items-center gap-6">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003580] to-[#6b82c6] flex items-center justify-center text-white font-bold">
-            {user?.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003580] to-[#6b82c6] flex items-center justify-center text-white font-bold flex-shrink-0">
+            {nomeExibicao.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-gray-800 truncate">{user?.nome || 'Utilizador'}</p>
-            <p className="text-xs text-gray-400 truncate">{user?.email || ''}</p>
+            <p className="text-sm font-bold text-gray-800 truncate">{nomeExibicao}</p>
+            <p className="text-xs text-gray-400 truncate">{emailExibicao}</p>
           </div>
         </div>
         
@@ -142,9 +173,6 @@ export default function Sidebar({ isOpen, onClose }) {
 
       <div className="flex-1 overflow-y-auto py-4 px-4">
         <nav className="space-y-1.5">
-          {/* ============================================
-              SEÇÃO: GESTÃO (apenas se tiver role de gestão)
-          ============================================ */}
           {hasManagementRole && (
             <>
               <div className="px-4 py-2">
@@ -169,9 +197,6 @@ export default function Sidebar({ isOpen, onClose }) {
               <Link to="/gest/mensagens" onClick={onClose} className={linkClass('/gest/mensagens')}>
                 <MessageCircle className={iconClass('/gest/mensagens')} strokeWidth={2} />
                 <span className="text-[15px] truncate">Mensagens</span>
-                <span className="ml-auto flex-shrink-0 bg-[#e0e7ff] text-[#3730a3] text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full">
-                  5
-                </span>
               </Link>
 
               <Link to="/gest/financeiro" onClick={onClose} className={linkClass('/gest/financeiro')}>
@@ -179,11 +204,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 <span className="text-[15px] truncate">Financeiro</span>
               </Link>
 
-              <Link
-                to="/gest/dados-recebimento"
-                onClick={onClose}
-                className={linkClass('/gest/dados-recebimento')}
-              >
+              <Link to="/gest/dados-recebimento" onClick={onClose} className={linkClass('/gest/dados-recebimento')}>
                 <Wallet className={iconClass('/gest/dados-recebimento')} strokeWidth={2} />
                 <span className="text-[15px] truncate">Recebimento</span>
               </Link>
@@ -203,27 +224,20 @@ export default function Sidebar({ isOpen, onClose }) {
                 <span className="text-[15px] truncate">Avaliações</span>
               </Link>
 
-              <Link
-                to="/gest/documentos-solicitados"
-                onClick={onClose}
-                className={linkClass('/gest/documentos-solicitados')}
-              >
+              <Link to="/gest/documentos-solicitados" onClick={onClose} className={linkClass('/gest/documentos-solicitados')}>
                 <FileText className={iconClass('/gest/documentos-solicitados')} strokeWidth={2} />
                 <span className="text-[15px] truncate">Ver documentos</span>
               </Link>
             </>
           )}
 
-          {/* ============================================
-              SEÇÃO: CONTA (SEMPRE DISPONÍVEL)
-          ============================================ */}
           <div className="pt-2">
             <div className="px-4 py-2 mt-2">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Conta</p>
             </div>
 
-            <Link to="/gest/configuracoes" onClick={onClose} className={linkClass('/perfil')}>
-              <User className={iconClass('/perfil')} strokeWidth={2} />
+            <Link to="/gest/configuracoes" onClick={onClose} className={linkClass('/gest/configuracoes')}>
+              <User className={iconClass('/gest/configuracoes')} strokeWidth={2} />
               <span className="text-[15px] truncate">Perfil</span>
             </Link>
 
@@ -238,10 +252,11 @@ export default function Sidebar({ isOpen, onClose }) {
             </Link>
           </div>
 
-          {/* Separador e Logout */}
           <div className="pt-4 mt-2 border-t border-gray-100">
             <button 
               onClick={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('morabeza_token');
                 localStorage.removeItem('user');
                 localStorage.removeItem('morabeza_user');
                 window.location.href = '/login';

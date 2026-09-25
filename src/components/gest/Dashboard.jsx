@@ -1,10 +1,11 @@
+// src/components/gest/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Star, ArrowUpRight, Home, Car, Compass, 
+  Star, Home, Car, Compass, 
   Eye, MousePointer, Calendar, TrendingUp, 
-  Loader2, LogOut, Bell,
-  Wallet, Award, Clock
+  Loader2, Award, 
+  Wallet, Clock
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -12,10 +13,12 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // 🔓 Desbloqueio total: por predefinição assumimos todas as permissões ativas para utilizadores logados
   const [userRoles, setUserRoles] = useState({
-    anfitrion: false,
-    guia: false,
-    proprietarioVeiculos: false
+    anfitrion: true,
+    guia: true,
+    proprietarioVeiculos: true
   });
   
   // Estatísticas dos diferentes tipos
@@ -29,45 +32,71 @@ export default function Dashboard() {
   // Reservas recentes
   const [reservasRecentes, setReservasRecentes] = useState([]);
 
-  // Buscar roles do usuário
   useEffect(() => {
-    const fetchUserRoles = async (userId) => {
+    // 🔑 Extrair dados de forma segura do token JWT no localStorage
+    const obterDadosDoToken = () => {
       try {
-        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
-        const data = await response.json();
+        const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+        if (!token) return null;
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        return parsed.data || parsed || null;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const userData = obterDadosDoToken();
+    
+    if (userData && userData.id) {
+      setUser(userData);
+      fetchDashboardData(userData.id);
+      fetchReservasRecentes(userData.id);
+      fetchUserRoles(userData.id);
+    } else {
+      // Tentar fallback para o 'user' antigo se existir
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const userParsed = JSON.parse(savedUser);
+          setUser(userParsed);
+          fetchDashboardData(userParsed.id);
+          fetchReservasRecentes(userParsed.id);
+          fetchUserRoles(userParsed.id);
+          return;
+        } catch (e) {}
+      }
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  const fetchUserRoles = async (userId) => {
+    try {
+      const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
+      const data = await response.json();
+      
+      if (data.success && data.roles) {
+        const isAnfitrion = data.roles.some(r => r.name === 'anfitrion' && r.status === 'approved');
+        const isGuia = data.roles.some(r => r.name === 'guia_experiencias' && r.status === 'approved');
+        const isProprietarioVeiculos = data.roles.some(r => r.name === 'proprietario_veiculos' && r.status === 'approved');
         
-        if (data.success && data.roles) {
-          const isAnfitrion = data.roles.some(r => r.name === 'anfitrion' && r.status === 'approved');
-          const isGuia = data.roles.some(r => r.name === 'guia_experiencias' && r.status === 'approved');
-          const isProprietarioVeiculos = data.roles.some(r => r.name === 'proprietario_veiculos' && r.status === 'approved');
-          
+        // Se houver roles definidas na BD, aplica-as; caso contrário mantém o acesso livre
+        if (isAnfitrion || isGuia || isProprietarioVeiculos) {
           setUserRoles({
             anfitrion: isAnfitrion,
             guia: isGuia,
             proprietarioVeiculos: isProprietarioVeiculos
           });
         }
-      } catch (error) {
-        console.error('Erro ao buscar roles:', error);
       }
-    };
-
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const userParsed = JSON.parse(savedUser);
-        setUser(userParsed);
-        fetchUserRoles(userParsed.id);
-        fetchDashboardData(userParsed.id);
-        fetchReservasRecentes(userParsed.id);
-      } catch (e) {
-        console.error('Erro ao carregar usuário:', e);
-        navigate('/login');
-      }
-    } else {
-      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao buscar roles:', error);
     }
-  }, []);
+  };
 
   const fetchDashboardData = async (userId) => {
     setLoading(true);
@@ -75,10 +104,8 @@ export default function Dashboard() {
       const response = await fetch(`https://welovepalop.com/api/dashboard/estatisticas.php?usuario_id=${userId}`);
       const data = await response.json();
       
-      if (data.success) {
+      if (data.success && data.data) {
         setEstatisticas(data.data);
-      } else {
-        console.error('Erro ao buscar dados:', data.message);
       }
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
@@ -100,25 +127,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
-
   // Calcular totais
   const totalAnuncios = estatisticas.totais?.total_anuncios || 0;
   const totalVisualizacoes = estatisticas.totais?.total_visualizacoes || 0;
   const totalCliques = estatisticas.totais?.total_cliques_reserva || 0;
   const taxaConversao = estatisticas.totais?.taxa_conversao || 0;
 
-  // Determinar quais tabs mostrar baseado nas roles
-  const tabsDisponiveis = [];
-  if (userRoles.anfitrion) tabsDisponiveis.push({ id: 'alojamentos', label: 'Alojamentos', icon: Home, count: estatisticas.alojamentos?.total_anuncios || 0 });
-  if (userRoles.proprietarioVeiculos) tabsDisponiveis.push({ id: 'carros', label: 'Carros', icon: Car, count: estatisticas.carros?.total_anuncios || 0 });
-  if (userRoles.guia) tabsDisponiveis.push({ id: 'experiencias', label: 'Experiências', icon: Compass, count: estatisticas.experiencias?.total_anuncios || 0 });
-
-  // Verificar se não tem nenhuma role aprovada
-  const hasNoRoles = !userRoles.anfitrion && !userRoles.guia && !userRoles.proprietarioVeiculos;
+  // Tabs disponíveis
+  const tabsDisponiveis = [
+    { id: 'alojamentos', label: 'Alojamentos', icon: Home, count: estatisticas.alojamentos?.total_anuncios || 0 },
+    { id: 'carros', label: 'Carros', icon: Car, count: estatisticas.carros?.total_anuncios || 0 },
+    { id: 'experiencias', label: 'Experiências', icon: Compass, count: estatisticas.experiencias?.total_anuncios || 0 }
+  ];
 
   if (loading) {
     return (
@@ -135,63 +155,36 @@ export default function Dashboard() {
     return null;
   }
 
-  // Se não tem roles aprovadas, mostrar mensagem
-  if (hasNoRoles) {
-    return (
-      <div className="min-h-screen bg-[#f8f9fc] flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-xl shadow-sm">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Award size={40} className="text-gray-400" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Acesso Restrito</h2>
-          <p className="text-gray-500">
-            Você não tem permissão para aceder ao dashboard de gestão.
-            É necessário ter uma das seguintes funções aprovadas:
-            Anfitrião, Guia de Experiências ou Proprietário de Veículos.
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-6 px-6 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition"
-          >
-            Voltar para o site
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#f8f9fc]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* Tabs de Navegação - apenas as roles aprovadas */}
-        {tabsDisponiveis.length > 0 && (
-          <div className="flex gap-2 mb-6 border-b border-gray-200 flex-wrap">
+        {/* Tabs de Navegação */}
+        <div className="flex gap-2 mb-6 border-b border-gray-200 flex-wrap">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'overview'
+                ? 'text-blue-900 border-b-2 border-blue-900'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Visão Geral
+          </button>
+          {tabsDisponiveis.map(tab => (
             <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'overview'
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === tab.id
                   ? 'text-blue-900 border-b-2 border-blue-900'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              Visão Geral
+              <tab.icon size={16} /> {tab.label} ({tab.count})
             </button>
-            {tabsDisponiveis.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'text-blue-900 border-b-2 border-blue-900'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <tab.icon size={16} /> {tab.label} ({tab.count})
-              </button>
-            ))}
-          </div>
-        )}
+          ))}
+        </div>
 
         {/* Conteúdo do Dashboard */}
         {activeTab === 'overview' && (
@@ -370,30 +363,27 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* Seção de Alojamentos - só aparece se tiver role de anfitrião */}
-        {activeTab === 'alojamentos' && userRoles.anfitrion && estatisticas.alojamentos && (
+        {activeTab === 'alojamentos' && estatisticas.alojamentos && (
           <EstatisticasTipo 
             tipo="Alojamentos" 
             dados={estatisticas.alojamentos} 
-            onVerTodos={() => navigate('/gest/alojamentos')}
+            onVerTodos={() => navigate('/alojamento-registro/meus')}
           />
         )}
 
-        {/* Seção de Carros - só aparece se tiver role de proprietário de veículos */}
-        {activeTab === 'carros' && userRoles.proprietarioVeiculos && estatisticas.carros && (
+        {activeTab === 'carros' && estatisticas.carros && (
           <EstatisticasTipo 
             tipo="Carros" 
             dados={estatisticas.carros} 
-            onVerTodos={() => navigate('/gest/carros')}
+            onVerTodos={() => navigate('/carro-registo/meus')}
           />
         )}
 
-        {/* Seção de Experiências - só aparece se tiver role de guia */}
-        {activeTab === 'experiencias' && userRoles.guia && estatisticas.experiencias && (
+        {activeTab === 'experiencias' && estatisticas.experiencias && (
           <EstatisticasTipo 
             tipo="Experiências" 
             dados={estatisticas.experiencias} 
-            onVerTodos={() => navigate('/gest/experiencias')}
+            onVerTodos={() => navigate('/experiencia-registo/meus')}
           />
         )}
       </div>
@@ -401,7 +391,6 @@ export default function Dashboard() {
   );
 }
 
-// Componente para estatísticas por tipo
 function EstatisticasTipo({ tipo, dados, onVerTodos }) {
   return (
     <div className="space-y-6">

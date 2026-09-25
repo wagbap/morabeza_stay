@@ -1,37 +1,43 @@
-// CheckoutCarro.jsx - Versão corrigida (sem duplicação)
-import React, { useState, useEffect } from 'react';
+// CheckoutCarro.jsx - Com verificação OTP (design padrão do site)
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Check, ArrowLeft, Loader, AlertCircle, ChevronRight, Calendar, Users, Home, ShieldCheck, Lock, Gauge, Fuel, Info, MapPin, Clock, FileText, Upload
+import {
+  Check, ArrowLeft, Loader, AlertCircle, ChevronRight, Calendar, Users, Home, ShieldCheck, Lock, Gauge, Fuel, Info, MapPin, Clock, FileText, Upload, X
 } from 'lucide-react';
 import DataModalCarro from './DataModalCarro';
+import { useToast } from '../../../Toast';
 
+const API_BASE = 'https://welovepalop.com';
+
+// ============================================================
+// CONDUTOR PRINCIPAL
+// ============================================================
 const CondutorPrincipal = ({ condutor, updateCondutor }) => {
   const { t } = useTranslation();
-  
+
   return (
     <div className="mb-8 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm text-left">
       <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
         <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-sans">1</span>
-        {t('condutor_principal')}
+        {t('condutor_principal', 'Condutor Principal')}
       </h3>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">{t('nome_completo')} *</label>
-          <input 
+          <label className="text-xs font-bold text-slate-700 block mb-1">{t('nome_completo', 'Nome completo')} *</label>
+          <input
             type="text"
             value={condutor.nome_completo}
             onChange={(e) => updateCondutor('nome_completo', e.target.value)}
             className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900"
-            placeholder={t('placeholder_carta_conducao')}
+            placeholder={t('placeholder_nome_documento', 'Nome como consta no documento')}
           />
         </div>
-        
+
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">{t('email')} *</label>
-          <input 
+          <label className="text-xs font-bold text-slate-700 block mb-1">{t('email', 'E-mail')} *</label>
+          <input
             type="email"
             value={condutor.email}
             onChange={(e) => updateCondutor('email', e.target.value)}
@@ -39,10 +45,10 @@ const CondutorPrincipal = ({ condutor, updateCondutor }) => {
             placeholder="seu@email.com"
           />
         </div>
-        
+
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">{t('telefone_whatsapp')} *</label>
-          <input 
+          <label className="text-xs font-bold text-slate-700 block mb-1">{t('telefone_whatsapp', 'Telefone / WhatsApp')} *</label>
+          <input
             type="tel"
             value={condutor.phone}
             onChange={(e) => updateCondutor('phone', e.target.value)}
@@ -50,62 +56,53 @@ const CondutorPrincipal = ({ condutor, updateCondutor }) => {
             placeholder="+238 991 23 45"
           />
         </div>
-        
+
         <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">{t('pais_nacionalidade')} *</label>
-          <select 
+          <label className="text-xs font-bold text-slate-700 block mb-1">{t('pais_nacionalidade', 'País / Nacionalidade')} *</label>
+          <select
             value={condutor.nacionalidade}
             onChange={(e) => updateCondutor('nacionalidade', e.target.value)}
             className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
           >
-            <option value="Cabo Verde">{t('cabo_verde')}</option>
-            <option value="Portugal">{t('portugal')}</option>
-            <option value="Brasil">{t('brasil')}</option>
-            <option value="Angola">{t('angola')}</option>
-            <option value="Moçambique">{t('mocambique')}</option>
-            <option value="Estados Unidos">{t('estados_unidos')}</option>
-            <option value="França">{t('franca')}</option>
-            <option value="Outro">{t('outro')}</option>
+            <option value="Cabo Verde">{t('cabo_verde', 'Cabo Verde')}</option>
+            <option value="Portugal">{t('portugal', 'Portugal')}</option>
+            <option value="Brasil">{t('brasil', 'Brasil')}</option>
+            <option value="Angola">{t('angola', 'Angola')}</option>
+            <option value="Moçambique">{t('mocambique', 'Moçambique')}</option>
+            <option value="Estados Unidos">{t('estados_unidos', 'Estados Unidos')}</option>
+            <option value="França">{t('franca', 'França')}</option>
+            <option value="Outro">{t('outro', 'Outro')}</option>
           </select>
         </div>
       </div>
-      
+
       <div className="border-t border-slate-100 my-6"></div>
-      
+
       <div className="space-y-5">
-        {/* Hora de Levantamento */}
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1 flex items-center gap-1">
-            <Clock size={12} /> {t('hora_levantamento')} *
+            <Clock size={12} /> {t('hora_levantamento', 'Hora de levantamento')} *
           </label>
-          <select 
+          <select
             value={condutor.hora_levantamento || '10:00'}
             onChange={(e) => updateCondutor('hora_levantamento', e.target.value)}
             className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
           >
-            <option value="08:00">08:00</option>
-            <option value="09:00">09:00</option>
-            <option value="10:00">10:00</option>
-            <option value="11:00">11:00</option>
-            <option value="12:00">12:00</option>
-            <option value="13:00">13:00</option>
-            <option value="14:00">14:00</option>
-            <option value="15:00">15:00</option>
-            <option value="16:00">16:00</option>
-            <option value="17:00">17:00</option>
+            {['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].map(h => (
+              <option key={h} value={h}>{h}</option>
+            ))}
           </select>
         </div>
-        
-        {/* Carta de Condução - Upload */}
+
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1 flex items-center gap-1">
-            <Upload size={12} /> {t('carta_conducao_upload')} *
+            <Upload size={12} /> {t('carta_conducao_upload', 'Carta de condução')} *
           </label>
           <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:border-blue-500 transition-colors cursor-pointer bg-slate-50/30">
             <input
               type="file"
               id="carta-conducao"
-              accept=".pdf,.doc,.docx"
+              accept=".pdf,.doc,.docx,image/*"
               onChange={(e) => {
                 const file = e.target.files[0];
                 if (file) {
@@ -123,142 +120,128 @@ const CondutorPrincipal = ({ condutor, updateCondutor }) => {
                 </div>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-slate-600">{t('clique_upload')}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{t('upload_limite')}</p>
+                  <p className="text-sm font-medium text-slate-600">{t('clique_upload', 'Clique para carregar o documento')}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{t('upload_limite', 'PDF ou Imagem')}</p>
                 </>
               )}
             </label>
           </div>
         </div>
-        
-        {/* Observações */}
+
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1 flex items-center gap-1">
-            <FileText size={12} /> {t('observacoes_pedidos')}
+            <FileText size={12} /> {t('observacoes_pedidos', 'Observações')}
           </label>
-          <textarea 
+          <textarea
             rows="3"
             value={condutor.observacoes || ''}
             onChange={(e) => updateCondutor('observacoes', e.target.value)}
             className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 resize-none"
-            placeholder={t('placeholder_observacoes')}
+            placeholder={t('placeholder_observacoes', 'Informações adicionais...')}
           />
         </div>
-      </div>
-      
-      <div className="mt-6 p-3 bg-amber-50 rounded-xl border border-amber-200">
-        <p className="text-[10px] text-amber-700 font-medium flex items-start gap-2">
-          <span className="text-amber-500">⚠️</span>
-          {t('aviso_carta_conducao')}
-        </p>
       </div>
     </div>
   );
 };
 
+// ============================================================
+// RESUMO RESERVA CARRO
+// ============================================================
 const ResumoReservaCarro = ({ reserva, precoTotal, setDataModalOpen }) => {
   const { t } = useTranslation();
-  
+
   const formatNumber = (value) => {
     if (value === undefined || value === null) return '0';
     return Number(value).toLocaleString('pt-PT');
   };
-  
+
   const formatarData = (data) => {
-    if (!data) return t('nao_selecionada');
+    if (!data) return t('nao_selecionada', 'Não selecionada');
     const d = new Date(data);
     return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm sticky top-6 text-left">
-      <h2 className="text-lg font-bold text-blue-900 mb-5">{t('resumo_reserva')}</h2>
-      
+      <h2 className="text-lg font-bold text-blue-900 mb-5">{t('resumo_reserva', 'Resumo da Reserva')}</h2>
+
       <div className="flex gap-4 mb-6">
-        <img 
-          src={reserva?.imagem || 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=200'} 
-          className="w-20 h-20 rounded-xl object-cover shrink-0" 
-          alt={reserva?.titulo || t('veiculo')}
+        <img
+          src={reserva?.imagem || 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=200'}
+          className="w-20 h-20 rounded-xl object-cover shrink-0"
+          alt={reserva?.titulo || 'Veículo'}
           onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=200'}
         />
         <div className="flex-1">
           <h4 className="text-sm font-bold text-blue-900 leading-tight">{reserva?.titulo || 'Morabeza Rent'}</h4>
           <p className="text-[10px] text-slate-500 mt-1 font-medium flex items-center gap-1">
-            <MapPin size={10} className="text-orange-500" /> {reserva?.localizacao || t('cabo_verde')}
+            <MapPin size={10} className="text-orange-500" /> {reserva?.localizacao || 'Cabo Verde'}
           </p>
-          <button 
+          <button
             onClick={() => setDataModalOpen && setDataModalOpen(true)}
             className="text-[10px] text-blue-600 underline mt-2 font-bold block"
           >
-            {t('alterar_datas')}
+            {t('alterar_datas', 'Alterar datas')}
           </button>
         </div>
       </div>
 
       <div className="space-y-4 border-t border-slate-100 pt-5">
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('levantamento')}</span>
+          <span className="text-xs text-slate-600 font-medium">{t('levantamento', 'Levantamento')}</span>
           <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.checkIn)} - {reserva?.horaLevantamento || '10:00'}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('devolucao')}</span>
+          <span className="text-xs text-slate-600 font-medium">{t('devolucao', 'Devolução')}</span>
           <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.checkOut)} - {reserva?.horaLevantamento || '10:00'}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('dias')}</span>
-          <span className="text-xs font-bold text-blue-900">{reserva?.dias || 0} {Number(reserva?.dias) === 1 ? t('dia') : t('dias')}</span>
+          <span className="text-xs text-slate-600 font-medium">{t('dias', 'Dias')}</span>
+          <span className="text-xs font-bold text-blue-900">{reserva?.dias || 0} {Number(reserva?.dias) === 1 ? 'dia' : 'dias'}</span>
         </div>
-        
+
         <div className="pt-3 space-y-2 border-t border-slate-100">
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">{t('preco_por_dia')}</span>
+            <span className="text-slate-500">{t('preco_por_dia', 'Preço por dia')}</span>
             <span className="text-slate-800">{formatNumber(reserva?.precoDia)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">{t('subtotal_dias', { dias: reserva?.dias || 0 })}</span>
+            <span className="text-slate-500">{t('subtotal_dias', { dias: reserva?.dias || 0, defaultValue: 'Subtotal' })}</span>
             <span className="text-slate-800">{formatNumber(reserva?.subtotal)} CVE</span>
-          </div>
-          <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500 flex items-center gap-1">{t('taxa_servico_10')} <Info size={11} className="text-slate-400" /></span>
-            <span className="text-slate-800">{formatNumber(reserva?.taxaServico)} CVE</span>
           </div>
         </div>
 
         <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-          <span className="text-base font-bold text-blue-900">{t('total')}</span>
+          <span className="text-base font-bold text-blue-900">{t('total', 'Total')}</span>
           <span className="text-xl font-bold text-blue-600">{formatNumber(precoTotal)} CVE</span>
-        </div>
-
-        <div className="bg-green-50 p-3 rounded-xl flex gap-2 mt-3 border border-green-100">
-          <ShieldCheck className="text-green-600 shrink-0" size={18} />
-          <div>
-            <p className="text-[9px] font-bold text-green-800">{t('cancelamento_gratis')}</p>
-            <p className="text-[8px] text-green-700 font-medium">{t('cancelamento_prazo_carro')}</p>
-          </div>
-        </div>
-
-        <div className="bg-[#F0F7FF] p-3 rounded-xl flex gap-2 border border-blue-50">
-          <Lock className="text-blue-600 shrink-0" size={16} />
-          <p className="text-[8px] text-blue-700 font-medium">{t('dados_protegidos')}</p>
         </div>
       </div>
     </div>
   );
 };
 
-// Componente principal CheckoutCarro
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
 const CheckoutCarro = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { reservaData } = location.state || {};
-  
-  const [user, setUser] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isDataModalOpen, setDataModalOpen] = useState(false);
-  const [carregandoDados, setCarregandoDados] = useState(false);
-  
+
+  // Estados OTP (padrão do site)
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
+  const [loadingOtp, setLoadingOtp] = useState(false);
+  const [enviandoOtp, setEnviandoOtp] = useState(false);
+  const inputRefs = useRef([]);
+
   const [condutor, setCondutor] = useState({
     nome_completo: '',
     email: '',
@@ -280,58 +263,26 @@ const CheckoutCarro = () => {
     checkOut: reservaData?.checkOut || '',
     dias: reservaData?.dias || 1,
     precoDia: reservaData?.precoDia || 0,
-    subtotal: reservaData?.subtotal || 0,
-    taxaServico: reservaData?.taxaServico || 0,
+    subtotal: reservaData?.subtotal || reservaData?.totalGeral || 0,
     totalGeral: reservaData?.totalGeral || 0,
     tipo: reservaData?.tipo || 'SUV',
     horaLevantamento: reservaData?.horaLevantamento || '10:00'
   });
-
-  const buscarDadosUsuario = async (email, googleId) => {
-    setCarregandoDados(true);
-    try {
-      let url = `https://welovepalop.com/api/checkout_api.php?email=${encodeURIComponent(email)}&category=Carro`;
-      if (googleId) {
-        url += `&google_id=${encodeURIComponent(googleId)}`;
-      }
-      const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
-      const result = await response.json();
-      if (result.success && result.usuario) {
-        setCondutor(prev => ({
-          ...prev,
-          nome_completo: result.usuario.full_name || prev.nome_completo,
-          email: result.usuario.email || prev.email,
-          phone: result.usuario.phone || prev.phone
-        }));
-      }
-    } catch (err) {
-      console.error('Erro ao buscar dados:', err);
-    } finally {
-      setCarregandoDados(false);
-    }
-  };
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       try {
         const userData = JSON.parse(savedUser);
-        const email = userData.email;
-        const googleId = userData.sub || userData.google_id || null;
-        setUser({ ...userData, google_id: googleId, email });
-        buscarDadosUsuario(email, googleId);
         setCondutor(prev => ({
           ...prev,
           nome_completo: userData.name || userData.full_name || '',
-          email: email,
+          email: userData.email || '',
           phone: userData.phone || ''
         }));
       } catch (e) {
-        console.error('Erro ao parsear usuário:', e);
+        console.error('Erro ao parsear utilizador:', e);
       }
-    } else {
-      alert(t('login_necessario_continuar'));
-      navigate('/carros');
     }
     window.scrollTo(0, 0);
   }, []);
@@ -345,17 +296,13 @@ const CheckoutCarro = () => {
   const handleSelectData = (dataObj) => {
     const novosDias = dataObj.dias;
     const novoSubtotal = reserva.precoDia * novosDias;
-    const novaTaxaServico = Math.round(novoSubtotal * 0.10);
-    const novoTotal = novoSubtotal + novaTaxaServico;
-    
     setReserva(prev => ({
       ...prev,
       checkIn: dataObj.checkIn,
       checkOut: dataObj.checkOut,
       dias: novosDias,
       subtotal: novoSubtotal,
-      taxaServico: novaTaxaServico,
-      totalGeral: novoTotal
+      totalGeral: novoSubtotal
     }));
     setDataModalOpen(false);
   };
@@ -367,41 +314,133 @@ const CheckoutCarro = () => {
   const validateForm = () => {
     setError('');
     if (!condutor.nome_completo.trim()) {
-      setError(t('erro_nome_obrigatorio'));
+      setError(t('erro_nome_obrigatorio', 'O nome completo é obrigatório.'));
       return false;
     }
     if (!condutor.email.trim()) {
-      setError(t('erro_email_obrigatorio'));
+      setError(t('erro_email_obrigatorio', 'O e-mail é obrigatório.'));
       return false;
     }
     if (!condutor.phone.trim()) {
-      setError(t('erro_telefone_obrigatorio'));
+      setError(t('erro_telefone_obrigatorio', 'O telefone é obrigatório.'));
       return false;
     }
     if (!condutor.nacionalidade.trim()) {
-      setError(t('erro_nacionalidade_obrigatoria'));
-      return false;
-    }
-    if (!condutor.carta_conducao_file && !condutor.carta_conducao_nome) {
-      setError(t('erro_carta_conducao'));
+      setError(t('erro_nacionalidade_obrigatoria', 'A nacionalidade é obrigatória.'));
       return false;
     }
     if (!reserva.checkIn || !reserva.checkOut) {
-      setError(t('erro_datas_obrigatorias'));
+      setError(t('erro_datas_obrigatorias', 'As datas de levantamento e devolução são obrigatórias.'));
       return false;
     }
     return true;
   };
 
-  const handleSubmit = () => {
+  const mascararEmail = (email) => {
+    if (!email || !email.includes('@')) return 'seu***@gmail.com';
+    const [nome, dominio] = email.split('@');
+    if (nome.length <= 3) return `${nome[0]}***@${dominio}`;
+    return `${nome.substring(0, 3)}***@${dominio}`;
+  };
+
+  const handleEnviarOtp = async () => {
     if (!validateForm()) return;
-    if (!user || !user.email) {
-      setError(t('erro_usuario_nao_logado'));
+    setEnviandoOtp(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/send_otp.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send_otp', email: condutor.email })
+      });
+      const data = await res.json();
+      if (data.status === 'otp_sent' || data.status === 'success') {
+        setOtpValues(['', '', '', '', '', '']);
+        setShowOtpModal(true);
+      } else {
+        showToast(data.message || t('erro_enviar_codigo', 'Não foi possível enviar o código.'), 'error');
+      }
+    } catch (e) {
+      showToast(t('erro_conexao', 'Erro de conexão ao enviar OTP.'), 'error');
+    } finally {
+      setEnviandoOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/send_otp.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resend_otp', email: condutor.email })
+      });
+      const data = await res.json();
+      if (data.status === 'success' || data.status === 'otp_sent') {
+        showToast(t('codigo_reenviado', 'Novo código enviado para o seu email'), 'success');
+      } else {
+        showToast(data.message || t('erro_reenviar', 'Erro ao reenviar código'), 'error');
+      }
+    } catch (err) {
+      console.error('Erro ao reenviar OTP:', err);
+    }
+  };
+
+  const handleOtpChange = (index, value) => {
+    const val = value.replace(/\D/g, '');
+    if (!val) {
+      const newValues = [...otpValues];
+      newValues[index] = '';
+      setOtpValues(newValues);
+      return;
+    }
+    const newValues = [...otpValues];
+    newValues[index] = val[val.length - 1];
+    setOtpValues(newValues);
+
+    if (index < 5 && val) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otpValues[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleVerifyOtpAndProceed = async () => {
+    const codigoCompleto = otpValues.join('');
+    if (codigoCompleto.length < 6) {
+      showToast(t('erro_codigo_incompleto', 'Por favor, insira o código completo de 6 dígitos'), 'error');
       return;
     }
 
-    setLoading(true);
+    setLoadingOtp(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/send_otp.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify_otp',
+          email: condutor.email,
+          otp: codigoCompleto
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setShowOtpModal(false);
+        showToast(t('email_verificado_sucesso', 'Email verificado com sucesso!'), 'success');
+        concluirReserva();
+      } else {
+        showToast(data.message || t('erro_codigo_invalido', 'Código inválido ou expirado.'), 'error');
+      }
+    } catch (e) {
+      showToast(t('erro_conexao', 'Erro de conexão ao verificar código'), 'error');
+    } finally {
+      setLoadingOtp(false);
+    }
+  };
 
+  const concluirReserva = () => {
     const dadosReserva = {
       reservaData: {
         ...reserva,
@@ -419,35 +458,39 @@ const CheckoutCarro = () => {
         observacoes: condutor.observacoes
       },
       participantesAdicionais: [],
-      usuario: user
+      usuario: JSON.parse(localStorage.getItem('user') || 'null') || { email: condutor.email, nome: condutor.nome_completo }
     };
 
-    console.log('💾 Salvando reservaCarroPendente:', dadosReserva);
     sessionStorage.setItem('reservaCarroPendente', JSON.stringify(dadosReserva));
 
-    navigate('/pagamento', { 
-      state: { 
-        reservaData: { 
-          ...reserva, 
+    navigate('/pagamento', {
+      state: {
+        reservaData: {
+          ...reserva,
           precoTotal: reserva.totalGeral,
           tipo: 'carro'
         },
-        dadosParticipantes: { 
-          participantePrincipal: condutor, 
-          participantes: [] 
+        dadosParticipantes: {
+          participantePrincipal: condutor,
+          participantes: []
         },
         tipo: 'carro'
-      } 
+      }
     });
+  };
+
+  const handleSubmit = () => {
+    if (!validateForm()) return;
+    handleEnviarOtp();
   };
 
   const totalPreco = reserva.totalGeral;
 
-  if (!reservaData || carregandoDados) {
+  if (!reservaData) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white">
         <Loader className="animate-spin text-blue-600 mb-4" size={40} />
-        <p className="font-bold text-gray-500 font-medium">{t('carregando_dados_reserva')}</p>
+        <p className="font-bold text-gray-500 font-medium">{t('carregando_dados_reserva', 'A carregar...')}</p>
       </div>
     );
   }
@@ -458,30 +501,10 @@ const CheckoutCarro = () => {
     return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const steps = [
-    { n: 1, label: t('step_dados_condutor'), active: true },
-    { n: 2, label: t('step_pagamento'), active: false },
-    { n: 3, label: t('step_confirmacao'), active: false }
-  ];
-
   return (
     <>
       <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-12 overflow-x-auto pb-4">
-            {steps.map((s, i, arr) => (
-              <React.Fragment key={i}>
-                <div className="flex flex-col items-center min-w-[120px]">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-2 ${s.active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'border border-slate-200 text-slate-400'}`}>
-                    {s.n}
-                  </div>
-                  <span className={`text-[10px] font-medium whitespace-nowrap ${s.active ? 'text-blue-900 font-bold' : 'text-slate-400'}`}>{s.label}</span>
-                </div>
-                {i < arr.length - 1 && <div className="flex-1 border-t border-dashed border-slate-200 mx-2 mb-6"></div>}
-              </React.Fragment>
-            ))}
-          </div>
-
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-left">
               <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
@@ -491,59 +514,35 @@ const CheckoutCarro = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8">
-              <h1 className="text-2xl font-bold text-blue-900 mb-2 text-left">{t('dados_condutor')}</h1>
-              <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('preencha_dados_condutor')}</p>
+              <h1 className="text-2xl font-bold text-blue-900 mb-2 text-left">{t('dados_condutor', 'Dados do Condutor')}</h1>
+              <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('preencha_dados_condutor', 'Preencha os dados abaixo para continuar.')}</p>
 
-              <div className="bg-[#F0F7FF] border border-blue-100 rounded-lg p-4 flex gap-3 mb-8 text-left">
-                <div className="w-5 h-5 rounded-full border border-blue-600 flex items-center justify-center text-blue-600 text-[10px] font-bold italic shrink-0 font-sans">i</div>
-                <div>
-                  <p className="text-sm font-bold text-blue-900">{t('informacao_importante')}</p>
-                  <p className="text-xs text-blue-700 font-medium">{t('info_carta_conducao')}</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-50 rounded-xl p-4 mb-6 flex flex-wrap gap-4 text-xs text-left">
-                <div className="flex items-center gap-2">
-                  <Calendar size={14} className="text-blue-600"/>
-                  <span className="font-medium text-slate-700">{formatarData(reserva.checkIn)} - {formatarData(reserva.checkOut)}</span>
-                  <span className="text-slate-400 font-medium">• {reserva.dias} {Number(reserva.dias) === 1 ? t('dia') : t('dias')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Gauge size={14} className="text-blue-600"/>
-                  <span className="font-medium text-slate-700">{t('categoria')}: {reserva.tipo}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Home size={14} className="text-blue-600"/>
-                  <span className="font-medium text-slate-700">{reserva.titulo}</span>
-                </div>
-              </div>
-
-              <CondutorPrincipal 
-                condutor={condutor} 
-                updateCondutor={updateCondutor} 
+              <CondutorPrincipal
+                condutor={condutor}
+                updateCondutor={updateCondutor}
               />
 
               <div className="mt-10 flex flex-col sm:flex-row justify-between gap-3">
-                <button 
-                  onClick={() => navigate(-1)} 
+                <button
+                  onClick={() => navigate(-1)}
                   className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all text-slate-700 shadow-sm"
                 >
-                  <ArrowLeft size={18}/> {t('voltar')}
+                  <ArrowLeft size={18} /> {t('voltar', 'Voltar')}
                 </button>
-                <button 
+                <button
                   onClick={handleSubmit}
-                  disabled={loading}
+                  disabled={enviandoOtp || loading}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
                 >
-                  {loading ? <Loader size={18} className="animate-spin" /> : null}
-                  {loading ? t('processando') : t('continuar_pagamento')} <ChevronRight size={18}/>
+                  {(enviandoOtp || loading) ? <Loader size={18} className="animate-spin" /> : null}
+                  {(enviandoOtp || loading) ? (t('processando', 'A processar...')) : (t('continuar_pagamento', 'Continuar para o pagamento'))} <ChevronRight size={18} />
                 </button>
               </div>
             </div>
 
             <div className="lg:col-span-4">
-              <ResumoReservaCarro 
-                reserva={reserva} 
+              <ResumoReservaCarro
+                reserva={reserva}
                 precoTotal={totalPreco}
                 setDataModalOpen={setDataModalOpen}
               />
@@ -553,13 +552,90 @@ const CheckoutCarro = () => {
       </div>
 
       {isDataModalOpen && (
-        <DataModalCarro 
-          onClose={() => setDataModalOpen(false)} 
-          onSelectData={handleSelectData} 
-          carroTitulo={reserva.titulo} 
+        <DataModalCarro
+          onClose={() => setDataModalOpen(false)}
+          onSelectData={handleSelectData}
+          carroTitulo={reserva.titulo}
           currentCheckIn={reserva.checkIn}
           currentCheckOut={reserva.checkOut}
         />
+      )}
+
+      {/* MODAL OTP — DESIGN PADRÃO DO SITE */}
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-sans">
+          <div className="bg-white rounded-3xl max-w-[420px] w-full p-8 shadow-2xl relative border border-slate-100 text-center animate-in fade-in zoom-in duration-200">
+
+            <button
+              onClick={() => setShowOtpModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex justify-center mb-5">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shadow-inner">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Confirmar email</h3>
+            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+              Enviámos um código de 6 dígitos para<br />
+              <strong className="text-slate-800">{mascararEmail(condutor.email)}</strong>
+            </p>
+
+            <div className="text-left mb-2">
+              <label className="text-xs font-bold text-slate-700">Código de confirmação</label>
+            </div>
+
+            <div className="flex justify-between gap-2 mb-4">
+              {otpValues.map((digit, idx) => (
+                <input
+                  key={idx}
+                  ref={(el) => (inputRefs.current[idx] = el)}
+                  type="text"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(idx, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                  className="w-12 h-12 text-center text-xl font-bold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-900 shadow-sm transition-all"
+                />
+              ))}
+            </div>
+
+            <p className="text-[11px] text-slate-400 mb-6">O código é válido por 5 minutos.</p>
+
+            <button
+              type="button"
+              onClick={handleVerifyOtpAndProceed}
+              disabled={loadingOtp || otpValues.some(v => !v)}
+              className="w-full bg-[#003580] hover:bg-[#002560] text-white font-semibold py-3.5 rounded-xl text-sm transition shadow-lg shadow-blue-900/10 disabled:opacity-50"
+            >
+              {loadingOtp ? 'A verificar...' : 'Confirmar email'}
+            </button>
+
+            <div className="flex justify-between items-center text-xs mt-6 px-1">
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                className="text-blue-600 font-medium hover:underline"
+              >
+                Reenviar código
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowOtpModal(false)}
+                className="text-slate-500 font-medium hover:underline"
+              >
+                Alterar email
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
     </>
   );

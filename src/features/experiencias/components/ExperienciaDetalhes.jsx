@@ -702,7 +702,6 @@ const ExperienciaDetalhes = () => {
   const [horario, setHorario] = useState("");
   const [usuarioLogado, setUsuarioLogado] = useState(null);
 
-  // Carregar usuário logado
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -715,7 +714,6 @@ const ExperienciaDetalhes = () => {
     }
   }, []);
 
-  // Carregar alojamentos para o mapa
   useEffect(() => {
     const fetchAlojamentos = async () => {
       try {
@@ -729,7 +727,6 @@ const ExperienciaDetalhes = () => {
     fetchAlojamentos();
   }, []);
 
-  // Carregar dados da experiência
   useEffect(() => {
     const fetchDados = async () => {
       try {
@@ -773,14 +770,12 @@ const ExperienciaDetalhes = () => {
     fetchDados();
   }, [slug, t]);
 
-  // Tracking - Só inicializar quando a experiência estiver carregada
   const tracking = useExperienciaTracking(experiencia?.id || null, usuarioLogado?.id || null);
   
   const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
   const registrarCliqueGuia = tracking?.registrarCliqueGuia || (() => {});
   const registrarVisualizacaoMapa = tracking?.registrarVisualizacaoMapa || (() => {});
 
-  // Usar o hook de disponibilidade
   const {
     disponibilidade,
     loading: loadingDisponibilidade,
@@ -796,14 +791,12 @@ const ExperienciaDetalhes = () => {
     periodo
   );
 
-  // Quando mudar a data ou período, buscar disponibilidade
   useEffect(() => {
     if (experiencia?.id) {
       buscarDisponibilidade(dataPasseio, periodo);
     }
   }, [dataPasseio, periodo, experiencia?.id, buscarDisponibilidade]);
 
-  // Definir primeiro horário disponível
   useEffect(() => {
     if (horariosDisponiveis.length > 0) {
       setHorario(horariosDisponiveis[0]);
@@ -818,7 +811,6 @@ const ExperienciaDetalhes = () => {
     { label: 'Tarde', range: [15, 17], timeRange: '15:00 - 17:00', temHorarios: true }
   ];
 
-  // Atualizar temHorarios baseado na disponibilidade
   const periodosUIAtualizados = periodosUI.map(p => {
     const periodoInfo = disponibilidade?.periodos?.[p.label];
     return {
@@ -827,14 +819,9 @@ const ExperienciaDetalhes = () => {
     };
   });
 
+  // ✅ SEM LOGIN OBRIGATÓRIO — segue direto para o checkout
   const handleReservarAgora = () => {
-    // Registrar clique em reserva
     registrarCliqueReserva();
-    
-    if (!usuarioLogado) {
-      alert(t('login_necessario') || "Por favor, faça login com o Google primeiro.");
-      return;
-    }
 
     const dataFormatada = new Date(dataPasseio).toLocaleDateString('pt-PT', {
       day: 'numeric',
@@ -842,8 +829,8 @@ const ExperienciaDetalhes = () => {
       year: 'numeric'
     });
 
-    navigate('/checkout-experiancia', { 
-      state: { 
+    navigate('/checkout-experiancia', {
+      state: {
         reservaData: {
           id: experiencia.id,
           titulo: experiencia.titulo,
@@ -858,7 +845,7 @@ const ExperienciaDetalhes = () => {
         dataSelecionada: dataFormatada,
         horarioSelecionado: horario,
         periodoSelecionado: periodo
-      } 
+      }
     });
   };
 

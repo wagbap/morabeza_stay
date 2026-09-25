@@ -1,3 +1,4 @@
+// src/components/gest/Historico.jsx
 import React, { useState, useEffect } from 'react';
 import { Loader2, Home, Car, Compass, Award, Filter } from 'lucide-react';
 
@@ -17,6 +18,31 @@ export default function Historico() {
     totalPendente: 0
   });
 
+  // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
+  const obterUserId = () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+      if (token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const parsed = JSON.parse(jsonPayload);
+        if (parsed.data?.id) return parsed.data.id;
+        if (parsed.id) return parsed.id;
+      }
+      const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        return user.id;
+      }
+    } catch (e) {
+      console.error('Erro ao obter ID:', e);
+    }
+    return null;
+  };
+
   useEffect(() => {
     fetchHistorico();
   }, []);
@@ -24,16 +50,14 @@ export default function Historico() {
   const fetchHistorico = async () => {
     setLoading(true);
     try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) {
+      const userId = obterUserId();
+      if (!userId) {
         setLoading(false);
         return;
       }
       
-      const user = JSON.parse(savedUser);
-      
       // Buscar roles do usuário
-      const rolesResponse = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${user.id}`);
+      const rolesResponse = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
       const rolesData = await rolesResponse.json();
       
       let isAnfitrion = false;
@@ -53,7 +77,7 @@ export default function Historico() {
       }
       
       // Buscar reservas
-      const response = await fetch(`https://welovepalop.com/api/dashboard/reservas_recentes.php?usuario_id=${user.id}`);
+      const response = await fetch(`https://welovepalop.com/api/dashboard/reservas_recentes.php?usuario_id=${userId}`);
       const data = await response.json();
       
       let pagamentosList = [];
@@ -121,21 +145,11 @@ export default function Historico() {
     }
   };
 
-  const getTipoLabel = (tipo) => {
-    switch(tipo) {
-      case 'alojamento': return 'Alojamento';
-      case 'carro': return 'Carro';
-      case 'experiencia': return 'Experiência';
-      default: return tipo;
-    }
-  };
-
   // Filtrar pagamentos por tipo
   const pagamentosFiltrados = filtroTipo === 'todos' 
     ? pagamentos 
     : pagamentos.filter(p => p.tipo === filtroTipo);
 
-  // Verificar se tem pelo menos uma role aprovada
   const hasAnyRole = userRoles.anfitrion || userRoles.guia || userRoles.proprietarioVeiculos;
 
   if (loading) {
@@ -146,7 +160,6 @@ export default function Historico() {
     );
   }
 
-  // Se não tem nenhuma role aprovada
   if (!hasAnyRole) {
     return (
       <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
@@ -169,7 +182,6 @@ export default function Historico() {
     <div className="max-w-7xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
       <h1 className="text-[24px] font-bold mb-6">Histórico de Pagamentos</h1>
       
-      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
           <p className="text-[11px] font-bold text-gray-400 mb-1">Total Bruto</p>
@@ -189,7 +201,6 @@ export default function Historico() {
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex items-center gap-2">
           <Filter size={16} className="text-gray-400" />
@@ -243,7 +254,6 @@ export default function Historico() {
         )}
       </div>
       
-      {/* Tabela de Pagamentos */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {pagamentosFiltrados.length === 0 ? (
           <div className="text-center py-12">
@@ -301,7 +311,6 @@ export default function Historico() {
         )}
       </div>
       
-      {/* Informação da Comissão */}
       <div className="mt-6 bg-gray-50 rounded-xl p-4 border border-gray-100">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">

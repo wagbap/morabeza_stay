@@ -449,6 +449,7 @@ const FluxoRegistoContent = () => {
   };
 
   // ==================== MONTAR PAYLOAD PARA API ====================
+ // ==================== MONTAR PAYLOAD PARA API ====================
   const montarPayload = (statusDestino) => {
     const quartosFormatados = (Array.isArray(quartosParaEnviar) ? quartosParaEnviar : []).map(q => {
       const fotosQuarto = (q.fotos || q.imagens || q.quarto_imagens || [])
@@ -468,8 +469,6 @@ const FluxoRegistoContent = () => {
       };
     });
 
-    // Foto principal = a que o utilizador marcou como principal:1
-    // Se nenhuma estiver marcada, a primeira fica como principal
     let fotosComPrincipal = [...fotos];
     const temPrincipal = fotosComPrincipal.some(f => f.principal === 1 || f.principal === true);
     if (!temPrincipal && fotosComPrincipal.length > 0) {
@@ -508,7 +507,7 @@ const FluxoRegistoContent = () => {
     const longitude = localizacaoDados.coordenadas?.lng || localizacaoDados.longitude || null;
 
     return {
-      proprietario_id: 1, // TODO: vir do utilizador autenticado
+      // 🔑 Removido o proprietario_id fixo. O backend lê o utilizador diretamente através do Token JWT.
       titulo: informacoesBasicas.titulo,
       tipo_propriedade: informacoesBasicas.tipo_propriedade,
       tipo: informacoesBasicas.tipo_propriedade,
@@ -549,16 +548,10 @@ const FluxoRegistoContent = () => {
         coordenadas: { lat: latitude, lng: longitude }
       },
 
-      // 🔑 MODELO DE VENDA — derivado do tipo de propriedade
       modelo_venda: modeloVenda,
-
-      // 🔑 Quartos só vão se o modelo for por_quarto
       quartos: mostraQuartos ? quartosFormatados : [],
-
       imagens: imagensFormatadas,
       fotos: imagensFormatadas,
-
-      // 🔑 STATUS
       status: statusDestino
     };
   };
