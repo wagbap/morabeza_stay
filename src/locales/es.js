@@ -980,5 +980,8 @@ enviar_whatsapp: "Enviar por WhatsApp",
 checkout_email_conta_existente: "Ya existe una cuenta con este correo electrónico. Inicie sesión para continuar.",
 erro_verificar_email: "No fue posible verificar el correo electrónico. Inténtelo de nuevo.",
 erro_enviar_codigo: "No fue posible enviar el código. Inténtelo de nuevo.",
+  mais_opcoes_contacto: "Más opciones de contacto",
+  enviar_mensagem: "Enviar mensaje",
+  nao_pode_contactar_se: "No se puede contactar"
   }
 };

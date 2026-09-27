@@ -943,11 +943,8 @@ checkout_email_conta_existente: "Für diese E-Mail existiert bereits ein Konto. 
 erro_verificar_email: "Die E-Mail konnte nicht überprüft werden. Bitte versuchen Sie es erneut.",
 erro_enviar_codigo: "Der Code konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
 enviar_whatsapp: "Über WhatsApp senden",
-
-
-
-
-
-
+ mais_opcoes_contacto: "Weitere Kontaktoptionen",
+  enviar_mensagem: "Nachricht senden",
+  nao_pode_contactar_se: "Kann nicht kontaktiert werden"
   }
 };

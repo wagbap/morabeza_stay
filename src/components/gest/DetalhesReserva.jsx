@@ -4,18 +4,22 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ArrowLeft, Calendar, User, Phone, Mail, Download, Share2,
-  CheckCircle, XCircle, Clock, AlertCircle, ChevronRight, Home
+  CheckCircle, XCircle, Clock, AlertCircle, ChevronRight, Home,
+  Receipt, DollarSign, Loader2, RefreshCw
 } from 'lucide-react';
+
+const API_URL = 'https://welovepalop.com';
 
 export default function DetalhesReservaPage() {
   const { id, tipo } = useParams();
   const navigate = useNavigate();
   const [detalhes, setDetalhes] = useState(null);
+  const [reembolsos, setReembolsos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingReembolsos, setLoadingReembolsos] = useState(false);
   const [error, setError] = useState(null);
   const [canceling, setCanceling] = useState(false);
 
-  // Função auxiliar para obter o ID do utilizador de forma segura (JWT ou LocalStorage)
   const obterUsuarioId = () => {
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
@@ -62,12 +66,14 @@ export default function DetalhesReservaPage() {
       }
       
       const response = await fetch(
-        `https://welovepalop.com/api/dashboard/detalhes_reserva.php?reserva_id=${id}&usuario_id=${usuarioId}&tipo=${tipo}`
+        `${API_URL}/api/dashboard/detalhes_reserva.php?reserva_id=${id}&usuario_id=${usuarioId}&tipo=${tipo}`
       );
       const data = await response.json();
       
       if (data.success) {
         setDetalhes(data.data);
+        // Buscar reembolsos em paralelo
+        fetchReembolsos(usuarioId);
       } else {
         setError(data.message || 'Erro ao carregar detalhes');
       }
@@ -76,6 +82,23 @@ export default function DetalhesReservaPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReembolsos = async (usuarioId) => {
+    setLoadingReembolsos(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/reembolsos.php?reserva_id=${id}&tipo=${tipo}&usuario_id=${usuarioId || obterUsuarioId()}`
+      );
+      const data = await res.json();
+      if (data.success) {
+        setReembolsos(data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar reembolsos:', err);
+    } finally {
+      setLoadingReembolsos(false);
     }
   };
 
@@ -91,11 +114,9 @@ export default function DetalhesReservaPage() {
         return;
       }
       
-      const response = await fetch('https://welovepalop.com/api/dashboard/minhas_reservas.php', {
+      const response = await fetch(`${API_URL}/api/dashboard/minhas_reservas.php`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reserva_id: parseInt(id),
           tipo: tipo,
@@ -119,55 +140,29 @@ export default function DetalhesReservaPage() {
     }
   };
 
+  const baixarRecibo = () => {
+    const usuarioId = obterUsuarioId();
+    window.open(
+      `${API_URL}/api/recibo.php?reserva_id=${id}&tipo=${tipo}&usuario_id=${usuarioId}`,
+      '_blank'
+    );
+  };
+
   const getStatusConfig = (status) => {
     const statusMap = {
-      'Confirmada': { 
-        bg: 'bg-green-50', 
-        text: 'text-green-700', 
-        border: 'border-green-200',
-        icon: <CheckCircle className="w-5 h-5 text-green-500" />,
-        label: 'Confirmada'
-      },
-      'Pendente': { 
-        bg: 'bg-yellow-50', 
-        text: 'text-yellow-700', 
-        border: 'border-yellow-200',
-        icon: <Clock className="w-5 h-5 text-yellow-500" />,
-        label: 'Pendente'
-      },
-      'Cancelada': { 
-        bg: 'bg-red-50', 
-        text: 'text-red-700', 
-        border: 'border-red-200',
-        icon: <XCircle className="w-5 h-5 text-red-500" />,
-        label: 'Cancelada'
-      },
-      'Concluída': { 
-        bg: 'bg-teal-50', 
-        text: 'text-teal-700', 
-        border: 'border-teal-200',
-        icon: <CheckCircle className="w-5 h-5 text-teal-500" />,
-        label: 'Concluída'
-      }
+      'Confirmada': { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', icon: <CheckCircle className="w-5 h-5 text-green-500" />, label: 'Confirmada' },
+      'Pendente': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', icon: <Clock className="w-5 h-5 text-yellow-500" />, label: 'Pendente' },
+      'Cancelada': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: <XCircle className="w-5 h-5 text-red-500" />, label: 'Cancelada' },
+      'Concluída': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', icon: <CheckCircle className="w-5 h-5 text-teal-500" />, label: 'Concluída' }
     };
     const statusKey = Object.keys(statusMap).find(key => 
       key.toLowerCase() === status?.toLowerCase()
     );
-    return statusMap[statusKey] || { 
-      bg: 'bg-gray-50', 
-      text: 'text-gray-700', 
-      border: 'border-gray-200',
-      icon: <AlertCircle className="w-5 h-5 text-gray-500" />,
-      label: status
-    };
+    return statusMap[statusKey] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: <AlertCircle className="w-5 h-5 text-gray-500" />, label: status };
   };
 
   const getTipoIcon = (tipo) => {
-    const tipos = {
-      'alojamento': '🏠',
-      'carro': '🚗',
-      'experiencia': '🏄'
-    };
+    const tipos = { 'alojamento': '🏠', 'carro': '🚗', 'experiencia': '🏄' };
     return tipos[tipo] || '📦';
   };
 
@@ -184,10 +179,7 @@ export default function DetalhesReservaPage() {
     if (!detalhes) return;
     const text = `Reserva ${detalhes.codigo_reserva} - ${detalhes.item_nome}\nPeríodo: ${detalhes.periodo}\nStatus: ${detalhes.status}\nValor: ${detalhes.valor} CVE`;
     if (navigator.share) {
-      navigator.share({
-        title: `Reserva ${detalhes.codigo_reserva}`,
-        text: text,
-      });
+      navigator.share({ title: `Reserva ${detalhes.codigo_reserva}`, text: text });
     } else {
       navigator.clipboard.writeText(text);
       alert('Detalhes copiados!');
@@ -198,7 +190,7 @@ export default function DetalhesReservaPage() {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <Loader2 className="w-8 h-8 text-blue-600 mx-auto animate-spin" />
           <p className="text-gray-500 mt-4">Carregando detalhes da reserva...</p>
         </div>
       </div>
@@ -212,10 +204,7 @@ export default function DetalhesReservaPage() {
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-gray-900 mb-2">Erro ao carregar</h3>
           <p className="text-gray-600">{error || 'Reserva não encontrada'}</p>
-          <button
-            onClick={() => navigate('/gest/minhas-reservas')}
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+          <button onClick={() => navigate('/gest/minhas-reservas')} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             Voltar para Reservas
           </button>
         </div>
@@ -224,6 +213,10 @@ export default function DetalhesReservaPage() {
   }
 
   const statusConfig = getStatusConfig(detalhes.status);
+  const valorTotal = Number(detalhes.valor) || 0;
+  const valorPago = Number(detalhes.valor_pago) || valorTotal;
+  const valorPendente = Math.max(0, valorTotal - valorPago);
+  const temReembolso = reembolsos && reembolsos.length > 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -231,13 +224,10 @@ export default function DetalhesReservaPage() {
       {/* Navegação */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
         <Link to="/gest" className="hover:text-blue-600 flex items-center gap-1">
-          <Home className="w-4 h-4" />
-          Dashboard
+          <Home className="w-4 h-4" /> Dashboard
         </Link>
         <ChevronRight className="w-4 h-4" />
-        <Link to="/gest/minhas-reservas" className="hover:text-blue-600">
-          Minhas Reservas
-        </Link>
+        <Link to="/gest/minhas-reservas" className="hover:text-blue-600">Minhas Reservas</Link>
         <ChevronRight className="w-4 h-4" />
         <span className="text-gray-900 font-medium">{detalhes.codigo_reserva}</span>
       </div>
@@ -246,39 +236,24 @@ export default function DetalhesReservaPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/gest/minhas-reservas')}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
+            <button onClick={() => navigate('/gest/minhas-reservas')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div>
               <div className="flex items-center gap-3">
                 <span className="text-3xl">{getTipoIcon(detalhes.tipo)}</span>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {detalhes.item_nome}
-                  </h1>
-                  <p className="text-sm text-gray-500">
-                    Código: {detalhes.codigo_reserva}
-                  </p>
+                  <h1 className="text-2xl font-bold text-gray-900">{detalhes.item_nome}</h1>
+                  <p className="text-sm text-gray-500">Código: {detalhes.codigo_reserva}</p>
                 </div>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={shareReserva}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Compartilhar"
-            >
+            <button onClick={shareReserva} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Compartilhar">
               <Share2 className="w-5 h-5 text-gray-600" />
             </button>
-            <button
-              onClick={downloadQRCode}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Baixar QR Code"
-            >
+            <button onClick={downloadQRCode} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Baixar QR Code">
               <Download className="w-5 h-5 text-gray-600" />
             </button>
           </div>
@@ -289,16 +264,12 @@ export default function DetalhesReservaPage() {
       <div className={`${statusConfig.bg} border ${statusConfig.border} rounded-xl p-4 mb-6 flex flex-wrap items-center gap-4`}>
         <div className="flex items-center gap-2">
           {statusConfig.icon}
-          <span className={`font-semibold ${statusConfig.text}`}>
-            Status: {statusConfig.label}
-          </span>
+          <span className={`font-semibold ${statusConfig.text}`}>Status: {statusConfig.label}</span>
         </div>
-        <span className="text-sm text-gray-500">
-          Criado em {detalhes.data_criacao}
-        </span>
-        <div className="ml-auto">
+        <span className="text-sm text-gray-500">Criado em {detalhes.data_criacao}</span>
+        <div className="ml-auto text-right">
           <span className="text-sm text-gray-500">Valor Total</span>
-          <p className="text-xl font-bold text-blue-600">{detalhes.valor} CVE</p>
+          <p className="text-xl font-bold text-blue-600">{valorTotal.toLocaleString('pt-PT')} CVE</p>
         </div>
       </div>
 
@@ -318,13 +289,10 @@ export default function DetalhesReservaPage() {
               />
               <div className="flex-1">
                 <h4 className="font-bold text-gray-900">{detalhes.item_nome}</h4>
-                {detalhes.item_descricao && (
-                  <p className="text-gray-600 text-sm mt-1">{detalhes.item_descricao}</p>
-                )}
+                {detalhes.item_descricao && <p className="text-gray-600 text-sm mt-1">{detalhes.item_descricao}</p>}
                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                   <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {detalhes.periodo}
+                    <Calendar className="w-4 h-4" /> {detalhes.periodo}
                   </span>
                 </div>
               </div>
@@ -338,23 +306,11 @@ export default function DetalhesReservaPage() {
               {detalhes.especifico && Object.entries(detalhes.especifico).map(([key, value]) => {
                 if (!value) return null;
                 const labels = {
-                  'checkin': 'Check-in',
-                  'checkout': 'Check-out',
-                  'noites': 'Noites',
-                  'hospedes': 'Hóspedes',
-                  'endereco': 'Endereço',
-                  'cidade': 'Cidade',
-                  'levantamento': 'Levantamento',
-                  'devolucao': 'Devolução',
-                  'dias': 'Dias',
-                  'modelo': 'Modelo',
-                  'marca': 'Marca',
-                  'ano': 'Ano',
-                  'data_participacao': 'Data',
-                  'horario': 'Horário',
-                  'pessoas': 'Pessoas',
-                  'localizacao': 'Localização',
-                  'duracao': 'Duração'
+                  'checkin': 'Check-in', 'checkout': 'Check-out', 'noites': 'Noites', 'hospedes': 'Hóspedes',
+                  'endereco': 'Endereço', 'cidade': 'Cidade', 'levantamento': 'Levantamento', 'devolucao': 'Devolução',
+                  'dias': 'Dias', 'modelo': 'Modelo', 'marca': 'Marca', 'ano': 'Ano',
+                  'data_participacao': 'Data', 'horario': 'Horário', 'pessoas': 'Pessoas',
+                  'localizacao': 'Localização', 'duracao': 'Duração'
                 };
                 return (
                   <div key={key} className="flex flex-col p-2 bg-gray-50 rounded-lg">
@@ -366,6 +322,104 @@ export default function DetalhesReservaPage() {
             </div>
           </div>
 
+          {/* ⭐ RECIBO ⭐ */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-blue-600" />
+                Recibo
+              </h4>
+              <button
+                onClick={baixarRecibo}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                Baixar Recibo
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                <span className="text-sm text-slate-600">Valor Total</span>
+                <span className="font-bold text-slate-900">{valorTotal.toLocaleString('pt-PT')} CVE</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                <span className="text-sm text-green-700">Valor Pago</span>
+                <span className="font-bold text-green-700">{valorPago.toLocaleString('pt-PT')} CVE</span>
+              </div>
+              {valorPendente > 0 && (
+                <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                  <span className="text-sm text-orange-700">Valor Pendente</span>
+                  <span className="font-bold text-orange-700">{valorPendente.toLocaleString('pt-PT')} CVE</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                <span className="text-sm font-bold text-blue-700">Total Pago</span>
+                <span className="text-lg font-black text-blue-700">{valorPago.toLocaleString('pt-PT')} CVE</span>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
+              <p>Método: <strong>{detalhes.metodo_pagamento || 'Cartão'}</strong></p>
+              <p>Emitido em: <strong>{detalhes.data_criacao}</strong></p>
+            </div>
+          </div>
+
+          {/* ⭐ REEMBOLSO ⭐ */}
+          {temReembolso && (
+            <div className="bg-white rounded-xl shadow-sm border border-orange-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-orange-600" />
+                  Reembolso
+                </h4>
+                <button
+                  onClick={() => fetchReembolsos()}
+                  className="p-1.5 hover:bg-orange-50 rounded-lg text-orange-600"
+                  title="Atualizar"
+                >
+                  <RefreshCw size={14} className={loadingReembolsos ? 'animate-spin' : ''} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {reembolsos.map((re, i) => {
+                  const statusRe = (re.status || '').toLowerCase();
+                  const cor = statusRe.includes('process') ? 'bg-green-50 border-green-200 text-green-700'
+                            : statusRe.includes('pendente') ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                            : statusRe.includes('rejeit') ? 'bg-red-50 border-red-200 text-red-700'
+                            : 'bg-slate-50 border-slate-200 text-slate-700';
+                  return (
+                    <div key={i} className={`border-2 rounded-xl p-4 ${cor}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider">
+                          {re.status || 'Pendente'}
+                        </span>
+                        <span className="text-lg font-black">
+                          {Number(re.valor).toLocaleString('pt-PT')} CVE
+                        </span>
+                      </div>
+                      {re.motivo && (
+                        <p className="text-xs opacity-80 mb-1">
+                          <strong>Motivo:</strong> {re.motivo}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-3 text-xs opacity-70 mt-2">
+                        <span>Solicitado: {re.created_at_fmt}</span>
+                        {re.processado_em_fmt && <span>Processado: {re.processado_em_fmt}</span>}
+                        {re.metodo && <span>Método: {re.metodo}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-xs text-slate-500 mt-4 pt-4 border-t border-orange-100">
+                ℹ️ Os reembolsos são processados em até 5 dias úteis após a aprovação.
+              </p>
+            </div>
+          )}
+
           {/* Histórico */}
           {detalhes.historico && detalhes.historico.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -374,22 +428,15 @@ export default function DetalhesReservaPage() {
                 {detalhes.historico.map((item, index) => (
                   <div key={index} className="flex gap-4">
                     <div className="flex flex-col items-center">
-                      <div 
-                        className="w-3 h-3 rounded-full border-2 border-white shadow"
-                        style={{ backgroundColor: item.cor || '#3b82f6' }}
-                      ></div>
-                      {index < detalhes.historico.length - 1 && (
-                        <div className="w-0.5 h-8 bg-gray-300"></div>
-                      )}
+                      <div className="w-3 h-3 rounded-full border-2 border-white shadow" style={{ backgroundColor: item.cor || '#3b82f6' }}></div>
+                      {index < detalhes.historico.length - 1 && <div className="w-0.5 h-8 bg-gray-300"></div>}
                     </div>
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center justify-between">
                         <span className="font-medium text-gray-900">{item.status}</span>
                         <span className="text-sm text-gray-500">{item.data}</span>
                       </div>
-                      {item.descricao && (
-                        <p className="text-sm text-gray-600">{item.descricao}</p>
-                      )}
+                      {item.descricao && <p className="text-sm text-gray-600">{item.descricao}</p>}
                     </div>
                   </div>
                 ))}
@@ -406,19 +453,10 @@ export default function DetalhesReservaPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
             <h4 className="font-bold text-gray-900 mb-3">📱 QR Code</h4>
             <div className="bg-white p-3 rounded-lg border border-gray-200 inline-block">
-              <img 
-                src={detalhes.qr_code} 
-                alt="QR Code"
-                className="w-40 h-40 object-contain"
-              />
+              <img src={detalhes.qr_code} alt="QR Code" className="w-40 h-40 object-contain" />
             </div>
-            <p className="text-sm text-gray-500 mt-3">
-              Apresente no check-in
-            </p>
-            <button
-              onClick={downloadQRCode}
-              className="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-            >
+            <p className="text-sm text-gray-500 mt-3">Apresente no check-in</p>
+            <button onClick={downloadQRCode} className="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
               Baixar QR Code
             </button>
           </div>
@@ -435,17 +473,13 @@ export default function DetalhesReservaPage() {
                 {detalhes.proprietario.email && (
                   <div className="flex items-center gap-2 text-sm">
                     <Mail className="w-4 h-4 text-gray-500" />
-                    <a href={`mailto:${detalhes.proprietario.email}`} className="text-blue-600 hover:underline">
-                      {detalhes.proprietario.email}
-                    </a>
+                    <a href={`mailto:${detalhes.proprietario.email}`} className="text-blue-600 hover:underline">{detalhes.proprietario.email}</a>
                   </div>
                 )}
                 {detalhes.proprietario.telefone && (
                   <div className="flex items-center gap-2 text-sm">
                     <Phone className="w-4 h-4 text-gray-500" />
-                    <a href={`tel:${detalhes.proprietario.telefone}`} className="text-blue-600 hover:underline">
-                      {detalhes.proprietario.telefone}
-                    </a>
+                    <a href={`tel:${detalhes.proprietario.telefone}`} className="text-blue-600 hover:underline">{detalhes.proprietario.telefone}</a>
                   </div>
                 )}
               </div>
@@ -456,24 +490,17 @@ export default function DetalhesReservaPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h4 className="font-bold text-gray-900 mb-3">⚡ Ações</h4>
             <div className="space-y-2">
-              <button
-                onClick={() => window.print()}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-              >
+              <button onClick={baixarRecibo} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                <Receipt className="w-4 h-4" /> Baixar Recibo
+              </button>
+              <button onClick={() => window.print()} className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
                 🖨️ Imprimir
               </button>
-              <Link
-                to="/gest/minhas-reservas"
-                className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors block text-center"
-              >
+              <Link to="/gest/minhas-reservas" className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors block text-center">
                 📋 Ver Todas
               </Link>
               {detalhes.status !== 'Cancelada' && detalhes.status !== 'Concluída' && (
-                <button
-                  onClick={handleCancelar}
-                  disabled={canceling}
-                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
+                <button onClick={handleCancelar} disabled={canceling} className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50">
                   {canceling ? 'Cancelando...' : '❌ Cancelar Reserva'}
                 </button>
               )}

@@ -958,6 +958,9 @@ checkout_email_conta_existente: "Já ten un konta ku es email. Inisia seson pa k
 erro_verificar_email: "Nu ka konsigi verifica email. Tenta otu bes.",
 erro_enviar_codigo: "Nu ka konsigi manda kódigu. Tenta otu bes.",
 enviar_whatsapp: "Envia  whatsapp",
+mais_opcoes_contacto: "Más opçons di kontatu",
+  enviar_mensagem: "Manda mensajen",
+  nao_pode_contactar_se: "Bu ka podi kontata li"
 
   }
 };

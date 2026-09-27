@@ -25,7 +25,7 @@ const PolicyCancellation = lazy(() => import('./components/PolicyCancellation'))
 const TermsConditions = lazy(() => import('./components/TermsConditions'));
 const Faq = lazy(() => import('./components/Faq'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
-
+  
 // Páginas de pagamento/checkout (lazy)
 const CheckoutExperiancia = lazy(() => import('./features/experiencias/components/CheckoutExperiencia'));
 const CheckoutAlojamento = lazy(() => import('./features/alojamento/components/CheckoutAlojamento'));

@@ -277,15 +277,15 @@ const SearchBarExperiencias = ({ onBuscar, className = '' }) => {
                 role="dialog"
                 aria-label="Selecionar datas"
               >
-                <CalendarioMorabeza
-                  selectsRange
-                  startDate={startDate}
-                  endDate={endDate}
-                  onChange={onChangeDatas}
-                  minDate={new Date()}
-                  locale="pt"
-                  monthsShown={typeof window !== 'undefined' && window.innerWidth >= 768 ? 2 : 1}
-                />
+              <CalendarioMorabeza
+                    selectsRange
+                    startDate={startDate}
+                    endDate={endDate}
+                    onChange={onChangeDatas}
+                    minDate={new Date()}
+                    locale="pt"
+                    monthsShown={1}
+                  />
                 <div className="p-2 border-t border-slate-100 flex items-center justify-between">
                   <button
                     type="button"

@@ -897,5 +897,8 @@ enviar_whatsapp: "Envoyer sur WhatsApp",
 checkout_email_conta_existente: "Un compte avec cet e-mail existe déjà. Connectez-vous pour continuer.",
 erro_verificar_email: "Impossible de vérifier l'e-mail. Veuillez réessayer.",
 erro_enviar_codigo: "Impossible d'envoyer le code. Veuillez réessayer.",
+mais_opcoes_contacto: "Plus d'options de contact",
+  enviar_mensagem: "Envoyer un message",
+  nao_pode_contactar_se: "Ne peut pas être contacté"
   }
 };

@@ -12,6 +12,7 @@ import {
   salvarQuartos,
   removerQuarto as removerQuartoApi,
 } from '../../services/apiService';
+import { TIPOS_ALOJAMENTO, modeloVendaPorTipo } from '../../utils/tipoAlojamento';
 import ConfiguracaoHorarios from './ConfiguracaoHorarios';
 
 const UPLOAD_URL = 'https://welovepalop.com/api/alojamento/upload_foto.php';
@@ -25,15 +26,44 @@ const filtrarUrlValida = (url) => {
   return true;
 };
 
-const TIPOS_PROPRIEDADE = [
-  { id: 'Apartamento', nome: 'Apartamento', icone: <Building size={18} />, descricao: 'Espaço privado num edifício' },
-  { id: 'Villa', nome: 'Villa', icone: <Home size={18} />, descricao: 'Casa inteira com privacidade total' },
-  { id: 'Guesthouse', nome: 'Guesthouse', icone: <BedDouble size={18} />, descricao: 'Alojamento local partilhado' },
-  { id: 'Hotel', nome: 'Hotel', icone: <Building size={18} />, descricao: 'Serviços completos de hotel' },
-  { id: 'Casa', nome: 'Casa', icone: <Home size={18} />, descricao: 'Casa tradicional' },
-  { id: 'Estúdio', nome: 'Estúdio', icone: <Building size={18} />, descricao: 'Espaço integrado e compacto' },
-  { id: 'Resort', nome: 'Resort', icone: <Home size={18} />, descricao: 'Complexo turístico com lazer' },
-];
+// Mapeamento do tipo (vindo do utils) para ícone + descrição curta
+const ICONE_POR_TIPO = {
+  'Apartamento': Building,
+  'Villa': Home,
+  'Casa': Home,
+  'Casa de campo': Home,
+  'Loft': Building,
+  'Estúdio': Building,
+  'Bungalow': Home,
+  'Chalé': Home,
+  'Hotel': Building,
+  'Guesthouse': BedDouble,
+  'Resort': Home,
+  'Pousada': BedDouble,
+  'Hostel': BedDouble,
+  'Bed and Breakfast': BedDouble,
+  'Albergue': BedDouble,
+  'Motel': Building,
+};
+
+const DESCRICAO_POR_TIPO = {
+  'Apartamento': 'Espaço privado num edifício',
+  'Villa': 'Casa inteira com privacidade total',
+  'Casa': 'Casa tradicional',
+  'Casa de campo': 'Casa em zona rural',
+  'Loft': 'Espaço amplo e aberto',
+  'Estúdio': 'Espaço integrado e compacto',
+  'Bungalow': 'Casa térrea independente',
+  'Chalé': 'Casa rústica de madeira',
+  'Hotel': 'Serviços completos de hotel',
+  'Guesthouse': 'Alojamento local partilhado',
+  'Resort': 'Complexo turístico com lazer',
+  'Pousada': 'Estadia acolhedora tradicional',
+  'Hostel': 'Alojamento económico partilhado',
+  'Bed and Breakfast': 'Pequeno-almoço incluído',
+  'Albergue': 'Alojamento simples e partilhado',
+  'Motel': 'Estadia prática à beira da estrada',
+};
 
 const TEMPO_RESPOSTA = [
   'Dentro de 1 hora',
@@ -53,8 +83,7 @@ const formatarCVE = (valor) => {
 };
 
 // ============================================================
-// DICAS PARA UM ANÚNCIO DE SUCESSO (item 21 + 22)
-// Orientação sem prometer reservas nem destaque garantido
+// DICAS PARA UM ANÚNCIO DE SUCESSO
 // ============================================================
 const DICAS_ANUNCIO = [
   {
@@ -158,7 +187,6 @@ const InformacoesBasicas = ({
       setLoadingQuartos(true);
       const result = await buscarTiposQuarto();
       if (result.success) {
-        // Aplica o filtro de URLs válidas na imagem do catálogo
         const tiposTratados = (result.data || []).map((t) => ({
           ...t,
           imagem_url: filtrarUrlValida(t.imagem_url) ? t.imagem_url : null,
@@ -230,9 +258,8 @@ const InformacoesBasicas = ({
               fotosReais = q.imagens;
             }
 
-            // Filtra fotos inválidas ou indesejadas
             const fotosLimpas = fotosReais
-              .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
+              .map((f) => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
               .filter(filtrarUrlValida);
 
             return {
@@ -314,7 +341,6 @@ const InformacoesBasicas = ({
     const multiplicador = parseFloat(tipoQuarto.multiplicador_preco) || 1;
     const precoSugerido = precoBase > 0 ? Math.round(precoBase * multiplicador) : null;
 
-    // Filtra imagem do tipo de quarto se for inválida
     const fotoInicialValida = filtrarUrlValida(tipoQuarto.imagem_url) ? [tipoQuarto.imagem_url] : [];
 
     const novoQuarto = {
@@ -589,45 +615,53 @@ const InformacoesBasicas = ({
           Tipo de propriedade <span className="text-red-500">*</span>
         </label>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {TIPOS_PROPRIEDADE.map((tipo) => (
-            <button
-              key={tipo.id}
-              type="button"
-              onClick={() => !readOnly && handleChange('tipo_propriedade', tipo.id)}
-              disabled={readOnly}
-              className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                dados?.tipo_propriedade === tipo.id
-                  ? 'border-[#006ce4] bg-blue-50 text-[#006ce4]'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-              } ${readOnly && 'cursor-default'}`}
-            >
-              <span className={dados?.tipo_propriedade === tipo.id ? 'text-[#006ce4]' : 'text-gray-500'}>
-                {tipo.icone}
-              </span>
-              <div className="text-left">
-                <p className="text-sm font-medium">{tipo.nome}</p>
-                <p className="text-xs text-gray-400 hidden md:block">{tipo.descricao}</p>
-              </div>
-              {dados?.tipo_propriedade === tipo.id && <Check size={16} className="ml-auto" />}
-            </button>
-          ))}
+          {TIPOS_ALOJAMENTO.map((tipo) => {
+            const Icone = ICONE_POR_TIPO[tipo.value] || Building;
+            const descricao = DESCRICAO_POR_TIPO[tipo.value] || '';
+            const selecionado = dados?.tipo_propriedade === tipo.value;
+            return (
+              <button
+                key={tipo.value}
+                type="button"
+                onClick={() => !readOnly && handleChange('tipo_propriedade', tipo.value)}
+                disabled={readOnly}
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                  selecionado
+                    ? 'border-[#006ce4] bg-blue-50 text-[#006ce4]'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                } ${readOnly && 'cursor-default'}`}
+              >
+                <span className={selecionado ? 'text-[#006ce4]' : 'text-gray-500'}>
+                  <Icone size={18} />
+                </span>
+                <div className="text-left">
+                  <p className="text-sm font-medium">{tipo.label}</p>
+                  {descricao && (
+                    <p className="text-xs text-gray-400 hidden md:block">{descricao}</p>
+                  )}
+                </div>
+                {selecionado && <Check size={16} className="ml-auto" />}
+              </button>
+            );
+          })}
         </div>
 
+        {/* ---------- AVISO DO MODELO DE VENDA ---------- */}
         {!mostraQuartos ? (
           <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 flex items-start gap-2">
-            <Info size={14} className="shrink-0 mt-0.5" />
+            <Home size={14} className="shrink-0 mt-0.5" />
             <span>
-              <strong>Alojamento inteiro</strong> — Apartamentos, casas e estúdios usam um preço único e uma
-              capacidade única. Para vender quartos separados, escolha <strong>Hotel</strong>,{' '}
-              <strong>Guesthouse</strong> ou <strong>Resort</strong>.
+              <strong>Alojamento inteiro</strong> — um único preço por noite e uma única capacidade
+              para todo o espaço. Ideal para <em>Apartamento</em>, <em>Casa</em>, <em>Villa</em> e{' '}
+              <em>Estúdio</em>.
             </span>
           </div>
         ) : (
           <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800 flex items-start gap-2">
             <Bed size={14} className="shrink-0 mt-0.5" />
             <span>
-              <strong>Venda por quartos</strong> — a capacidade total será calculada automaticamente a partir
-              dos quartos que configurar abaixo.
+              <strong>Venda por quarto</strong> — cada tipo de quarto tem a sua própria quantidade,
+              capacidade e preço. Ideal para <em>Guesthouse</em>, <em>Hotel</em> e <em>Resort</em>.
             </span>
           </div>
         )}
@@ -636,7 +670,8 @@ const InformacoesBasicas = ({
       {/* CAPACIDADE */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Capacidade máxima (pessoas) <span className="text-red-500">*</span>
+          {mostraQuartos ? 'Capacidade total (calculada)' : 'Capacidade máxima (pessoas)'}{' '}
+          {!mostraQuartos && <span className="text-red-500">*</span>}
         </label>
 
         {!mostraQuartos ? (
@@ -664,7 +699,7 @@ const InformacoesBasicas = ({
               {capacidadeTotalQuartos} {capacidadeTotalQuartos === 1 ? 'pessoa' : 'pessoas'}
             </span>
             <span className="text-xs text-gray-500 ml-auto italic">
-              Calculada a partir dos quartos configurados
+              Soma automática dos quartos configurados abaixo
             </span>
           </div>
         )}
@@ -1089,10 +1124,7 @@ const InformacoesBasicas = ({
         </div>
       </div>
 
-      {/* ============================================================ */}
-      {/* DICAS PARA UM ANÚNCIO DE SUCESSO (item 21)                   */}
-      {/* 8 orientações curtas + nota honesta (sem prometer reservas)  */}
-      {/* ============================================================ */}
+      {/* DICAS PARA UM ANÚNCIO DE SUCESSO */}
       <div className="border border-blue-200 rounded-2xl overflow-hidden bg-white">
         <button
           type="button"
@@ -1128,22 +1160,15 @@ const InformacoesBasicas = ({
                   key={dica.id}
                   className="flex items-start gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-blue-200 transition-colors"
                 >
-                  <div className="text-lg shrink-0 leading-none mt-0.5">
-                    {dica.emoji}
-                  </div>
+                  <div className="text-lg shrink-0 leading-none mt-0.5">{dica.emoji}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-900 leading-tight">
-                      {dica.titulo}
-                    </p>
-                    <p className="text-[11px] text-slate-600 leading-snug mt-1">
-                      {dica.descricao}
-                    </p>
+                    <p className="text-xs font-bold text-slate-900 leading-tight">{dica.titulo}</p>
+                    <p className="text-[11px] text-slate-600 leading-snug mt-1">{dica.descricao}</p>
                   </div>
                 </li>
               ))}
             </ul>
 
-            {/* Nota honesta — critério de aceitação do item 21 + 22 */}
             <div className="mt-4 pt-3 border-t border-blue-100 flex items-start gap-2">
               <CheckCircle2 className="text-blue-600 shrink-0 mt-0.5" size={14} />
               <p className="text-[10px] text-blue-800 leading-snug font-medium">
@@ -1153,7 +1178,6 @@ const InformacoesBasicas = ({
               </p>
             </div>
 
-            {/* Nota de transparência (não é promessa, é explicação) */}
             <div className="mt-3 flex items-start gap-2">
               <Eye className="text-slate-400 shrink-0 mt-0.5" size={14} />
               <p className="text-[10px] text-slate-500 leading-snug">

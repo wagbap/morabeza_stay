@@ -952,6 +952,9 @@ enviar_whatsapp: "Send via WhatsApp",
 checkout_email_conta_existente: "An account with this email already exists. Sign in to continue.",
 erro_verificar_email: "We could not verify the email. Please try again.",
 erro_enviar_codigo: "We could not send the code. Please try again.",
+mais_opcoes_contacto: "More contact options",
+  enviar_mensagem: "Send message",
+  nao_pode_contactar_se: "Cannot be contacted"
 
   }
 };

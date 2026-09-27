@@ -1,16 +1,48 @@
-// CheckoutExperiencia.jsx - Padrão do site (igual ao carro): sem login obrigatório + OTP + disponibilidade
+// CheckoutExperiencia.jsx — Com retenção de 15 min (Requisito 131)
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Check, ArrowLeft, Loader, AlertCircle, ChevronRight, Calendar, Users, Home,
-  ShieldCheck, Lock, MapPin, Clock, FileText, X
+  ShieldCheck, Lock, MapPin, Clock, FileText, X, Ship
 } from 'lucide-react';
 import DataModal from './DataModalExperiencia';
 import HorarioModal from './HorarioModalExperiencia';
 import { useToast } from '../../../Toast';
 
 const API_BASE = 'https://welovepalop.com';
+
+// ============================================================
+// HELPER: obter utilizador do JWT
+// ============================================================
+function obterUsuarioJWT() {
+  try {
+    const token = localStorage.getItem('token')
+      || localStorage.getItem('morabeza_token')
+      || localStorage.getItem('access_token')
+      || localStorage.getItem('jwt');
+    if (token) {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const parsed = JSON.parse(decodeURIComponent(
+        atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+      ));
+      const user = parsed?.data || parsed?.user || parsed?.usuario || parsed;
+      const id = user?.id || user?.userId || user?.user_id || user?.usuario_id || parsed?.sub;
+      if (id) return {
+        id: Number(id),
+        nome: user.nome || user.name || 'Utilizador',
+        email: user.email || parsed.email || ''
+      };
+    }
+    const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
+    if (savedUser) {
+      const u = JSON.parse(savedUser);
+      if (u?.id) return u;
+    }
+    return null;
+  } catch { return null; }
+}
 
 // ============================================================
 // PARTICIPANTE PRINCIPAL
@@ -324,10 +356,19 @@ const ResumoReservaExperiencia = ({ reserva, totalPessoas, precoTotal, setDataMo
           <span className="text-xs text-slate-600 font-medium">{t('horario', 'Horário')}</span>
           <span className="text-xs font-bold text-blue-900">{reserva?.horario || t('nao_selecionado', 'Não selecionado')} ({reserva?.periodo})</span>
         </div>
+        
         <div className="flex justify-between">
           <span className="text-xs text-slate-600 font-medium">{t('duracao', 'Duração')}</span>
-          <span className="text-xs font-bold text-blue-900">{reserva?.duracao}</span>
+          <span className="text-xs font-bold text-blue-900">{reserva?.duracao || '15 min'}</span>
         </div>
+
+        {reserva?.quantidadeJetSkis && (
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-600 font-medium">{t('jet_skis', 'Jet skis')}</span>
+            <span className="text-xs font-bold text-blue-900">{reserva.quantidadeJetSkis} {t('unidades', 'unidades')}</span>
+          </div>
+        )}
+
         <div className="flex justify-between">
           <span className="text-xs text-slate-600 font-medium">{t('participantes', 'Participantes')}</span>
           <span className="text-xs font-bold text-blue-900">{totalPessoas || 1} {t('pessoas', 'pessoas')}</span>
@@ -339,7 +380,6 @@ const ResumoReservaExperiencia = ({ reserva, totalPessoas, precoTotal, setDataMo
             <span className="text-slate-800">{formatNumber(reserva?.precoPorPessoa)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">{t('subtotal_participantes', { total: totalPessoas, defaultValue: 'Subtotal' })}</span>
             <span className="text-slate-800">{formatNumber(reserva?.precoPorPessoa * totalPessoas)} CVE</span>
           </div>
         </div>
@@ -396,6 +436,15 @@ const CheckoutExperiencia = () => {
   // Disponibilidade
   const [disponibilidade, setDisponibilidade] = useState(null);
   const [verificandoDisp, setVerificandoDisp] = useState(false);
+  const [sessoes, setSessoes] = useState([]);
+
+  // 🔥 REQ 131: Estado da retenção
+  const [usuarioLogado, setUsuarioLogado] = useState(null);
+  const [tokenRetencao, setTokenRetencao] = useState(null);
+  const [segundosRestantes, setSegundosRestantes] = useState(900);
+  const [retencaoAtiva, setRetencaoAtiva] = useState(false);
+  const [erroRetencao, setErroRetencao] = useState(null);
+  const [bloqueandoVagas, setBloqueandoVagas] = useState(false);
 
   const [reserva, setReserva] = useState({
     id: reservaData?.id || null,
@@ -406,10 +455,15 @@ const CheckoutExperiencia = () => {
     dataISO: reservaData?.dataISO || null,
     periodo: periodoSelecionado || reservaData?.periodo || t('manha', 'Manhã'),
     horario: horarioSelecionado || reservaData?.horario || '08:00',
+    duracao: reservaData?.duracao || '15 min',
+    quantidadeJetSkis: reservaData?.quantidadeJetSkis || 1,
+    participantes: reservaData?.participantes || 1,
     precoBase: reservaData?.precoTotal || 0,
-    duracao: reservaData?.duracao || '3 - 4 horas',
     maxPessoas: reservaData?.maxPessoas || 15,
-    precoPorPessoa: reservaData?.precoPorPessoa || 4500
+    precoPorPessoa: reservaData?.precoPorPessoa || 35,
+    sessaoId: reservaData?.sessaoId || null,
+    vagasDisponiveis: reservaData?.vagasDisponiveis || 0,
+    modelo: reservaData?.modelo || 'por_pessoa'
   });
 
   const [participantePrincipal, setParticipantePrincipal] = useState({
@@ -421,6 +475,135 @@ const CheckoutExperiencia = () => {
   });
 
   const [participantes, setParticipantes] = useState([]);
+
+  // 🔥 Obter utilizador logado
+  useEffect(() => {
+    const user = obterUsuarioJWT();
+    if (user) setUsuarioLogado(user);
+  }, []);
+
+  const totalPessoas = reserva.participantes || (participantes.length + 1);
+  const precoTotal = reserva.precoPorPessoa * totalPessoas;
+
+  // ============================================================
+  // 🔥 REQ 131: BLOQUEAR VAGAS AO ENTRAR NO CHECKOUT
+  // ============================================================
+  useEffect(() => {
+    const bloquearVagas = async () => {
+      if (!reserva.sessaoId || !reserva.id) {
+        console.warn('⚠️ Sem sessaoId — não é possível bloquear vagas');
+        return;
+      }
+
+      setBloqueandoVagas(true);
+      try {
+        console.log('🔒 A bloquear vagas:', {
+          sessao_id: reserva.sessaoId,
+          quantidade: totalPessoas
+        });
+
+        const res = await fetch(`${API_BASE}/api/reservar_temporariamente.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessao_id: reserva.sessaoId,
+            experiencia_id: reserva.id,
+            quantidade: totalPessoas,
+            usuario_id: usuarioLogado?.id || null,
+            modelo: reserva.modelo || 'por_pessoa',
+            dados_reserva: {
+              data: reserva.dataISO,
+              horario: reserva.horario,
+              periodo: reserva.periodo
+            }
+          })
+        });
+
+        const data = await res.json();
+        console.log('📥 Resposta bloqueio:', data);
+
+        if (data.success) {
+          setTokenRetencao(data.token);
+          setSegundosRestantes(data.segundos_restantes || 900);
+          setRetencaoAtiva(true);
+          setErroRetencao(null);
+          console.log('✅ Vagas bloqueadas por 15 min — token:', data.token);
+        } else {
+          setErroRetencao(data.error || 'Não foi possível bloquear as vagas.');
+          showToast(data.error || 'Não foi possível bloquear as vagas.', 'error');
+        }
+      } catch (err) {
+        console.error('❌ Erro ao bloquear vagas:', err);
+        setErroRetencao('Erro de conexão. Tente novamente.');
+        showToast('Erro ao bloquear vagas', 'error');
+      } finally {
+        setBloqueandoVagas(false);
+      }
+    };
+
+    bloquearVagas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reserva.sessaoId, reserva.horario]);
+
+  // ============================================================
+  // 🔥 REQ 131: TIMER REGRESSIVO
+  // ============================================================
+  useEffect(() => {
+    if (!retencaoAtiva || segundosRestantes <= 0) return;
+
+    const interval = setInterval(() => {
+      setSegundosRestantes(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setRetencaoAtiva(false);
+          showToast('O tempo para completar a reserva expirou.', 'error');
+          setTimeout(() => navigate(-1), 2500);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retencaoAtiva]);
+
+  // ============================================================
+  // 🔥 REQ 131: LIBERTAR VAGAS AO SAIR
+  // ============================================================
+  useEffect(() => {
+    return () => {
+      if (tokenRetencao && retencaoAtiva && reserva.sessaoId) {
+        console.log('🔓 A libertar retenção ao sair...');
+        fetch(`${API_BASE}/api/liberar_retensao.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenRetencao }),
+          keepalive: true
+        }).catch(() => {});
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenRetencao, retencaoAtiva]);
+
+  // ============================================================
+  // 🔥 BUSCAR SESSÕES DA API
+  // ============================================================
+  useEffect(() => {
+    const fetchSessoes = async () => {
+      if (!reserva.id || !reserva.dataISO) return;
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/get_sessoes_experiencia.php?experiencia_id=${reserva.id}&data=${reserva.dataISO}&periodo=${reserva.periodo}`
+        );
+        const data = await res.json();
+        if (data.success) setSessoes(data.sessoes || []);
+      } catch (err) {
+        console.error('Erro ao buscar sessões:', err);
+      }
+    };
+    fetchSessoes();
+  }, [reserva.id, reserva.dataISO, reserva.periodo]);
 
   // ============================================================
   // DISPONIBILIDADE
@@ -454,7 +637,54 @@ const CheckoutExperiencia = () => {
   }, [reserva.dataISO, reserva.horario, participantes.length]);
 
   // ============================================================
-  // BUSCAR DADOS DO UTILIZADOR (se existir — NÃO obrigatório)
+  // REVALIDAR STOCK
+  // ============================================================
+  const revalidarStock = async () => {
+    if (!reserva.id || !reserva.dataISO || !reserva.horario) {
+      return { success: false, error: 'Dados da reserva incompletos' };
+    }
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/get_sessoes_experiencia.php?experiencia_id=${reserva.id}&data=${reserva.dataISO}&periodo=${reserva.periodo}`
+      );
+      const data = await res.json();
+
+      if (!data.success) {
+        return { success: false, error: 'Erro ao verificar disponibilidade' };
+      }
+
+      const sessaoEscolhida = data.sessoes.find(s => s.hora_inicio === reserva.horario);
+
+      if (!sessaoEscolhida) {
+        return { success: false, error: 'Sessão não encontrada ou já não está disponível' };
+      }
+
+      // 🔥 Se já temos retenção ativa, as vagas estão garantidas
+      if (retencaoAtiva && tokenRetencao) {
+        return { success: true, sessao: sessaoEscolhida };
+      }
+
+      const vagasNecessarias = totalPessoas;
+      
+      if (sessaoEscolhida.vagas_disponiveis < vagasNecessarias) {
+        return { 
+          success: false, 
+          error: `Apenas ${sessaoEscolhida.vagas_disponiveis} vagas disponíveis. Necessárias: ${vagasNecessarias}.`,
+          vagas_disponiveis: sessaoEscolhida.vagas_disponiveis
+        };
+      }
+
+      return { success: true, sessao: sessaoEscolhida };
+
+    } catch (err) {
+      console.error('Erro na revalidação:', err);
+      return { success: false, error: 'Erro de conexão. Tente novamente.' };
+    }
+  };
+
+  // ============================================================
+  // BUSCAR DADOS DO UTILIZADOR
   // ============================================================
   const buscarDadosUsuario = async (email, googleId) => {
     setCarregandoDados(true);
@@ -481,7 +711,6 @@ const CheckoutExperiencia = () => {
     }
   };
 
-  // ⚠️ AQUI: sem login obrigatório. Se houver user, pré-preenche; se não, deixa em branco.
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -502,6 +731,19 @@ const CheckoutExperiencia = () => {
     }
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    const numParticipantesAdicionais = (reserva.participantes || 1) - 1;
+    if (numParticipantesAdicionais > 0 && participantes.length === 0) {
+      const novosParticipantes = Array.from({ length: numParticipantesAdicionais }, (_, i) => ({
+        id: Date.now() + i,
+        nome_completo: '',
+        idade: 'adulto',
+        nacionalidade: 'Cabo Verde'
+      }));
+      setParticipantes(novosParticipantes);
+    }
+  }, [reserva.participantes]);
 
   useEffect(() => {
     if (!reservaData && !dataSelecionada) {
@@ -622,6 +864,11 @@ const CheckoutExperiencia = () => {
       setError(disponibilidade.mensagem || t('erro_sem_vagas', 'Sem vagas suficientes.'));
       return false;
     }
+    // 🔥 Bloquear se retenção expirou
+    if (!retencaoAtiva && reserva.sessaoId) {
+      setError('A reserva temporária expirou. Escolha novamente.');
+      return false;
+    }
     return true;
   };
 
@@ -718,14 +965,46 @@ const CheckoutExperiencia = () => {
   };
 
   // ============================================================
-  // CONCLUIR RESERVA
+  // 🔥 CONCLUIR RESERVA — Confirmar retenção
   // ============================================================
-  const concluirReserva = () => {
-    const totalPessoas = participantes.length + 1;
-    const precoTotalFinal = reserva.precoPorPessoa * totalPessoas;
+  const concluirReserva = async () => {
+    const totalPessoasFinal = reserva.participantes || (participantes.length + 1);
+    const precoTotalFinal = reserva.precoPorPessoa * totalPessoasFinal;
 
+    // 🔥 1. CONFIRMAR a retenção (transforma em reserva definitiva)
+    if (tokenRetencao) {
+      try {
+        console.log('✅ A confirmar retenção...');
+        const res = await fetch(`${API_BASE}/api/confirmar_retensao.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: tokenRetencao,
+            reserva_id: reserva.id
+          })
+        });
+
+        const data = await res.json();
+        console.log('📥 Confirmação:', data);
+
+        if (!data.success) {
+          showToast(data.error || 'Erro ao confirmar reserva', 'error');
+          return;
+        }
+
+        setRetencaoAtiva(false); // Já não precisa libertar
+        setTokenRetencao(null);
+        console.log('✅ Retenção confirmada com sucesso');
+      } catch (err) {
+        console.error('❌ Erro ao confirmar retenção:', err);
+        showToast('Erro ao confirmar reserva', 'error');
+        return;
+      }
+    }
+
+    // 🔥 2. Continuar para pagamento
     const dadosReserva = {
-      reservaData: { ...reserva, participantes: totalPessoas, precoTotal: precoTotalFinal, tipo: 'experiencia' },
+      reservaData: { ...reserva, participantes: totalPessoasFinal, precoTotal: precoTotalFinal, tipo: 'experiencia' },
       participantePrincipal,
       participantesAdicionais: participantes,
       usuario: JSON.parse(localStorage.getItem('user') || 'null') || { email: participantePrincipal.email, nome: participantePrincipal.nome_completo }
@@ -735,20 +1014,41 @@ const CheckoutExperiencia = () => {
 
     navigate('/pagamento', {
       state: {
-        reservaData: { ...reserva, participantes: totalPessoas, precoTotal: precoTotalFinal, tipo: 'experiencia' },
+        reservaData: { ...reserva, participantes: totalPessoasFinal, precoTotal: precoTotalFinal, tipo: 'experiencia' },
         dadosParticipantes: { participantePrincipal, participantes },
-        tipo: 'experiencia'
+        tipo: 'experiencia',
+        tokenRetencao
       }
     });
   };
 
-  const handleSubmit = () => {
+  // ============================================================
+  // HANDLE SUBMIT
+  // ============================================================
+  const handleSubmit = async () => {
     if (!validateForm()) return;
+    
+    setLoading(true);
+    const revalidacao = await revalidarStock();
+    setLoading(false);
+
+    if (!revalidacao.success) {
+      setError(revalidacao.error);
+      showToast(revalidacao.error, 'error');
+      return;
+    }
+
     handleEnviarOtp();
   };
 
-  const totalPessoas = participantes.length + 1;
-  const precoTotal = reserva.precoPorPessoa * totalPessoas;
+  // ============================================================
+  // FORMATAR TIMER
+  // ============================================================
+  const formatarTempo = (segundos) => {
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   if (!reservaData && !dataSelecionada) {
     return (
@@ -784,6 +1084,68 @@ const CheckoutExperiencia = () => {
               </React.Fragment>
             ))}
           </div>
+
+          {/* 🔥 TIMER DE RETENÇÃO */}
+          {bloqueandoVagas && (
+            <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
+              <Loader className="animate-spin text-slate-500" size={18} />
+              <span className="text-sm font-medium text-slate-700">A reservar as suas vagas...</span>
+            </div>
+          )}
+
+          {retencaoAtiva && (
+            <div className={`mb-6 p-4 rounded-xl border-2 flex items-center justify-between ${
+              segundosRestantes > 300 ? 'bg-blue-50 border-blue-200' :
+              segundosRestantes > 60 ? 'bg-orange-50 border-orange-200' :
+              'bg-red-50 border-red-200 animate-pulse'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  segundosRestantes > 300 ? 'bg-blue-500' :
+                  segundosRestantes > 60 ? 'bg-orange-500' : 'bg-red-500'
+                }`}>
+                  <Lock className="text-white" size={18} />
+                </div>
+                <div>
+                  <p className={`text-sm font-bold ${
+                    segundosRestantes > 300 ? 'text-blue-900' :
+                    segundosRestantes > 60 ? 'text-orange-900' : 'text-red-900'
+                  }`}>
+                    🔒 Vagas reservadas para si
+                  </p>
+                  <p className={`text-xs ${
+                    segundosRestantes > 300 ? 'text-blue-700' :
+                    segundosRestantes > 60 ? 'text-orange-700' : 'text-red-700'
+                  }`}>
+                    Complete o pagamento dentro do prazo
+                  </p>
+                </div>
+              </div>
+              <div className={`font-mono text-2xl font-bold ${
+                segundosRestantes > 300 ? 'text-blue-600' :
+                segundosRestantes > 60 ? 'text-orange-600' : 'text-red-600'
+              }`}>
+                {formatarTempo(segundosRestantes)}
+              </div>
+            </div>
+          )}
+
+          {/* 🔥 ERRO DE RETENÇÃO */}
+          {erroRetencao && !retencaoAtiva && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+              <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-red-800">Erro ao reservar vagas</p>
+                <p className="text-xs text-red-600 mt-1">{erroRetencao}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-2 text-xs font-bold text-red-700 hover:underline"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-left">
@@ -856,7 +1218,7 @@ const CheckoutExperiencia = () => {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={enviandoOtp || loading || verificandoDisp || (disponibilidade && disponibilidade.success && disponibilidade.disponivel === false)}
+                  disabled={enviandoOtp || loading || verificandoDisp || !retencaoAtiva || (disponibilidade && disponibilidade.success && disponibilidade.disponivel === false)}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
                 >
                   {(enviandoOtp || loading) ? <Loader size={18} className="animate-spin" /> : null}
@@ -898,7 +1260,7 @@ const CheckoutExperiencia = () => {
         />
       )}
 
-      {/* MODAL OTP — PADRÃO DO SITE */}
+      {/* MODAL OTP */}
       {showOtpModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-sans">
           <div className="bg-white rounded-3xl max-w-[420px] w-full p-8 shadow-2xl relative border border-slate-100 text-center">

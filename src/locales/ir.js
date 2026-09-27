@@ -961,5 +961,9 @@ checkout_email_conta_existente: "Esiste già un account con questa email. Accedi
 erro_verificar_email: "Non è stato possibile verificare l'email. Riprova.",
 erro_enviar_codigo: "Non è stato possibile inviare il codice. Riprova.",
 enviar_whatsapp: "Invia tramite WhatsApp",
+mais_opcoes_contacto: "Più opzioni di contatto",
+enviar_mensagem: "Invia messaggio",
+nao_pode_contactar_se: "Non può essere contattato"
+
   }
 };

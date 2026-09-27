@@ -1,6 +1,6 @@
 // src/components/gest/GestaoRouter.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 
@@ -19,6 +19,20 @@ import MinhasReservas from './MinhasReservas';
 import DetalhesReserva from './DetalhesReserva';
 import DocumentosSolicitados from './DocumentosSolicitados';
 import DadosRecebimento from './DadosRecebimento';
+import UnidadesVeiculos from './UnidadesVeiculos';
+import LevantamentoCaucaoCondicoes from './LevantamentoCaucaoCondicoes';
+import MinhasExperiencias from './MinhasExperiencias';
+
+// 🔥 Lazy para páginas mais pesadas
+const ConfigurarSessoes = lazy(() => import('./ConfigurarSessoes'));
+const ConfigurarBloqueios = lazy(() => import('./ConfigurarBloqueios'));
+const PoliticasReserva = lazy(() => import('./PoliticasReserva'));
+
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
+);
 
 const LayoutGestao = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -26,7 +40,6 @@ const LayoutGestao = ({ children }) => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    // 🔑 Verificação robusta baseada no Token JWT ou dados salvos
     const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
     const userData = localStorage.getItem('user');
     
@@ -41,7 +54,6 @@ const LayoutGestao = ({ children }) => {
           
           const payload = JSON.parse(jsonPayload);
           
-          // Se o token tiver expiração, valida; senão, deixa passar
           if (payload.exp && Date.now() >= payload.exp * 1000) {
             localStorage.removeItem('token');
             localStorage.removeItem('morabeza_token');
@@ -51,11 +63,9 @@ const LayoutGestao = ({ children }) => {
         }
         setIsAuthenticated(true);
       } catch (e) {
-        // Se falhar a descodificação mas o token existir, permite o acesso para evitar bloqueios indesejados
         setIsAuthenticated(true);
       }
     } else if (userData) {
-      // Compatibilidade caso ainda exista o objeto 'user' antigo
       setIsAuthenticated(true);
     } else {
       navigate('/login');
@@ -101,7 +111,9 @@ const LayoutGestao = ({ children }) => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 md:p-8">
-            {children}
+            <Suspense fallback={<LoadingSpinner />}>
+              {children}
+            </Suspense>
           </div>
 
         </div>
@@ -125,12 +137,27 @@ const GestaoRouter = () => {
       <Route path="minhas-reservas" element={<LayoutGestao><MinhasReservas /></LayoutGestao>} />
       <Route path="documentos-solicitados" element={<LayoutGestao><DocumentosSolicitados /></LayoutGestao>} />
       <Route path="dados-recebimento" element={<LayoutGestao><DadosRecebimento /></LayoutGestao>} />
-      
-      {/* ROTA AMIGÁVEL PARA DETALHES DA RESERVA */}
+      <Route path="unidades-veiculos" element={<LayoutGestao><UnidadesVeiculos /></LayoutGestao>} />
+      <Route path="condicoes-veiculos" element={<LayoutGestao><LevantamentoCaucaoCondicoes /></LayoutGestao>} />
+
+      {/* ============================================================ */}
+      {/* 🔥 EXPERIÊNCIAS DO ANFITRIÃO */}
+      {/* ============================================================ */}
+      <Route path="minhas-experiencias" element={<LayoutGestao><MinhasExperiencias /></LayoutGestao>} />
+      <Route path="experiencia/:id/sessoes" element={<LayoutGestao><ConfigurarSessoes /></LayoutGestao>} />
+      <Route path="experiencia/:id/bloqueios" element={<LayoutGestao><ConfigurarBloqueios /></LayoutGestao>} />
+      <Route path="experiencia/:id/politicas" element={<LayoutGestao><PoliticasReserva /></LayoutGestao>} />
+
+      {/* ============================================================ */}
+      {/* DETALHES DA RESERVA */}
+      {/* ============================================================ */}
       <Route path="reserva/:id/:tipo" element={<LayoutGestao><DetalhesReserva /></LayoutGestao>} />
 
-      <Route path="" element={<Navigate to="dashboard" replace />} />
-      <Route path="*" element={<Navigate to="dashboard" replace />} />
+      {/* ============================================================ */}
+      {/* REDIRECIONAMENTOS */}
+      {/* ============================================================ */}
+      <Route path="" element={<Navigate to="/gest/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/gest/dashboard" replace />} />
     </Routes>
   );
 };

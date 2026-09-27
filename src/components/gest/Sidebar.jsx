@@ -18,6 +18,8 @@ import {
   Compass,
   FileText,
   Wallet,
+  KeyRound,
+  Settings2
 } from "lucide-react";
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -45,7 +47,7 @@ export default function Sidebar({ isOpen, onClose }) {
             const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
               return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
-            
+
             const payload = JSON.parse(jsonPayload);
             userData = payload.data || payload;
             userId = userData?.id;
@@ -69,15 +71,15 @@ export default function Sidebar({ isOpen, onClose }) {
         }
 
         setUser(userData);
-        
+
         const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
         const data = await response.json();
-        
+
         if (data.success && data.roles) {
           const isAnfitrion = data.roles.some(r => r.name === 'anfitrion' && r.status === 'approved');
           const isGuia = data.roles.some(r => r.name === 'guia_experiencias' && r.status === 'approved');
           const isProprietarioVeiculos = data.roles.some(r => r.name === 'proprietario_veiculos' && r.status === 'approved');
-          
+
           setUserRoles({
             anfitrion: isAnfitrion,
             guia: isGuia,
@@ -97,8 +99,8 @@ export default function Sidebar({ isOpen, onClose }) {
   const isActive = (path) => location.pathname.includes(path);
 
   const linkClass = (path) => `flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium transition-colors ${
-    isActive(path) 
-      ? "bg-[#e8f6ed] text-[#064e3b]" 
+    isActive(path)
+      ? "bg-[#e8f6ed] text-[#064e3b]"
       : "text-[#4b5563] hover:bg-gray-50"
   }`;
 
@@ -130,7 +132,7 @@ export default function Sidebar({ isOpen, onClose }) {
       fixed inset-y-0 left-0 z-40 lg:static lg:translate-x-0 transition-transform duration-300 ease-in-out
       ${isOpen ? "translate-x-0" : "-translate-x-full"}
     `}>
-      
+
       {/* Botão de Fechar no Mobile */}
       <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-50">
         <span className="font-bold text-[#0f172a]">Menu</span>
@@ -150,7 +152,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <p className="text-xs text-gray-400 truncate">{emailExibicao}</p>
           </div>
         </div>
-        
+
         {/* Badge de roles */}
         <div className="flex flex-wrap gap-1 mt-3">
           {userRoles.anfitrion && (
@@ -178,7 +180,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <div className="px-4 py-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Gestão</p>
               </div>
-              
+
               <Link to="/gest/dashboard" onClick={onClose} className={linkClass('/gest/dashboard')}>
                 <Home className={iconClass('/gest/dashboard')} strokeWidth={2} />
                 <span className="text-[15px] truncate">Dashboard</span>
@@ -228,6 +230,29 @@ export default function Sidebar({ isOpen, onClose }) {
                 <FileText className={iconClass('/gest/documentos-solicitados')} strokeWidth={2} />
                 <span className="text-[15px] truncate">Ver documentos</span>
               </Link>
+
+              {/* 🔥 NOVO: Link para configurar sessões das experiências */}
+              {userRoles.guia && (
+                <Link
+                  to="/gest/minhas-experiencias"
+                  onClick={onClose}
+                  className={linkClass('/gest/minhas-experiencias')}
+                >
+                  <Settings2 className={iconClass('/gest/minhas-experiencias')} strokeWidth={2} />
+                  <span className="text-[15px] truncate">Minhas Experiências</span>
+                </Link>
+              )}
+
+              {userRoles.proprietarioVeiculos && (
+                <Link
+                  to="/gest/unidades-veiculos"
+                  onClick={onClose}
+                  className={linkClass('/gest/unidades-veiculos')}
+                >
+                  <KeyRound className={iconClass('/gest/unidades-veiculos')} strokeWidth={2} />
+                  <span className="text-[15px] truncate">Unidades Veículos</span>
+                </Link>
+              )}
             </>
           )}
 
@@ -253,14 +278,14 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
 
           <div className="pt-4 mt-2 border-t border-gray-100">
-            <button 
+            <button
               onClick={() => {
                 localStorage.removeItem('token');
                 localStorage.removeItem('morabeza_token');
                 localStorage.removeItem('user');
                 localStorage.removeItem('morabeza_user');
                 window.location.href = '/login';
-              }} 
+              }}
               className="w-full flex items-center gap-3.5 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl font-medium transition-colors"
             >
               <LogOut className="w-[22px] h-[22px] text-red-500 flex-shrink-0" strokeWidth={2} />
