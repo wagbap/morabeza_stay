@@ -1,23 +1,52 @@
 // src/components/AlojamentoRegisto/InformacoesBasicas.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Info, Home, Users, Star, Check, ChevronRight, Clock, AlertCircle,
   ChevronDown, ChevronUp, Building, BedDouble, Bed, Plus, Trash2,
   Minus, DoorOpen, Loader, Camera, X, Upload, Lightbulb, CheckCircle2,
-  Eye, Sparkles,
+  Eye, Sparkles, Wifi, Wind, Coffee, Tv, Bath, Droplet, Car, Lock,
+  Shirt, Snowflake, Flame, Sun, Refrigerator, Mic, LayoutGrid,
 } from 'lucide-react';
 import {
   buscarTiposQuarto,
-  buscarQuartosDoAlojamento,
   salvarQuartos,
   removerQuarto as removerQuartoApi,
 } from '../../services/apiService';
 import { TIPOS_ALOJAMENTO, modeloVendaPorTipo } from '../../utils/tipoAlojamento';
 import ConfiguracaoHorarios from './ConfiguracaoHorarios';
 
-const UPLOAD_URL = 'https://welovepalop.com/api/alojamento/upload_foto.php';
+const API_BASE = 'https://welovepalop.com';
+const UPLOAD_URL = `${API_BASE}/api/alojamento/upload_foto.php`;
 
-// Filtro para bloquear URLs inválidas ou externas indesejadas (como Wix)
+// ============================================================
+// MAPEAMENTO DE ÍCONES PARA COMODIDADES
+// ============================================================
+const getIconeComodidade = (nome) => {
+  const n = (nome || '').toLowerCase();
+  if (n.includes('wifi') || n.includes('wi-fi')) return Wifi;
+  if (n.includes('ar condicionado') || n.includes('ar-condicionado')) return Snowflake;
+  if (n.includes('cozinha')) return Coffee;
+  if (n.includes('tv') || n.includes('televis')) return Tv;
+  if (n.includes('banheira')) return Bath;
+  if (n.includes('wc') || n.includes('casa de banho') || n.includes('banheiro')) return Bath;
+  if (n.includes('piscina')) return Droplet;
+  if (n.includes('estacionamento')) return Car;
+  if (n.includes('vista')) return Eye;
+  if (n.includes('segurança') || n.includes('cofre')) return Lock;
+  if (n.includes('máquina de lavar') || n.includes('lavar roupa')) return Shirt;
+  if (n.includes('aquecimento')) return Flame;
+  if (n.includes('varanda') || n.includes('terraço')) return Sun;
+  if (n.includes('frigorífico') || n.includes('geladeira')) return Refrigerator;
+  if (n.includes('micro-ondas') || n.includes('microondas')) return Mic;
+  if (n.includes('ventilador')) return Wind;
+  if (n.includes('secador')) return Wind;
+  if (n.includes('cama')) return Bed;
+  return CheckCircle2;
+};
+
+// ============================================================
+// FILTRO PARA URLS INVÁLIDAS
+// ============================================================
 const filtrarUrlValida = (url) => {
   if (!url || typeof url !== 'string') return false;
   const limpa = url.trim();
@@ -26,7 +55,9 @@ const filtrarUrlValida = (url) => {
   return true;
 };
 
-// Mapeamento do tipo (vindo do utils) para ícone + descrição curta
+// ============================================================
+// MAPEAMENTO DO TIPO (vindo do utils) PARA ÍCONE + DESCRIÇÃO
+// ============================================================
 const ICONE_POR_TIPO = {
   'Apartamento': Building,
   'Villa': Home,
@@ -86,64 +117,207 @@ const formatarCVE = (valor) => {
 // DICAS PARA UM ANÚNCIO DE SUCESSO
 // ============================================================
 const DICAS_ANUNCIO = [
-  {
-    id: 'titulo',
-    emoji: '✏️',
-    titulo: 'Título claro e específico',
-    descricao:
-      'Use um nome curto que diga exatamente o que é. Ex: "Apartamento T2 vista mar — Mindelo" em vez de "Casa bonita".',
-  },
-  {
-    id: 'fotos',
-    emoji: '📸',
-    titulo: 'Fotografias reais e completas',
-    descricao:
-      'Fotos bem iluminadas do espaço verdadeiro, de vários ângulos, incluindo quartos, casa de banho e vista. Evite imagens de banco de imagens.',
-  },
-  {
-    id: 'preco',
-    emoji: '💰',
-    titulo: 'Preço competitivo para começar',
-    descricao:
-      'Compare com alojamentos semelhantes na mesma ilha antes de publicar. Um preço inicial ajustado ajuda a conseguir as primeiras reservas e avaliações.',
-  },
-  {
-    id: 'comodidades',
-    emoji: '🛎️',
-    titulo: 'Comodidades corretas',
-    descricao:
-      'Marque apenas o que o espaço realmente oferece. Comodidades erradas geram cancelamentos e más avaliações.',
-  },
-  {
-    id: 'localizacao',
-    emoji: '📍',
-    titulo: 'Descrição da localização',
-    descricao:
-      'Explique onde fica, o que há por perto (praia, mercado, transportes) e como chegar. Ajuda o hóspede a decidir.',
-  },
-  {
-    id: 'calendario',
-    emoji: '📅',
-    titulo: 'Calendário sempre atualizado',
-    descricao:
-      'Bloqueie datas indisponíveis e mantenha o calendário em dia. Isto evita pedidos para datas que já não pode receber.',
-  },
-  {
-    id: 'resposta',
-    emoji: '⚡',
-    titulo: 'Resposta rápida aos hóspedes',
-    descricao:
-      'Responder às mensagens em poucas horas transmite confiança e melhora a experiência de quem reserva.',
-  },
-  {
-    id: 'visibilidade',
-    emoji: '📈',
-    titulo: 'Visibilidade na plataforma',
-    descricao:
-      'A Morabeza Stay pode dar maior destaque a anúncios com melhor qualidade, preço ajustado, disponibilidade atualizada, boas avaliações e histórico de reservas. Não é um destaque garantido — depende do desempenho real de cada anúncio.',
-  },
+  { id: 'titulo', emoji: '✏️', titulo: 'Título claro e específico', descricao: 'Use um nome curto que diga exatamente o que é. Ex: "Apartamento T2 vista mar — Mindelo" em vez de "Casa bonita".' },
+  { id: 'fotos', emoji: '📸', titulo: 'Fotografias reais e completas', descricao: 'Fotos bem iluminadas do espaço verdadeiro, de vários ângulos, incluindo quartos, casa de banho e vista. Evite imagens de banco de imagens.' },
+  { id: 'preco', emoji: '💰', titulo: 'Preço competitivo para começar', descricao: 'Compare com alojamentos semelhantes na mesma ilha antes de publicar. Um preço inicial ajustado ajuda a conseguir as primeiras reservas e avaliações.' },
+  { id: 'comodidades', emoji: '🛎️', titulo: 'Comodidades corretas', descricao: 'Marque apenas o que o espaço realmente oferece. Comodidades erradas geram cancelamentos e más avaliações.' },
+  { id: 'localizacao', emoji: '📍', titulo: 'Descrição da localização', descricao: 'Explique onde fica, o que há por perto (praia, mercado, transportes) e como chegar. Ajuda o hóspede a decidir.' },
+  { id: 'calendario', emoji: '📅', titulo: 'Calendário sempre atualizado', descricao: 'Bloqueie datas indisponíveis e mantenha o calendário em dia. Isto evita pedidos para datas que já não pode receber.' },
+  { id: 'resposta', emoji: '⚡', titulo: 'Resposta rápida aos hóspedes', descricao: 'Responder às mensagens em poucas horas transmite confiança e melhora a experiência de quem reserva.' },
+  { id: 'visibilidade', emoji: '📈', titulo: 'Visibilidade na plataforma', descricao: 'A Morabeza Stay pode dar maior destaque a anúncios com melhor qualidade, preço ajustado, disponibilidade atualizada, boas avaliações e histórico de reservas. Não é um destaque garantido — depende do desempenho real de cada anúncio.' },
 ];
 
+// ============================================================
+// SUB-COMPONENTE: Chip de comodidade
+// ============================================================
+const ChipComodidade = ({ comodidade, selecionado, onToggle }) => {
+  const Icone = getIconeComodidade(comodidade.nome);
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(comodidade.id)}
+      className={[
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 border transition-all duration-200',
+        selecionado
+          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+          : 'bg-white border-blue-200 text-slate-700 hover:border-blue-400 hover:shadow-sm',
+      ].join(' ')}
+    >
+      <Icone size={13} className={selecionado ? 'text-white' : 'text-blue-600'} strokeWidth={2} />
+      <span className="text-[10px] font-semibold whitespace-nowrap">{comodidade.nome}</span>
+      {selecionado && <Check size={11} strokeWidth={3} className="text-white" />}
+    </button>
+  );
+};
+
+// ============================================================
+// MODAL: Gerir Comodidades do Quarto
+// ============================================================
+const ModalComodidadesQuarto = ({
+  aberto, onFechar, quarto, comodidadesSelecionadas, onComodidadesChange, readOnly = false,
+}) => {
+  const [comodidadesDisponiveis, setComodidadesDisponiveis] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filtro, setFiltro] = useState('');
+
+  // Carregar catálogo de comodidades
+  useEffect(() => {
+    if (!aberto) return;
+
+    const carregar = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/alojamento/get_comodidades.php?t=${Date.now()}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setComodidadesDisponiveis(data.data);
+        } else if (Array.isArray(data)) {
+          setComodidadesDisponiveis(data);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar comodidades:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    carregar();
+  }, [aberto]);
+
+  if (!aberto || !quarto) return null;
+
+  const selecionadasIds = (comodidadesSelecionadas || []).map((c) =>
+    typeof c === 'object' ? c.id : c
+  );
+
+  const toggleComodidade = (id) => {
+    if (readOnly) return;
+    let novas;
+    if (selecionadasIds.includes(id)) {
+      novas = (comodidadesSelecionadas || []).filter((c) => {
+        const cId = typeof c === 'object' ? c.id : c;
+        return cId !== id;
+      });
+    } else {
+      const obj = comodidadesDisponiveis.find((c) => c.id === id);
+      if (obj) novas = [...(comodidadesSelecionadas || []), obj];
+      else novas = comodidadesSelecionadas;
+    }
+    if (onComodidadesChange) onComodidadesChange(novas);
+  };
+
+  const comodidadesFiltradas = comodidadesDisponiveis.filter((c) =>
+    c.nome.toLowerCase().includes(filtro.toLowerCase())
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 border-b border-slate-100">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+              <LayoutGrid className="text-blue-600" size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 leading-tight">
+                Comodidades do quarto
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {quarto.tipo_nome || quarto.nome || 'Quarto'} — marque o que este quarto oferece
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onFechar}
+            className="p-2 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Filtro */}
+        <div className="px-5 pt-4">
+          <input
+            type="text"
+            placeholder="Procurar comodidade..."
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400"
+          />
+        </div>
+
+        {/* Lista */}
+        <div className="flex-1 overflow-y-auto p-5">
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader size={24} className="animate-spin text-blue-600" />
+            </div>
+          ) : comodidadesFiltradas.length === 0 ? (
+            <p className="text-center text-sm text-slate-400 py-10">
+              Nenhuma comodidade encontrada.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {comodidadesFiltradas.map((c) => (
+                <ChipComodidade
+                  key={c.id}
+                  comodidade={c}
+                  selecionado={selecionadasIds.includes(c.id)}
+                  onToggle={toggleComodidade}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Preview das selecionadas */}
+        {selecionadasIds.length > 0 && (
+          <div className="px-5 py-3 bg-blue-50/50 border-t border-blue-100">
+            <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wide mb-2">
+              Selecionadas ({selecionadasIds.length})
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {(comodidadesSelecionadas || []).map((c, i) => {
+                const nome = typeof c === 'object' ? c.nome : comodidadesDisponiveis.find((x) => x.id === c)?.nome || '';
+                const Icone = getIconeComodidade(nome);
+                return (
+                  <div
+                    key={i}
+                    className="inline-flex items-center gap-1 bg-white border border-blue-200 rounded-full px-2 py-0.5"
+                  >
+                    <Icone size={11} className="text-blue-600" />
+                    <span className="text-[10px] font-semibold text-slate-700">{nome}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-100 flex justify-end gap-2">
+          <button
+            onClick={onFechar}
+            className="px-5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onFechar}
+            disabled={readOnly}
+            className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+          >
+            Guardar comodidades
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
 const InformacoesBasicas = ({
   dados = {},
   onDadosChange,
@@ -167,6 +341,11 @@ const InformacoesBasicas = ({
     aberto: false,
     tipoQuartoId: null,
     fotos: [],
+  });
+
+  const [modalComodidades, setModalComodidades] = useState({
+    aberto: false,
+    quarto: null,
   });
 
   const fileInputRef = useRef(null);
@@ -221,67 +400,17 @@ const InformacoesBasicas = ({
   useEffect(() => {
     const carregarQuartosBackend = async () => {
       if (!alojamentoId || !mostraQuartos) return;
-      try {
-        const result = await buscarQuartosDoAlojamento(alojamentoId);
-        if (result.success && result.data) {
-          const ativos = result.data.filter(
-            (q) => q.ativo === 1 || q.ativo === true || q.activo === 1 || q.activo === true
-          );
-
-          let imagensAgrupadas = {};
-          try {
-            const resImgs = await fetch(
-              `https://welovepalop.com/api/alojamento/get_quarto_imagens.php?t=${Date.now()}`
-            );
-            const dataImgs = await resImgs.json();
-            if (dataImgs.success && dataImgs.grouped) {
-              imagensAgrupadas = dataImgs.grouped;
-            }
-          } catch (imgError) {
-            console.error('Não foi possível carregar as imagens:', imgError);
-          }
-
-          const quartosNormalizados = ativos.map((q) => {
-            let fotosReais = [];
-            const idQuarto = q.id;
-            const chaveComposta = `${alojamentoId}_${q.tipo_quarto_id || q.tipo_catalogo_id}`;
-
-            if (imagensAgrupadas[chaveComposta]?.length > 0) {
-              fotosReais = imagensAgrupadas[chaveComposta];
-            } else if (imagensAgrupadas[idQuarto]?.length > 0) {
-              fotosReais = imagensAgrupadas[idQuarto];
-            } else if (imagensAgrupadas[`tipo_${q.tipo_quarto_id || q.tipo_catalogo_id}`]?.length > 0) {
-              fotosReais = imagensAgrupadas[`tipo_${q.tipo_quarto_id || q.tipo_catalogo_id}`];
-            } else if (Array.isArray(q.fotos) && q.fotos.length > 0) {
-              fotosReais = q.fotos;
-            } else if (Array.isArray(q.imagens) && q.imagens.length > 0) {
-              fotosReais = q.imagens;
-            }
-
-            const fotosLimpas = fotosReais
-              .map((f) => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
-              .filter(filtrarUrlValida);
-
-            return {
-              ...q,
-              tipo_quarto_id: q.tipo_catalogo_id || q.tipo_quarto_id,
-              tipo_nome: q.tipo_nome || q.nome,
-              quantidade_disponivel: q.quantidade ?? q.quantidade_disponivel ?? 1,
-              preco_personalizado: q.preco_noite ?? q.preco_personalizado ?? null,
-              fotos: fotosLimpas,
-              imagens: fotosLimpas,
-            };
-          });
-
-          setQuartosSelecionados(quartosNormalizados);
-          if (onQuartosChange) onQuartosChange(quartosNormalizados);
-        }
-      } catch (e) {
-        console.error('Erro ao carregar quartos do backend', e);
+      // No fluxo de edição, EditarAlojamento já carrega os quartos junto com
+      // as comodidades do endpoint get_comodidades_quartos.php. Não voltar a
+      // buscar os quartos aqui: isso substituiria os dados completos por uma
+      // resposta que não inclui as comodidades associadas.
+      if (quartosIniciais?.length) {
+        setQuartosSelecionados(quartosIniciais);
+        if (onQuartosChange) onQuartosChange(quartosIniciais);
       }
     };
     carregarQuartosBackend();
-  }, [alojamentoId, onQuartosChange, mostraQuartos]);
+  }, [alojamentoId, onQuartosChange, mostraQuartos, quartosIniciais]);
 
   useEffect(() => {
     if (quartosIniciais?.length > 0 && quartosSelecionados.length === 0) {
@@ -307,6 +436,9 @@ const InformacoesBasicas = ({
         const payload = novosQuartos.map((q) => {
           const listaFotos = q.fotos || q.imagens || [];
           const fotosLimpas = listaFotos.filter(filtrarUrlValida);
+          const comodidadesIds = (q.comodidades || []).map((c) =>
+            typeof c === 'object' ? c.id : c
+          );
           return {
             tipo_catalogo_id: q.tipo_quarto_id,
             tipo_quarto_id: q.tipo_quarto_id,
@@ -316,6 +448,7 @@ const InformacoesBasicas = ({
             preco_personalizado: q.preco_personalizado ?? null,
             fotos: fotosLimpas,
             imagens: fotosLimpas,
+            comodidades: comodidadesIds,
           };
         });
 
@@ -355,6 +488,7 @@ const InformacoesBasicas = ({
       multiplicador_preco: multiplicador,
       fotos: fotoInicialValida,
       imagens: fotoInicialValida,
+      comodidades: [],
     };
 
     const novosQuartos = [...quartosSelecionados, novoQuarto];
@@ -395,16 +529,14 @@ const InformacoesBasicas = ({
   };
 
   const removerQuartoEspecifico = async (tipo_quarto_id) => {
-    const novosQuartos = quartosSelecionados.filter((q) => q.tipo_quarto_id !== tipo_quarto_id);
-
-    setQuartosSelecionados(novosQuartos);
-    sincronizarComPai(novosQuartos);
-
     if (alojamentoId) {
       setSavingQuartos(true);
       try {
         const result = await removerQuartoApi(alojamentoId, tipo_quarto_id);
         if (result.success) {
+          const novosQuartos = quartosSelecionados.filter((q) => q.tipo_quarto_id !== tipo_quarto_id);
+          setQuartosSelecionados(novosQuartos);
+          sincronizarComPai(novosQuartos);
           showToast('Quarto removido', 'success');
         } else {
           showToast(result.message || 'Erro ao remover', 'error');
@@ -415,17 +547,20 @@ const InformacoesBasicas = ({
         setSavingQuartos(false);
       }
     } else {
+      const novosQuartos = quartosSelecionados.filter((q) => q.tipo_quarto_id !== tipo_quarto_id);
+      setQuartosSelecionados(novosQuartos);
+      sincronizarComPai(novosQuartos);
       localStorage.setItem('propertyQuartos', JSON.stringify(novosQuartos));
       showToast('Quarto removido', 'success');
     }
   };
 
+  // ==================== UPLOAD DE FOTOS DO QUARTO ====================
   const dispararSeletorFicheiros = (tipoQuartoId) => {
     activeQuartoIdRef.current = tipoQuartoId;
     if (fileInputRef.current) fileInputRef.current.click();
   };
 
-  // ==================== UPLOAD DE FOTOS DO QUARTO ====================
   const handleFicheirosSelecionados = async (e) => {
     const files = Array.from(e.target.files);
     const tipoQuartoId = activeQuartoIdRef.current;
@@ -501,6 +636,21 @@ const InformacoesBasicas = ({
     if (modalFotoQuarto.aberto) {
       setModalFotoQuarto((prev) => ({ ...prev, fotos: novasFotos }));
     }
+  };
+
+  // ==================== MODAL COMODIDADES ====================
+  const abrirModalComodidades = (quarto) => {
+    setModalComodidades({ aberto: true, quarto });
+  };
+
+  const handleComodidadesChange = (novasComodidades) => {
+    if (!modalComodidades.quarto) return;
+    const tipoId = modalComodidades.quarto.tipo_quarto_id;
+    atualizarQuartoPropriedade(tipoId, 'comodidades', novasComodidades);
+    setModalComodidades((prev) => ({
+      ...prev,
+      quarto: { ...prev.quarto, comodidades: novasComodidades },
+    }));
   };
 
   // ==================== VALIDAÇÃO ====================
@@ -646,7 +796,7 @@ const InformacoesBasicas = ({
           })}
         </div>
 
-        {/* ---------- AVISO DO MODELO DE VENDA ---------- */}
+        {/* AVISO DO MODELO DE VENDA */}
         {!mostraQuartos ? (
           <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 flex items-start gap-2">
             <Home size={14} className="shrink-0 mt-0.5" />
@@ -715,7 +865,7 @@ const InformacoesBasicas = ({
         </div>
       </div>
 
-      {/* ==================== HORÁRIOS DE CHECK-IN / CHECK-OUT ==================== */}
+      {/* HORÁRIOS DE CHECK-IN / CHECK-OUT */}
       <ConfiguracaoHorarios dados={dados} onChange={onDadosChange} readOnly={readOnly} />
 
       {/* SEÇÃO DE QUARTOS */}
@@ -805,6 +955,8 @@ const InformacoesBasicas = ({
                     const fotosReais = Array.isArray(quarto.fotos) ? quarto.fotos.filter(filtrarUrlValida) : [];
                     const qtdFotosReais = fotosReais.length;
                     const imagemPrincipalCard = qtdFotosReais > 0 ? fotosReais[0] : null;
+                    const comodidadesQuarto = Array.isArray(quarto.comodidades) ? quarto.comodidades : [];
+                    const qtdComodidades = comodidadesQuarto.length;
 
                     return (
                       <div
@@ -881,15 +1033,18 @@ const InformacoesBasicas = ({
                           </div>
                         </div>
 
+                        {/* ========== AÇÕES: FOTOS + COMODIDADES ========== */}
                         <div className="mt-3 pt-3 border-t border-gray-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-3">
                             <span className="flex items-center gap-1 text-xs font-semibold text-gray-700">
-                              <Camera size={14} className="text-[#006ce4]" /> Fotos deste quarto (
-                              {qtdFotosReais})
+                              <Camera size={14} className="text-[#006ce4]" /> Fotos ({qtdFotosReais})
+                            </span>
+                            <span className="flex items-center gap-1 text-xs font-semibold text-gray-700">
+                              <LayoutGrid size={14} className="text-[#006ce4]" /> Comodidades ({qtdComodidades})
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             {qtdFotosReais > 0 && (
                               <button
                                 type="button"
@@ -907,9 +1062,17 @@ const InformacoesBasicas = ({
                             >
                               <Upload size={14} /> + Adicionar Fotos
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => abrirModalComodidades(quarto)}
+                              className="flex items-center gap-1 text-xs font-semibold text-[#006ce4] hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors"
+                            >
+                              <LayoutGrid size={14} /> Gerir Comodidades
+                            </button>
                           </div>
                         </div>
 
+                        {/* Miniaturas de fotos */}
                         {qtdFotosReais === 0 ? (
                           <p className="text-[11px] text-gray-400 italic mt-1">
                             Nenhuma foto adicionada para este quarto ainda.
@@ -940,6 +1103,25 @@ const InformacoesBasicas = ({
                             ))}
                           </div>
                         )}
+
+                        {/* Chips de comodidades selecionadas */}
+                        {qtdComodidades > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {comodidadesQuarto.map((c, i) => {
+                              const nome = typeof c === 'object' ? c.nome : String(c);
+                              const Icone = getIconeComodidade(nome);
+                              return (
+                                <div
+                                  key={i}
+                                  className="inline-flex items-center gap-1 bg-white border border-blue-200 rounded-full px-2 py-0.5"
+                                >
+                                  <Icone size={10} className="text-blue-600" />
+                                  <span className="text-[10px] font-semibold text-slate-700">{nome}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -967,7 +1149,7 @@ const InformacoesBasicas = ({
         </div>
       )}
 
-      {/* MODAL FOTOS DE QUARTO */}
+      {/* ========== MODAL: FOTOS DE QUARTO ========== */}
       {mostraQuartos && modalFotoQuarto.aberto && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-5 relative shadow-xl">
@@ -1032,6 +1214,18 @@ const InformacoesBasicas = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========== MODAL: COMODIDADES DO QUARTO ========== */}
+      {mostraQuartos && (
+        <ModalComodidadesQuarto
+          aberto={modalComodidades.aberto}
+          onFechar={() => setModalComodidades({ aberto: false, quarto: null })}
+          quarto={modalComodidades.quarto}
+          comodidadesSelecionadas={modalComodidades.quarto?.comodidades || []}
+          onComodidadesChange={handleComodidadesChange}
+          readOnly={readOnly}
+        />
       )}
 
       {/* DESCRIÇÃO CURTA */}
@@ -1124,7 +1318,7 @@ const InformacoesBasicas = ({
         </div>
       </div>
 
-      {/* DICAS PARA UM ANÚNCIO DE SUCESSO */}
+      {/* DICAS */}
       <div className="border border-blue-200 rounded-2xl overflow-hidden bg-white">
         <button
           type="button"

@@ -521,7 +521,7 @@ const FluxoRegisto = () => {
                   ) : (
                     <>
                       <Check size={18} />
-                      Finalizar Registo
+                      Enviar para análise
                     </>
                   )}
                 </button>

@@ -334,7 +334,7 @@ export default function Reservas() {
       {showCancelModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full p-6 text-left">
-            <h3 className="text-lg font-bold mb-2 text-red-600 text-center">Cancelar Reserva</h3>
+            <h3 className="text-lg font-bold mb-2 text-read-600 text-center">Cancelar Reserva</h3>
             <p className="text-gray-500 text-sm mb-3 text-center">Tem certeza que deseja cancelar a reserva <strong>{showCancelModal.codigo}</strong>?</p>
             <textarea value={motivoCancelamento} onChange={(e) => setMotivoCancelamento(e.target.value)} placeholder="Informe o motivo..." className="w-full border p-2 rounded text-sm mb-4" rows={3}></textarea>
             <div className="flex gap-3">

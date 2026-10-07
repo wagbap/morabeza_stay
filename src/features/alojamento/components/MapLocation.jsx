@@ -1,184 +1,255 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// PaginaMapa.jsx
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, MapPin, Navigation, Maximize2 } from 'lucide-react';
-import mapboxgl from 'mapbox-gl';
+import { Map, Marker, NavigationControl } from 'react-map-gl';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Star, ChevronRight, MapPin, X } from 'lucide-react';
+import axios from 'axios';
+
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitude, alojamentoId }) => {
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+
+const COORDENADAS_ILHAS = {
+  'Santiago': { lat: 15.0667, lng: -23.5833 },
+  'São Vicente': { lat: 16.8333, lng: -24.9833 },
+  'Sal': { lat: 16.7167, lng: -22.9167 },
+  'Ilha do Sal': { lat: 16.7167, lng: -22.9167 },
+  'Boa Vista': { lat: 16.1000, lng: -22.8000 },
+  'Fogo': { lat: 14.9167, lng: -24.3333 },
+  'Ilha do Fogo': { lat: 14.9167, lng: -24.3333 },
+  'Santo Antão': { lat: 17.0667, lng: -25.1667 },
+  'Maio': { lat: 15.1333, lng: -23.2167 },
+  'São Nicolau': { lat: 16.6167, lng: -24.2667 },
+  'Brava': { lat: 14.8667, lng: -24.7000 }
+};
+
+const PaginaMapa = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const mapContainer = React.useRef(null);
-  const map = React.useRef(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  
-  // Verificar se temos coordenadas válidas
-  const temCoordenadas = latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude));
-  
-  // Token do Mapbox
-  const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-  
-  const textoLocalizacao = endereco || localizacao || t('localizacao_nao_informada');
-  const cidadeNome = textoLocalizacao.split(',').shift();
-  
-  // Inicializar o mapa quando tivermos coordenadas
+  const location = useLocation();
+  const [alojamentos, setAlojamentos] = useState([]);
+  const [selectedHotel, setSelectedHotel] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [focoId, setFocoId] = useState(null);
+
   useEffect(() => {
-    if (!temCoordenadas || !mapContainer.current || map.current) return;
-    if (!MAPBOX_TOKEN) {
-      console.error('Mapbox token não configurado');
-      return;
+    const params = new URLSearchParams(location.search);
+    const foco = params.get('foco');
+    if (foco) setFocoId(parseInt(foco, 10));
+  }, [location.search]);
+
+  const [viewState, setViewState] = useState({
+    latitude: 16.8884,
+    longitude: -24.9896,
+    zoom: 7,
+    pitch: 0,
+    bearing: 0
+  });
+
+  const obterCoordenadasValidas = (hotel) => {
+    const lat = parseFloat(hotel?.latitude);
+    const lng = parseFloat(hotel?.longitude);
+    
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      return { lat, lng, zoom: 15 };
     }
     
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    const ilhaNome = hotel?.ilha || hotel?.cidade;
+    if (ilhaNome && COORDENADAS_ILHAS[ilhaNome]) {
+      return { lat: COORDENADAS_ILHAS[ilhaNome].lat, lng: COORDENADAS_ILHAS[ilhaNome].lng, zoom: 12 };
+    }
     
-    const lat = parseFloat(latitude);
-    const lng = parseFloat(longitude);
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [lng, lat],
-      zoom: 14,
-      interactive: false,
-      attributionControl: false
-    });
-    
-    map.current.on('load', () => {
-      setMapLoaded(true);
+    return { lat: 14.9315, lng: -23.5125, zoom: 10 };
+  };
+
+  const processarCoordenadasUnicas = (lista) => {
+    const contagem = {};
+    return lista.map(hotel => {
+      const ponto = obterCoordenadasValidas(hotel);
+      const chave = `${ponto.lat.toFixed(4)}-${ponto.lng.toFixed(4)}`;
       
-      new mapboxgl.Marker({
-        color: '#1e3a8a',
-        scale: 1.2
-      })
-        .setLngLat([lng, lat])
-        .addTo(map.current);
+      if (contagem[chave] === undefined) {
+        contagem[chave] = 0;
+      }
+      
+      const index = contagem[chave];
+      contagem[chave]++;
+      
+      let latFinal = ponto.lat;
+      let lngFinal = ponto.lng;
+      
+      if (index > 0) {
+        const raio = 0.0004 * Math.ceil(index / 6);
+        const angulo = (index % 6) * (Math.PI / 3);
+        latFinal += raio * Math.cos(angulo);
+        lngFinal += raio * Math.sin(angulo);
+      }
+
+      return { ...hotel, latFinal, lngFinal, zoomFinal: ponto.zoom };
     });
-    
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
+  };
+
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get('https://welovepalop.com/api/get_alojamentos.php');
+        let dadosRaw = Array.isArray(res.data) ? res.data : (res.data?.data ? [res.data.data] : []);
+        
+        const dadosProcessados = processarCoordenadasUnicas(dadosRaw);
+        setAlojamentos(dadosProcessados);
+        
+        if (focoId) {
+          const focoHotel = dadosProcessados.find(h => parseInt(h.id, 10) === focoId);
+          if (focoHotel) {
+            setViewState(prev => ({
+              ...prev,
+              latitude: focoHotel.latFinal,
+              longitude: focoHotel.lngFinal,
+              zoom: focoHotel.zoomFinal
+            }));
+            setSelectedHotel(focoHotel);
+          }
+        } else if (dadosProcessados.length > 0) {
+          setViewState(prev => ({
+            ...prev,
+            latitude: dadosProcessados[0].latFinal,
+            longitude: dadosProcessados[0].lngFinal,
+            zoom: 12
+          }));
+        }
+      } catch (err) {
+        console.error("Erro ao carregar mapa de alojamentos:", err);
+      } finally {
+        setLoading(false);
       }
     };
-  }, [temCoordenadas, latitude, longitude, MAPBOX_TOKEN]);
-  
-  // Função para abrir a página de mapa interna
-  const abrirPaginaMapa = () => {
-    if (alojamentoId) {
-      navigate(`/mapa?foco=${alojamentoId}`);
-    } else {
-      navigate('/mapa');
-    }
+    carregarDados();
+  }, [focoId]);
+
+  const handleSelecionarHotel = (hotel) => {
+    setSelectedHotel(hotel);
+    setViewState(prev => ({
+      ...prev,
+      latitude: hotel.latFinal,
+      longitude: hotel.lngFinal,
+      zoom: 16
+    }));
   };
-  
-  return (
-    <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
-      {/* Cabeçalho */}
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h4 className="text-sm font-bold text-slate-900 leading-tight">{t('localizacao')}</h4>
-          <p className="text-[10px] text-slate-500 font-medium mt-0.5">{textoLocalizacao}</p>
-        </div>
-      </div>
-      
-      {/* MAPA REAL COM MAPBOX */}
-      {temCoordenadas && MAPBOX_TOKEN ? (
-        <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+
+  const marcadores = useMemo(() => 
+    alojamentos.map((hotel) => {
+      const isSelected = selectedHotel?.id === hotel.id;
+      const preco = Number(hotel.preco_noite || 0);
+
+      return (
+        <Marker 
+          key={hotel.id} 
+          latitude={hotel.latFinal} 
+          longitude={hotel.lngFinal} 
+          anchor="bottom"
+          onClick={e => {
+            e.originalEvent.stopPropagation();
+            handleSelecionarHotel(hotel);
+          }}
+        >
           <div 
-            ref={mapContainer} 
-            className="relative w-full h-[200px] bg-slate-100"
-            style={{ cursor: 'pointer' }}
-            onClick={abrirPaginaMapa}
-          />
-          
-          {!mapLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
-              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
-          
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <button 
-              onClick={abrirPaginaMapa}
-              className="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 z-10 cursor-pointer"
-            >
-              <MapPin size={14} className="fill-white" />
-              {t('ver_mapa_completo')}
-            </button>
-          </div>
-          
-          <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md pointer-events-none">
-            <div className="flex items-center gap-1">
-              <MapPin size={10} className="text-red-500" />
-              <span className="text-[9px] font-bold text-slate-700">{cidadeNome}</span>
-            </div>
-          </div>
-          
-          <button 
-            onClick={abrirPaginaMapa}
-            className="absolute bottom-2 right-2 bg-white hover:bg-gray-50 rounded-lg p-1.5 shadow-md transition-all pointer-events-auto"
-            title={t('expandir_mapa')}
+            className={`
+              px-3 py-1.5 rounded-full border-2 border-white shadow-xl font-black text-[11px] transition-all cursor-pointer whitespace-nowrap
+              ${isSelected ? 'bg-black text-white scale-110 z-50 relative ring-4 ring-blue-400/50' : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 z-10'}
+            `}
           >
-            <Maximize2 size={14} className="text-slate-600" />
-          </button>
-        </div>
-      ) : (
-        <div 
-          onClick={abrirPaginaMapa}
-          className="relative w-full h-[140px] rounded-xl overflow-hidden bg-gradient-to-br from-slate-200 to-slate-300 border border-slate-100 cursor-pointer group"
-        >
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <MapPin size={32} className="text-blue-600 mb-2 opacity-50" />
-            <p className="text-[10px] text-slate-500 text-center px-4">
-              {temCoordenadas ? t('configurar_mapbox') : t('coordenadas_indisponiveis')}
-            </p>
-            <p className="text-[8px] text-slate-400 mt-1">{textoLocalizacao}</p>
+            {preco.toLocaleString()} CVE
           </div>
-          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-all duration-300">
-            <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg transition-transform group-hover:scale-110">
-              <MapPin size={20} className="text-blue-900" />
-            </div>
-          </div>
-        </div>
-      )}
+        </Marker>
+      );
+    }), [alojamentos, selectedHotel]);
+
+  return (
+    <div className="w-screen h-screen relative bg-slate-100 overflow-hidden">
       
-      {/* Botão "Ver mapa" abaixo */}
-      <div className="mt-3">
+      {/* Botão Voltar */}
+      <div className="absolute top-6 left-6 z-40">
         <button 
-          onClick={abrirPaginaMapa}
-          className="text-blue-600 text-[10px] font-bold hover:underline transition-colors flex items-center justify-center gap-1 w-full py-1"
+          onClick={() => navigate(-1)}
+          className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest border border-gray-100 transition-all cursor-pointer"
         >
-          <Navigation size={12} />
-          {t('ver_mapa_interativo')}
-          <ExternalLink size={10} />
+          <ArrowLeft size={18} /> {t('voltar')}
         </button>
       </div>
-      
-      {/* Pontos Próximos */}
-      {pontosProximos && pontosProximos.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-slate-100">
-          <p className="text-[10px] font-semibold text-slate-600 mb-2">📍 {t('proximo_de')}:</p>
-          <ul className="space-y-1">
-            {pontosProximos.slice(0, 3).map((ponto, i) => (
-              <li key={i} className="text-[9px] text-slate-500 flex items-center gap-1">
-                <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
-                {ponto}
-              </li>
-            ))}
-          </ul>
+
+      {loading && (
+        <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="font-black text-[10px] uppercase text-blue-600 tracking-wider">{t('carregando_coordenadas')}</p>
         </div>
       )}
-      
-      {/* Informação de coordenadas (debug - pode remover em produção) */}
-      {temCoordenadas && import.meta.env.DEV && (
-        <div className="mt-3 pt-2 border-t border-slate-100">
-          <p className="text-[8px] text-slate-400 text-center">
-            📍 {parseFloat(latitude).toFixed(4)}, {parseFloat(longitude).toFixed(4)}
-          </p>
+
+      {/* Componente do Mapa em Tela Cheia */}
+      <Map
+        {...viewState}
+        onMove={evt => setViewState(evt.viewState)}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapboxAccessToken={MAPBOX_TOKEN}
+        style={{ width: '100%', height: '100%' }}
+        onClick={() => setSelectedHotel(null)}
+      >
+        <NavigationControl position="bottom-right" />
+        {marcadores}
+      </Map>
+
+      {/* Card Flutuante Inferior (Centralizada) */}
+      {selectedHotel && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedHotel(null);
+            }}
+            className="absolute top-2 right-2 z-10 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full transition-colors backdrop-blur-sm cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+
+          <div 
+            className="p-3 cursor-pointer flex gap-3 items-center text-left"
+            onClick={() => navigate(`/alojamento/${selectedHotel.slug || selectedHotel.id}`)}
+          >
+            <div className="relative w-20 h-20 rounded-xl overflow-hidden shadow-sm shrink-0">
+              <img 
+                src={selectedHotel.imagem_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'} 
+                alt={selectedHotel.titulo}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'}
+              />
+              <div className="absolute bottom-1 left-1 bg-white/95 px-1.5 py-0.5 rounded text-[9px] font-black flex items-center gap-0.5 shadow">
+                <Star size={8} className="fill-yellow-400 text-yellow-400" /> {Number(selectedHotel.estrelas || 4.5).toFixed(1)}
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-0 pr-4">
+              <h4 className="font-black text-xs uppercase text-gray-900 truncate">
+                {selectedHotel.titulo}
+              </h4>
+              <p className="text-[10px] text-gray-500 font-medium truncate mt-0.5 flex items-center gap-1">
+                <MapPin size={10} className="text-orange-500 shrink-0" /> {selectedHotel.cidade || selectedHotel.localizacao}
+              </p>
+              
+              <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+                <span className="text-blue-600 font-black text-xs">
+                  {Number(selectedHotel.preco_noite).toLocaleString()} CVE <span className="text-[8px] font-normal text-slate-400">{t('por_noite_curto')}</span>
+                </span>
+                <span className="text-[9px] font-black uppercase text-white bg-blue-600 px-2.5 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-700 transition-colors shadow-sm">
+                  {t('ver')} <ChevronRight size={10} />
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-export default MapLocation;
+export default PaginaMapa;

@@ -979,9 +979,24 @@ enviar_whatsapp: "Enviar whatsapp",
 checkout_email_conta_existente: "Já existe uma conta com este email. Inicie sessão para continuar.",
 erro_verificar_email: "Não foi possível verificar o email. Tente novamente.",
 erro_enviar_codigo: "Não foi possível enviar o código. Tente novamente.",
-
   mais_opcoes_contacto: "Mais opções de contacto",
   enviar_mensagem: "Enviar mensagem",
-  nao_pode_contactar_se: "Não pode contactar-se"
+  nao_pode_contactar_se: "Não pode contactar-se",
+  esgotado_para_datas: "Esgotado para estas datas",
+   ver_comodidades: "Ver comodidades",
+    ocultar_comodidades: "Ocultar comodidades",
+    comodidades_deste_quarto: "Comodidades deste quarto",
+    mais_escolhido: "Mais Escolhido",
+    ver_fotos: "Ver Fotos",
+    hospedes: "hóspedes",
+    hospede: "hóspede",
+    pessoas: "pessoas",
+    pessoa: "pessoa",
+    cama: "cama",
+    noite: "noite",
+    noites: "noites",
+    stock_maximo_atingido: "Só existem {{n}} disponíveis para este quarto.",
+    escolha_quarto: "Escolha o seu quarto",
+    pode_combinar_quartos: "Pode combinar vários tipos de quarto. Clique no cartão para escolher ou remover."
   }
 };

@@ -1,6 +1,6 @@
 // src/features/alojamento/components/InfoAlojamento.jsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -9,7 +9,7 @@ import {
   ChevronRight, ChevronLeft, LayoutGrid, Camera,
   CheckCircle, ExternalLink, ChevronDown, X, Loader2,
   Droplet, Car, Eye, Shield, ChevronUp, Shirt,
-  CalendarDays, Maximize2, Phone, Mail
+  CalendarDays, Maximize2, Phone, Mail, AlertTriangle
 } from 'lucide-react';
 import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
@@ -18,6 +18,10 @@ import BotaoDenuncia from '../../../components/BotaoDenuncia';
 import CalendarioMorabeza from '../../../components/Calendario/CalendarioMorabeza';
 import { useToast } from "../../../Toast";
 import ChatSimples from '../../../components/gest/ChatSimples';
+import { BannerDisponibilidade } from './BannerDisponibilidade';
+import { useDisponibilidadeAlojamento } from '../hooks/useDisponibilidadeAlojamento';
+import { alojamentoApi } from '../services/alojamentoApi';
+import SidebarReserva from './SidebarReserva';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const API_BASE = 'https://welovepalop.com';
@@ -27,10 +31,10 @@ const API_BASE = 'https://welovepalop.com';
 // ============================================================
 function obterUsuario() {
   try {
-    const token = localStorage.getItem('token') 
-               || localStorage.getItem('morabeza_token')
-               || localStorage.getItem('access_token')
-               || localStorage.getItem('jwt');
+    const token = localStorage.getItem('token')
+      || localStorage.getItem('morabeza_token')
+      || localStorage.getItem('access_token')
+      || localStorage.getItem('jwt');
 
     if (token) {
       const base64Url = token.split('.')[1];
@@ -39,8 +43,8 @@ function obterUsuario() {
         atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
       ));
       const user = parsed?.data || parsed?.user || parsed?.usuario || parsed;
-      const id = user?.id || user?.userId || user?.user_id || user?.usuario_id 
-              || parsed?.sub || parsed?.id;
+      const id = user?.id || user?.userId || user?.user_id || user?.usuario_id
+        || parsed?.sub || parsed?.id;
       if (id) {
         return {
           id: Number(id),
@@ -71,6 +75,63 @@ function obterUsuario() {
     return null;
   }
 }
+
+// ============================================================
+// HELPER: obter ID canónico do tipo de quarto
+// ============================================================
+const obterIdCanonicoQuarto = (tipo) => {
+  if (!tipo) return null;
+
+  const idTipo =
+    tipo.tipo_quarto_id ??
+    tipo.tipoQuartoId ??
+    tipo.quarto_tipo_id ??
+    tipo.tipo_id ??
+    null;
+
+  if (idTipo !== null && idTipo !== undefined) {
+    return Number(idTipo);
+  }
+
+  const idFallback = tipo.id ?? tipo.quarto_id ?? null;
+
+  if (idFallback !== null) {
+    const numId = Number(idFallback);
+    if (numId >= 9000) {
+      console.error(
+        `[InfoAlojamento] BUG: 'id'=${numId} parece ser ID físico. ` +
+        `O backend deve enviar 'tipo_quarto_id'.`,
+        tipo
+      );
+      return null;
+    }
+    return numId;
+  }
+
+  return null;
+};
+
+// ============================================================
+// HELPER: string ISO → Date local
+// ============================================================
+const fromISODateLocal = (str) => {
+  if (!str) return null;
+  const [y, m, d] = String(str).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+// ============================================================
+// HELPER: Date → string ISO (sem bug UTC)
+// ============================================================
+const toISODateLocal = (d) => {
+  if (!d) return null;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 // ============================================================
 // IMAGE SLIDER MODAL
@@ -143,11 +204,11 @@ const TabsNavegacaoAlojamentos = ({ activeTab = 0, onTabChange }) => {
 };
 
 // ============================================================
-// HOST INFO — com botão de chat interno
+// HOST INFO
 // ============================================================
-const HostInfo = ({ 
-  proprietario, 
-  onContactClick, 
+const HostInfo = ({
+  proprietario,
+  onContactClick,
   alojamentoTitulo,
   alojamento,
   usuarioLogado
@@ -194,7 +255,6 @@ const HostInfo = ({
     setMostrarOpcoes(false);
   };
 
-  // ✅ ABRIR CHAT INTERNO
   const abrirChatInterno = (e) => {
     e.stopPropagation();
     if (!usuarioLogado?.id) {
@@ -256,8 +316,6 @@ const HostInfo = ({
         </div>
 
         <div className="flex flex-col gap-2 relative">
-          
-          {/* ⭐ BOTÃO DE CHAT INTERNO ⭐ */}
           <button
             onClick={abrirChatInterno}
             className="w-full py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold text-[11px] rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
@@ -318,19 +376,15 @@ const HostInfo = ({
         </div>
       </div>
 
-      {/* MODAL DO CHAT */}
-        {/* MODAL DO CHAT */}
       {mostrarChat && (
-  
-          <div className="w-full sm:w-[380px] sm:max-w-[380px] h-[80vh] sm:h-[600px] sm:max-h-[85vh] bg-white sm:rounded-2xl overflow-hidden shadow-2xl">
-            <ChatSimples
-              anuncioId={alojamento.id}
-              tipoAnuncio="alojamento"
-              anuncioTitulo={alojamento.titulo}
-              proprietarioId={alojamento.proprietario?.id}
-              onClose={() => setMostrarChat(false)}
-            />
-         
+        <div className="w-full sm:w-[380px] sm:max-w-[380px] h-[80vh] sm:h-[600px] sm:max-h-[85vh] bg-white sm:rounded-2xl overflow-hidden shadow-2xl">
+          <ChatSimples
+            anuncioId={alojamento.id}
+            tipoAnuncio="alojamento"
+            anuncioTitulo={alojamento.titulo}
+            proprietarioId={alojamento.proprietario?.id}
+            onClose={() => setMostrarChat(false)}
+          />
         </div>
       )}
     </>
@@ -494,7 +548,7 @@ const HorariosCheckInOut = ({ alojamento }) => {
   };
 
   const inicio = formatarHora(alojamento.checkin_inicio);
-  const fim    = formatarHora(alojamento.checkin_fim);
+  const fim = formatarHora(alojamento.checkin_fim);
   const limite = formatarHora(alojamento.checkout_limite);
 
   const flexivel = Number(alojamento.checkin_flexivel) === 1;
@@ -521,9 +575,9 @@ const HorariosCheckInOut = ({ alojamento }) => {
 
   const textoCheckIn =
     inicio && fim ? `${t('checkin') || 'Check-in'}: ${inicio} – ${fim}`
-    : inicio     ? `${t('checkin') || 'Check-in'}: ${t('a_partir_de') || 'a partir das'} ${inicio}`
-    : fim         ? `${t('checkin') || 'Check-in'}: ${t('ate') || 'até às'} ${fim}`
-    : null;
+      : inicio ? `${t('checkin') || 'Check-in'}: ${t('a_partir_de') || 'a partir das'} ${inicio}`
+        : fim ? `${t('checkin') || 'Check-in'}: ${t('ate') || 'até às'} ${fim}`
+          : null;
 
   const textoCheckOut = limite
     ? `${t('checkout') || 'Check-out'}: ${t('ate') || 'até às'} ${limite}`
@@ -533,243 +587,8 @@ const HorariosCheckInOut = ({ alojamento }) => {
     <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
       <CalendarDays size={18} className="text-slate-600 mt-0.5 shrink-0" />
       <div className="space-y-1">
-        {textoCheckIn  && <p className="text-sm font-semibold text-slate-900">{textoCheckIn}</p>}
+        {textoCheckIn && <p className="text-sm font-semibold text-slate-900">{textoCheckIn}</p>}
         {textoCheckOut && <p className="text-sm font-semibold text-slate-900">{textoCheckOut}</p>}
-      </div>
-    </div>
-  );
-};
-
-// ============================================================
-// SIDEBAR DE RESERVA
-// ============================================================
-const SidebarReserva = ({
-  carrinhoQuartos = [],
-  estrelas,
-  datasBloqueadas = [],
-  onContinueToCheckout,
-  onRemoveQuarto,
-  onDatasChange,
-  vendaPorQuarto = true,
-  capacidadeBase = 2,
-}) => {
-  const { t } = useTranslation();
-  const { showToast } = useToast();
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-  const [numHospedes, setNumHospedes] = useState(2);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [validandoStock, setValidandoStock] = useState(false);
-
-  const capacidadeTotal = vendaPorQuarto
-    ? Math.max(
-        1,
-        carrinhoQuartos.reduce(
-          (acc, q) => acc + Number(q.capacidade || 1) * Number(q.quantidade || 1),
-          0
-        ) || 2
-      )
-    : Math.max(1, Number(capacidadeBase) || 2);
-
-  const listaHospedes = Array.from({ length: capacidadeTotal }, (_, i) => i + 1);
-
-  useEffect(() => {
-    if (numHospedes > capacidadeTotal) setNumHospedes(capacidadeTotal);
-  }, [capacidadeTotal]);
-
-  useEffect(() => {
-    if (onDatasChange) {
-      onDatasChange({
-        checkIn: startDate ? startDate.toISOString().split('T')[0] : null,
-        checkOut: endDate ? endDate.toISOString().split('T')[0] : null,
-      });
-    }
-  }, [startDate, endDate, onDatasChange]);
-
-  const onChange = (dates) => {
-    const [start, end] = dates;
-    setStartDate(start);
-    setEndDate(end);
-    if (start && end) setTimeout(() => setShowCalendar(false), 300);
-  };
-
-  const noites =
-    startDate && endDate
-      ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)))
-      : 1;
-
-  const subtotal = carrinhoQuartos.reduce(
-    (acc, q) => acc + Number(q.precoNoite || 0) * Number(q.quantidade || 1) * noites,
-    0
-  );
-
-  const precoMedioNoite = carrinhoQuartos.length
-    ? carrinhoQuartos.reduce(
-        (acc, q) => acc + Number(q.precoNoite || 0) * Number(q.quantidade || 1),
-        0
-      )
-    : 0;
-
-  const handleContinue = async () => {
-    if (vendaPorQuarto && !carrinhoQuartos.length) {
-      showToast(t('selecione_quarto', 'Escolha pelo menos um tipo de quarto'), 'error');
-      return;
-    }
-    if (!startDate || !endDate) {
-      showToast(t('selecione_datas') || "Por favor, selecione as datas de Check-in e Check-out", 'error');
-      setShowCalendar(true);
-      return;
-    }
-
-    setValidandoStock(true);
-    if (onContinueToCheckout) {
-      await onContinueToCheckout({ startDate, endDate, numHospedes, noites, subtotal });
-    }
-    setValidandoStock(false);
-  };
-
-  const podeContinuar = vendaPorQuarto ? carrinhoQuartos.length > 0 : true;
-
-  return (
-    <div className="lg:block">
-      <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
-        <div className="flex justify-between items-end mb-5">
-          <div className="text-2xl font-bold text-slate-900">
-            {precoMedioNoite.toLocaleString('pt-PT')} CVE
-            <span className="text-sm font-normal text-slate-500"> / {t('noite') || 'noite'}</span>
-          </div>
-          <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
-            <Star size={14} className="fill-orange-500 text-orange-500" /> {estrelas}
-          </div>
-        </div>
-
-        <div className="border border-slate-300 rounded-xl mb-4 overflow-visible relative">
-          <div
-            className="flex border-b border-slate-300 cursor-pointer hover:bg-slate-50 transition-all rounded-t-xl"
-            onClick={() => setShowCalendar(!showCalendar)}
-          >
-            <div className="flex-1 p-2.5 border-r border-slate-300">
-              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">{t('checkin') || 'Check-in'}</label>
-              <div className="text-xs font-bold text-slate-900">
-                {startDate ? startDate.toLocaleDateString('pt-PT') : (t('data') || 'Data')}
-              </div>
-            </div>
-            <div className="flex-1 p-2.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">{t('checkout') || 'Check-out'}</label>
-              <div className="text-xs font-bold text-slate-900">
-                {endDate ? endDate.toLocaleDateString('pt-PT') : (t('data') || 'Data')}
-              </div>
-            </div>
-          </div>
-
-          {showCalendar && (
-            <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl bg-white border border-slate-200 p-3 max-w-[95vw] overflow-x-auto">
-              <CalendarioMorabeza
-                selectsRange
-                startDate={startDate}
-                endDate={endDate}
-                onChange={onChange}
-                excludeDates={datasBloqueadas.map(d => new Date(d))}
-              />
-              <div className="p-2 border-t border-slate-100 flex justify-end">
-                <button onClick={() => setShowCalendar(false)} className="text-blue-900 font-bold text-[10px] uppercase">
-                  {t('fechar') || 'Fechar'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="p-2.5 flex justify-between items-center relative">
-            <div className="flex-1">
-              <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">{t('hospedes') || 'Hóspedes'}</label>
-              <select
-                value={numHospedes}
-                onChange={(e) => setNumHospedes(Number(e.target.value))}
-                className="bg-transparent text-xs font-bold text-slate-900 outline-none w-full cursor-pointer appearance-none"
-              >
-                {listaHospedes.map(num => (
-                  <option key={num} value={num}>
-                    {num} {num === 1 ? (t('hospede') || 'hóspede') : (t('hospedes') || 'hóspedes')}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <ChevronDown size={14} className="text-slate-400 pointer-events-none" />
-          </div>
-        </div>
-
-        {carrinhoQuartos.length > 0 && (
-          <div className="pt-3 border-t border-slate-100 space-y-2 mb-3">
-            <p className="text-[10px] font-black text-blue-900 uppercase tracking-wider">
-              {vendaPorQuarto
-                ? t('quartos_escolhidos', 'Quartos escolhidos')
-                : t('alojamento', 'Alojamento')}
-            </p>
-            {carrinhoQuartos.map((q) => (
-              <div
-                key={q.tipoQuartoId || 'inteiro'}
-                className="flex items-start justify-between gap-2 text-xs bg-slate-50 rounded-lg p-2"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 truncate">
-                    {q.modoInteiro ? q.nome : `${q.quantidade}× ${q.nome}`}
-                  </p>
-                  <p className="text-[10px] text-slate-500 font-medium">
-                    {q.capacidade * q.quantidade}{' '}
-                    {q.capacidade * q.quantidade === 1
-                      ? t('pessoa', 'pessoa')
-                      : t('pessoas', 'pessoas')}
-                  </p>
-                </div>
-                {!q.modoInteiro && (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveQuarto && onRemoveQuarto(q.tipoQuartoId)}
-                    className="text-slate-400 hover:text-red-500 text-[10px] font-bold px-2"
-                  >
-                    {t('remover', 'remover')}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="pt-4 border-t border-slate-100 space-y-3 mt-4">
-          <div className="flex justify-between items-center text-xs font-semibold text-slate-600">
-            <span>
-              {t('subtotal', 'Subtotal')} ({noites} {noites === 1 ? (t('noite') || 'noite') : (t('noites') || 'noites')})
-            </span>
-            <span className="font-bold text-slate-900">{subtotal.toLocaleString('pt-PT')} CVE</span>
-          </div>
-          <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-            <span className="text-sm font-bold text-slate-900">{t('total') || 'Total'}</span>
-            <span className="text-lg font-bold text-blue-900">{subtotal.toLocaleString('pt-PT')} CVE</span>
-          </div>
-        </div>
-
-        <button
-          onClick={handleContinue}
-          disabled={!podeContinuar || validandoStock}
-          className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl mb-4 mt-6 hover:bg-blue-950 transition-all shadow-lg text-sm active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {validandoStock ? (
-            <>
-              <Loader2 className="animate-spin" size={16} />
-              {t('verificando_disponibilidade', 'A verificar disponibilidade...')}
-            </>
-          ) : (
-            t('continuar_para_reserva') || 'Continuar para reserva'
-          )}
-        </button>
-
-        <div className="flex items-start gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
-          <CheckCircle className="text-green-600 mt-0.5 shrink-0" size={14} />
-          <div>
-            <h5 className="text-xs font-bold text-green-800 tracking-tight">{t('cancelamento_gratis') || 'Cancelamento gratuito'}</h5>
-            <p className="text-[10px] text-green-700 leading-tight">{t('cancelamento_prazo') || 'Até 48 horas antes do check-in'}</p>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -947,13 +766,39 @@ const TabContent = ({ activeTab, alojamento }) => {
 };
 
 // ============================================================
+// ALERTA: CONFIGURAÇÃO INCOMPLETA (por_quarto sem quartos)
+// ============================================================
+const AlertaConfiguracaoIncompleta = ({ alojamentoId }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl text-left flex items-start gap-3">
+      <AlertTriangle size={20} className="text-amber-600 mt-0.5 shrink-0" />
+      <div>
+        <p className="text-sm font-bold text-amber-900">
+          {t('alojamento_config_incompleta_titulo') || 'Alojamento indisponível para reserva'}
+        </p>
+        <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+          {t('alojamento_config_incompleta_msg') ||
+            'Este alojamento está configurado para venda por quarto, mas ainda não tem tipos de quarto definidos. O anfitrião precisa de adicionar os quartos (com preços e capacidades) antes que seja possível fazer reservas.'}
+        </p>
+        <p className="text-[10px] text-amber-700 mt-2 font-mono">
+          ID: {alojamentoId} • {t('contacte_suporte') || 'Contacte o suporte se o problema persistir.'}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
 export const InfoAlojamento = () => {
   const { t } = useTranslation();
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
+
   const [activeTab, setActiveTab] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -969,19 +814,53 @@ export const InfoAlojamento = () => {
   const [carrinhoDatas, setCarrinhoDatas] = useState({ checkIn: null, checkOut: null });
   const [stocksPorTipo, setStocksPorTipo] = useState({});
 
+  // 🔑 Estado para bloqueios normalizados da BD
+  const [bloqueiosQuartoOcupacao, setBloqueiosQuartoOcupacao] = useState([]);
+  const [datasReservadas, setDatasReservadas] = useState([]);
+
   const vendaPorQuarto = Array.isArray(tiposQuarto) && tiposQuarto.length > 0;
   const precoBase = Number(alojamento?.preco_noite || 0);
   const capacidadeBase = Number(alojamento?.capacidade || 2);
+
+  // ⚠️ ALERTA: alojamento marcado como por_quarto MAS sem tipos de quarto definidos
+  const configuracaoIncompleta = useMemo(() => {
+    if (!alojamento) return false;
+    const modeloVenda = alojamento.modelo_venda;
+    const temTiposQuarto = Array.isArray(tiposQuarto) && tiposQuarto.length > 0;
+    return modeloVenda === 'por_quarto' && !temTiposQuarto;
+  }, [alojamento, tiposQuarto]);
+
+  // ============================================================
+  // LER PARÂMETROS DA PESQUISA DA URL
+  // ============================================================
+  const datasIniciais = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const entrada = params.get('entrada') || params.get('checkIn') || params.get('checkin');
+    const saida = params.get('saida') || params.get('checkOut') || params.get('checkout');
+
+    if (!entrada && !saida) return null;
+
+    return {
+      checkIn: entrada || null,
+      checkOut: saida || null,
+      adultos: Number(params.get('adultos')) || 2,
+      criancas: Number(params.get('criancas')) || 0,
+      quartos: Number(params.get('quartos')) || 1,
+      pet: params.get('pet') === '1',
+    };
+  }, [location.search]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [slug]);
 
-  // Carregar utilizador do JWT
   useEffect(() => {
     setUsuarioLogado(obterUsuario());
   }, []);
 
+  // ============================================================
+  // FETCH ALOJAMENTO
+  // ============================================================
   useEffect(() => {
     const fetchAlojamento = async () => {
       if (!slug) {
@@ -1045,9 +924,79 @@ export const InfoAlojamento = () => {
     fetchAlojamento();
   }, [slug, t]);
 
+  // ============================================================
+  // 🔑 FETCH BLOQUEIOS DA BD (quarto_ocupacao)
+  //    Vai buscar os bloqueios do mês atual + próximos 2 meses
+  //    para alimentar o calendário no sidebar.
+  // ============================================================
+  useEffect(() => {
+    if (!alojamento?.id) return;
+
+    let cancelado = false;
+
+    const fetchBloqueios = async () => {
+      try {
+        const hoje = new Date();
+        const meses = [];
+        for (let i = 0; i < 3; i++) {
+          const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+          meses.push({ ano: d.getFullYear(), mes: d.getMonth() + 1 });
+        }
+
+        const todasLinhas = [];
+        const todasReservadas = new Set();
+
+        for (const { ano, mes } of meses) {
+          const url = `${API_BASE}/api/alojamento_bloqueios.php?action=listar` +
+            `&alojamento_id=${alojamento.id}&ano=${ano}&mes=${mes}`;
+          try {
+            const res = await fetch(url);
+            const txt = await res.text();
+            const i = txt.indexOf('{');
+            const f = txt.lastIndexOf('}');
+            if (i === -1 || f === -1) continue;
+            const data = JSON.parse(txt.substring(i, f + 1));
+            if (!data?.success) continue;
+
+            (data.bloqueios || []).forEach(b => {
+              todasLinhas.push({
+                quarto_id: b.quarto_id,
+                data: String(b.data).substring(0, 10),
+              });
+            });
+            (data.dias_reservados || []).forEach(d => {
+              todasReservadas.add(String(d).substring(0, 10));
+            });
+          } catch (e) {
+            console.warn('[InfoAlojamento] Falha ao carregar bloqueios de', ano, mes, e);
+          }
+        }
+
+        if (cancelado) return;
+        setBloqueiosQuartoOcupacao(todasLinhas);
+        setDatasReservadas(Array.from(todasReservadas));
+      } catch (e) {
+        if (cancelado) return;
+        console.error('[InfoAlojamento] Erro ao carregar bloqueios:', e);
+      }
+    };
+
+    fetchBloqueios();
+    return () => { cancelado = true; };
+  }, [alojamento?.id]);
+
+  // ============================================================
+  // FETCH STOCKS — usa datas iniciais como fallback
+  // ============================================================
   useEffect(() => {
     if (!vendaPorQuarto) return;
-    if (!tiposQuarto.length || !carrinhoDatas.checkIn || !carrinhoDatas.checkOut) return;
+    if (!tiposQuarto.length) return;
+    if (!alojamento?.id) return;
+
+    const checkin = carrinhoDatas.checkIn || datasIniciais?.checkIn;
+    const checkout = carrinhoDatas.checkOut || datasIniciais?.checkOut;
+
+    if (!checkin || !checkout) return;
 
     let cancelado = false;
     const fetchStocks = async () => {
@@ -1056,12 +1005,13 @@ export const InfoAlojamento = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            alojamento_id: alojamento.id,
             quartos: tiposQuarto.map(tq => ({
-              tipo_quarto_id: tq.id,
+              tipo_quarto_id: tq.tipo_quarto_id || tq.id,
               quantidade: 1,
             })),
-            checkin: carrinhoDatas.checkIn,
-            checkout: carrinhoDatas.checkOut,
+            checkin,
+            checkout,
           }),
         });
         const data = await res.json();
@@ -1080,7 +1030,7 @@ export const InfoAlojamento = () => {
     fetchStocks();
 
     return () => { cancelado = true; };
-  }, [vendaPorQuarto, tiposQuarto, carrinhoDatas.checkIn, carrinhoDatas.checkOut]);
+  }, [vendaPorQuarto, tiposQuarto, carrinhoDatas.checkIn, carrinhoDatas.checkOut, alojamento?.id, datasIniciais]);
 
   const tracking = useAlojamentoTracking(alojamento?.id || null, usuarioLogado?.id || null);
   const registrarCliqueReserva = tracking?.registrarCliqueReserva || (() => {});
@@ -1092,10 +1042,16 @@ export const InfoAlojamento = () => {
       return Object.entries(quantidades)
         .filter(([_, qtd]) => qtd > 0)
         .map(([tipoId, qtd]) => {
-          const tipo = tiposQuarto.find(tq => String(tq.id) === String(tipoId));
+          const tipo = tiposQuarto.find(
+            tq => String(obterIdCanonicoQuarto(tq)) === String(tipoId)
+          );
           if (!tipo) return null;
+
+          const idCanonico = obterIdCanonicoQuarto(tipo);
+          if (idCanonico === null) return null;
+
           return {
-            tipoQuartoId: tipo.id,
+            tipoQuartoId: idCanonico,
             nome: tipo.nome || tipo.tipo_nome || 'Quarto',
             precoNoite: Math.round(
               Number(tipo.preco_calculado || tipo.preco_personalizado || tipo.preco_noite || 0)
@@ -1129,6 +1085,50 @@ export const InfoAlojamento = () => {
     );
   }, [vendaPorQuarto, carrinhoQuartos, capacidadeBase]);
 
+  // ============================================================
+  // DATAS BLOQUEADAS — recalcula conforme carrinho
+  // ============================================================
+  const datasBloqueadasEfetivas = useMemo(() => {
+    if (!alojamento) return [];
+
+    if (!vendaPorQuarto) {
+      return alojamento.datas_bloqueadas || [];
+    }
+
+    const gerais = alojamento.datas_bloqueadas || [];
+    const porQuarto = alojamento.datas_bloqueadas_por_quarto || {};
+
+    if (carrinhoQuartos.length === 1 && carrinhoQuartos[0].tipoQuartoId) {
+      const tipoId = String(carrinhoQuartos[0].tipoQuartoId);
+      const especificas = porQuarto[tipoId] || [];
+      return [...new Set([...gerais, ...especificas])];
+    }
+
+    return gerais;
+  }, [alojamento, vendaPorQuarto, carrinhoQuartos]);
+
+  // ============================================================
+  // HOOK DE DISPONIBILIDADE
+  // ============================================================
+  const {
+    validando: validandoDisponibilidade,
+    erroDisponibilidade,
+    continuarParaCheckout,
+    limparErro: limparErroDisponibilidade,
+  } = useDisponibilidadeAlojamento({
+    alojamento,
+    carrinhoQuartos,
+    capacidadeTotal,
+    images,
+    vendaPorQuarto,
+    onError: ({ tipo, mensagem }) => {
+      showToast(
+        mensagem,
+        tipo === 'erro_rede' || tipo === 'erro_validacao' ? 'info' : 'error'
+      );
+    },
+  });
+
   const handleQuantidadeChange = useCallback((tipoId, novaQtd) => {
     setQuantidades(prev => ({ ...prev, [tipoId]: novaQtd }));
   }, []);
@@ -1145,64 +1145,114 @@ export const InfoAlojamento = () => {
   }, []);
 
   const handleRemoverQuarto = useCallback((tipoId) => {
-    setQuantidades(prev => ({ ...prev, [tipoId]: 0 }));
-  }, []);
+    if (tipoId === null || tipoId === undefined) return;
 
-  const handleContinueToCheckout = async (reservaInfo) => {
-    registrarCliqueReserva();
-    if (!alojamento) return;
+    setQuantidades(prev => {
+      const novas = { ...prev };
+      Object.keys(novas).forEach((chave) => {
+        const tipo = tiposQuarto.find(
+          tq => String(obterIdCanonicoQuarto(tq)) === String(chave)
+        );
+        if (
+          String(chave) === String(tipoId) ||
+          (tipo && String(obterIdCanonicoQuarto(tipo)) === String(tipoId))
+        ) {
+          novas[chave] = 0;
+        }
+      });
+      return novas;
+    });
 
-    const checkInStr = reservaInfo.startDate.toISOString().split('T')[0];
-    const checkOutStr = reservaInfo.endDate.toISOString().split('T')[0];
+    setQuartoSelecionado(prev =>
+      String(prev) === String(tipoId) ? null : prev
+    );
+  }, [tiposQuarto]);
 
-    try {
-      const url = `${API_BASE}/api/verificar_disponibilidade.php?alojamento_id=${encodeURIComponent(alojamento.id)}&checkin=${encodeURIComponent(checkInStr)}&checkout=${encodeURIComponent(checkOutStr)}`;
-      const res = await fetch(url, { method: 'GET' });
-      const data = await res.json();
-
-      if (data.success && data.disponivel === false) {
-        showToast(t('sem_stock_disponivel', 'Este alojamento não está disponível ou não tem registo para as datas selecionadas.'), 'error');
-        return;
-      }
-    } catch (err) {
-      console.error('Erro ao verificar disponibilidade:', err);
-      showToast(t('erro_verificar_disponibilidade', 'Erro ao verificar disponibilidade. Tente novamente.'), 'error');
+  const handleContinueToCheckout = useCallback(async (reservaInfo) => {
+    if (configuracaoIncompleta) {
+      showToast(
+        t('alojamento_config_incompleta_msg') ||
+          'Este alojamento ainda não tem quartos configurados. Não é possível reservar.',
+        'error'
+      );
       return;
     }
 
-    const taxaLimpeza = Number(alojamento.taxa_limpeza || alojamento.limpeza || 0);
+    registrarCliqueReserva();
+    if (!alojamento) return;
 
-    const dadosParaCheckout = {
-      id: alojamento.id,
-      titulo: alojamento.titulo,
-      imagem: images[0] || alojamento.imagem_url,
-      localizacao: alojamento.localizacao,
-      ilha: alojamento.ilha || 'Cabo Verde',
-      checkIn: checkInStr,
-      checkOut: checkOutStr,
-      hospedes: reservaInfo.numHospedes,
-      capacidade: capacidadeTotal,
-      noites: reservaInfo.noites,
-      taxaLimpeza,
-      descricao: alojamento.descricao,
-      comodidades: alojamento.comodidades || [],
-      quartos: carrinhoQuartos,
-      tipoVenda: vendaPorQuarto ? 'quartos' : 'inteiro',
+    const rawStart = reservaInfo?.startDate 
+                  ?? reservaInfo?.checkIn 
+                  ?? reservaInfo?.checkin 
+                  ?? null;
+    const rawEnd   = reservaInfo?.endDate 
+                  ?? reservaInfo?.checkOut 
+                  ?? reservaInfo?.checkout 
+                  ?? null;
+
+    const converterParaISO = (val) => {
+      if (!val) return null;
+      if (val instanceof Date) {
+        if (isNaN(val.getTime())) return null;
+        return toISODateLocal(val);
+      }
+      if (typeof val === 'string') {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) return toISODateLocal(d);
+      }
+      return null;
     };
 
-    navigate('/checkout-alojamento', { state: { reservaData: dadosParaCheckout } });
-  };
+    const checkInStr = converterParaISO(rawStart);
+    const checkOutStr = converterParaISO(rawEnd);
 
-  const handleOpenLoginModal = () => {
-    showToast(t('login_para_avaliar') || "Por favor, faça login para avaliar.", 'info');
-  };
+    console.log('[InfoAlojamento] Datas convertidas:', {
+      rawStart,
+      rawEnd,
+      checkInStr,
+      checkOutStr,
+      reservaInfoCompleto: reservaInfo,
+    });
 
+    if (!checkInStr || !checkOutStr) {
+      const msg = !checkInStr && !checkOutStr
+        ? 'Seleciona as datas de check-in e check-out.'
+        : !checkInStr
+          ? 'Data de check-in inválida.'
+          : 'Data de check-out inválida.';
+      showToast(msg, 'error');
+      console.error('[InfoAlojamento] ❌ Falha ao converter datas:', { rawStart, rawEnd });
+      return;
+    }
+
+    await continuarParaCheckout({
+      checkin: checkInStr,
+      checkout: checkOutStr,
+      numHospedes: reservaInfo?.numHospedes ?? reservaInfo?.hospedes ?? 1,
+      noites: reservaInfo?.noites ?? 0,
+      subtotal: reservaInfo?.subtotal ?? 0,
+    });
+  }, [alojamento, registrarCliqueReserva, continuarParaCheckout, configuracaoIncompleta, t, showToast]);
+
+  const handleOpenLoginModal = useCallback(() => {
+    showToast(
+      t('login_para_avaliar') || 'Por favor, faça login para avaliar.',
+      'info'
+    );
+  }, [t, showToast]);
+
+  // ============================================================
+  // Verificações de estado (evitam crash)
+  // ============================================================
   if (loading) {
     return (
       <div className="w-full min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <Loader2 size={48} className="animate-spin text-blue-900 mx-auto mb-4" />
-          <p className="text-slate-600">{t('carregando_alojamento') || 'Carregando informações do alojamento...'}</p>
+          <p className="text-slate-600">
+            {t('carregando_alojamento') || 'Carregando informações do alojamento...'}
+          </p>
         </div>
       </div>
     );
@@ -1213,14 +1263,25 @@ export const InfoAlojamento = () => {
       <div className="w-full min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">{t('erro_carregar_titulo') || 'Erro ao carregar'}</h2>
-          <p className="text-slate-600 mb-4">{error || (t('alojamento_nao_encontrado') || 'Alojamento não encontrado')}</p>
-          <button onClick={() => navigate(-1)} className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">
+            {t('erro_carregar_titulo') || 'Erro ao carregar'}
+          </h2>
+          <p className="text-slate-600 mb-4">
+            {error || (t('alojamento_nao_encontrado') || 'Alojamento não encontrado')}
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition"
+          >
             {t('voltar') || 'Voltar'}
           </button>
         </div>
       </div>
     );
+  }
+
+  if (!alojamento?.id) {
+    return null;
   }
 
   return (
@@ -1233,6 +1294,17 @@ export const InfoAlojamento = () => {
           onPrev={() => setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
           onNext={() => setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
         />
+      )}
+
+      {erroDisponibilidade && (
+        <div className="max-w-7xl mx-auto px-6 pt-4">
+          <BannerDisponibilidade
+            erro={erroDisponibilidade}
+            onClose={limparErroDisponibilidade}
+            onVoltar={() => navigate(-1)}
+            showVoltar={false}
+          />
+        </div>
       )}
 
       <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500 text-left">
@@ -1258,6 +1330,10 @@ export const InfoAlojamento = () => {
               <AmenitiesBar infoBasica={alojamento.info_basica} comodidades={alojamento.comodidades} />
             </div>
 
+            {configuracaoIncompleta && (
+              <AlertaConfiguracaoIncompleta alojamentoId={alojamento.id} />
+            )}
+
             {vendaPorQuarto ? (
               <SeccaoEscolhaQuarto
                 quartoSelecionado={quartoSelecionado}
@@ -1267,8 +1343,10 @@ export const InfoAlojamento = () => {
                 onQuantidadeChange={handleQuantidadeChange}
                 stocksPorTipo={stocksPorTipo}
                 alojamentoId={alojamento.id}
+                datasBloqueadas={alojamento.datas_bloqueadas || []}
+                datasBloqueadasPorQuarto={alojamento.datas_bloqueadas_por_quarto || {}}
               />
-            ) : (
+            ) : !configuracaoIncompleta ? (
               <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-left">
                 <p className="text-xs font-bold text-blue-900">
                   {t('alojamento_inteiro', 'Este alojamento é reservado na totalidade')}
@@ -1280,21 +1358,43 @@ export const InfoAlojamento = () => {
                     : t('pessoas', 'pessoas')}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
 
           <div className="lg:self-start">
             <div className="sticky top-24 z-30">
-              <SidebarReserva
-                carrinhoQuartos={carrinhoQuartos}
-                estrelas={alojamento.estrelas}
-                datasBloqueadas={alojamento.datas_bloqueadas || []}
-                onContinueToCheckout={handleContinueToCheckout}
-                onRemoveQuarto={handleRemoverQuarto}
-                onDatasChange={setCarrinhoDatas}
-                vendaPorQuarto={vendaPorQuarto}
-                capacidadeBase={capacidadeBase}
-              />
+              {configuracaoIncompleta ? (
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 text-left">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle size={18} className="text-amber-600" />
+                    <p className="text-sm font-bold text-amber-900">
+                      {t('reserva_indisponivel') || 'Reserva indisponível'}
+                    </p>
+                  </div>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    {t('alojamento_sem_quartos') ||
+                      'Este alojamento ainda não tem tipos de quarto configurados. O anfitrião precisa de adicionar os quartos antes que seja possível fazer reservas.'}
+                  </p>
+                </div>
+              ) : (
+                <SidebarReserva
+                  carrinhoQuartos={carrinhoQuartos}
+                  estrelas={alojamento.estrelas}
+                  datasBloqueadas={datasBloqueadasEfetivas}
+                  datasBloqueadasPorQuarto={alojamento.datas_bloqueadas_por_quarto || {}}
+                  bloqueiosQuartoOcupacao={bloqueiosQuartoOcupacao}
+                  datasReservadas={datasReservadas}
+                  totalQuartos={tiposQuarto.length}
+                  onContinueToCheckout={handleContinueToCheckout}
+                  onRemoveQuarto={handleRemoverQuarto}
+                  onDatasChange={setCarrinhoDatas}
+                  vendaPorQuarto={vendaPorQuarto}
+                  capacidadeBase={capacidadeBase}
+                  validandoProp={validandoDisponibilidade}
+                  datasIniciais={datasIniciais}
+                  alojamentoId={alojamento.id}
+                />
+              )}
             </div>
           </div>
         </div>

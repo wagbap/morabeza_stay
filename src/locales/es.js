@@ -982,6 +982,22 @@ erro_verificar_email: "No fue posible verificar el correo electrónico. Inténte
 erro_enviar_codigo: "No fue posible enviar el código. Inténtelo de nuevo.",
   mais_opcoes_contacto: "Más opciones de contacto",
   enviar_mensagem: "Enviar mensaje",
-  nao_pode_contactar_se: "No se puede contactar"
+  nao_pode_contactar_se: "No se puede contactar",
+  esgotado_para_datas: "Agotado para estas fechas",
+  ver_comodidades: "Ver comodidades",
+    ocultar_comodidades: "Ocultar comodidades",
+    comodidades_deste_quarto: "Comodidades de esta habitación",
+    mais_escolhido: "Más Elegido",
+    ver_fotos: "Ver Fotos",
+    hospedes: "huéspedes",
+    hospede: "huésped",
+    pessoas: "personas",
+    pessoa: "persona",
+    cama: "cama",
+    noite: "noche",
+    noites: "noches",
+    stock_maximo_atingido: "Solo {{n}} disponibles para esta habitación.",
+    escolha_quarto: "Elige tu habitación",
+    pode_combinar_quartos: "Puedes combinar varios tipos de habitación. Haz clic en la tarjeta para seleccionar o quitar."
   }
 };

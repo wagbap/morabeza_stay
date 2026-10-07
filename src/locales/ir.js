@@ -963,7 +963,23 @@ erro_enviar_codigo: "Non è stato possibile inviare il codice. Riprova.",
 enviar_whatsapp: "Invia tramite WhatsApp",
 mais_opcoes_contacto: "Più opzioni di contatto",
 enviar_mensagem: "Invia messaggio",
-nao_pode_contactar_se: "Non può essere contattato"
+nao_pode_contactar_se: "Non può essere contattato",
+esgotado_para_datas: "Esaurito per queste date",
+ver_comodidades: "Vedi servizi",
+    ocultar_comodidades: "Nascondi servizi",
+    comodidades_deste_quarto: "Servizi di questa camera",
+    mais_escolhido: "Più Scelto",
+    ver_fotos: "Vedi Foto",
+    hospedes: "ospiti",
+    hospede: "ospite",
+    pessoas: "persone",
+    pessoa: "persona",
+    cama: "letto",
+    noite: "notte",
+    noites: "notti",
+    stock_maximo_atingido: "Solo {{n}} disponibili per questa camera.",
+    escolha_quarto: "Scegli la tua camera",
+    pode_combinar_quartos: "Puoi combinare più tipi di camera. Clicca sulla scheda per selezionare o rimuovere."
 
   }
 };

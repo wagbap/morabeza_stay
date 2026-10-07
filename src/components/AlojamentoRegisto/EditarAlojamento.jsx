@@ -118,6 +118,53 @@ const carregarImagensPorAlojamento = async (alojamentoId) => {
   }
 };
 
+// ============================================================
+// CARREGAR COMODIDADES DOS QUARTOS FILTRADAS POR ALOJAMENTO
+// ============================================================
+const carregarComodidadesPorAlojamento = async (alojamentoId) => {
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/alojamento/get_comodidades_quartos.php?alojamento_id=${alojamentoId}&t=${Date.now()}`,
+      { cache: 'no-store' }
+    );
+
+    if (!res.ok) {
+      console.warn(`⚠️ get_comodidades_quartos.php devolveu ${res.status}`);
+      return {};
+    }
+
+    const data = await res.json();
+    console.log('🛎️ [EditarAlojamento] Comodidades dos quartos:', data);
+
+    let comodidadesPorQuarto = {};
+
+    if (data.success && data.data) {
+      const raw = data.data.quarto_comodidades || data.data;
+
+      if (Array.isArray(raw)) {
+        raw.forEach((item) => {
+          const qId = item.quarto_id || item.id;
+          if (qId) comodidadesPorQuarto[String(qId)] = item.comodidades || [];
+        });
+      } else if (typeof raw === 'object') {
+        Object.entries(raw).forEach(([key, value]) => {
+          comodidadesPorQuarto[String(key)] = value;
+        });
+      }
+    } else if (Array.isArray(data)) {
+      data.forEach((item) => {
+        const qId = item.quarto_id || item.id;
+        if (qId) comodidadesPorQuarto[String(qId)] = item.comodidades || [];
+      });
+    }
+
+    return comodidadesPorQuarto;
+  } catch (err) {
+    console.error('Erro ao carregar comodidades dos quartos:', err);
+    return {};
+  }
+};
+
 // ==================== COMPONENTE PRINCIPAL ====================
 const EditarAlojamentoContent = () => {
   const navigate = useNavigate();
@@ -223,22 +270,41 @@ const EditarAlojamentoContent = () => {
         // 🔥 CARREGAR IMAGENS SÓ DESTE ALOJAMENTO
         const imagensPorQuarto = await carregarImagensPorAlojamento(alojamentoIdParam);
 
-        // 🔥 CRUZAR: cada quarto recebe APENAS as suas imagens
+        // 🔥 CARREGAR COMODIDADES SÓ DESTE ALOJAMENTO
+        const comodidadesPorQuarto = await carregarComodidadesPorAlojamento(alojamentoIdParam);
+
+        console.log('🔑 IDs dos quartos da BD:', quartosDaBd.map((q) => q.id));
+        console.log('🗺️ Comodidades por quarto:', comodidadesPorQuarto);
+
+        // 🔥 CRUZAR: cada quarto recebe APENAS as suas imagens E comodidades
         const quartosMapeados = quartosDaBd.map((q) => {
+          // ⚠️ ID REAL DA BD — NUNCA sobrescrever, é a chave para comodidades e imagens
           const quartoId = String(q.id);
           const tipoQuartoId = q.tipo_catalogo_id || q.tipo_quarto_id || q.tipo_id;
 
-          let fotosDesteQuarto = imagensPorQuarto[quartoId] || [];
+          const fotosDesteQuarto = imagensPorQuarto[quartoId] || [];
+          const comodidadesDesteQuarto = comodidadesPorQuarto[quartoId] || [];
 
           return {
             ...q,
+            // ⚠️ GARANTIR que o id real é preservado (não usar tipo_quarto_id como id)
+            id: q.id,
             tipo_quarto_id: tipoQuartoId,
+            tipo_catalogo_id: tipoQuartoId,
             quantidade_disponivel: q.quantidade ?? q.quantidade_disponivel ?? 1,
             preco_personalizado: q.preco_noite ?? q.preco_personalizado ?? null,
             fotos: fotosDesteQuarto,
             imagens: fotosDesteQuarto,
+            comodidades: comodidadesDesteQuarto,
           };
         });
+
+        console.log('✅ Quartos mapeados com comodidades:', quartosMapeados.map((q) => ({
+          id: q.id,
+          tipo_nome: q.tipo_nome,
+          qtd_comodidades: q.comodidades?.length || 0,
+          qtd_fotos: q.fotos?.length || 0,
+        })));
 
         setQuartosSelecionados(quartosMapeados);
 
@@ -315,25 +381,30 @@ const EditarAlojamentoContent = () => {
 
   useEffect(() => {
     if (id) carregarDadosAlojamento(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // ==================== HANDLERS ====================
-  const handleLocalizacaoChange = (dados) => {
+  const handleLocalizacaoChange = useCallback((dados) => {
     setLocalizacaoDados(dados);
-  };
+  }, []);
 
-  const handleComodidadesChange = (comodidades) => {
+  const handleComodidadesChange = useCallback((comodidades) => {
     setComodidadesSelecionadas(comodidades);
-  };
+  }, []);
 
-  const handleRegrasChange = (dadosRegras) => {
+  const handleRegrasChange = useCallback((dadosRegras) => {
     setRegras(dadosRegras.regras || []);
     setRegrasAdicionais(dadosRegras.regrasAdicionais || '');
-  };
+  }, []);
 
-  const handleQuartosChange = (quartos) => {
-    setQuartosSelecionados(quartos);
-  };
+  // ⚠️ useCallback + comparação por JSON para evitar loop infinito de renders
+  const handleQuartosChange = useCallback((quartos) => {
+    setQuartosSelecionados((prev) => {
+      if (JSON.stringify(prev) === JSON.stringify(quartos)) return prev;
+      return quartos;
+    });
+  }, []);
 
   // ==================== NAVEGAÇÃO ====================
   const handleSaveInformacoes = () => {
@@ -408,7 +479,13 @@ const EditarAlojamentoContent = () => {
           .map((f) => (typeof f === 'string' ? f : f.url || f.caminho_url || f.path || ''))
           .filter((url) => url && !url.startsWith('blob:'));
 
+        // ⚠️ Comodidades do quarto — enviar como array de IDs
+        const comodidadesDoQuarto = Array.isArray(q.comodidades)
+          ? q.comodidades.map((c) => (typeof c === 'object' ? c.id : c)).filter((cid) => cid != null)
+          : [];
+
         return {
+          // ⚠️ ID REAL DA BD — essencial para o backend fazer UPDATE e associar comodidades
           id: q.id || null,
           tipo_catalogo_id: q.tipo_catalogo_id || q.tipo_quarto_id || q.tipo_id || q.id,
           tipo_quarto_id: q.tipo_quarto_id || q.tipo_catalogo_id || q.tipo_id || q.id,
@@ -418,6 +495,7 @@ const EditarAlojamentoContent = () => {
           preco_personalizado: q.preco_personalizado ?? q.preco_noite ?? null,
           fotos: fotosValidas,
           imagens: fotosValidas,
+          comodidades: comodidadesDoQuarto,
         };
       });
 

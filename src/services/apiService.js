@@ -2,6 +2,9 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://welovepalop.com/api';
 
+// ==================== IMPORTS ====================
+import comodidadesQuartoService from './comodidadesQuartoService';
+
 // ==================== HELPER PARA TOKEN E USER ID ====================
 function obterTokenSeguro() {
     return localStorage.getItem('token') || localStorage.getItem('morabeza_token');
@@ -33,7 +36,7 @@ export function obterDadosUtilizadorDoToken() {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         const payload = JSON.parse(jsonPayload);
-        return payload.data || payload; 
+        return payload.data || payload;
     } catch (e) {
         return null;
     }
@@ -65,10 +68,10 @@ async function apiRequest(endpoint, method, data = null) {
     try {
         const url = `${API_BASE_URL}${endpoint}`;
         console.log(`📡 API ${method}: ${url}`);
-        
+
         const response = await fetch(url, options);
         const contentType = response.headers.get('content-type');
-        
+
         if (contentType && contentType.includes('application/json')) {
             const result = await response.json();
             if (!response.ok) {
@@ -105,7 +108,7 @@ export async function buscarQuartosDoAlojamento(alojamentoId) {
     if (!alojamentoId) {
         return { success: false, data: [], message: 'ID do alojamento não fornecido' };
     }
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php?id=${alojamentoId}`);
         const data = await response.json();
@@ -123,11 +126,14 @@ export async function buscarQuartosComSelecao(alojamentoId) {
     return buscarQuartosDoAlojamento(alojamentoId);
 }
 
+// ============================================================
+// SALVAR QUARTOS — envia comodidades no payload (IDs puros)
+// ============================================================
 export async function salvarQuartos(alojamentoId, quartos) {
     if (!alojamentoId) {
         throw new Error('ID do alojamento não fornecido');
     }
-    
+
     const payload = {
         alojamento_id: alojamentoId,
         quartos: quartos.map(q => {
@@ -136,22 +142,35 @@ export async function salvarQuartos(alojamentoId, quartos) {
                 .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
                 .filter(Boolean);
 
+            // ⚠️ Converter comodidades para array de IDs puros
+            const listaComodidades = q.comodidades || [];
+            const comodidadesIds = listaComodidades
+                .map(c => (typeof c === 'object' ? c.id : c))
+                .filter(id => id != null && id > 0);
+
             return {
+                // Preservar o ID da linha existente (se houver)
+                id: q.id && Number.isFinite(Number(q.id)) ? Number(q.id) : null,
+                tipo_catalogo_id: q.tipo_quarto_id,
                 tipo_quarto_id: q.tipo_quarto_id,
+                quantidade: q.quantidade_disponivel || 1,
                 quantidade_disponivel: q.quantidade_disponivel || 1,
+                preco_noite: q.preco_personalizado || null,
                 preco_personalizado: q.preco_personalizado || null,
                 fotos: fotosLimpas,
-                imagens: fotosLimpas
+                imagens: fotosLimpas,
+                // ⚠️ AQUI — comodidades vão no payload para o quartos.php guardar
+                comodidades: comodidadesIds,
             };
         })
     };
-    
+
     const token = obterTokenSeguro();
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
@@ -169,7 +188,7 @@ export async function atualizarQuartos(alojamentoId, quartos) {
     if (!alojamentoId) {
         throw new Error('ID do alojamento não fornecido');
     }
-    
+
     const payload = {
         alojamento_id: alojamentoId,
         quartos: quartos.map(q => {
@@ -178,22 +197,32 @@ export async function atualizarQuartos(alojamentoId, quartos) {
                 .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
                 .filter(Boolean);
 
+            const listaComodidades = q.comodidades || [];
+            const comodidadesIds = listaComodidades
+                .map(c => (typeof c === 'object' ? c.id : c))
+                .filter(id => id != null && id > 0);
+
             return {
+                id: q.id && Number.isFinite(Number(q.id)) ? Number(q.id) : null,
+                tipo_catalogo_id: q.tipo_quarto_id,
                 tipo_quarto_id: q.tipo_quarto_id,
+                quantidade: q.quantidade_disponivel || 1,
                 quantidade_disponivel: q.quantidade_disponivel || 1,
+                preco_noite: q.preco_personalizado || null,
                 preco_personalizado: q.preco_personalizado || null,
                 fotos: fotosLimpas,
-                imagens: fotosLimpas
+                imagens: fotosLimpas,
+                comodidades: comodidadesIds,
             };
         })
     };
-    
+
     const token = obterTokenSeguro();
 
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php`, {
             method: 'PUT',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
@@ -210,13 +239,13 @@ export async function removerQuarto(alojamentoId, tipoQuartoId) {
     if (!alojamentoId || !tipoQuartoId) {
         throw new Error('ID do alojamento e tipo de quarto são obrigatórios');
     }
-    
+
     const token = obterTokenSeguro();
 
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php?alojamento_id=${alojamentoId}&tipo_quarto_id=${tipoQuartoId}`, {
             method: 'DELETE',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             }
@@ -232,13 +261,13 @@ export async function removerQuartoPorId(id) {
     if (!id) {
         throw new Error('ID do quarto é obrigatório');
     }
-    
+
     const token = obterTokenSeguro();
 
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php?id=${id}`, {
             method: 'DELETE',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             }
@@ -336,14 +365,14 @@ export async function buscarLocalizacaoPersistente(alojamentoId) {
     if (!alojamentoId) {
         return { success: false, message: 'ID do alojamento não fornecido', data: null };
     }
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/alojamento/buscar_localizacao.php?id=${alojamentoId}`);
         const data = await response.json();
-        
+
         if (data.success && data.data) {
-            return { 
-                success: true, 
+            return {
+                success: true,
                 data: {
                     id: data.data.id,
                     alojamento_id: data.data.alojamento_id,
@@ -372,15 +401,15 @@ export async function buscarLocalizacaoPersistente(alojamentoId) {
 export async function buscarAlojamentoCompleto(id) {
     try {
         console.log(`🔍 Buscando dados para o alojamento #${id}`);
-        
+
         const infoResponse = await buscarInformacoesBasicas(id);
-        
+
         if (!infoResponse?.success || !infoResponse?.data) {
             return { success: false, message: 'Alojamento não encontrado.' };
         }
 
         const locPersistente = await buscarLocalizacaoPersistente(id);
-        
+
         const dadosCompletos = {
             id: parseInt(id),
             titulo: infoResponse.data.titulo || '',
@@ -405,7 +434,7 @@ export async function buscarAlojamentoCompleto(id) {
             status: infoResponse.data.status || 'pendente',
             created_at: infoResponse.data.created_at || null,
             updated_at: infoResponse.data.updated_at || null,
-            
+
             morada: locPersistente.success ? {
                 id: locPersistente.data.id,
                 alojamento_id: locPersistente.data.alojamento_id,
@@ -420,7 +449,7 @@ export async function buscarAlojamentoCompleto(id) {
                 pais: locPersistente.data.pais,
                 coordenadas: locPersistente.data.coordenadas
             } : null,
-            
+
             comodidades: [],
             regras: null,
             fotos: [],
@@ -453,7 +482,7 @@ export async function buscarAlojamentoCompleto(id) {
         if (regResponse.success && regResponse.data) {
             let regrasList = [];
             let regrasIds = [];
-            
+
             if (Array.isArray(regResponse.data)) {
                 regrasList = regResponse.data;
                 regrasIds = regrasList.map(r => r.id || r);
@@ -463,7 +492,7 @@ export async function buscarAlojamentoCompleto(id) {
             } else if (regResponse.data.regras_ids) {
                 regrasIds = regResponse.data.regras_ids;
             }
-            
+
             dadosCompletos.regras = {
                 regras: regrasList,
                 regras_ids: regrasIds,
@@ -489,18 +518,19 @@ export async function buscarAlojamentoCompleto(id) {
                 imagem_url: q.imagem_url,
                 multiplicador_preco: q.multiplicador_preco || 1,
                 ativo: q.ativo !== undefined ? q.ativo : 1,
-                fotos: q.fotos || q.imagens || q.quarto_imagens || []
+                fotos: q.fotos || q.imagens || q.quarto_imagens || [],
+                comodidades: Array.isArray(q.comodidades) ? q.comodidades : []
             }));
         }
-        
+
         return { success: true, data: dadosCompletos };
-        
+
     } catch (error) {
         console.error('❌ Erro em buscarAlojamentoCompleto:', error);
-        return { 
-            success: false, 
+        return {
+            success: false,
             message: error.message || 'Erro ao carregar dados do alojamento',
-            data: null 
+            data: null
         };
     }
 }
@@ -543,16 +573,16 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
     try {
         const isEdicao = !!alojamentoId;
         const informacoes = dados.informacoes || dados;
-        
+
         const userIdAutenticado = obterUserIdDoToken();
-        
+
         let comodidadesIds = [];
         if (dados.comodidades?.length) {
             comodidadesIds = dados.comodidades
                 .map(c => typeof c === 'number' ? c : c.id)
                 .filter(id => id != null);
         }
-        
+
         let regrasIds = [];
         let regrasAdicionais = '';
 
@@ -567,7 +597,7 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
             regrasIds = dados.regras_ids;
             regrasAdicionais = dados.regras_adicionais || '';
         }
-        
+
         const urlsVistas = new Set();
         const imagens = (dados.imagens || dados.fotos || [])
             .filter(foto => {
@@ -585,7 +615,8 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
                     ordem: foto.ordem !== undefined ? foto.ordem : index
                 };
             });
-        
+
+        // ⚠️ Formatar quartos COM comodidades incluídas — o quartos.php trata de as guardar
         let quartosFormatados = [];
         if (dados.quartos && Array.isArray(dados.quartos)) {
             quartosFormatados = dados.quartos.map(q => {
@@ -594,27 +625,39 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
                     .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
                     .filter(Boolean);
 
+                // Comodidades como IDs puros
+                const listaComodidades = q.comodidades || [];
+                const comodidadesQuartoIds = listaComodidades
+                    .map(c => (typeof c === 'object' ? c.id : c))
+                    .filter(id => id != null && id > 0);
+
                 return {
-                    tipo_quarto_id: q.tipo_quarto_id,
+                    id: q.id || q.quarto_id || null,
+                    tipo_catalogo_id: q.tipo_quarto_id || q.tipo_catalogo_id,
+                    tipo_quarto_id: q.tipo_quarto_id || q.tipo_catalogo_id,
+                    quantidade: q.quantidade_disponivel || 1,
                     quantidade_disponivel: q.quantidade_disponivel || 1,
-                    preco_personalizado: q.preco_personalizado || null,
+                    preco_noite: q.preco_personalizado ?? null,
+                    preco_personalizado: q.preco_personalizado ?? null,
                     fotos: fotosLimpas,
-                    imagens: fotosLimpas
+                    imagens: fotosLimpas,
+                    // ⚠️ Comodidades incluídas no payload
+                    comodidades: comodidadesQuartoIds,
                 };
             });
         }
-        
+
         let morada = dados.morada || null;
         let cidade = dados.cidade || morada?.cidade || dados.localizacaoDados?.cidade || '';
         let ilha = dados.ilha || morada?.ilha || dados.localizacaoDados?.ilha || '';
-        
+
         const endereco = dados.endereco || morada?.endereco || morada?.morada || '';
         const num_apartamento = dados.num_apartamento || morada?.num_apartamento || morada?.apartamento || '';
         const codigo_postal = dados.codigo_postal || morada?.codigo_postal || morada?.codigoPostal || '';
         const morada_completa = dados.morada_completa || morada?.morada_completa || '';
         const latitude = dados.latitude || morada?.coordenadas?.lat || morada?.lat || null;
         const longitude = dados.longitude || morada?.coordenadas?.lng || morada?.lng || null;
-        
+
         const payload = {
             proprietario_id: dados.proprietario_id || userIdAutenticado,
             titulo: informacoes.titulo || dados.titulo || 'Propriedade Sem Título',
@@ -665,29 +708,32 @@ export async function salvarFluxoRegisto(dados, alojamentoId = null) {
         });
 
         console.log(`📤 Enviando payload para ${isEdicao ? 'edição' : 'criação'}:`, payload);
-        
-        const result = isEdicao 
+
+        const result = isEdicao
             ? await atualizarAlojamentoCompleto(alojamentoId, payload)
             : await registrarAlojamentoCompleto(payload);
-        
+
         if (result.success) {
             const finalId = alojamentoId || result.data?.alojamento_id;
-            
+
+            // ⚠️ Salvar quartos (inclui comodidades no payload — o quartos.php trata de tudo)
             if (quartosFormatados.length > 0 && finalId) {
-                console.log('📦 Salvando quartos e respetivas fotos na tabela quarto_imagens...');
+                console.log('📦 Salvando quartos (imagens + comodidades)...');
                 const quartosResult = await salvarQuartos(finalId, quartosFormatados);
                 if (!quartosResult.success) {
                     console.warn('⚠️ Quartos salvos parcialmente:', quartosResult.message);
+                } else {
+                    console.log('✅ Quartos salvos:', quartosResult.message);
                 }
             }
-            
+
             return {
                 success: true,
                 message: isEdicao ? 'Alojamento atualizado com sucesso!' : 'Alojamento registado com sucesso!',
                 data: { alojamento_id: finalId }
             };
         }
-        
+
         throw new Error(result.message || 'Falha ao processar requisição');
     } catch (error) {
         console.error('❌ Erro ao salvar fluxo:', error);
@@ -727,5 +773,6 @@ export default {
     buscarAlojamentoCompleto,
     buscarLocalizacaoPersistente,
     buscarLocalizacaoDoAlojamento,
-    obterDadosUtilizadorDoToken
+    obterDadosUtilizadorDoToken,
+    comodidadesQuartoService
 };

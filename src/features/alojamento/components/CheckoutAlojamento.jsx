@@ -516,27 +516,57 @@ const CheckoutAlojamento = () => {
     showToast(t('hospede_adicionado', 'Hóspede adicionado'), 'success');
   };
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        const email = userData.email;
-        const googleId = userData.sub || userData.google_id || null;
-        setUser({ ...userData, google_id: googleId, email });
-        if (email) {
-          buscarDadosUsuario(email, googleId);
-        }
-        setParticipantePrincipal(prev => ({
-          ...prev,
-          nome_completo: userData.name || userData.full_name || prev.nome_completo,
-          email: email || prev.email,
-          phone: userData.phone || prev.phone,
-        }));
-      } catch (e) {
-        console.error('Erro ao parsear usuário:', e);
-      }
+  // 🔑 Verifica se existe um token JWT válido (utilizador logado)
+  const verificarUtilizadorLogado = () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+    if (!token) return null;
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload).data || { logged: true };
+    } catch (e) {
+      return null;
     }
+  };
+
+  useEffect(() => {
+    // limpar resíduos antigos de sessão leve do checkout
+    localStorage.removeItem('user');
+
+    // 1) Tenta token JWT (utilizador realmente logado)
+    const utilizadorLogado = verificarUtilizadorLogado();
+
+    if (utilizadorLogado) {
+      // ✅ LOGADO: pré-preenche nome, email, phone e nacionalidade
+      const email = utilizadorLogado.email || '';
+      const googleId = utilizadorLogado.sub || utilizadorLogado.google_id || null;
+
+      setUser({ ...utilizadorLogado, google_id: googleId, email });
+
+      if (email) {
+        buscarDadosUsuario(email, googleId);
+      }
+
+      setParticipantePrincipal((prev) => ({
+        ...prev,
+        nome_completo:
+          utilizadorLogado.nome ||
+          utilizadorLogado.name ||
+          utilizadorLogado.full_name ||
+          prev.nome_completo,
+        email: email || prev.email,
+        phone: utilizadorLogado.phone || utilizadorLogado.telefone || prev.phone,
+        nacionalidade: utilizadorLogado.nacionalidade || prev.nacionalidade,
+      }));
+    }
+    // ❌ NÃO LOGADO: não pré-preenche nada, deixa o utilizador preencher e registar via OTP
+
     window.scrollTo(0, 0);
   }, []);
 
@@ -646,20 +676,7 @@ const CheckoutAlojamento = () => {
       }
 
       if (result.success && result.user) {
-        try {
-          const sessao = {
-            id: result.user.id,
-            name: result.user.nome,
-            email: result.user.email,
-            phone: participantePrincipal.phone,
-            origem: 'checkout_alojamento',
-            registado_em: new Date().toISOString(),
-          };
-          localStorage.setItem('user', JSON.stringify(sessao));
-          setUser(sessao);
-        } catch (e) {
-          console.warn('Não foi possível guardar sessão leve:', e);
-        }
+        // ❌ NÃO guardar sessão no localStorage — o formulário começa limpo no próximo checkout
         return result.user;
       }
     } catch (err) {

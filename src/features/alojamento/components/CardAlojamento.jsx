@@ -2,7 +2,7 @@
 import React, { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MapPin, Star, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import BotaoFavorito from '../../../components/BotaoFavorito';
 
 const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/";
@@ -28,11 +28,17 @@ const CardAlojamento = ({
 }) => {
   const { t } = useTranslation();
 
+  // 🔑 LER OS PARÂMETROS DA PESQUISA ATUAL
+  const location = useLocation();
+  const query = location.search || ''; // já vem com "?" no início
+
   const imagemCompleta = imagem_url
     ? (imagem_url.startsWith('http') ? imagem_url : `${BASE_URL_IMAGENS}${imagem_url}`)
     : PLACEHOLDER;
 
-  const linkTo = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
+  // 🔑 CONCATENAR OS PARAMS DA PESQUISA AO LINK
+  const baseLink = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
+  const linkTo = `${baseLink}${query}`;
 
   const itemFavorito = {
     id,
@@ -166,6 +172,7 @@ const CardAlojamento = ({
         </div>
       </div>
 
+      {/* 🔑 LINK COM OS PARAMS DA PESQUISA */}
       <Link
         to={linkTo}
         className="absolute inset-0 z-0"

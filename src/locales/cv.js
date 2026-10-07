@@ -959,8 +959,22 @@ erro_verificar_email: "Nu ka konsigi verifica email. Tenta otu bes.",
 erro_enviar_codigo: "Nu ka konsigi manda kódigu. Tenta otu bes.",
 enviar_whatsapp: "Envia  whatsapp",
 mais_opcoes_contacto: "Más opçons di kontatu",
-  enviar_mensagem: "Manda mensajen",
-  nao_pode_contactar_se: "Bu ka podi kontata li"
+enviar_mensagem: "Manda mensajen",
+nao_pode_contactar_se: "Bu ka podi kontata li",
+esgotado_para_datas: "Isgotadu pa kes datas la",
+esgotado_para_datas: "Kártu li sta xéiu pa es datas",
+      ver_comodidades: "Oja Komodidadis",
+      ocultar_comodidades: "Fitcha Komodidadis",
+      comodidades_deste_quarto: "Komodidadis di es kártu",
+      mais_escolhido: "Más Skolhidu",
+      ver_fotos: "Oja Fotos",
+      hospedes: "géntis",
+      hospede: "génti",
+      cama: "kama",
+      noite: "noti",
+      noites: "notis",
+      escolha_quarto: "Skolhi bu kártu",
+      pode_combinar_quartos: "Bu pode kombiná vários tipu di kártu. Klika na kártu pa skolhi ô tirá."
 
   }
 };

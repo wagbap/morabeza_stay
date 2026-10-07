@@ -81,7 +81,12 @@ const FluxoRegistoContent = () => {
     tempo_resposta: 'Dentro de 1 hora',
     quartos: 1,
     camas: 1,
-    casas_banho: 1
+    casas_banho: 1,
+    checkin_inicio: '14:00',
+    checkin_fim: '22:00',
+    checkout_limite: '11:00',
+    checkin_flexivel: 0,
+    checkin_flexivel_nota: ''
   });
 
   // FASE 2 - Localização
@@ -180,7 +185,12 @@ const FluxoRegistoContent = () => {
       tempo_resposta: 'Dentro de 1 hora',
       quartos: 1,
       camas: 1,
-      casas_banho: 1
+      casas_banho: 1,
+      checkin_inicio: '14:00',
+      checkin_fim: '22:00',
+      checkout_limite: '11:00',
+      checkin_flexivel: 0,
+      checkin_flexivel_nota: ''
     });
     setLocalizacaoDados({
       endereco: '',
@@ -310,7 +320,12 @@ const FluxoRegistoContent = () => {
         tempo_resposta: data.tempo_resposta || 'Dentro de 1 hora',
         quartos: data.quartos || 1,
         camas: data.camas || 1,
-        casas_banho: data.casas_banho || 1
+        casas_banho: data.casas_banho || 1,
+        checkin_inicio: data.checkin_inicio ? String(data.checkin_inicio).substring(0, 5) : '14:00',
+        checkin_fim: data.checkin_fim ? String(data.checkin_fim).substring(0, 5) : '22:00',
+        checkout_limite: data.checkout_limite ? String(data.checkout_limite).substring(0, 5) : '11:00',
+        checkin_flexivel: data.checkin_flexivel ? 1 : 0,
+        checkin_flexivel_nota: data.checkin_flexivel_nota || ''
       });
 
       if (data.morada) {
@@ -366,7 +381,12 @@ const FluxoRegistoContent = () => {
       }
 
       if (data.quartos && Array.isArray(data.quartos)) {
-        setQuartosParaEnviar(data.quartos);
+        // ⚠️ Garantir que as comodidades dos quartos são preservadas
+        const quartosComComodidades = data.quartos.map(q => ({
+          ...q,
+          comodidades: Array.isArray(q.comodidades) ? q.comodidades : []
+        }));
+        setQuartosParaEnviar(quartosComComodidades);
       }
 
     } catch (error) {
@@ -449,12 +469,17 @@ const FluxoRegistoContent = () => {
   };
 
   // ==================== MONTAR PAYLOAD PARA API ====================
- // ==================== MONTAR PAYLOAD PARA API ====================
   const montarPayload = (statusDestino) => {
+    // ⚠️ Formatar quartos COM comodidades incluídas
     const quartosFormatados = (Array.isArray(quartosParaEnviar) ? quartosParaEnviar : []).map(q => {
       const fotosQuarto = (q.fotos || q.imagens || q.quarto_imagens || [])
         .map(f => (typeof f === 'string' ? f : f.caminho_url || f.url || f.path))
         .filter(Boolean);
+
+      // ⚠️ Comodidades dos quartos — como IDs puros
+      const comodidadesQuarto = (q.comodidades || [])
+        .map(c => (typeof c === 'object' ? c.id : c))
+        .filter(id => id != null && id > 0);
 
       return {
         id: q.id || q.quarto_id || null,
@@ -465,7 +490,9 @@ const FluxoRegistoContent = () => {
         preco_personalizado: q.preco_personalizado ?? q.preco_noite ?? null,
         preco_noite: q.preco_noite ?? q.preco_personalizado ?? null,
         fotos: fotosQuarto,
-        imagens: fotosQuarto
+        imagens: fotosQuarto,
+        // ⚠️ Comodidades dos quartos
+        comodidades: comodidadesQuarto
       };
     });
 
@@ -520,6 +547,18 @@ const FluxoRegistoContent = () => {
       quartos: parseInt(informacoesBasicas.quartos) || 1,
       camas: parseInt(informacoesBasicas.camas) || 1,
       casas_banho: parseInt(informacoesBasicas.casas_banho) || 1,
+
+      checkin_inicio: informacoesBasicas.checkin_flexivel
+        ? null
+        : informacoesBasicas.checkin_inicio || '14:00',
+      checkin_fim: informacoesBasicas.checkin_flexivel
+        ? null
+        : informacoesBasicas.checkin_fim || '22:00',
+      checkout_limite: informacoesBasicas.checkout_limite || '11:00',
+      checkin_flexivel: informacoesBasicas.checkin_flexivel ? 1 : 0,
+      checkin_flexivel_nota: informacoesBasicas.checkin_flexivel
+        ? informacoesBasicas.checkin_flexivel_nota || ''
+        : null,
 
       cidade: cidade,
       ilha: ilha,
@@ -599,6 +638,9 @@ const FluxoRegistoContent = () => {
 
         if (result.data?.id && !alojamentoId) {
           setAlojamentoId(result.data.id);
+        }
+        if (result.data?.alojamento_id && !alojamentoId) {
+          setAlojamentoId(result.data.alojamento_id);
         }
 
         setStatusAtual('em_analise');
@@ -811,7 +853,7 @@ const FluxoRegistoContent = () => {
           <div className="bg-white rounded-lg shadow-md p-8">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Fotos do Alojamento</h1>
             <p className="text-gray-600 mb-6">
-              Adicione fotos e escolha manualmente a fotografia principal (clique na estrela ou no botão “Principal”).
+              Adicione fotos e escolha manualmente a fotografia principal (clique na estrela ou no botão "Principal").
             </p>
 
             <ImagensUpload

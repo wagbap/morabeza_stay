@@ -954,7 +954,22 @@ erro_verificar_email: "We could not verify the email. Please try again.",
 erro_enviar_codigo: "We could not send the code. Please try again.",
 mais_opcoes_contacto: "More contact options",
   enviar_mensagem: "Send message",
-  nao_pode_contactar_se: "Cannot be contacted"
+  nao_pode_contactar_se: "Cannot be contacted",
+    ver_comodidades: "View amenities",
+    ocultar_comodidades: "Hide amenities",
+    comodidades_deste_quarto: "Amenities of this room",
+    mais_escolhido: "Most Chosen",
+    ver_fotos: "View Photos",
+    hospedes: "guests",
+    hospede: "guest",
+    pessoas: "people",
+    pessoa: "person",
+    cama: "bed",
+    noite: "night",
+    noites: "nights",
+    stock_maximo_atingido: "Only {{n}} available for this room.",
+    escolha_quarto: "Choose your room",
+    pode_combinar_quartos: "You can combine multiple room types. Click the card to select or remove."
 
   }
 };

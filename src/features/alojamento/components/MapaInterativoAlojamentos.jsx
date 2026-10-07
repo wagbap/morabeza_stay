@@ -1,9 +1,9 @@
 // PaginaMapa.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Map, Marker, NavigationControl, Popup } from 'react-map-gl';
+import { Map, Marker, NavigationControl } from 'react-map-gl';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Star, ChevronRight, MapPin } from 'lucide-react';
+import { ArrowLeft, Star, ChevronRight, MapPin, X } from 'lucide-react';
 import axios from 'axios';
 
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -40,14 +40,13 @@ const PaginaMapa = () => {
   }, [location.search]);
 
   const [viewState, setViewState] = useState({
-    latitude: 16.8884, // Centro Mindelo default
+    latitude: 16.8884,
     longitude: -24.9896,
     zoom: 7,
     pitch: 0,
     bearing: 0
   });
 
-  // Função auxiliar para extrair coordenadas base
   const obterCoordenadasValidas = (hotel) => {
     const lat = parseFloat(hotel?.latitude);
     const lng = parseFloat(hotel?.longitude);
@@ -64,12 +63,10 @@ const PaginaMapa = () => {
     return { lat: 14.9315, lng: -23.5125, zoom: 10 };
   };
 
-  // ALGORITMO DE ESPALHAMENTO (Jitter) para alojamentos sobrepostos
   const processarCoordenadasUnicas = (lista) => {
     const contagem = {};
     return lista.map(hotel => {
       const ponto = obterCoordenadasValidas(hotel);
-      // Chave única para aquela coordenada com 4 casas decimais (~10 metros de precisão)
       const chave = `${ponto.lat.toFixed(4)}-${ponto.lng.toFixed(4)}`;
       
       if (contagem[chave] === undefined) {
@@ -82,10 +79,9 @@ const PaginaMapa = () => {
       let latFinal = ponto.lat;
       let lngFinal = ponto.lng;
       
-      // Se houver mais do que 1 alojamento no mesmo sítio, espalhamos em círculo
       if (index > 0) {
-        const raio = 0.0004 * Math.ceil(index / 6); // Afasta cerca de ~40 metros
-        const angulo = (index % 6) * (Math.PI / 3); // Distribui em 6 direções
+        const raio = 0.0004 * Math.ceil(index / 6);
+        const angulo = (index % 6) * (Math.PI / 3);
         latFinal += raio * Math.cos(angulo);
         lngFinal += raio * Math.sin(angulo);
       }
@@ -101,7 +97,6 @@ const PaginaMapa = () => {
         const res = await axios.get('https://welovepalop.com/api/get_alojamentos.php');
         let dadosRaw = Array.isArray(res.data) ? res.data : (res.data?.data ? [res.data.data] : []);
         
-        // Aplica o espalhamento para que os teus testes não fiquem colados uns aos outros
         const dadosProcessados = processarCoordenadasUnicas(dadosRaw);
         setAlojamentos(dadosProcessados);
         
@@ -135,24 +130,13 @@ const PaginaMapa = () => {
 
   const handleSelecionarHotel = (hotel) => {
     setSelectedHotel(hotel);
-    setViewState({
+    setViewState(prev => ({
+      ...prev,
       latitude: hotel.latFinal,
       longitude: hotel.lngFinal,
-      zoom: 16,
-      pitch: 0,
-      bearing: 0,
-      transitionDuration: 800 // Esta linha faz a animação de voo suave no mapa!
-    });
+      zoom: 16
+    }));
   };
-
-  const alojamentosPorIlha = useMemo(() => {
-    return alojamentos.reduce((acc, hotel) => {
-      const ilha = hotel.ilha || hotel.cidade || hotel.localizacao || t('outras');
-      if (!acc[ilha]) acc[ilha] = [];
-      acc[ilha].push(hotel);
-      return acc;
-    }, {});
-  }, [alojamentos, t]);
 
   const marcadores = useMemo(() => 
     alojamentos.map((hotel) => {
@@ -172,8 +156,8 @@ const PaginaMapa = () => {
         >
           <div 
             className={`
-              px-3 py-1.5 rounded-full border-2 border-white shadow-lg font-black text-[11px] transition-all cursor-pointer whitespace-nowrap
-              ${isSelected ? 'bg-black text-white scale-110 z-50 relative' : 'bg-blue-600 text-white hover:bg-blue-700 z-10'}
+              px-3 py-1.5 rounded-full border-2 border-white shadow-xl font-black text-[11px] transition-all cursor-pointer whitespace-nowrap
+              ${isSelected ? 'bg-black text-white scale-110 z-50 relative ring-4 ring-blue-400/50' : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 z-10'}
             `}
           >
             {preco.toLocaleString()} CVE
@@ -185,147 +169,85 @@ const PaginaMapa = () => {
   return (
     <div className="w-screen h-screen relative bg-slate-100 overflow-hidden">
       
-      <div className="absolute top-6 left-6 z-50">
+      {/* Botão Voltar */}
+      <div className="absolute top-6 left-6 z-40">
         <button 
           onClick={() => navigate(-1)}
-          className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest border border-gray-100 transition-all"
+          className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-black text-xs uppercase tracking-widest border border-gray-100 transition-all cursor-pointer"
         >
           <ArrowLeft size={18} /> {t('voltar')}
         </button>
       </div>
 
-      <div className="absolute top-6 right-6 z-50 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-48px)]">
-        <div className="p-4 bg-blue-900 text-white text-left shrink-0">
-          <h3 className="font-black text-sm uppercase tracking-wider">{t('alojamentos')}</h3>
-          <p className="text-[10px] text-blue-200 mt-1">{alojamentos.length} {t('propriedades_listadas')}</p>
-        </div>
-        
-        <div className="overflow-y-auto text-left flex-1 bg-white relative">
-          {Object.keys(alojamentosPorIlha).length === 0 && !loading && (
-            <div className="p-6 text-center text-slate-400 text-xs font-medium">
-              Nenhum alojamento encontrado.
-            </div>
-          )}
-
-          {Object.entries(alojamentosPorIlha).map(([ilha, lista]) => (
-            <div key={ilha}>
-              <div className="px-3 pt-3 pb-1.5 bg-slate-50/95 backdrop-blur-sm sticky top-0 z-20 border-b border-slate-100 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <MapPin size={10} className="text-blue-600" />
-                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{ilha}</span>
-                  </div>
-                  <span className="text-[8px] font-bold text-slate-400 bg-slate-200/50 px-1.5 py-0.5 rounded-md">
-                    {lista.length}
-                  </span>
-                </div>
-              </div>
-              
-              {lista.map((hotel) => (
-                <div 
-                  key={hotel.id}
-                  onClick={() => handleSelecionarHotel(hotel)}
-                  className={`p-3 border-b border-slate-50 cursor-pointer transition-all hover:bg-slate-50 relative ${
-                    selectedHotel?.id === hotel.id ? 'bg-blue-50/50' : ''
-                  }`}
-                >
-                  {selectedHotel?.id === hotel.id && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r-md"></div>
-                  )}
-
-                  <div className="flex gap-3">
-                    <img 
-                      src={hotel.imagem_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100'}
-                      className="w-16 h-16 rounded-xl object-cover shadow-sm"
-                      alt={hotel.titulo}
-                      onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100'}
-                    />
-                    <div className="flex-1">
-                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1 pr-2">{hotel.titulo}</h4>
-                      <p className="text-[9px] text-slate-500 flex items-center gap-1 mt-1">
-                        <MapPin size={9} className="text-orange-500" /> {hotel.cidade || hotel.localizacao}
-                      </p>
-                      <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-50/50">
-                        <div className="flex items-center gap-1 bg-orange-50 px-1.5 py-0.5 rounded text-orange-600">
-                          <Star size={8} className="fill-current" />
-                          <span className="text-[9px] font-bold">{Number(hotel.estrelas || 4.5).toFixed(1)}</span>
-                        </div>
-                        <span className="text-[10px] font-black text-blue-600">
-                          {Number(hotel.preco_noite).toLocaleString()} CVE
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
       {loading && (
-        <div className="absolute inset-0 z-40 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
+        <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="font-black text-[10px] uppercase text-blue-600 tracking-wider">{t('carregando_coordenadas')}</p>
         </div>
       )}
 
+      {/* Componente do Mapa em Tela Cheia */}
       <Map
         {...viewState}
         onMove={evt => setViewState(evt.viewState)}
         mapStyle="mapbox://styles/mapbox/streets-v12"
         mapboxAccessToken={MAPBOX_TOKEN}
         style={{ width: '100%', height: '100%' }}
+        onClick={() => setSelectedHotel(null)}
       >
         <NavigationControl position="bottom-right" />
         {marcadores}
+      </Map>
 
-        {selectedHotel && (
-          <Popup
-            latitude={selectedHotel.latFinal}
-            longitude={selectedHotel.lngFinal}
-            onClose={() => setSelectedHotel(null)}
-            closeButton={true}
-            closeOnClick={false}
-            anchor="top"
-            offset={15}
-            maxWidth="280px"
+      {/* Card Flutuante Inferior (Centralizada) */}
+      {selectedHotel && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedHotel(null);
+            }}
+            className="absolute top-2 right-2 z-10 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full transition-colors backdrop-blur-sm cursor-pointer"
           >
-            <div 
-              className="p-1 cursor-pointer text-left"
-              onClick={() => navigate(`/alojamento/${selectedHotel.slug || selectedHotel.id}`)}
-            >
-              <div className="relative h-32 rounded-xl overflow-hidden mb-2.5 shadow-sm">
-                <img 
-                  src={selectedHotel.imagem_url} 
-                  alt={selectedHotel.titulo}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'}
-                />
-                <div className="absolute top-2 right-2 bg-white/95 px-2 py-1 rounded-md text-[10px] font-black flex items-center gap-1 shadow-md">
-                  <Star size={10} className="fill-yellow-400 text-yellow-400" /> {Number(selectedHotel.estrelas || 4.5).toFixed(1)}
-                </div>
+            <X size={14} />
+          </button>
+
+          <div 
+            className="p-3 cursor-pointer flex gap-3 items-center text-left"
+            onClick={() => navigate(`/alojamento/${selectedHotel.slug || selectedHotel.id}`)}
+          >
+            <div className="relative w-20 h-20 rounded-xl overflow-hidden shadow-sm shrink-0">
+              <img 
+                src={selectedHotel.imagem_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'} 
+                alt={selectedHotel.titulo}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                onError={(e) => e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200'}
+              />
+              <div className="absolute bottom-1 left-1 bg-white/95 px-1.5 py-0.5 rounded text-[9px] font-black flex items-center gap-0.5 shadow">
+                <Star size={8} className="fill-yellow-400 text-yellow-400" /> {Number(selectedHotel.estrelas || 4.5).toFixed(1)}
               </div>
-              
-              <h4 className="font-black text-xs uppercase text-gray-900 line-clamp-1 pr-4">
+            </div>
+
+            <div className="flex-1 min-w-0 pr-4">
+              <h4 className="font-black text-xs uppercase text-gray-900 truncate">
                 {selectedHotel.titulo}
               </h4>
-              <p className="text-[10px] text-gray-500 font-bold uppercase mt-1 mb-2 flex items-center gap-1">
-                <MapPin size={10} /> {selectedHotel.cidade || selectedHotel.localizacao}
+              <p className="text-[10px] text-gray-500 font-medium truncate mt-0.5 flex items-center gap-1">
+                <MapPin size={10} className="text-orange-500 shrink-0" /> {selectedHotel.cidade || selectedHotel.localizacao}
               </p>
               
-              <div className="flex items-center justify-between border-t border-gray-100 pt-2 mt-1">
+              <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
                 <span className="text-blue-600 font-black text-xs">
                   {Number(selectedHotel.preco_noite).toLocaleString()} CVE <span className="text-[8px] font-normal text-slate-400">{t('por_noite_curto')}</span>
                 </span>
-                <span className="text-[9px] font-black uppercase text-white bg-blue-600 px-2 py-1 rounded flex items-center gap-0.5 hover:bg-blue-700 transition-colors">
+                <span className="text-[9px] font-black uppercase text-white bg-blue-600 px-2.5 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-700 transition-colors shadow-sm">
                   {t('ver')} <ChevronRight size={10} />
                 </span>
               </div>
             </div>
-          </Popup>
-        )}
-      </Map>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

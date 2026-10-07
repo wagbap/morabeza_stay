@@ -1,4 +1,4 @@
-// Pagamento.jsx - v3 multi-quarto + holds + FormularioPagamentoStripe UI
+// Pagamento.jsx - v4 multi-quarto + holds (SEM criar_hold — já criados antes)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -19,13 +19,15 @@ const ResumoReservaCarro = React.lazy(() => import('../features/carros/component
 
 const API_BASE = 'https://welovepalop.com';
 const TAXA_CONVERSAO_CVE_EUR = 110.265;
-const HOLD_MINUTOS = 15;
 
 const CACHE_KEYS = {
   alojamento: 'reservaAlojamentoPendente',
   carro: 'reservaCarroPendente',
   experiencia: 'reservaPendente',
 };
+
+// 🔑 Chave onde o useHoldsAlojamento guarda os holds criados antes do checkout
+const HOLD_STORAGE_KEY = 'holdAlojamento';
 
 const getTotalPagar = (tipo, reserva) => {
   if (!reserva) return 0;
@@ -50,7 +52,7 @@ const PagamentoContent = () => {
 
   const isProcessingRef = useRef(false);
   const hasMountedRef = useRef(false);
-  const holdsIdsRef = useRef([]); // ✅ array de holds
+  const holdsIdsRef = useRef([]);          // ✅ vem do sessionStorage, não do criar_hold
   const holdExpiraRef = useRef(null);
 
   const { reservaData, tipo: tipoState } = location.state || {};
@@ -93,62 +95,36 @@ const PagamentoContent = () => {
   }, [reservaData, tipoState]);
 
   // ---------------------------------------------------------
-  // Criar holds multi-quarto
+  // 🔑 LER holds já criados (NÃO criar aqui)
+  //    O useHoldsAlojamento / useDisponibilidadeAlojamento já os criou
+  //    antes de navegar para esta página.
   // ---------------------------------------------------------
   useEffect(() => {
     if (tipo !== 'alojamento') return;
-    const quartos = reserva?.quartos || [];
-    if (!quartos.length || !reserva.checkIn || !reserva.checkOut) return;
     if (holdsIdsRef.current.length) return;
 
-    let cancelado = false;
-    const criarHolds = async () => {
-      try {
-        const ids = [];
-        const expiras = [];
+    try {
+      const raw = sessionStorage.getItem(HOLD_STORAGE_KEY);
+      if (!raw) return;
 
-        for (const q of quartos) {
-          const res = await fetch(`${API_BASE}/api/criar_hold.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              quarto_id: q.tipoQuartoId,
-              checkin: reserva.checkIn,
-              checkout: reserva.checkOut,
-              quantidade: q.quantidade,
-              minutos: HOLD_MINUTOS,
-            }),
-          });
-          const data = await res.json();
-          if (!data.success || !data.hold_id) {
-            if (data.disponivel === false) {
-              throw new Error(t('sem_stock_disponivel', 'Sem disponibilidade'));
-            }
-            continue;
-          }
-          ids.push(data.hold_id);
-          expiras.push(new Date(data.expira_em).getTime());
-        }
+      const parsed = JSON.parse(raw);
+      if (!parsed?.holds || !Array.isArray(parsed.holds) || parsed.holds.length === 0) return;
 
-        if (cancelado) return;
-
-        if (ids.length) {
-          holdsIdsRef.current = ids;
-          const menorExpira = Math.min(...expiras);
-          holdExpiraRef.current = menorExpira;
-          const restante = Math.max(0, Math.floor((menorExpira - Date.now()) / 1000));
-          setHoldSegundos(restante);
-        }
-      } catch (err) {
-        if (cancelado) return;
-        console.error('Erro ao criar holds:', err);
-        showToast(err.message || t('erro_hold', 'Erro ao reservar stock'), 'error');
+      const expira = new Date(parsed.expira_em).getTime();
+      if (Date.now() >= expira) {
+        // Já expirou — limpa e avisa
+        sessionStorage.removeItem(HOLD_STORAGE_KEY);
+        showToast(t('hold_expirado', 'A retenção de stock expirou. Volte a escolher.'), 'error');
+        return;
       }
-    };
-    criarHolds();
 
-    return () => { cancelado = true; };
-  }, [tipo, reserva?.quartos, reserva?.checkIn, reserva?.checkOut, t, showToast]);
+      holdsIdsRef.current = parsed.holds.map(h => h.hold_id);
+      holdExpiraRef.current = expira;
+      setHoldSegundos(Math.max(0, Math.floor((expira - Date.now()) / 1000)));
+    } catch (err) {
+      console.error('Erro ao ler holds do sessionStorage:', err);
+    }
+  }, [tipo, t, showToast]);
 
   // ---------------------------------------------------------
   // Contador regressivo
@@ -167,7 +143,7 @@ const PagamentoContent = () => {
   }, [holdSegundos !== null, t, showToast]);
 
   // ---------------------------------------------------------
-  // Libertar holds
+  // Libertar holds (ao voltar / unload)
   // ---------------------------------------------------------
   const libertarHolds = useCallback(async () => {
     if (!holdsIdsRef.current.length) return;
@@ -190,6 +166,7 @@ const PagamentoContent = () => {
       } catch {}
     }
     holdsIdsRef.current = [];
+    sessionStorage.removeItem(HOLD_STORAGE_KEY);
   }, []);
 
   useEffect(() => {
@@ -313,7 +290,7 @@ const PagamentoContent = () => {
           quantidade_hospedes: rD?.totalHospedes,
           preco_total: getTotalPagar('alojamento', rD),
           noites: rD?.noites,
-          hold_ids: holdsIdsRef.current,
+          hold_ids: holdsIdsRef.current,   // ✅ vem do sessionStorage
           financeiro: {
             subtotalNoites: fin.subtotalNoites || 0,
             taxaLimpeza: fin.taxaLimpeza || 0,
@@ -395,6 +372,7 @@ const PagamentoContent = () => {
       if (result.success && result.data) {
         enviarEmailsConfirmacao(result.data);
         holdsIdsRef.current = [];
+        sessionStorage.removeItem(HOLD_STORAGE_KEY);
       }
       return result;
     } catch (error) {
@@ -407,7 +385,7 @@ const PagamentoContent = () => {
   }, [tipo, t, enviarEmailsConfirmacao]);
 
   // ---------------------------------------------------------
-  // Finalizar pagamento (chamado pelo FormularioPagamentoStripe)
+  // Finalizar pagamento
   // ---------------------------------------------------------
   const handleFinalizarPagamento = useCallback(async ({ zip } = {}) => {
     if (isProcessingRef.current || loading) return;
@@ -581,7 +559,6 @@ const PagamentoContent = () => {
                 {t('dados_cartao')}
               </h3>
 
-              {/* ✅ UI do FormularioPagamentoStripe */}
               <FormularioPagamentoStripe
                 valorTotal={getTotalPagar(tipo, reserva)}
                 moeda="CVE"
