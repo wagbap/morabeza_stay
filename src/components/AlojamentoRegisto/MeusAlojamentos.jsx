@@ -93,8 +93,12 @@ const MeusAlojamentos = () => {
     navigate(`/alojamento-registro/editar/${id}`);
   };
 
-  const handleVer = (id) => {
-    navigate(`/alojamento-registro/detalhes/${id}`);
+  // ✅ Ver → abre a página pública de detalhes do alojamento (InfoAlojamento)
+  //    Usa slug se existir (rota canónica) e cai para id caso contrário.
+  const handleVer = (alojamento) => {
+    const identificador = alojamento?.slug || alojamento?.id;
+    if (!identificador) return;
+    navigate(`/alojamento/${identificador}`);
   };
 
   const handleExcluir = async (id, titulo) => {
@@ -332,7 +336,7 @@ const MeusAlojamentos = () => {
 
                   <div className="flex gap-3 pt-3 border-t border-gray-100">
                     <button
-                      onClick={() => handleVer(alojamento.id)}
+                      onClick={() => handleVer(alojamento)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
                       <Eye size={16} /> Ver

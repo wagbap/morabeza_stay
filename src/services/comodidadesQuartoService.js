@@ -103,12 +103,13 @@ async function salvarComodidadesDosQuartos(alojamentoId, quartos) {
 }
 
 // ============================================================
-// BUSCAR CATÁLOGO GLOBAL DE COMODIDADES
+// BUSCAR CATÁLOGO DE COMODIDADES DE QUARTO
+// (agora aponta para a tabela comodidades_quarto, não comodidades)
 // ============================================================
 async function buscarCatalogoComodidades() {
   try {
     const res = await fetch(
-      `${API_BASE_URL}/alojamento/get_comodidades.php?t=${Date.now()}`
+      `${API_BASE_URL}/alojamento/get_comodidades_quarto.php?t=${Date.now()}`
     );
     const data = await res.json();
 

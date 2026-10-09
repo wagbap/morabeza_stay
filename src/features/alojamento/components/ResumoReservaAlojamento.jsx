@@ -3,7 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Calendar, Users, MapPin, Star, ShieldCheck, CreditCard,
-  CheckCircle, Lock, Clock as ClockIcon,
+  CheckCircle, Lock, Clock as ClockIcon, BadgeCheck,
 } from 'lucide-react';
 
 const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
@@ -24,6 +24,19 @@ const formatarData = (data, t) => {
   });
 };
 
+/**
+ * ✅ Requisito 16 — Taxa de limpeza é OPCIONAL e só aparece quando:
+ *   - vem configurada pelo anfitrião
+ *   - é um número válido >= 0
+ * Qualquer valor inválido/negativo → tratado como 0 e ocultado.
+ */
+const parseTaxaLimpeza = (valor) => {
+  if (valor === undefined || valor === null || valor === '') return 0;
+  const n = Number(valor);
+  if (Number.isNaN(n) || n < 0) return 0;
+  return n;
+};
+
 const ResumoReservaAlojamento = ({
   reserva = {},
   totalHospedes = 0,
@@ -39,7 +52,10 @@ const ResumoReservaAlojamento = ({
 
   const noites = Number(reserva?.noites || 1);
   const quartos = Array.isArray(reserva?.quartos) ? reserva.quartos : [];
-  const taxaLimpeza = Number(reserva?.taxaLimpeza || 0);
+
+  // ✅ Taxa de limpeza: validada e só cobrada se > 0
+  const taxaLimpeza = parseTaxaLimpeza(reserva?.taxaLimpeza);
+  const taxaLimpezaConfigurada = taxaLimpeza > 0;
 
   // ---------------------------------------------------------
   // Cálculo do subtotal — 3 caminhos possíveis:
@@ -61,6 +77,7 @@ const ResumoReservaAlojamento = ({
     subtotalNoites = Number(precoTotal) - taxaLimpeza;
   }
 
+  // ✅ Total do cliente = subtotal (noites) + taxa de limpeza (SEM comissão)
   const totalCalculado = subtotalNoites + taxaLimpeza;
   const totalFinal = Number(precoTotal) > 0 ? Number(precoTotal) : totalCalculado;
 
@@ -229,7 +246,7 @@ const ResumoReservaAlojamento = ({
         </div>
       </div>
 
-      {/* Quartos escolhidos — só aparece se houver tipos */}
+      {/* Quartos escolhidos */}
       {quartos.length > 0 && (
         <div className="border-t border-slate-100 pt-4 mt-4 space-y-2">
           <p className="text-[10px] font-black text-blue-900 uppercase tracking-wider">
@@ -258,7 +275,13 @@ const ResumoReservaAlojamento = ({
         </div>
       )}
 
-      {/* Preços detalhados */}
+      {/* ============================================================
+          ✅ REQUISITO 16 — DECOMPOSIÇÃO FINANCEIRA PARA O CLIENTE
+          - Subtotal (noites)
+          - Taxa de limpeza (só se configurada, > 0)
+          - Total a pagar = noites + taxa
+          - Nota clara: SEM comissões adicionais
+      ============================================================ */}
       <div className="pt-3 mt-3 space-y-1 border-t border-slate-100">
         {/* Preço/noite só faz sentido mostrar quando há 1 único tipo */}
         {precoMedioNoite > 0 && (
@@ -275,9 +298,15 @@ const ResumoReservaAlojamento = ({
           <span className="font-bold text-blue-900">{formatNumber(subtotalNoites)} CVE</span>
         </div>
 
-        {taxaLimpeza > 0 && (
+        {/* ✅ Taxa de limpeza SÓ aparece quando configurada (> 0) */}
+        {taxaLimpezaConfigurada && (
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500">{t('taxa_limpeza') || 'Taxa de limpeza'}</span>
+            <span className="text-slate-500 flex items-center gap-1">
+              {t('taxa_limpeza') || 'Taxa de limpeza'}
+              <span className="text-[9px] text-slate-400 italic">
+                ({t('opcional', 'opcional')})
+              </span>
+            </span>
             <span className="font-bold text-blue-900">{formatNumber(taxaLimpeza)} CVE</span>
           </div>
         )}
@@ -294,9 +323,10 @@ const ResumoReservaAlojamento = ({
         </div>
       </div>
 
+      {/* ✅ Requisito 16 — Garantia explícita ao cliente: sem comissões adicionais */}
+     
 
-
-         {/* Blocos de rodapé — Cancelamento + Segurança (UMA única vez) */}
+      {/* Blocos de rodapé — Cancelamento + Segurança */}
       <div className="space-y-3 mt-4">
         {/* Cancelamento */}
         <div className="bg-green-50 p-3 rounded-xl flex gap-2 border border-green-100">

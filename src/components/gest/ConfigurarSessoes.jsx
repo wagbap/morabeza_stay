@@ -736,7 +736,7 @@ export default function ConfigurarSessoes() {
           <p className="text-sm font-bold text-blue-900">Como funcionam as sessões</p>
           <p className="text-xs text-blue-700 mt-1">
             Cada sessão tem uma capacidade máxima. Quando um cliente reserva, as vagas diminuem automaticamente.
-            O sistema bloqueia overbooking. Ao cancelar uma reserva, as vagas são restauradas.
+            O sistema bloqueia overbooking. Ao cancelar uma reserva, as vagas são restauradas. Lembre-se a regra de antecedência aplica-se só a sessões 24h depois aparece na pagina de detalhes. (ex: se são 16h, uma sessão às 20h de hoje não deve aparecer, Sessões com menos de 24h são totalmente escondidas na página pública.);
           </p>
         </div>
       </div>

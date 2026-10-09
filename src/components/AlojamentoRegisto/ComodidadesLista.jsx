@@ -1,76 +1,52 @@
 // src/components/AlojamentoRegisto/ComodidadesLista.jsx
 import React, { useState } from 'react';
-import { 
-  Wifi, Coffee, Tv, Utensils, Snowflake, Waves, Car, Sun, 
-  Baby, Dumbbell, Wind, Flame, Refrigerator, Mic, Shirt, 
-  Lock, DoorOpen, Volume2, Fan, ShoppingBag, Check, ChevronDown, 
-  ChevronUp, Grid, List, Search
+import {
+  Check, ChevronDown, Grid, List, Search,
+  Wifi, Snowflake, Tv, Coffee, Utensils, Waves, Car, Sun,
+  Baby, Dumbbell, Wind, Flame, Refrigerator, Mic, Shirt, Lock,
+  DoorOpen, Volume2, Fan, ShoppingBag,
 } from 'lucide-react';
+import { getIconeComodidade } from '../../utils/comodidadesQuarto';
 
-// Mapeamento de ícones
-const getIcone = (iconeNome) => {
-  const icons = {
-    wifi: <Wifi size={18} />,
-    snowflake: <Snowflake size={18} />,
-    tv: <Tv size={18} />,
-    coffee: <Coffee size={18} />,
-    utensils: <Utensils size={18} />,
-    waves: <Waves size={18} />,
-    car: <Car size={18} />,
-    sun: <Sun size={18} />,
-    baby: <Baby size={18} />,
-    dumbbell: <Dumbbell size={18} />,
-    wind: <Wind size={18} />,
-    flame: <Flame size={18} />,
-    refrigerator: <Refrigerator size={18} />,
-    mic: <Mic size={18} />,
-    shirt: <Shirt size={18} />,
-    lock: <Lock size={18} />,
-    doorOpen: <DoorOpen size={18} />,
-    volume2: <Volume2 size={18} />,
-    fan: <Fan size={18} />,
-    shoppingBag: <ShoppingBag size={18} />,
-  };
-  return icons[iconeNome] || <Check size={18} />;
-};
-
-// Categorias padrão
+// Mapeamento de ícones por categoria (para os cabeçalhos)
 const CATEGORIAS = {
-  'Internet e tecnologia': { icone: <Wifi size={16} />, cor: 'blue' },
-  'Climatização': { icone: <Snowflake size={16} />, cor: 'cyan' },
-  'Entretenimento': { icone: <Tv size={16} />, cor: 'purple' },
-  'Alimentação': { icone: <Coffee size={16} />, cor: 'orange' },
-  'Cozinha': { icone: <Utensils size={16} />, cor: 'amber' },
-  'Lazer': { icone: <Waves size={16} />, cor: 'teal' },
-  'Estacionamento': { icone: <Car size={16} />, cor: 'gray' },
-  'Vistas': { icone: <Sun size={16} />, cor: 'yellow' },
-  'Políticas': { icone: <Baby size={16} />, cor: 'pink' },
-  'Utilidades': { icone: <Shirt size={16} />, cor: 'indigo' },
-  'Casa de banho': { icone: <Wind size={16} />, cor: 'cyan' },
-  'Segurança': { icone: <Lock size={16} />, cor: 'red' },
-  'Espaço exterior': { icone: <Sun size={16} />, cor: 'green' },
-  'Acessibilidade': { icone: <DoorOpen size={16} />, cor: 'purple' },
-  'Desporto': { icone: <Dumbbell size={16} />, cor: 'orange' },
-  'Serviços': { icone: <ShoppingBag size={16} />, cor: 'blue' },
+  'Internet e tecnologia':  <Wifi size={16} />,
+  'Climatização':           <Snowflake size={16} />,
+  'Entretenimento':         <Tv size={16} />,
+  'Alimentação':            <Coffee size={16} />,
+  'Cozinha':                <Utensils size={16} />,
+  'Lazer':                  <Waves size={16} />,
+  'Estacionamento':         <Car size={16} />,
+  'Vistas':                 <Sun size={16} />,
+  'Políticas':              <Baby size={16} />,
+  'Utilidades':             <Shirt size={16} />,
+  'Casa de banho':          <Wind size={16} />,
+  'Segurança':              <Lock size={16} />,
+  'Espaço exterior':        <Sun size={16} />,
+  'Acessibilidade':         <DoorOpen size={16} />,
+  'Desporto':               <Dumbbell size={16} />,
+  'Serviços':               <ShoppingBag size={16} />,
+  'Família':                <Baby size={16} />,
+  'Roupa de cama e quarto': <Shirt size={16} />,
 };
 
-const ComodidadesLista = ({ 
-  comodidades, 
-  className = "", 
+const ComodidadesLista = ({
+  comodidades,
+  className = '',
   showEmpty = true,
   compact = false,
   showSearch = true,
   showCategories = true,
   maxItems = 0,
-  onVerMais
+  onVerMais,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expanded, setExpanded] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // grid, list, compact
+  const [viewMode, setViewMode] = useState('grid');
 
   // Filtrar comodidades por busca
-  const comodidadesFiltradas = comodidades.filter(com => 
-    com.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  const comodidadesFiltradas = (comodidades || []).filter((com) =>
+    (com.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Agrupar por categoria
@@ -84,11 +60,12 @@ const ComodidadesLista = ({
   // Ordenar categorias
   const categoriasOrdenadas = Object.keys(comodidadesPorCategoria).sort();
 
-  // Limitar itens se necessário
+  // Limitar itens
   const totalItens = comodidadesFiltradas.length;
   const shouldTruncate = maxItems > 0 && totalItens > maxItems && !expanded;
   const itensToShow = shouldTruncate ? maxItems : totalItens;
 
+  // Estado vazio
   if (!comodidades || comodidades.length === 0) {
     if (!showEmpty) return null;
     return (
@@ -102,20 +79,21 @@ const ComodidadesLista = ({
     );
   }
 
-  // Renderização compacta (linha única)
+  // Renderização compacta
   if (compact) {
     return (
       <div className={`flex flex-wrap gap-1.5 ${className}`}>
-        {comodidades.slice(0, 8).map(com => (
-          <span key={com.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600">
-            {getIcone(com.icone)}
+        {comodidades.slice(0, 8).map((com) => (
+          <span
+            key={com.id}
+            className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600"
+          >
+            {getIconeComodidade(com.nome, 14)}
             {com.nome}
           </span>
         ))}
         {comodidades.length > 8 && (
-          <span className="text-xs text-gray-400">
-            +{comodidades.length - 8}
-          </span>
+          <span className="text-xs text-gray-400">+{comodidades.length - 8}</span>
         )}
       </div>
     );
@@ -137,17 +115,17 @@ const ComodidadesLista = ({
             />
           </div>
         )}
-        
+
         <div className="divide-y divide-gray-100">
-          {comodidadesFiltradas.slice(0, itensToShow).map(com => (
+          {comodidadesFiltradas.slice(0, itensToShow).map((com) => (
             <div key={com.id} className="flex items-center gap-3 py-2">
-              <div className="w-7 text-gray-400">{getIcone(com.icone)}</div>
+              <div className="w-7 text-gray-400">{getIconeComodidade(com.nome, 18)}</div>
               <span className="text-sm text-gray-700 flex-1">{com.nome}</span>
               <span className="text-xs text-gray-400">{com.categoria}</span>
             </div>
           ))}
         </div>
-        
+
         {shouldTruncate && (
           <button
             onClick={() => setExpanded(true)}
@@ -184,7 +162,7 @@ const ComodidadesLista = ({
             <List size={16} className="text-gray-500" />
           </button>
         </div>
-        
+
         {showSearch && comodidades.length > 6 && (
           <div className="relative">
             <Search size={14} className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -202,25 +180,25 @@ const ComodidadesLista = ({
       {/* Por categoria */}
       {showCategories ? (
         <div className="space-y-5">
-          {categoriasOrdenadas.map(categoria => {
+          {categoriasOrdenadas.map((categoria) => {
             const coms = comodidadesPorCategoria[categoria];
-            const catInfo = CATEGORIAS[categoria] || { icone: <Check size={14} />, cor: 'gray' };
-            
+            const catIcone = CATEGORIAS[categoria] || <Check size={14} />;
+
             return (
               <div key={categoria}>
                 <div className="flex items-center gap-2 mb-2 pb-1 border-b border-gray-100">
-                  <span className={`text-${catInfo.cor}-500`}>{catInfo.icone}</span>
+                  <span className="text-blue-500">{catIcone}</span>
                   <h4 className="font-medium text-gray-700 text-sm">{categoria}</h4>
                   <span className="text-xs text-gray-400">({coms.length})</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {coms.map(com => (
+                  {coms.map((com) => (
                     <span
                       key={com.id}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 hover:bg-gray-100 rounded-md text-xs text-gray-700 transition-colors"
                       title={com.nome}
                     >
-                      {getIcone(com.icone)}
+                      <span className="text-gray-500">{getIconeComodidade(com.nome, 14)}</span>
                       <span className="max-w-[150px] truncate">{com.nome}</span>
                     </span>
                   ))}
@@ -230,14 +208,14 @@ const ComodidadesLista = ({
           })}
         </div>
       ) : (
-        // Sem categorias - apenas tags
+        // Sem categorias
         <div className="flex flex-wrap gap-2">
-          {comodidadesFiltradas.slice(0, itensToShow).map(com => (
+          {comodidadesFiltradas.slice(0, itensToShow).map((com) => (
             <span
               key={com.id}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm text-gray-700 transition-colors"
             >
-              {getIcone(com.icone)}
+              <span className="text-gray-500">{getIconeComodidade(com.nome, 16)}</span>
               {com.nome}
             </span>
           ))}
@@ -264,8 +242,10 @@ const ComodidadesLista = ({
   );
 };
 
-// Versão simplificada para uso em cards/resumos
-export const ComodidadesResumo = ({ comodidades, limit = 4, className = "" }) => {
+// ============================================================
+// Versão simplificada para cards/resumos
+// ============================================================
+export const ComodidadesResumo = ({ comodidades, limit = 4, className = '' }) => {
   if (!comodidades || comodidades.length === 0) {
     return <p className="text-gray-400 text-xs">Nenhuma comodidade</p>;
   }
@@ -275,9 +255,9 @@ export const ComodidadesResumo = ({ comodidades, limit = 4, className = "" }) =>
 
   return (
     <div className={`flex flex-wrap gap-1 ${className}`}>
-      {mostrar.map(com => (
+      {mostrar.map((com) => (
         <span key={com.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-600">
-          {getIcone(com.icone)}
+          {getIconeComodidade(com.nome, 12)}
           <span className="max-w-[80px] truncate">{com.nome}</span>
         </span>
       ))}
@@ -290,19 +270,21 @@ export const ComodidadesResumo = ({ comodidades, limit = 4, className = "" }) =>
   );
 };
 
-// Versão para grid de ícones (visual compacto)
-export const ComodidadesIcones = ({ comodidades, className = "" }) => {
+// ============================================================
+// Versão para grid de ícones
+// ============================================================
+export const ComodidadesIcones = ({ comodidades, className = '' }) => {
   if (!comodidades || comodidades.length === 0) return null;
 
   return (
     <div className={`flex flex-wrap gap-1 ${className}`}>
-      {comodidades.map(com => (
+      {comodidades.map((com) => (
         <div
           key={com.id}
           className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-[#006ce4] transition-colors group relative"
           title={com.nome}
         >
-          {getIcone(com.icone)}
+          {getIconeComodidade(com.nome, 16)}
           <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-0.5 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
             {com.nome}
           </span>

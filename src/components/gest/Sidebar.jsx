@@ -183,7 +183,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
               <Link to="/gest/dashboard" onClick={onClose} className={linkClass('/gest/dashboard')}>
                 <Home className={iconClass('/gest/dashboard')} strokeWidth={2} />
-                <span className="text-[15px] truncate">Dashboard</span>
+                <span className="text-[15px] truncate">Visão Geral</span>
               </Link>
 
               <Link to="/gest/reservas" onClick={onClose} className={linkClass('/gest/reservas')}>

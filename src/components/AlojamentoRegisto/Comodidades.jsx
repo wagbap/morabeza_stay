@@ -1,34 +1,15 @@
 // src/components/AlojamentoRegisto/Comodidades.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Check, Wifi, Coffee, Tv, Utensils, Snowflake, Wind, Dumbbell, Car, Waves, Volume2, Fan, Flame, Refrigerator, Mic, Bath, Shirt, Baby, DoorOpen, Lock, ShoppingBag, Sun, Loader, AlertCircle, Search } from 'lucide-react';
+import { Check, Loader, AlertCircle, Search } from 'lucide-react';
+import { getIconeComodidade } from '../../utils/comodidadesQuarto';
 
 const API_URL = 'https://welovepalop.com';
 
-const getIcone = (iconeNome) => {
-  const icons = {
-    wifi: <Wifi size={20} />,
-    snowflake: <Snowflake size={20} />,
-    tv: <Tv size={20} />,
-    coffee: <Coffee size={20} />,
-    utensils: <Utensils size={20} />,
-    waves: <Waves size={20} />,
-    car: <Car size={20} />,
-    sun: <Sun size={20} />,
-    baby: <Baby size={20} />,
-    dumbbell: <Dumbbell size={20} />,
-    wind: <Wind size={20} />,
-    flame: <Flame size={20} />,
-    refrigerator: <Refrigerator size={20} />,
-    mic: <Mic size={20} />,
-    shirt: <Shirt size={20} />,
-    lock: <Lock size={20} />,
-    doorOpen: <DoorOpen size={20} />,
-    volume2: <Volume2 size={20} />,
-    fan: <Fan size={20} />,
-    shoppingBag: <ShoppingBag size={20} />,
-    bath: <Bath size={20} />,
-  };
-  return icons[iconeNome?.toLowerCase()] || <Check size={20} />;
+// ============================================================
+// Helper local — usa a biblioteca central de ícones
+// ============================================================
+const getIcone = (iconeNome, nomeCompleto) => {
+  return getIconeComodidade(nomeCompleto || iconeNome, 20);
 };
 
 const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodidades = [] }) => {
@@ -45,19 +26,23 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
     setTimeout(() => setToast(null), 3000);
   };
 
-  // 🔥 FUNÇÃO PARA SALVAR NO LOCALSTORAGE
+  // ============================================================
+  // SALVAR NO LOCALSTORAGE
+  // ============================================================
   const salvarNoLocalStorage = useCallback((comodidadesSelecionadas) => {
-    const comodidadesParaSalvar = comodidadesSelecionadas.map(c => ({
+    const comodidadesParaSalvar = comodidadesSelecionadas.map((c) => ({
       id: c.id,
       nome: c.nome,
       icone: c.icone,
-      categoria: c.categoria
+      categoria: c.categoria,
     }));
     localStorage.setItem('propertyComodidades', JSON.stringify(comodidadesParaSalvar));
     console.log('💾 Comodidades salvas no localStorage:', comodidadesParaSalvar);
   }, []);
 
-  // 🔥 FUNÇÃO PARA CARREGAR DO LOCALSTORAGE
+  // ============================================================
+  // CARREGAR DO LOCALSTORAGE
+  // ============================================================
   const carregarDoLocalStorage = useCallback(() => {
     const saved = localStorage.getItem('propertyComodidades');
     if (saved) {
@@ -74,77 +59,71 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
     return [];
   }, []);
 
-  // Carregar comodidades da API
+  // ============================================================
+  // CARREGAR COMODIDADES DA API
+  // ============================================================
   const fetchComodidades = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Se tiver alojamentoId (modo edição), buscar da API com seleção
+
       let url;
       if (alojamentoId) {
         url = `${API_URL}/api/alojamento/buscar_comodidades_com_selecao.php?id=${alojamentoId}`;
       } else {
         url = `${API_URL}/api/alojamento/buscar_comodidades.php`;
       }
-      
+
       console.log(`🔄 Buscando comodidades de: ${url}`);
       const response = await fetch(url);
-      
+
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
+
       const data = await response.json();
       console.log('📦 Resposta da API:', data);
-      
+
       let comodidadesLista = [];
-      
+
       if (alojamentoId) {
-        // Modo edição: API retorna com selecionada true/false
         if (data.success && Array.isArray(data.data)) {
           comodidadesLista = data.data;
         } else if (data.success && Array.isArray(data.comodidades)) {
           comodidadesLista = data.comodidades;
         }
       } else {
-        // Modo criação: API retorna todas as comodidades
         if (data.success && Array.isArray(data.data)) {
-          // Carregar do localStorage as que já foram selecionadas
           const savedComodidades = carregarDoLocalStorage();
-          const savedIds = new Set(savedComodidades.map(c => c.id));
-          
-          comodidadesLista = data.data.map(c => ({
+          const savedIds = new Set(savedComodidades.map((c) => c.id));
+
+          comodidadesLista = data.data.map((c) => ({
             ...c,
-            selecionada: savedIds.has(c.id)
+            selecionada: savedIds.has(c.id),
           }));
         }
       }
-      
+
       if (comodidadesLista.length > 0) {
         setComodidades(comodidadesLista);
-        
-        // Notificar pai com as selecionadas
-        const selecionadas = comodidadesLista.filter(c => c.selecionada);
+
+        const selecionadas = comodidadesLista.filter((c) => c.selecionada);
         if (onChange) {
           onChange(selecionadas);
         }
-        
-        // Salvar no localStorage se for modo criação
+
         if (!alojamentoId && selecionadas.length > 0) {
           salvarNoLocalStorage(selecionadas);
         }
       } else {
         setComodidades([]);
       }
-      
     } catch (err) {
       console.error('❌ Erro ao carregar comodidades:', err);
       setError(err.message);
-      
-      // Em caso de erro, tentar carregar do localStorage
+
       const savedComodidades = carregarDoLocalStorage();
       if (savedComodidades.length > 0) {
         console.log('📦 Usando comodidades do localStorage como fallback');
-        setComodidades(savedComodidades.map(c => ({ ...c, selecionada: true })));
+        setComodidades(savedComodidades.map((c) => ({ ...c, selecionada: true })));
         if (onChange) onChange(savedComodidades);
       }
     } finally {
@@ -154,44 +133,40 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
 
   useEffect(() => {
     fetchComodidades();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alojamentoId]);
 
-  // 🔥 TOGGLE COMODIDADE - SALVA NO LOCALSTORAGE
+  // ============================================================
+  // TOGGLE COMODIDADE
+  // ============================================================
   const toggleComodidade = async (id) => {
     if (readOnly) return;
-    
-    const comodidade = comodidades.find(c => c.id === id);
+
+    const comodidade = comodidades.find((c) => c.id === id);
     if (!comodidade) return;
-    
+
     const novoEstado = !comodidade.selecionada;
-    
-    // Atualizar UI imediatamente
-    setComodidades(prev => {
-      const novas = prev.map(c => 
+
+    setComodidades((prev) => {
+      const novas = prev.map((c) =>
         c.id === id ? { ...c, selecionada: novoEstado } : c
       );
-      
-      // Filtrar as selecionadas
-      const selecionadas = novas.filter(c => c.selecionada);
-      
-      // 🔥 SALVAR NO LOCALSTORAGE (sempre!)
+
+      const selecionadas = novas.filter((c) => c.selecionada);
       salvarNoLocalStorage(selecionadas);
-      
-      // Notificar o pai (FluxoRegisto)
+
       if (onChange) {
         onChange(selecionadas);
       }
-      
+
       return novas;
     });
-    
-    // Mostrar feedback
+
     showToast(
       novoEstado ? `${comodidade.nome} adicionada` : `${comodidade.nome} removida`,
       novoEstado ? 'success' : 'info'
     );
-    
-    // Se for modo edição, persistir no backend também
+
     if (alojamentoId) {
       setSaving(true);
       try {
@@ -201,8 +176,8 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
           body: JSON.stringify({
             alojamento_id: alojamentoId,
             comodidade_id: id,
-            ativar: novoEstado ? 1 : 0
-          })
+            ativar: novoEstado ? 1 : 0,
+          }),
         });
         const data = await response.json();
         if (!data.success) {
@@ -216,12 +191,14 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
     }
   };
 
-  // 🔥 LIMPAR TODAS AS COMODIDADES
+  // ============================================================
+  // LIMPAR TODAS
+  // ============================================================
   const limparTodas = () => {
     if (readOnly) return;
-    
-    setComodidades(prev => {
-      const novas = prev.map(c => ({ ...c, selecionada: false }));
+
+    setComodidades((prev) => {
+      const novas = prev.map((c) => ({ ...c, selecionada: false }));
       salvarNoLocalStorage([]);
       if (onChange) onChange([]);
       return novas;
@@ -229,20 +206,22 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
     showToast('Todas as comodidades removidas', 'info');
   };
 
-  // 🔥 SELECIONAR TODAS AS COMODIDADES DA CATEGORIA ATUAL
+  // ============================================================
+  // SELECIONAR TODAS DA CATEGORIA ATUAL
+  // ============================================================
   const selecionarTodasDaCategoria = () => {
     if (readOnly) return;
-    
-    setComodidades(prev => {
-      const novas = prev.map(c => {
+
+    setComodidades((prev) => {
+      const novas = prev.map((c) => {
         const categoria = c.categoria || 'Outros';
         if (categoriaAtiva === 'todas' || categoria === categoriaAtiva) {
           return { ...c, selecionada: true };
         }
         return c;
       });
-      
-      const selecionadas = novas.filter(c => c.selecionada);
+
+      const selecionadas = novas.filter((c) => c.selecionada);
       salvarNoLocalStorage(selecionadas);
       if (onChange) onChange(selecionadas);
       return novas;
@@ -250,18 +229,22 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
     showToast(`Todas as comodidades da categoria selecionadas`, 'success');
   };
 
-  const categorias = ['todas', ...new Set(comodidades.map(c => c.categoria || 'Outros').filter(c => c))];
-  
-  const comodidadesFiltradas = comodidades.filter(com => {
+  const categorias = ['todas', ...new Set(comodidades.map((c) => c.categoria || 'Outros').filter((c) => c))];
+
+  const comodidadesFiltradas = comodidades.filter((com) => {
     if (categoriaAtiva !== 'todas' && (com.categoria || 'Outros') !== categoriaAtiva) return false;
     if (busca && !com.nome?.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
   });
 
-  const totalSelecionadas = comodidades.filter(c => c.selecionada).length;
+  const totalSelecionadas = comodidades.filter((c) => c.selecionada).length;
   const totalDisponiveis = comodidades.length;
-  const porcentagemSelecionadas = totalDisponiveis > 0 ? Math.round((totalSelecionadas / totalDisponiveis) * 100) : 0;
+  const porcentagemSelecionadas =
+    totalDisponiveis > 0 ? Math.round((totalSelecionadas / totalDisponiveis) * 100) : 0;
 
+  // ============================================================
+  // ESTADOS DE LOADING / ERRO
+  // ============================================================
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -276,7 +259,7 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
         <AlertCircle className="mx-auto text-red-500 mb-3" size={48} />
         <p className="text-red-700">Erro: {error}</p>
-        <button 
+        <button
           onClick={() => fetchComodidades()}
           className="mt-4 px-4 py-2 bg-[#006ce4] text-white rounded-lg"
         >
@@ -286,13 +269,18 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
     );
   }
 
+  // ============================================================
+  // RENDER
+  // ============================================================
   return (
     <div className="space-y-6">
       {/* Toast notifications */}
       {toast && (
-        <div className={`fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white ${
-          toast.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
-        }`}>
+        <div
+          className={`fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white ${
+            toast.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
+          }`}
+        >
           {toast.message}
         </div>
       )}
@@ -337,11 +325,11 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
             Selecionar todas ({categoriaAtiva === 'todas' ? 'ativas' : 'da categoria'})
           </button>
         </div>
-        
+
         <div className="text-sm text-gray-500">
           {totalSelecionadas} de {totalDisponiveis} comodidades selecionadas
           <div className="w-32 h-1.5 bg-gray-200 rounded-full mt-1 overflow-hidden">
-            <div 
+            <div
               className="h-full bg-[#006ce4] rounded-full transition-all duration-300"
               style={{ width: `${porcentagemSelecionadas}%` }}
             />
@@ -352,22 +340,22 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
       {/* Categorias */}
       {categorias.length > 1 && (
         <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
-          {categorias.map(cat => (
+          {categorias.map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => setCategoriaAtiva(cat)}
               disabled={readOnly}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                categoriaAtiva === cat 
-                  ? 'bg-[#006ce4] text-white' 
+                categoriaAtiva === cat
+                  ? 'bg-[#006ce4] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               {cat === 'todas' ? 'Todas' : cat}
               {cat !== 'todas' && (
                 <span className="ml-2 text-xs">
-                  ({comodidades.filter(c => (c.categoria || 'Outros') === cat).length})
+                  ({comodidades.filter((c) => (c.categoria || 'Outros') === cat).length})
                 </span>
               )}
             </button>
@@ -382,8 +370,8 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
             {busca ? 'Nenhuma comodidade encontrada para esta busca' : 'Nenhuma comodidade disponível'}
           </div>
         )}
-        
-        {comodidadesFiltradas.map(com => (
+
+        {comodidadesFiltradas.map((com) => (
           <button
             key={com.id}
             type="button"
@@ -396,7 +384,7 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
             } ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
           >
             <div className={`${com.selecionada ? 'text-[#006ce4]' : 'text-gray-500'}`}>
-              {getIcone(com.icone)}
+              {getIcone(com.icone, com.nome)}
             </div>
             <span className="text-sm flex-1 text-left font-medium">{com.nome}</span>
             {com.selecionada && <Check size={16} className="text-[#006ce4]" />}
@@ -408,13 +396,16 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
       {totalSelecionadas > 0 && (
         <div className="bg-gray-50 rounded-lg p-4 mt-4 border border-gray-200">
           <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Check size={16} className="text-green-500" /> 
+            <Check size={16} className="text-green-500" />
             Comodidades selecionadas ({totalSelecionadas})
           </h4>
           <div className="flex flex-wrap gap-2">
-            {comodidades.filter(c => c.selecionada).map(com => (
-              <span key={com.id} className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm flex items-center gap-1.5 shadow-sm">
-                {getIcone(com.icone)}
+            {comodidades.filter((c) => c.selecionada).map((com) => (
+              <span
+                key={com.id}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm flex items-center gap-1.5 shadow-sm"
+              >
+                {getIcone(com.icone, com.nome)}
                 {com.nome}
               </span>
             ))}
@@ -426,14 +417,18 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
       {totalSelecionadas === 0 && !readOnly && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
           <AlertCircle size={24} className="mx-auto text-yellow-600 mb-2" />
-          <p className="text-yellow-700 text-sm">Nenhuma comodidade selecionada. Selecione as comodidades disponíveis na sua propriedade.</p>
+          <p className="text-yellow-700 text-sm">
+            Nenhuma comodidade selecionada. Selecione as comodidades disponíveis na sua propriedade.
+          </p>
         </div>
       )}
 
-      {/* Dica para o usuário */}
+      {/* Dica */}
       {totalSelecionadas > 0 && totalSelecionadas < 5 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-          <p className="text-blue-700 text-sm">💡 Dica: Adicione mais comodidades para aumentar a visibilidade do seu anúncio!</p>
+          <p className="text-blue-700 text-sm">
+            💡 Dica: Adicione mais comodidades para aumentar a visibilidade do seu anúncio!
+          </p>
         </div>
       )}
     </div>

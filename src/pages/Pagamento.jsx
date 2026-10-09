@@ -1,8 +1,8 @@
-// Pagamento.jsx - v4 multi-quarto + holds (SEM criar_hold — já criados antes)
+// Pagamento.jsx - v5 (sem holds / quarto_ocupacao) + FormularioPagamentoStripe UI
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Check, ArrowLeft, ShieldCheck, Lock, AlertCircle } from 'lucide-react';
+import { Check, ArrowLeft, ShieldCheck, AlertCircle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -25,9 +25,6 @@ const CACHE_KEYS = {
   carro: 'reservaCarroPendente',
   experiencia: 'reservaPendente',
 };
-
-// 🔑 Chave onde o useHoldsAlojamento guarda os holds criados antes do checkout
-const HOLD_STORAGE_KEY = 'holdAlojamento';
 
 const getTotalPagar = (tipo, reserva) => {
   if (!reserva) return 0;
@@ -52,8 +49,6 @@ const PagamentoContent = () => {
 
   const isProcessingRef = useRef(false);
   const hasMountedRef = useRef(false);
-  const holdsIdsRef = useRef([]);          // ✅ vem do sessionStorage, não do criar_hold
-  const holdExpiraRef = useRef(null);
 
   const { reservaData, tipo: tipoState } = location.state || {};
 
@@ -61,7 +56,6 @@ const PagamentoContent = () => {
   const [error, setError] = useState('');
   const [reserva, setReserva] = useState(reservaData || {});
   const [tipo, setTipo] = useState(tipoState || 'experiencia');
-  const [holdSegundos, setHoldSegundos] = useState(null);
 
   // ---------------------------------------------------------
   // Bootstrap
@@ -93,100 +87,6 @@ const PagamentoContent = () => {
       }
     }
   }, [reservaData, tipoState]);
-
-  // ---------------------------------------------------------
-  // 🔑 LER holds já criados (NÃO criar aqui)
-  //    O useHoldsAlojamento / useDisponibilidadeAlojamento já os criou
-  //    antes de navegar para esta página.
-  // ---------------------------------------------------------
-  useEffect(() => {
-    if (tipo !== 'alojamento') return;
-    if (holdsIdsRef.current.length) return;
-
-    try {
-      const raw = sessionStorage.getItem(HOLD_STORAGE_KEY);
-      if (!raw) return;
-
-      const parsed = JSON.parse(raw);
-      if (!parsed?.holds || !Array.isArray(parsed.holds) || parsed.holds.length === 0) return;
-
-      const expira = new Date(parsed.expira_em).getTime();
-      if (Date.now() >= expira) {
-        // Já expirou — limpa e avisa
-        sessionStorage.removeItem(HOLD_STORAGE_KEY);
-        showToast(t('hold_expirado', 'A retenção de stock expirou. Volte a escolher.'), 'error');
-        return;
-      }
-
-      holdsIdsRef.current = parsed.holds.map(h => h.hold_id);
-      holdExpiraRef.current = expira;
-      setHoldSegundos(Math.max(0, Math.floor((expira - Date.now()) / 1000)));
-    } catch (err) {
-      console.error('Erro ao ler holds do sessionStorage:', err);
-    }
-  }, [tipo, t, showToast]);
-
-  // ---------------------------------------------------------
-  // Contador regressivo
-  // ---------------------------------------------------------
-  useEffect(() => {
-    if (!holdExpiraRef.current) return;
-    const int = setInterval(() => {
-      const restante = Math.max(0, Math.floor((holdExpiraRef.current - Date.now()) / 1000));
-      setHoldSegundos(restante);
-      if (restante === 0) {
-        clearInterval(int);
-        showToast(t('hold_expirado', 'A retenção de stock expirou. Volte a escolher.'), 'error');
-      }
-    }, 1000);
-    return () => clearInterval(int);
-  }, [holdSegundos !== null, t, showToast]);
-
-  // ---------------------------------------------------------
-  // Libertar holds (ao voltar / unload)
-  // ---------------------------------------------------------
-  const libertarHolds = useCallback(async () => {
-    if (!holdsIdsRef.current.length) return;
-    for (const id of holdsIdsRef.current) {
-      try {
-        const body = JSON.stringify({ hold_id: id });
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon(
-            `${API_BASE}/api/libertar_hold.php`,
-            new Blob([body], { type: 'application/json' })
-          );
-        } else {
-          await fetch(`${API_BASE}/api/libertar_hold.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body,
-            keepalive: true,
-          });
-        }
-      } catch {}
-    }
-    holdsIdsRef.current = [];
-    sessionStorage.removeItem(HOLD_STORAGE_KEY);
-  }, []);
-
-  useEffect(() => {
-    const onUnload = () => {
-      if (holdsIdsRef.current.length && !isProcessingRef.current) {
-        for (const id of holdsIdsRef.current) {
-          try {
-            navigator.sendBeacon(
-              `${API_BASE}/api/libertar_hold.php`,
-              new Blob([JSON.stringify({ hold_id: id })], { type: 'application/json' })
-            );
-          } catch {}
-        }
-      }
-    };
-    window.addEventListener('beforeunload', onUnload);
-    return () => {
-      window.removeEventListener('beforeunload', onUnload);
-    };
-  }, []);
 
   // ---------------------------------------------------------
   // Emails
@@ -251,7 +151,7 @@ const PagamentoContent = () => {
   }, [tipo, t]);
 
   // ---------------------------------------------------------
-  // Salvar reserva
+  // Salvar reserva (sem holds, sem quarto_ocupacao)
   // ---------------------------------------------------------
   const salvarReservaNoBackend = useCallback(async (dadosTransacao) => {
     const keyStorage = CACHE_KEYS[tipo];
@@ -290,7 +190,6 @@ const PagamentoContent = () => {
           quantidade_hospedes: rD?.totalHospedes,
           preco_total: getTotalPagar('alojamento', rD),
           noites: rD?.noites,
-          hold_ids: holdsIdsRef.current,   // ✅ vem do sessionStorage
           financeiro: {
             subtotalNoites: fin.subtotalNoites || 0,
             taxaLimpeza: fin.taxaLimpeza || 0,
@@ -371,8 +270,6 @@ const PagamentoContent = () => {
       const result = await response.json();
       if (result.success && result.data) {
         enviarEmailsConfirmacao(result.data);
-        holdsIdsRef.current = [];
-        sessionStorage.removeItem(HOLD_STORAGE_KEY);
       }
       return result;
     } catch (error) {
@@ -402,11 +299,6 @@ const PagamentoContent = () => {
       const cardNumberElement = elements.getElement(CardNumberElement);
       if (!cardNumberElement) {
         setError(t('erro_cartao_invalido', 'Dados do cartão inválidos.'));
-        return;
-      }
-
-      if (tipo === 'alojamento' && holdSegundos === 0) {
-        setError(t('hold_expirado', 'A retenção expirou. Volte atrás.'));
         return;
       }
 
@@ -461,7 +353,6 @@ const PagamentoContent = () => {
       if (saveResult.success) {
         sessionStorage.removeItem(CACHE_KEYS[tipo]);
         isProcessingRef.current = false;
-        holdsIdsRef.current = [];
         navigate('/confirmacao', {
           state: {
             reservaId: saveResult.data?.reserva_id,
@@ -488,7 +379,7 @@ const PagamentoContent = () => {
       setLoading(false);
       isProcessingRef.current = false;
     }
-  }, [stripe, elements, reserva, tipo, t, navigate, salvarReservaNoBackend, showToast, holdSegundos, loading]);
+  }, [stripe, elements, reserva, tipo, t, navigate, salvarReservaNoBackend, showToast, loading]);
 
   const getTituloStepper = () => {
     if (tipo === 'alojamento') return t('dados_hospedes');
@@ -501,9 +392,6 @@ const PagamentoContent = () => {
     { n: 2, label: t('step_pagamento'), active: true },
     { n: 3, label: t('step_confirmacao') },
   ];
-
-  const mm = holdSegundos !== null ? String(Math.floor(holdSegundos / 60)).padStart(2, '0') : null;
-  const ss = holdSegundos !== null ? String(holdSegundos % 60).padStart(2, '0') : null;
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 p-4 md:p-10">
@@ -526,14 +414,6 @@ const PagamentoContent = () => {
             </React.Fragment>
           ))}
         </div>
-
-        {tipo === 'alojamento' && holdSegundos !== null && holdSegundos > 0 && (
-          <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3 text-amber-800 text-sm font-bold">
-            <Lock size={16} className="text-amber-600" />
-            {t('stock_reservado', 'Stock reservado para si durante')}{' '}
-            <span className="font-mono text-base">{mm}:{ss}</span>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8">
@@ -568,7 +448,7 @@ const PagamentoContent = () => {
 
             <div className="mt-8 flex flex-col sm:flex-row justify-start gap-4">
               <button
-                onClick={() => { libertarHolds(); navigate(-1); }}
+                onClick={() => navigate(-1)}
                 disabled={loading}
                 className="px-6 py-3 border border-slate-200 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition text-slate-700 shadow-sm disabled:opacity-50"
               >

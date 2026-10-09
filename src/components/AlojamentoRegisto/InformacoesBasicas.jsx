@@ -12,7 +12,10 @@ import {
   salvarQuartos,
   removerQuarto as removerQuartoApi,
 } from '../../services/apiService';
-import { TIPOS_ALOJAMENTO, modeloVendaPorTipo } from '../../utils/tipoAlojamento';
+import {
+  TIPOS_ALOJAMENTO,
+  mostraQuartos as mostrarQuartosPorTipo,
+} from '../../utils/tipoAlojamento';
 import ConfiguracaoHorarios from './ConfiguracaoHorarios';
 
 const API_BASE = 'https://welovepalop.com';
@@ -56,25 +59,14 @@ const filtrarUrlValida = (url) => {
 };
 
 // ============================================================
-// MAPEAMENTO DO TIPO (vindo do utils) PARA ÍCONE + DESCRIÇÃO
+// MAPEAMENTO DO TIPO PARA ÍCONE + DESCRIÇÃO
 // ============================================================
 const ICONE_POR_TIPO = {
-  'Apartamento': Building,
-  'Villa': Home,
-  'Casa': Home,
-  'Casa de campo': Home,
-  'Loft': Building,
-  'Estúdio': Building,
-  'Bungalow': Home,
-  'Chalé': Home,
-  'Hotel': Building,
-  'Guesthouse': BedDouble,
-  'Resort': Home,
-  'Pousada': BedDouble,
-  'Hostel': BedDouble,
-  'Bed and Breakfast': BedDouble,
-  'Albergue': BedDouble,
-  'Motel': Building,
+  'Apartamento': Building, 'Villa': Home, 'Casa': Home, 'Casa de campo': Home,
+  'Loft': Building, 'Estúdio': Building, 'Bungalow': Home, 'Chalé': Home,
+  'Hotel': Building, 'Guesthouse': BedDouble, 'Resort': Home,
+  'Pousada': BedDouble, 'Hostel': BedDouble, 'Bed and Breakfast': BedDouble,
+  'Albergue': BedDouble, 'Motel': Building,
 };
 
 const DESCRICAO_POR_TIPO = {
@@ -97,12 +89,8 @@ const DESCRICAO_POR_TIPO = {
 };
 
 const TEMPO_RESPOSTA = [
-  'Dentro de 1 hora',
-  'Dentro de 2 horas',
-  'Dentro de 6 horas',
-  'Dentro de 12 horas',
-  'Dentro de 24 horas',
-  'Dentro de 48 horas',
+  'Dentro de 1 hora', 'Dentro de 2 horas', 'Dentro de 6 horas',
+  'Dentro de 12 horas', 'Dentro de 24 horas', 'Dentro de 48 horas',
 ];
 
 const CAPACIDADES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20];
@@ -114,17 +102,17 @@ const formatarCVE = (valor) => {
 };
 
 // ============================================================
-// DICAS PARA UM ANÚNCIO DE SUCESSO
+// DICAS
 // ============================================================
 const DICAS_ANUNCIO = [
   { id: 'titulo', emoji: '✏️', titulo: 'Título claro e específico', descricao: 'Use um nome curto que diga exatamente o que é. Ex: "Apartamento T2 vista mar — Mindelo" em vez de "Casa bonita".' },
   { id: 'fotos', emoji: '📸', titulo: 'Fotografias reais e completas', descricao: 'Fotos bem iluminadas do espaço verdadeiro, de vários ângulos, incluindo quartos, casa de banho e vista. Evite imagens de banco de imagens.' },
-  { id: 'preco', emoji: '💰', titulo: 'Preço competitivo para começar', descricao: 'Compare com alojamentos semelhantes na mesma ilha antes de publicar. Um preço inicial ajustado ajuda a conseguir as primeiras reservas e avaliações.' },
+  { id: 'preco', emoji: '💰', titulo: 'Preço competitivo para começar', descricao: 'Compare com alojamentos semelhantes na mesma ilha antes de publicar.' },
   { id: 'comodidades', emoji: '🛎️', titulo: 'Comodidades corretas', descricao: 'Marque apenas o que o espaço realmente oferece. Comodidades erradas geram cancelamentos e más avaliações.' },
-  { id: 'localizacao', emoji: '📍', titulo: 'Descrição da localização', descricao: 'Explique onde fica, o que há por perto (praia, mercado, transportes) e como chegar. Ajuda o hóspede a decidir.' },
-  { id: 'calendario', emoji: '📅', titulo: 'Calendário sempre atualizado', descricao: 'Bloqueie datas indisponíveis e mantenha o calendário em dia. Isto evita pedidos para datas que já não pode receber.' },
-  { id: 'resposta', emoji: '⚡', titulo: 'Resposta rápida aos hóspedes', descricao: 'Responder às mensagens em poucas horas transmite confiança e melhora a experiência de quem reserva.' },
-  { id: 'visibilidade', emoji: '📈', titulo: 'Visibilidade na plataforma', descricao: 'A Morabeza Stay pode dar maior destaque a anúncios com melhor qualidade, preço ajustado, disponibilidade atualizada, boas avaliações e histórico de reservas. Não é um destaque garantido — depende do desempenho real de cada anúncio.' },
+  { id: 'localizacao', emoji: '📍', titulo: 'Descrição da localização', descricao: 'Explique onde fica, o que há por perto (praia, mercado, transportes) e como chegar.' },
+  { id: 'calendario', emoji: '📅', titulo: 'Calendário sempre atualizado', descricao: 'Bloqueie datas indisponíveis e mantenha o calendário em dia.' },
+  { id: 'resposta', emoji: '⚡', titulo: 'Resposta rápida aos hóspedes', descricao: 'Responder às mensagens em poucas horas transmite confiança.' },
+  { id: 'visibilidade', emoji: '📈', titulo: 'Visibilidade na plataforma', descricao: 'A Morabeza Stay pode dar maior destaque a anúncios com melhor qualidade, preço ajustado e disponibilidade atualizada.' },
 ];
 
 // ============================================================
@@ -160,20 +148,16 @@ const ModalComodidadesQuarto = ({
   const [loading, setLoading] = useState(false);
   const [filtro, setFiltro] = useState('');
 
-  // Carregar catálogo de comodidades
   useEffect(() => {
     if (!aberto) return;
-
     const carregar = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/alojamento/get_comodidades.php?t=${Date.now()}`);
+        // ✅ ENDPOINT DE COMODIDADES DE QUARTO (tabela comodidades_quarto)
+        const res = await fetch(`${API_BASE}/api/alojamento/get_comodidades_quarto.php?t=${Date.now()}`);
         const data = await res.json();
-        if (data.success && Array.isArray(data.data)) {
-          setComodidadesDisponiveis(data.data);
-        } else if (Array.isArray(data)) {
-          setComodidadesDisponiveis(data);
-        }
+        if (data.success && Array.isArray(data.data)) setComodidadesDisponiveis(data.data);
+        else if (Array.isArray(data)) setComodidadesDisponiveis(data);
       } catch (e) {
         console.error('Erro ao carregar comodidades:', e);
       } finally {
@@ -212,16 +196,13 @@ const ModalComodidadesQuarto = ({
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-slate-100">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
               <LayoutGrid className="text-blue-600" size={20} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 leading-tight">
-                Comodidades do quarto
-              </h3>
+              <h3 className="text-base font-bold text-slate-900 leading-tight">Comodidades do quarto</h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 {quarto.tipo_nome || quarto.nome || 'Quarto'} — marque o que este quarto oferece
               </p>
@@ -235,7 +216,6 @@ const ModalComodidadesQuarto = ({
           </button>
         </div>
 
-        {/* Filtro */}
         <div className="px-5 pt-4">
           <input
             type="text"
@@ -246,16 +226,13 @@ const ModalComodidadesQuarto = ({
           />
         </div>
 
-        {/* Lista */}
         <div className="flex-1 overflow-y-auto p-5">
           {loading ? (
             <div className="flex items-center justify-center py-10">
               <Loader size={24} className="animate-spin text-blue-600" />
             </div>
           ) : comodidadesFiltradas.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 py-10">
-              Nenhuma comodidade encontrada.
-            </p>
+            <p className="text-center text-sm text-slate-400 py-10">Nenhuma comodidade encontrada.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {comodidadesFiltradas.map((c) => (
@@ -270,7 +247,6 @@ const ModalComodidadesQuarto = ({
           )}
         </div>
 
-        {/* Preview das selecionadas */}
         {selecionadasIds.length > 0 && (
           <div className="px-5 py-3 bg-blue-50/50 border-t border-blue-100">
             <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wide mb-2">
@@ -294,7 +270,6 @@ const ModalComodidadesQuarto = ({
           </div>
         )}
 
-        {/* Footer */}
         <div className="p-4 border-t border-slate-100 flex justify-end gap-2">
           <button
             onClick={onFechar}
@@ -326,7 +301,6 @@ const InformacoesBasicas = ({
   alojamentoId = null,
   onQuartosChange,
   quartosIniciais = [],
-  mostraQuartos = false,
 }) => {
   const [erros, setErros] = useState({});
   const [expandirDicas, setExpandirDicas] = useState(false);
@@ -350,6 +324,9 @@ const InformacoesBasicas = ({
 
   const fileInputRef = useRef(null);
   const activeQuartoIdRef = useRef(null);
+
+  // 🔨 FONTE ÚNICA DE VERDADE — decide pelo tipo escolhido
+  const mostraQuartos = mostrarQuartosPorTipo(dados?.tipo_propriedade);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -400,10 +377,6 @@ const InformacoesBasicas = ({
   useEffect(() => {
     const carregarQuartosBackend = async () => {
       if (!alojamentoId || !mostraQuartos) return;
-      // No fluxo de edição, EditarAlojamento já carrega os quartos junto com
-      // as comodidades do endpoint get_comodidades_quartos.php. Não voltar a
-      // buscar os quartos aqui: isso substituiria os dados completos por uma
-      // resposta que não inclui as comodidades associadas.
       if (quartosIniciais?.length) {
         setQuartosSelecionados(quartosIniciais);
         if (onQuartosChange) onQuartosChange(quartosIniciais);
@@ -653,9 +626,15 @@ const InformacoesBasicas = ({
     }));
   };
 
-  // ==================== VALIDAÇÃO ====================
+  // ==================== HANDLE CHANGE + VALIDAÇÃO ====================
   const handleChange = (campo, valor) => {
-    if (onDadosChange) onDadosChange({ ...dados, [campo]: valor });
+    const patch = { [campo]: valor };
+
+    if (campo === 'tipo_propriedade' && mostrarQuartosPorTipo(valor)) {
+      patch.capacidade = undefined;
+    }
+
+    if (onDadosChange) onDadosChange({ ...dados, ...patch });
     if (erros[campo]) setErros((prev) => ({ ...prev, [campo]: null }));
   };
 
@@ -668,8 +647,14 @@ const InformacoesBasicas = ({
     if (!dados?.descricao?.trim()) novosErros.descricao = 'A descrição curta é obrigatória';
     else if (dados.descricao.length < 20) novosErros.descricao = 'A descrição deve ter pelo menos 20 caracteres';
 
-    if (!dados?.capacidade || dados.capacidade < 1) novosErros.capacidade = 'A capacidade é obrigatória';
-    if (!dados?.preco_noite || dados.preco_noite <= 0) novosErros.preco_noite = 'O preço por noite é obrigatório';
+    if (!mostraQuartos) {
+      if (!dados?.capacidade || dados.capacidade < 1) {
+        novosErros.capacidade = 'A capacidade é obrigatória';
+      }
+    }
+    if (!dados?.preco_noite || dados.preco_noite <= 0) {
+      novosErros.preco_noite = 'O preço por noite é obrigatório';
+    }
 
     setErros(novosErros);
     return Object.keys(novosErros).length === 0;
@@ -796,17 +781,8 @@ const InformacoesBasicas = ({
           })}
         </div>
 
-        {/* AVISO DO MODELO DE VENDA */}
-        {!mostraQuartos ? (
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-800 flex items-start gap-2">
-            <Home size={14} className="shrink-0 mt-0.5" />
-            <span>
-              <strong>Alojamento inteiro</strong> — um único preço por noite e uma única capacidade
-              para todo o espaço. Ideal para <em>Apartamento</em>, <em>Casa</em>, <em>Villa</em> e{' '}
-              <em>Estúdio</em>.
-            </span>
-          </div>
-        ) : (
+        {/* AVISO — só mostra quando é venda por quarto */}
+        {mostraQuartos && (
           <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800 flex items-start gap-2">
             <Bed size={14} className="shrink-0 mt-0.5" />
             <span>
@@ -868,7 +844,7 @@ const InformacoesBasicas = ({
       {/* HORÁRIOS DE CHECK-IN / CHECK-OUT */}
       <ConfiguracaoHorarios dados={dados} onChange={onDadosChange} readOnly={readOnly} />
 
-      {/* SEÇÃO DE QUARTOS */}
+      {/* SEÇÃO DE QUARTOS — só quando o tipo é hotelaria */}
       {mostraQuartos && (
         <div className="border-2 border-[#006ce4] rounded-lg overflow-hidden shadow-sm">
           <div className="bg-[#006ce4] text-white p-4">
@@ -1033,7 +1009,6 @@ const InformacoesBasicas = ({
                           </div>
                         </div>
 
-                        {/* ========== AÇÕES: FOTOS + COMODIDADES ========== */}
                         <div className="mt-3 pt-3 border-t border-gray-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                           <div className="flex flex-wrap items-center gap-3">
                             <span className="flex items-center gap-1 text-xs font-semibold text-gray-700">
@@ -1072,7 +1047,6 @@ const InformacoesBasicas = ({
                           </div>
                         </div>
 
-                        {/* Miniaturas de fotos */}
                         {qtdFotosReais === 0 ? (
                           <p className="text-[11px] text-gray-400 italic mt-1">
                             Nenhuma foto adicionada para este quarto ainda.
@@ -1104,7 +1078,6 @@ const InformacoesBasicas = ({
                           </div>
                         )}
 
-                        {/* Chips de comodidades selecionadas */}
                         {qtdComodidades > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {comodidadesQuarto.map((c, i) => {
@@ -1149,7 +1122,7 @@ const InformacoesBasicas = ({
         </div>
       )}
 
-      {/* ========== MODAL: FOTOS DE QUARTO ========== */}
+      {/* MODAL: FOTOS DE QUARTO */}
       {mostraQuartos && modalFotoQuarto.aberto && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-5 relative shadow-xl">
@@ -1216,7 +1189,7 @@ const InformacoesBasicas = ({
         </div>
       )}
 
-      {/* ========== MODAL: COMODIDADES DO QUARTO ========== */}
+      {/* MODAL: COMODIDADES DO QUARTO */}
       {mostraQuartos && (
         <ModalComodidadesQuarto
           aberto={modalComodidades.aberto}

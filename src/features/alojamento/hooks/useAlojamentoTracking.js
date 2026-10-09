@@ -21,7 +21,7 @@ const useAlojamentoTracking = (alojamentoId, usuarioId = null) => {
     };
     
     try {
-      const response = await fetch('https://welovepalop.com/api/tracking/registrar.php', {
+     const response = await fetch('https://welovepalop.com/api/tracking/registrar_alojamento.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

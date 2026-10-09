@@ -13,6 +13,63 @@ import ResumoReservaExperiencia from '../features/experiencias/components/Resumo
 import ResumoReservaAlojamento from '../features/alojamento/components/ResumoReservaAlojamento';
 import ResumoReservaCarro from '../features/carros/components/ResumoReservaCarro';
 
+// ============================================================
+// HELPERS DE AUTENTICAÇÃO (JWT) — inline, sem ficheiros extra
+// ============================================================
+const decodeToken = (token) => {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error('Erro ao descodificar token:', e);
+    return null;
+  }
+};
+
+const isTokenExpired = (payload) => {
+  if (!payload?.exp) return false;
+  return Date.now() >= payload.exp * 1000;
+};
+
+const getStoredToken = () => {
+  return (
+    localStorage.getItem('token') ||
+    localStorage.getItem('morabeza_token') ||
+    sessionStorage.getItem('token') ||
+    sessionStorage.getItem('morabeza_token') ||
+    null
+  );
+};
+
+/**
+ * Devolve o utilizador extraído do token JWT (ou null).
+ * Aceita payload.data ou o próprio payload.
+ */
+const getUserFromToken = () => {
+  const token = getStoredToken();
+  if (!token) return null;
+  const payload = decodeToken(token);
+  if (!payload) return null;
+  if (isTokenExpired(payload)) {
+    console.warn('Token expirado');
+    return null;
+  }
+  return payload.data || payload;
+};
+
+// ============================================================
+// COMPONENTE
+// ============================================================
 const Confirmacao = () => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -24,17 +81,15 @@ const Confirmacao = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        setUserEmail(userData.email || '');
-      } catch (e) {
-        console.error('Erro ao recuperar email do usuário:', e);
-      }
+
+    // 🔑 Email vem SEMPRE do utilizador logado (token JWT)
+    const loggedUser = getUserFromToken();
+    if (loggedUser?.email) {
+      setUserEmail(loggedUser.email);
+    } else if (loggedUser?.user?.email) {
+      setUserEmail(loggedUser.user.email);
     }
-    
+
     if (!reservaData) {
       const cacheAlojamento = sessionStorage.getItem('reservaAlojamentoPendente');
       const cacheExperiencia = sessionStorage.getItem('reservaPendente');
@@ -57,8 +112,9 @@ const Confirmacao = () => {
   const precoTotal = tipo === 'alojamento' 
     ? (reservaData?.totalGeral || 0) 
     : (tipo === 'carro' ? (reservaData?.totalGeral || 0) : (reservaData?.precoTotal || 0));
-    
-  const emailUsuario = reservaData?.email || userEmail || 'cliente@email.com';
+
+  // ✅ Prioridade: email do utilizador LOGADO (token) → email da reserva → vazio
+  const emailUsuario = userEmail || reservaData?.email || '';
 
   const handleCopyCode = () => {
     if (codigoReserva) {
@@ -199,9 +255,15 @@ const Confirmacao = () => {
                       <Copy size={12} /> {t('copiar')}
                     </button>
                   </div>
-                  <p className="text-sm text-slate-600 mt-3">
-                    {t('enviamos_detalhes_para')} <span className="font-bold text-blue-800">{emailUsuario}</span>
-                  </p>
+                  {emailUsuario ? (
+                    <p className="text-sm text-slate-600 mt-3">
+                      {t('enviamos_detalhes_para')} <span className="font-bold text-blue-800">{emailUsuario}</span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-amber-600 mt-3">
+                      {t('email_nao_disponivel') || 'Email não disponível — verifique a sua conta'}
+                    </p>
+                  )}
                   <p className="text-[11px] text-slate-400 mt-1">
                     {t('guardar_codigo_futuras')}
                   </p>
@@ -225,7 +287,7 @@ const Confirmacao = () => {
                   </div>
                   <p className="text-xs font-bold text-blue-900 mb-1">{t('email_confirmacao')}</p>
                   <p className="text-[10px] text-slate-500 leading-relaxed">
-                    {t('enviamos_detalhes_reserva_para')} <span className="font-medium text-blue-600">{emailUsuario}</span>
+                    {t('enviamos_detalhes_reserva_para')} <span className="font-medium text-blue-600">{emailUsuario || '—'}</span>
                   </p>
                 </div>
 

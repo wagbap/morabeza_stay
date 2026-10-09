@@ -33,8 +33,6 @@ export const FormularioPagamentoStripe = ({
   const stripe = useStripe();
   const elements = useElements();
 
-  const [pais, setPais] = useState('Cabo Verde'); // removido? Actually we remove country
-  const [zip, setZip] = useState('');
   const [salvarCartao, setSalvarCartao] = useState(true);
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +45,6 @@ export const FormularioPagamentoStripe = ({
         await onPagar({
           stripe,
           elements,
-          zip,
           salvarCartao,
         });
       }
@@ -65,14 +62,14 @@ export const FormularioPagamentoStripe = ({
             <span className="text-xs font-bold text-slate-700 tracking-wide">
               {t('card_information', 'Informações do cartão')}
             </span>
-          <button
-  type="button"
-  className="text-blue-600 hover:text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors"
-  onClick={() => alert(t('scan_card_soon', 'Funcionalidade de scanner em breve'))}
->
-  <Lock size={14} />
-  <span>{t('pagamento_seguro', 'Pagamento seguro')}</span>
-</button>
+            <button
+              type="button"
+              className="text-blue-600 hover:text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+              onClick={() => alert(t('scan_card_soon', 'Funcionalidade de scanner em breve'))}
+            >
+              <Lock size={14} />
+              <span>{t('pagamento_seguro', 'Pagamento seguro')}</span>
+            </button>
           </div>
 
           <div className="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
@@ -123,26 +120,6 @@ export const FormularioPagamentoStripe = ({
                   }}
                 />
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Billing Address - sem país */}
-        <div>
-          <span className="text-xs font-bold text-slate-700 tracking-wide block mb-2">
-            {t('billing_address', 'Morada de faturação')}
-          </span>
-
-          <div className="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
-            <div className="px-3.5 py-2.5">
-              <input
-                type="text"
-                autoComplete="postal-code"
-                placeholder={t('zip_code', 'Código postal')}
-                value={zip}
-                onChange={(e) => setZip(e.target.value)}
-                className="w-full text-sm text-slate-900 placeholder:text-slate-400 outline-none bg-transparent font-medium"
-              />
             </div>
           </div>
         </div>

@@ -2,9 +2,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ChevronLeft, ChevronRight, Search, Car, Home, Compass, ChevronDown, Check,
-  Lock, Unlock, Loader2, MousePointer2, Info, Settings, Building2, Bed, X
+  Lock, Unlock, Loader2, MousePointer2, Info, Building2, Bed, X, Palette
 } from 'lucide-react';
-import ModalConfigurarQuartos from './ModalConfigurarQuartos';
 import LegendaCoresTooltip from './LegendaCoresTooltip';
 const API_BASE = 'https://welovepalop.com';
 
@@ -29,9 +28,113 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-// ------------------------------------------------------------
-// 🔑 Modal de motivo de bloqueio
-// ------------------------------------------------------------
+async function fetchJsonBlindado(url, options = {}) {
+  const res = await fetch(url, options);
+  const texto = await res.text();
+  const inicio = texto.indexOf('{');
+  const fim = texto.lastIndexOf('}');
+  if (inicio === -1 || fim === -1) {
+    console.error('[fetchJsonBlindado] Resposta sem JSON:', url, '→', texto);
+    return { ok: false, status: res.status, data: null, texto };
+  }
+  let data;
+  try {
+    data = JSON.parse(texto.substring(inicio, fim + 1));
+  } catch (e) {
+    console.error('[fetchJsonBlindado] JSON inválido:', url, '→', texto);
+    return { ok: false, status: res.status, data: null, texto };
+  }
+  return { ok: res.ok, status: res.status, data, texto };
+}
+
+function LegendaCoresModal({ isOpen, onClose, temQuartos }) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handler);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const itens = [
+    { cor: 'bg-[#dcfce7] border-[#bbf7d0]', dot: 'bg-emerald-500', titulo: 'Disponível', desc: 'Dia livre para reserva.' },
+    { cor: 'bg-[#fee2e2] border-[#fecaca]', dot: 'bg-red-500', titulo: 'Bloqueado', desc: 'Dia bloqueado manualmente.' },
+    ...(temQuartos ? [{ cor: 'bg-[#fef3c7] border-[#fde68a]', dot: 'bg-amber-500', titulo: 'Parcial', desc: 'Alguns quartos bloqueados, outros livres.' }] : []),
+    { cor: 'bg-[#dbeafe] border-[#bfdbfe]', dot: 'bg-blue-500', titulo: 'Reservado', desc: 'Já tem reserva confirmada.' },
+    { cor: 'bg-gray-100 border-gray-200', dot: 'bg-gray-300', titulo: 'Passado', desc: 'Dia que já passou.' },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 zoom-in-95 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-900 flex items-center justify-center shadow-md">
+              <Palette size={16} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#0f172a] leading-tight">Legenda de Cores</h3>
+              <p className="text-[11px] text-slate-500 font-medium">O que cada cor significa</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition"
+            aria-label="Fechar"
+          >
+            <X size={18} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-2 max-h-[65vh] overflow-y-auto">
+          {itens.map((it, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/40 hover:bg-gray-50 transition"
+              style={{ animation: `slideUp 0.35s ease-out ${i * 0.05}s both` }}
+            >
+              <div className={`w-10 h-10 rounded-lg ${it.cor} border flex items-center justify-center shrink-0`}>
+                <span className={`w-3 h-3 rounded-full ${it.dot}`}></span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-[#0f172a]">{it.titulo}</p>
+                <p className="text-xs text-slate-500 leading-snug">{it.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/50">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 bg-blue-900 hover:bg-blue-950 text-white text-sm font-bold rounded-xl transition-colors"
+          >
+            Entendi
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeDias, nomeItem }) {
   const [motivo, setMotivo] = useState('');
   const [erro, setErro] = useState('');
@@ -41,9 +144,13 @@ function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeD
     if (isOpen) {
       setMotivo('');
       setErro('');
-      setTimeout(() => textareaRef.current?.focus(), 100);
+      setTimeout(() => textareaRef.current?.focus(), 250);
     }
-  }, [isOpen]);
+    if (!isOpen) return;
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -57,30 +164,40 @@ function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeD
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div
+      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={() => !aGuardar && onClose()}
+    >
+      <div
+        className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 zoom-in-95 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
-              <Lock size={16} className="text-red-600" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-md animate-in zoom-in duration-500">
+              <Lock size={17} className="text-white" />
             </div>
-            <h3 className="text-base font-bold text-[#0f172a]">Motivo do bloqueio</h3>
+            <div>
+              <h3 className="text-base font-bold text-[#0f172a] leading-tight">Motivo do bloqueio</h3>
+              <p className="text-[11px] text-slate-500 font-medium">Ficará registado para consulta</p>
+            </div>
           </div>
           <button
             onClick={onClose}
             disabled={aGuardar}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
+            className="p-2 hover:bg-gray-100 rounded-lg transition disabled:opacity-50"
           >
             <X size={18} className="text-gray-500" />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
-          <p className="text-sm text-slate-600">
-            Vais bloquear <strong className="text-[#0f172a]">{quantidadeDias} dia{quantidadeDias > 1 ? 's' : ''}</strong>
-            {nomeItem ? <> em <strong className="text-[#0f172a]">{nomeItem}</strong></> : null}.
-            Indica o motivo — ficará registado para consulta futura.
-          </p>
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+            <p className="text-sm text-slate-700 leading-snug">
+              Vais bloquear <strong className="text-[#0f172a]">{quantidadeDias} dia{quantidadeDias > 1 ? 's' : ''}</strong>
+              {nomeItem ? <> em <strong className="text-[#0f172a]">{nomeItem}</strong></> : null}.
+            </p>
+          </div>
 
           <div>
             <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">
@@ -93,7 +210,7 @@ function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeD
               rows={3}
               maxLength={200}
               placeholder="Ex: Manutenção, uso pessoal, obra, evento privado..."
-              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 resize-none transition"
             />
             <div className="flex items-center justify-between mt-1.5">
               {erro ? (
@@ -111,7 +228,7 @@ function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeD
                 key={sug}
                 type="button"
                 onClick={() => { setMotivo(sug); if (erro) setErro(''); }}
-                className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full transition"
+                className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-red-50 hover:text-red-700 rounded-full transition-colors"
               >
                 {sug}
               </button>
@@ -130,7 +247,7 @@ function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeD
           <button
             onClick={handleConfirmar}
             disabled={aGuardar}
-            className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl transition flex items-center gap-2 disabled:opacity-50 shadow-md shadow-red-600/20"
           >
             {aGuardar ? (
               <><Loader2 size={14} className="animate-spin" /> A bloquear...</>
@@ -144,12 +261,12 @@ function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeD
   );
 }
 
+// ============================================================
+// Calendario principal
+// ============================================================
 export default function Calendario() {
   const isMobile = useIsMobile(768);
 
-  // ------------------------------------------------------------
-  // Estado
-  // ------------------------------------------------------------
   const [activeTab, setActiveTab] = useState('alojamentos');
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -163,7 +280,6 @@ export default function Calendario() {
   const [dropdownAberto, setDropdownAberto] = useState(false);
   const dropdownRef = useRef(null);
 
-  // 🔑 Bloqueios agrupados por data
   const [bloqueiosPorData, setBloqueiosPorData] = useState({});
   const [diasReservados, setDiasReservados] = useState(new Set());
   const [selecionados, setSelecionados] = useState(new Set());
@@ -173,14 +289,11 @@ export default function Calendario() {
   const [aGuardar, setAGuardar] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // 🔑 Modal de motivo
   const [motivoModalAberto, setMotivoModalAberto] = useState(false);
+  const [legendaModalAberto, setLegendaModalAberto] = useState(false);
 
   const [tiposQuarto, setTiposQuarto] = useState([]);
-  const [modalQuartosAberto, setModalQuartosAberto] = useState(false);
   const [carregandoQuartos, setCarregandoQuartos] = useState(false);
-
-  // 🔑 Quarto atualmente selecionado no calendário principal
   const [quartoAtivo, setQuartoAtivo] = useState(null);
 
   const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -191,11 +304,18 @@ export default function Calendario() {
 
   const obterAlojamentoId = (item) => {
     if (!item) return null;
-    return item.alojamento_id || item.id_alojamento || item.id;
+    const id = item.alojamento_id
+            ?? item.id_alojamento
+            ?? item.alojamentoId
+            ?? item.id;
+    return id != null ? Number(id) : null;
   };
 
   const temQuartos = tiposQuarto.length > 0;
-  const modoBloqueio = temQuartos ? 'quarto' : 'alojamento';
+  const modelo = String(selectedItem?.modelo_venda || '').toLowerCase();
+  const isInteiro = modelo === 'inteiro' || modelo === 'alojamento_inteiro';
+  const isPorQuarto = !isInteiro && temQuartos;
+  const modoBloqueio = isPorQuarto ? 'quarto' : 'alojamento';
 
   const pad2 = (n) => String(n).padStart(2, '0');
   const formatarData = (ano, mes, dia) => `${ano}-${pad2(mes + 1)}-${pad2(dia)}`;
@@ -204,17 +324,17 @@ export default function Calendario() {
     const d = new Date();
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   };
-
   const isDataPassada = (dataStr) => {
     if (!dataStr) return false;
     return dataStr < hojeStr();
   };
-
   const isHoje = (dataStr) => dataStr === hojeStr();
 
-  // ------------------------------------------------------------
-  // Click outside
-  // ------------------------------------------------------------
+  const mostrarToast = useCallback((tipo, msg) => {
+    setToast({ tipo, msg });
+    setTimeout(() => setToast(null), 3500);
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -225,9 +345,6 @@ export default function Calendario() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ------------------------------------------------------------
-  // Auth
-  // ------------------------------------------------------------
   const obterUserId = () => {
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
@@ -279,9 +396,6 @@ export default function Calendario() {
     fetchUserRoles();
   }, []);
 
-  // ------------------------------------------------------------
-  // Fetch items
-  // ------------------------------------------------------------
   useEffect(() => { fetchItems(); }, [activeTab]);
 
   const fetchItems = async () => {
@@ -344,9 +458,6 @@ export default function Calendario() {
     }
   };
 
-  // ------------------------------------------------------------
-  // 🔑 Fetch tipos de quarto — normalizado com alojamento_quarto_id
-  // ------------------------------------------------------------
   const fetchTiposQuarto = useCallback(async (item = null) => {
     const alvo = item || selectedItem;
     if (!alvo) { setTiposQuarto([]); return; }
@@ -354,10 +465,14 @@ export default function Calendario() {
     if (!alojamentoId) { setTiposQuarto([]); return; }
     setCarregandoQuartos(true);
     try {
-      const res = await fetch(`${API_BASE}/api/get_tipos_quarto.php?alojamento_id=${alojamentoId}&t=${Date.now()}`);
-      const data = await res.json();
+      const url = `${API_BASE}/api/get_tipos_quarto.php?alojamento_id=${alojamentoId}&t=${Date.now()}`;
+      const { ok, data, texto } = await fetchJsonBlindado(url);
+      if (!ok || !data?.success) {
+        console.error('[fetchTiposQuarto] resposta:', texto);
+        setTiposQuarto([]);
+        return;
+      }
       const lista = data?.tipos_quarto || data?.data || data?.quartos || [];
-
       const normalizada = (Array.isArray(lista) ? lista : [])
         .map(tq => {
           const tipoId = tq.tipo_quarto_id ?? tq.tipoQuartoId ?? tq.id ?? null;
@@ -370,12 +485,8 @@ export default function Calendario() {
           };
         })
         .filter(tq => tq.tipo_quarto_id !== null);
-
-      if (data?.success && normalizada.length > 0) {
-        setTiposQuarto(normalizada);
-      } else {
-        setTiposQuarto([]);
-      }
+      if (normalizada.length > 0) setTiposQuarto(normalizada);
+      else setTiposQuarto([]);
     } catch (e) {
       console.error('Erro ao buscar tipos de quarto:', e);
       setTiposQuarto([]);
@@ -384,25 +495,25 @@ export default function Calendario() {
     }
   }, [selectedItem]);
 
-  // ------------------------------------------------------------
-  // 🔑 Fetch bloqueios — agrupa por data
-  // ------------------------------------------------------------
   const fetchBloqueiosManuais = useCallback(async () => {
     if (!selectedItem || !isAlojamento) return;
     try {
       const alojamentoId = obterAlojamentoId(selectedItem);
-      const url = `${API_BASE}/api/alojamento_bloqueios.php?action=listar` +
-        `&alojamento_id=${alojamentoId}` +
-        `&ano=${selectedYear}&mes=${selectedMonth + 1}`;
-      const res = await fetch(url);
-      const texto = await res.text();
-      const inicio = texto.indexOf('{');
-      const fim = texto.lastIndexOf('}');
-      if (inicio === -1 || fim === -1) { console.error('Resposta inválida:', texto); return; }
-      const jsonLimpo = texto.substring(inicio, fim + 1);
-      let data;
-      try { data = JSON.parse(jsonLimpo); } catch (e) { console.error('JSON inválido:', jsonLimpo); return; }
-      if (!data.success) return;
+      const params = new URLSearchParams({
+        action: 'listar',
+        alojamento_id: String(alojamentoId),
+        ano: String(selectedYear),
+        mes: String(selectedMonth + 1),
+      });
+      if (isPorQuarto && quartoAtivo?.tipo_quarto_id) {
+        params.set('tipo_quarto_id', String(quartoAtivo.tipo_quarto_id));
+      }
+      const url = `${API_BASE}/api/alojamento_bloqueios.php?${params.toString()}`;
+      const { ok, data, texto } = await fetchJsonBlindado(url);
+      if (!ok || !data?.success) {
+        console.error('[fetchBloqueiosManuais] resposta:', texto);
+        return;
+      }
 
       const porData = {};
       (data.bloqueios || []).forEach(b => {
@@ -412,24 +523,17 @@ export default function Calendario() {
         if (qid === 0) porData[dia].global = true;
         else porData[dia].quartos.add(qid);
       });
-
       const totalQuartos = tiposQuarto.length || 0;
       Object.values(porData).forEach(info => {
-        info.todosQuartos =
-          info.global ||
-          (totalQuartos > 0 && info.quartos.size >= totalQuartos);
+        info.todosQuartos = info.global || (totalQuartos > 0 && info.quartos.size >= totalQuartos);
       });
-
       setBloqueiosPorData(porData);
       setDiasReservados(new Set(data.dias_reservados || []));
     } catch (e) {
       console.error('Erro ao buscar bloqueios:', e);
     }
-  }, [selectedItem, selectedYear, selectedMonth, isAlojamento, tiposQuarto]);
+  }, [selectedItem, selectedYear, selectedMonth, isAlojamento, tiposQuarto, isPorQuarto, quartoAtivo?.tipo_quarto_id]);
 
-  // ------------------------------------------------------------
-  // Ordem dos fetches
-  // ------------------------------------------------------------
   useEffect(() => {
     if (!selectedItem || !isAlojamento) { setTiposQuarto([]); return; }
     fetchTiposQuarto(selectedItem);
@@ -442,49 +546,38 @@ export default function Calendario() {
     }
   }, [selectedItem, selectedMonth, selectedYear, activeTab, tiposQuarto, fetchBloqueiosManuais]);
 
-  // 🔑 Auto-seleciona primeiro quarto quando tiposQuarto carrega
   useEffect(() => {
-    if (tiposQuarto.length > 0) {
-      const aindaExiste = quartoAtivo && tiposQuarto.some(
-        tq => String(tq.alojamento_quarto_id) === String(quartoAtivo.alojamento_quarto_id)
-      );
-
-      if (!aindaExiste) {
-        const primeiro = tiposQuarto[0];
-        setQuartoAtivo({
-          tipo_quarto_id: primeiro.tipo_quarto_id,
-          alojamento_quarto_id: primeiro.alojamento_quarto_id,
-          nome: primeiro.nome,
-        });
-      }
-    } else {
-      setQuartoAtivo(null);
+    if (!selectedItem) { setQuartoAtivo(null); return; }
+    if (tiposQuarto.length === 0) { setQuartoAtivo(null); return; }
+    const aindaExiste = quartoAtivo && tiposQuarto.some(
+      tq => String(tq.tipo_quarto_id) === String(quartoAtivo.tipo_quarto_id)
+    );
+    if (!aindaExiste) {
+      const primeiro = tiposQuarto[0];
+      setQuartoAtivo({
+        tipo_quarto_id: Number(primeiro.tipo_quarto_id),
+        alojamento_quarto_id: Number(primeiro.alojamento_quarto_id),
+        nome: primeiro.nome,
+      });
     }
-  }, [tiposQuarto]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tiposQuarto, selectedItem?.id]);
 
-  // Reset seleção
   useEffect(() => {
     setSelecionados(new Set());
     setDragStart(null);
     setIsDragging(false);
-  }, [selectedItem, selectedMonth, selectedYear, activeTab, quartoAtivo?.alojamento_quarto_id]);
+  }, [selectedItem, selectedMonth, selectedYear, activeTab, quartoAtivo?.tipo_quarto_id]);
 
-  // ------------------------------------------------------------
-  // Estado de um dia
-  // ------------------------------------------------------------
   const getEstadoDiaAtual = (dataStr) => {
     if (!dataStr) return 'fora';
     if (isDataPassada(dataStr)) return 'passado';
     if (diasReservados.has(dataStr)) return 'reservado';
-
     const info = bloqueiosPorData[dataStr];
     if (!info) return 'livre';
-
     if (modoBloqueio === 'alojamento') {
       if (info.global || info.quartos.size > 0) return 'bloqueado';
       return 'livre';
     }
-
     if (info.global || info.todosQuartos) return 'bloqueado_global';
     const qidAtivo = quartoAtivo?.alojamento_quarto_id;
     if (qidAtivo && info.quartos.has(Number(qidAtivo))) return 'bloqueado_quarto';
@@ -543,17 +636,14 @@ export default function Calendario() {
     const ultimoDia = new Date(ano, mes + 1, 0);
     const diaSemanaInicio = primeiroDia.getDay();
     let startOffset = diaSemanaInicio === 0 ? 6 : diaSemanaInicio - 1;
-
     const dias = [];
     const diasMesAnterior = new Date(ano, mes, 0).getDate();
-
     for (let i = startOffset - 1; i >= 0; i--) {
       dias.push({ dia: diasMesAnterior - i, mesAtual: false, dataStr: null, isHoje: false });
     }
     for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
       const dataStr = formatarData(ano, mes, dia);
       let estado = null;
-
       if (isDataPassada(dataStr)) {
         estado = 'passado';
       } else if (isAlojamento) {
@@ -563,7 +653,6 @@ export default function Calendario() {
         else if (disponibilidade[dia] === false) estado = 'reservado';
         else estado = 'fora';
       }
-
       dias.push({ dia, mesAtual: true, estado, dataStr, isHoje: isHoje(dataStr) });
     }
     const totalDias = dias.length;
@@ -596,9 +685,6 @@ export default function Calendario() {
     }
   };
 
-  // ------------------------------------------------------------
-  // Drag
-  // ------------------------------------------------------------
   const podeSelecionar = (dataStr) => {
     if (!isAlojamento || !dataStr) return false;
     const estado = getEstadoDiaAtual(dataStr);
@@ -609,10 +695,7 @@ export default function Calendario() {
   const handleMouseDown = (dataStr) => {
     if (!podeSelecionar(dataStr)) return;
     const estado = getEstadoDiaAtual(dataStr);
-    const jaBloqueado =
-      estado === 'bloqueado' ||
-      estado === 'bloqueado_global' ||
-      estado === 'bloqueado_quarto';
+    const jaBloqueado = estado === 'bloqueado' || estado === 'bloqueado_global' || estado === 'bloqueado_quarto';
     setModoSelecao(jaBloqueado ? 'desbloquear' : 'bloquear');
     setIsDragging(true);
     setDragStart(dataStr);
@@ -622,7 +705,6 @@ export default function Calendario() {
   const handleMouseEnter = (dataStr) => {
     if (!isDragging || !dragStart || !dataStr) return;
     if (isDataPassada(dataStr)) return;
-
     const start = new Date(dragStart);
     const end = new Date(dataStr);
     const [menor, maior] = start <= end ? [start, end] : [end, start];
@@ -653,111 +735,129 @@ export default function Calendario() {
     };
   }, [isDragging]);
 
-  // ------------------------------------------------------------
-  // 🔑 Executa o pedido ao backend (bloquear ou desbloquear)
-  // ------------------------------------------------------------
   const executarAcao = async (motivoFinal = null) => {
     if (!selectedItem || selecionados.size === 0 || !isAlojamento) return;
-    setAGuardar(true);
 
-    const quartoIdEnviar = temQuartos
-      ? (quartoAtivo?.alojamento_quarto_id ?? 0)
+    // ✅ CORREÇÃO: por_quarto envia o alojamento_quarto_id (quarto físico),
+    // NÃO o tipo_quarto_id. Assim o PHP bloqueia apenas esse quarto,
+    // em vez de bloquear todos os quartos do mesmo tipo.
+    const quartoFisicoId = isPorQuarto
+      ? Number(quartoAtivo?.alojamento_quarto_id)
       : 0;
 
+    if (isPorQuarto && (!Number.isFinite(quartoFisicoId) || quartoFisicoId <= 0)) {
+      mostrarToast('erro', 'Quarto inválido. Escolhe um quarto no dropdown.');
+      return;
+    }
+
+    setAGuardar(true);
     try {
       const endpoint = modoSelecao === 'bloquear'
         ? `${API_BASE}/api/alojamento_bloqueios.php?action=bloquear`
         : `${API_BASE}/api/alojamento_bloqueios.php?action=desbloquear`;
       const alojamentoId = obterAlojamentoId(selectedItem);
+
+      const body = {
+        alojamento_id: Number(alojamentoId),
+        datas: Array.from(selecionados),
+        quarto_id: quartoFisicoId,   // ✅ quarto físico específico
+        tipo_quarto_id: 0,           // ✅ 0 = não bloquear por tipo
+        motivo: modoSelecao === 'bloquear' ? (motivoFinal || 'Bloqueio manual') : 'Desbloqueio manual',
+      };
+
+      console.log('📦 [Calendario] POST →', endpoint, body);
+
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          alojamento_id: alojamentoId,
-          datas: Array.from(selecionados),
-          quarto_id: quartoIdEnviar,
-          motivo: modoSelecao === 'bloquear'
-            ? (motivoFinal || 'Bloqueio manual')
-            : 'Desbloqueio manual',
-        }),
+        body: JSON.stringify(body),
       });
-      const data = await res.json();
+
+      const texto = await res.text();
+      console.log('📦 [Calendario] response → status:', res.status, 'body:', texto);
+
+      if (!res.ok) {
+        mostrarToast('erro', `Erro do servidor (${res.status}).`);
+        return;
+      }
+
+      const inicio = texto.indexOf('{');
+      const fim = texto.lastIndexOf('}');
+      if (inicio === -1 || fim === -1) {
+        mostrarToast('erro', 'Resposta inválida do servidor.');
+        return;
+      }
+      let data;
+      try {
+        data = JSON.parse(texto.substring(inicio, fim + 1));
+      } catch (e) {
+        console.error('[Calendario] JSON inválido:', texto);
+        mostrarToast('erro', 'Erro ao processar resposta.');
+        return;
+      }
+
       if (data.success) {
-        setToast({
-          tipo: 'sucesso',
-          msg: modoSelecao === 'bloquear'
+        mostrarToast('sucesso',
+          modoSelecao === 'bloquear'
             ? `${selecionados.size} data(s) bloqueada(s).`
-            : `${selecionados.size} data(s) desbloqueada(s).`,
-        });
+            : `${selecionados.size} data(s) desbloqueada(s).`);
         setSelecionados(new Set());
         setMotivoModalAberto(false);
         await fetchBloqueiosManuais();
       } else {
-        setToast({ tipo: 'erro', msg: data.error || 'Erro ao aplicar ação.' });
+        mostrarToast('erro', data.error || 'Erro ao aplicar ação.');
       }
     } catch (e) {
-      setToast({ tipo: 'erro', msg: 'Erro de rede.' });
+      console.error('[Calendario executarAcao]', e);
+      mostrarToast('erro', 'Erro de rede.');
     } finally {
       setAGuardar(false);
-      setTimeout(() => setToast(null), 3500);
     }
   };
 
-  // 🔑 Ponto de entrada do botão "Bloquear/Desbloquear"
   const aplicarAcao = () => {
     if (!selectedItem || selecionados.size === 0 || !isAlojamento) return;
-    if (modoSelecao === 'bloquear') {
-      // Bloquear → pede motivo primeiro
-      setMotivoModalAberto(true);
-    } else {
-      // Desbloquear → segue direto
-      executarAcao();
-    }
+    if (modoSelecao === 'bloquear') setMotivoModalAberto(true);
+    else executarAcao();
   };
 
   const limparSelecao = () => setSelecionados(new Set());
 
-  const abrirModalQuartos = async () => {
-    try {
-      if (!tiposQuarto.length && selectedItem) {
-        await fetchTiposQuarto(selectedItem);
-      }
-    } catch (e) {
-      console.error('Erro ao pré-carregar quartos:', e);
-    } finally {
-      setModalQuartosAberto(true);
-    }
-  };
-
-  const fecharModalQuartos = useCallback(() => {
-    setModalQuartosAberto(false);
-    setTimeout(() => { fetchBloqueiosManuais(); }, 100);
-  }, [fetchBloqueiosManuais]);
-
-  const handleAtualizarModal = useCallback(() => {
-    fetchBloqueiosManuais();
-  }, [fetchBloqueiosManuais]);
-
-  const jaEstouNoMesAtual =
-    selectedMonth === new Date().getMonth() &&
-    selectedYear === new Date().getFullYear();
-
   const handleTrocarQuarto = (e) => {
-    const tq = tiposQuarto.find(
-      t => String(t.tipo_quarto_id) === String(e.target.value)
-    );
+    const tq = tiposQuarto.find(t => String(t.tipo_quarto_id) === String(e.target.value));
     if (tq) {
       setQuartoAtivo({
-        tipo_quarto_id: tq.tipo_quarto_id,
-        alojamento_quarto_id: tq.alojamento_quarto_id,
+        tipo_quarto_id: Number(tq.tipo_quarto_id),
+        alojamento_quarto_id: Number(tq.alojamento_quarto_id),
         nome: tq.nome,
       });
     }
   };
 
-  // ============================================================
-  // RENDER MOBILE
-  // ============================================================
+  const renderLegenda = () => {
+    if (isMobile) {
+      return (
+        <button
+          type="button"
+          onClick={() => setLegendaModalAberto(true)}
+          className="shrink-0 w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-500 hover:text-slate-700 transition shadow-sm active:scale-95"
+          aria-label="Ver legenda de cores"
+        >
+          <Info size={16} />
+        </button>
+      );
+    }
+    return (
+      <div className="shrink-0">
+        <LegendaCoresTooltip />
+      </div>
+    );
+  };
+
+  const jaEstouNoMesAtual =
+    selectedMonth === new Date().getMonth() &&
+    selectedYear === new Date().getFullYear();
+
   if (isMobile) {
     return (
       <div className="max-w-6xl w-full text-[#0f172a] px-3 sm:px-4 py-4 sm:py-6 md:px-0">
@@ -824,7 +924,7 @@ export default function Calendario() {
                 </button>
 
                 {dropdownAberto && (
-                  <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 p-2">
+                  <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 p-2 animate-in fade-in slide-in-from-top-2 duration-150">
                     <div className="relative mb-2">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                       <input
@@ -865,7 +965,7 @@ export default function Calendario() {
                 )}
               </div>
 
-              {isAlojamento && temQuartos && (
+              {isAlojamento && isPorQuarto && (
                 <select
                   value={quartoAtivo?.tipo_quarto_id ?? ''}
                   onChange={handleTrocarQuarto}
@@ -880,26 +980,12 @@ export default function Calendario() {
                 </select>
               )}
 
-              <div className="shrink-0">
-                <LegendaCoresTooltip />
-              </div>
-
-              {isAlojamento && selectedItem && (
-                <button
-                  type="button"
-                  onClick={abrirModalQuartos}
-                  disabled={carregandoQuartos}
-                  className="shrink-0 flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
-                >
-                  {carregandoQuartos ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />}
-                  <span>Configurar Quartos</span>
-                </button>
-              )}
+              {renderLegenda()}
             </div>
           )}
         </div>
 
-        {isAlojamento && !temQuartos && selectedItem && (
+        {isAlojamento && !isPorQuarto && selectedItem && (
           <div className="mb-4 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-2 text-xs text-slate-700 font-semibold">
             <Building2 size={14} className="shrink-0 mt-0.5" />
             <span>A bloquear <strong>alojamento inteiro</strong>.</span>
@@ -907,7 +993,7 @@ export default function Calendario() {
         )}
 
         {isAlojamento && selecionados.size > 0 && (
-          <div className="sticky top-2 z-40 mb-3 sm:mb-4">
+          <div className="sticky top-2 z-40 mb-3 sm:mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="bg-slate-900 text-white rounded-xl sm:rounded-2xl shadow-2xl px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold min-w-0">
                 <MousePointer2 size={14} className="text-blue-400 shrink-0" />
@@ -917,7 +1003,7 @@ export default function Calendario() {
                 }`}>
                   {modoSelecao === 'bloquear' ? 'Bloquear' : 'Desbloquear'}
                 </span>
-                {temQuartos && (
+                {isPorQuarto && (
                   <span className="hidden sm:inline text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10">
                     {quartoAtivo?.nome || '—'}
                   </span>
@@ -977,9 +1063,7 @@ export default function Calendario() {
                 return (
                   <div
                     key={index}
-                    className={`border-b border-r border-gray-100 last:border-r-0 ${
-                      isMobileFiller ? 'bg-gray-50/40' : ''
-                    }`}
+                    className={`border-b border-r border-gray-100 last:border-r-0 ${isMobileFiller ? 'bg-gray-50/40' : ''}`}
                     onMouseEnter={() => handleMouseEnter(dayObj.dataStr)}
                   >
                     <div
@@ -988,9 +1072,7 @@ export default function Calendario() {
                       className={`aspect-square sm:aspect-auto sm:min-h-[95px] w-full flex flex-col items-center justify-center gap-0.5 sm:gap-1 rounded-md sm:rounded-lg m-0.5 sm:m-1 transition-all duration-150 select-none ${
                         clicavel ? 'cursor-pointer' : ''
                       } ${
-                        isMobileFiller
-                          ? 'text-transparent'
-                          : getStatusColorFromEstado(dayObj.estado, selecionado)
+                        isMobileFiller ? 'text-transparent' : getStatusColorFromEstado(dayObj.estado, selecionado)
                       } ${
                         dayObj.isHoje ? 'ring-2 ring-blue-500 ring-offset-1' : ''
                       }`}
@@ -1001,9 +1083,7 @@ export default function Calendario() {
                       {dayObj.estado && dayObj.mesAtual && (
                         <>
                           <span className={`sm:hidden w-1.5 h-1.5 rounded-full ${getStatusDotFromEstado(dayObj.estado)}`} />
-                          <span className="hidden sm:inline text-[10px] uppercase tracking-wider">
-                            {label}
-                          </span>
+                          <span className="hidden sm:inline text-[10px] uppercase tracking-wider">{label}</span>
                         </>
                       )}
                     </div>
@@ -1046,12 +1126,18 @@ export default function Calendario() {
         </div>
 
         {toast && (
-          <div className={`fixed bottom-4 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 z-[100] px-4 sm:px-5 py-3 rounded-xl shadow-2xl text-white text-xs sm:text-sm font-semibold text-center sm:text-left ${
+          <div className={`fixed bottom-4 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 z-[100] px-4 sm:px-5 py-3 rounded-xl shadow-2xl text-white text-xs sm:text-sm font-semibold text-center sm:text-left animate-in fade-in slide-in-from-bottom-4 duration-300 ${
             toast.tipo === 'sucesso' ? 'bg-emerald-600' : 'bg-red-600'
           }`}>
             {toast.msg}
           </div>
         )}
+
+        <LegendaCoresModal
+          isOpen={legendaModalAberto}
+          onClose={() => setLegendaModalAberto(false)}
+          temQuartos={temQuartos}
+        />
 
         <ModalMotivoBloqueio
           isOpen={motivoModalAberto}
@@ -1059,25 +1145,12 @@ export default function Calendario() {
           onConfirm={(motivo) => executarAcao(motivo)}
           aGuardar={aGuardar}
           quantidadeDias={selecionados.size}
-          nomeItem={temQuartos ? quartoAtivo?.nome : selectedItem?.titulo}
-        />
-
-        <ModalConfigurarQuartos
-          isOpen={modalQuartosAberto}
-          onClose={fecharModalQuartos}
-          alojamentoId={obterAlojamentoId(selectedItem)}
-          tiposQuarto={tiposQuarto}
-          datasParaVerificar={{ checkIn: null, checkout: null }}
-          modeloVenda={selectedItem?.modelo_venda}
-          onAtualizar={handleAtualizarModal}
+          nomeItem={isPorQuarto ? quartoAtivo?.nome : selectedItem?.titulo}
         />
       </div>
     );
   }
 
-  // ============================================================
-  // RENDER DESKTOP
-  // ============================================================
   return (
     <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
       <h1 className="text-[22px] font-bold mb-6">Calendário de Disponibilidade</h1>
@@ -1130,7 +1203,7 @@ export default function Calendario() {
               </button>
 
               {dropdownAberto && (
-                <div className="absolute right-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-100 z-50 p-2 animate-in fade-in zoom-in duration-150">
+                <div className="absolute right-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-100 z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
                   <div className="relative mb-2">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                     <input
@@ -1142,7 +1215,6 @@ export default function Calendario() {
                       autoFocus
                     />
                   </div>
-
                   <div className="max-h-56 overflow-y-auto space-y-1">
                     {filteredItems.length > 0 ? (
                       filteredItems.map(item => {
@@ -1172,7 +1244,7 @@ export default function Calendario() {
               )}
             </div>
 
-            {isAlojamento && temQuartos && (
+            {isAlojamento && isPorQuarto && (
               <>
                 <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 font-semibold">
                   <Bed size={14} />
@@ -1192,26 +1264,12 @@ export default function Calendario() {
               </>
             )}
 
-            <div className="shrink-0">
-              <LegendaCoresTooltip />
-            </div>
-
-            {isAlojamento && selectedItem && (
-              <button
-                type="button"
-                onClick={abrirModalQuartos}
-                disabled={carregandoQuartos}
-                className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
-              >
-                {carregandoQuartos ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />}
-                <span>Configurar Quartos</span>
-              </button>
-            )}
+            {renderLegenda()}
           </div>
         )}
       </div>
 
-      {isAlojamento && !temQuartos && selectedItem && (
+      {isAlojamento && !isPorQuarto && selectedItem && (
         <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold">
           <Building2 size={14} />
           <span>A bloquear o alojamento inteiro</span>
@@ -1219,7 +1277,7 @@ export default function Calendario() {
       )}
 
       {isAlojamento && selecionados.size > 0 && (
-        <div className="sticky top-2 z-40 mb-4">
+        <div className="sticky top-2 z-40 mb-4 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="bg-slate-900 text-white rounded-2xl shadow-2xl px-4 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <MousePointer2 size={16} className="text-blue-400" />
@@ -1227,14 +1285,12 @@ export default function Calendario() {
                 {selecionados.size} dia{selecionados.size > 1 ? 's' : ''} selecionado{selecionados.size > 1 ? 's' : ''}
               </span>
               <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                modoSelecao === 'bloquear'
-                  ? 'bg-red-500/20 text-red-300'
-                  : 'bg-emerald-500/20 text-emerald-300'
+                modoSelecao === 'bloquear' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'
               }`}>
                 {modoSelecao === 'bloquear' ? 'Bloquear' : 'Desbloquear'}
               </span>
               <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10">
-                {temQuartos ? (quartoAtivo?.nome || '—') : 'Alojamento inteiro'}
+                {isPorQuarto ? (quartoAtivo?.nome || '—') : 'Alojamento inteiro'}
               </span>
             </div>
 
@@ -1347,7 +1403,7 @@ export default function Calendario() {
       </div>
 
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[100] px-5 py-3 rounded-xl shadow-2xl text-white text-sm font-semibold ${
+        <div className={`fixed bottom-6 right-6 z-[100] px-5 py-3 rounded-xl shadow-2xl text-white text-sm font-semibold animate-in fade-in slide-in-from-bottom-4 duration-300 ${
           toast.tipo === 'sucesso' ? 'bg-emerald-600' : 'bg-red-600'
         }`}>
           {toast.msg}
@@ -1360,17 +1416,7 @@ export default function Calendario() {
         onConfirm={(motivo) => executarAcao(motivo)}
         aGuardar={aGuardar}
         quantidadeDias={selecionados.size}
-        nomeItem={temQuartos ? quartoAtivo?.nome : selectedItem?.titulo}
-      />
-
-      <ModalConfigurarQuartos
-        isOpen={modalQuartosAberto}
-        onClose={fecharModalQuartos}
-        alojamentoId={obterAlojamentoId(selectedItem)}
-        tiposQuarto={tiposQuarto}
-        datasParaVerificar={{ checkIn: null, checkOut: null }}
-        modeloVenda={selectedItem?.modelo_venda}
-        onAtualizar={handleAtualizarModal}
+        nomeItem={isPorQuarto ? quartoAtivo?.nome : selectedItem?.titulo}
       />
     </div>
   );

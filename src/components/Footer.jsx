@@ -33,22 +33,21 @@ const Footer = () => {
           </div>
 
           {/* Coluna 2: EXPLORAR */}
-          <div className="lg:border-l lg:border-gray-100 lg:pl-8 flex flex-col items-start">
-            <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 mb-2">
-              {t('footer_explore', 'EXPLORAR')}
-            </h4>
-            <div className="w-6 h-0.5 bg-emerald-500 mb-6"></div>
+            <div className="lg:border-l lg:border-gray-100 lg:pl-8 flex flex-col items-start">
+              <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 mb-2">
+                {t('footer_explore', 'EXPLORAR')}
+              </h4>
+              <div className="w-6 h-0.5 bg-emerald-500 mb-6"></div>
 
-            <ul className="space-y-3 text-xs text-gray-600 font-medium">
-              <li><Link to="/alojamentos" className="hover:text-blue-600 transition-colors">{t('menu_alojamentos', 'Alojamentos')}</Link></li>
-              <li><Link to="/carros" className="hover:text-blue-600 transition-colors">{t('menu_carros', 'Carros')}</Link></li>
-              <li><Link to="/experiencias" className="hover:text-blue-600 transition-colors">{t('menu_experiencias', 'Experiências')}</Link></li>
-              <li><Link to="/como-funciona" className="hover:text-blue-600 transition-colors">{t('footer_how_it_works', 'Como Funciona')}</Link></li>
-              <li><Link to="/seja-anfitriao" className="hover:text-blue-600 transition-colors">{t('footer_become_host', 'Seja um Anfitrião')}</Link></li>
-               <li><Link to="/admin/login" className="hover:text-blue-600 transition-colors">{t('Administração', 'Administração')}</Link></li>
-        
-            </ul>
-          </div>
+              <ul className="space-y-3 text-xs text-gray-600 font-medium">
+                <li><Link to="/alojamentos" className="hover:text-blue-600 transition-colors">{t('menu_alojamentos', 'Alojamentos')}</Link></li>
+                <li><Link to="/carros" className="hover:text-blue-600 transition-colors">{t('menu_carros', 'Carros')}</Link></li>
+                <li><Link to="/experiencias" className="hover:text-blue-600 transition-colors">{t('menu_experiencias', 'Experiências')}</Link></li>
+                <li><Link to="/sobre" className="hover:text-blue-600 transition-colors">{t('footer_how_it_works', 'Como Funciona')}</Link></li>
+                <li><Link to="/login" className="hover:text-blue-600 transition-colors">{t('footer_become_host', 'Seja um Anfitrião')}</Link></li>
+                <li><Link to="/admin/login" className="hover:text-blue-600 transition-colors">{t('Administração', 'Administração')}</Link></li>
+              </ul>
+            </div>
 
           {/* Coluna 3: EMPRESA */}
           <div className="lg:border-l lg:border-gray-100 lg:pl-8 flex flex-col items-start">
@@ -60,6 +59,7 @@ const Footer = () => {
             <ul className="space-y-3 text-xs text-gray-600 font-medium">
               <li><Link to="/sobre-nos" className="hover:text-blue-600 transition-colors">{t('sobre_titulo', 'Sobre Nós')}</Link></li>
               <li><Link to="/contactos" className="hover:text-blue-600 transition-colors">{t('footer_contacts', 'Contactos')}</Link></li>
+              <li><Link to="/faq" className="hover:text-blue-600 transition-colors">{t('footer_faq', 'FAQ')}</Link></li>
               <li><Link to="/privacidade" className="hover:text-blue-600 transition-colors">{t('footer_privacy', 'Política de Privacidade')}</Link></li>
               <li><Link to="/termos" className="hover:text-blue-600 transition-colors">{t('footer_terms', 'Termos e Condições')}</Link></li>
               <li><Link to="/cancelamento" className="hover:text-blue-600 transition-colors">{t('footer_cancellation', 'Política de Cancelamento')}</Link></li>

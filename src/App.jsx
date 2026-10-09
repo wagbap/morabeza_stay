@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import './i18n';
 
@@ -25,7 +25,7 @@ const PolicyCancellation = lazy(() => import('./components/PolicyCancellation'))
 const TermsConditions = lazy(() => import('./components/TermsConditions'));
 const Faq = lazy(() => import('./components/Faq'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
-  
+const AdminValidarReservas = lazy(() => import('./components/admin/AdminValidarReservas'));
 // Páginas de pagamento/checkout (lazy)
 const CheckoutExperiancia = lazy(() => import('./features/experiencias/components/CheckoutExperiencia'));
 const CheckoutAlojamento = lazy(() => import('./features/alojamento/components/CheckoutAlojamento'));
@@ -66,6 +66,19 @@ const RepassesAdmin = lazy(() => import('./components/admin/RepassesAdmin'));
 const VerificacoesEmail = lazy(() => import('./components/admin/VerificacoesEmail'));
 const VerificacoesDocumentos = lazy(() => import('./components/admin/VerificacoesDocumentos'));
 
+// ======================================================
+// 🔝 SCROLL TO TOP (adicionado aqui dentro do App.js)
+// ======================================================
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname]);
+
+  return null;
+};
+
 // Componente de Loading (fallback)
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -88,6 +101,9 @@ function App() {
   return (
     <HelmetProvider>
       <Router>
+        {/* 👇 ESTA LINHA FAZ O SCROLL PARA O TOPO EM CADA MUDANÇA DE ROTA */}
+        <ScrollToTop />
+
         <Routes>
           
           {/* ROTAS DO PAINEL ADMINISTRATIVO */}
@@ -100,6 +116,7 @@ function App() {
             <Route path="propriedades/:tipo/:id" element={<DetalhesConteudo />} />
             <Route path="analise-anuncio/:tipo/:id" element={<AdminAnaliseAnuncio />} />
             <Route path="clientes" element={<ClientesAdmin />} />
+            <Route path="validar-reservas" element={<AdminValidarReservas />} />
             <Route path="anfitrioes" element={<Anfitrioes />} />
             <Route path="ganhos" element={<GanhosAdmin />} />
             <Route path="repasses" element={<RepassesAdmin />} />

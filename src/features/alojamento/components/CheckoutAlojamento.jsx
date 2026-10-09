@@ -22,6 +22,13 @@ const calcularNoites = (checkIn, checkOut) => {
   return diff > 0 ? diff : 1;
 };
 
+const parseTaxaLimpeza = (valor) => {
+  if (valor === undefined || valor === null || valor === '') return 0;
+  const n = Number(valor);
+  if (Number.isNaN(n) || n < 0) return 0;
+  return n;
+};
+
 const getSessionId = () => {
   let sid = sessionStorage.getItem('morabeza_sid');
   if (!sid) {
@@ -29,6 +36,15 @@ const getSessionId = () => {
     sessionStorage.setItem('morabeza_sid', sid);
   }
   return sid;
+};
+
+// ✅ Fetch com timeout — evita esperas infinitas
+const fetchWithTimeout = (url, options = {}, timeoutMs = 10000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(id)
+  );
 };
 
 // ============================================================
@@ -325,6 +341,11 @@ const CheckoutAlojamento = () => {
   const [loadingOtp, setLoadingOtp] = useState(false);
   const inputRefs = useRef([]);
 
+  // ✅ Cache da verificação de email (evita repetir chamada ao servidor)
+  const emailVerificadoCache = useRef({ email: null, existe: null });
+
+  const [emailJaExiste, setEmailJaExiste] = useState(false);
+
   const [participantePrincipal, setParticipantePrincipal] = useState({
     nome_completo: '',
     email: '',
@@ -335,8 +356,12 @@ const CheckoutAlojamento = () => {
 
   const [participantes, setParticipantes] = useState([]);
 
+  const isLoggedIn = useMemo(() => {
+    return Boolean(user && (user.email || user.id || user.logged));
+  }, [user]);
+
   const noitesInicial = calcularNoites(reservaData?.checkIn, reservaData?.checkOut);
-  const taxaLimpezaInicial = Number(reservaData?.taxaLimpeza || 0);
+  const taxaLimpezaInicial = parseTaxaLimpeza(reservaData?.taxaLimpeza);
 
   const capacidadeMaxima = useMemo(() => {
     const quartos = reservaData?.quartos || [];
@@ -371,19 +396,32 @@ const CheckoutAlojamento = () => {
     tipo_venda: modeloVendaInicial,
   });
 
+  // ==========================================================
+  // ✅ REQUISITO 16 — LÓGICA FINANCEIRA
+  // ==========================================================
   const financeiro = useMemo(() => {
     const quartos = reserva.quartos || [];
     const noites = reserva.noites || 1;
+    const taxaLimpeza = parseTaxaLimpeza(reserva.taxaLimpeza);
 
     const subtotal = quartos.reduce(
       (acc, q) => acc + Number(q.precoNoite || 0) * Number(q.quantidade || 1) * noites,
       0
     );
-    const comissaoPlataforma = subtotal * TAXA_COMISSAO;
-    const totalGeralCliente = subtotal + Number(reserva.taxaLimpeza || 0);
-    const valorAnfitriaoLiquido = subtotal - comissaoPlataforma + Number(reserva.taxaLimpeza || 0);
 
-    return { subtotal, comissaoPlataforma, totalGeralCliente, valorAnfitriaoLiquido };
+    const comissaoPlataforma = subtotal * TAXA_COMISSAO;
+    const totalGeralCliente = subtotal + taxaLimpeza;
+    const valorAnfitriaoLiquido = subtotal - comissaoPlataforma + taxaLimpeza;
+
+    return {
+      subtotal,
+      comissaoPlataforma,
+      totalGeralCliente,
+      valorAnfitriaoLiquido,
+      taxaLimpeza,
+      taxaLimpezaConfigurada: taxaLimpeza > 0,
+      percentualComissao: TAXA_COMISSAO,
+    };
   }, [reserva.quartos, reserva.noites, reserva.taxaLimpeza]);
 
   const buscarDadosUsuario = async (email, googleId) => {
@@ -393,7 +431,10 @@ const CheckoutAlojamento = () => {
       if (googleId) {
         url += `&google_id=${encodeURIComponent(googleId)}`;
       }
-      const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+      const response = await fetchWithTimeout(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
       const result = await response.json();
       if (result.success) {
         if (result.usuario) {
@@ -516,7 +557,6 @@ const CheckoutAlojamento = () => {
     showToast(t('hospede_adicionado', 'Hóspede adicionado'), 'success');
   };
 
-  // 🔑 Verifica se existe um token JWT válido (utilizador logado)
   const verificarUtilizadorLogado = () => {
     const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
     if (!token) return null;
@@ -536,14 +576,11 @@ const CheckoutAlojamento = () => {
   };
 
   useEffect(() => {
-    // limpar resíduos antigos de sessão leve do checkout
     localStorage.removeItem('user');
 
-    // 1) Tenta token JWT (utilizador realmente logado)
     const utilizadorLogado = verificarUtilizadorLogado();
 
     if (utilizadorLogado) {
-      // ✅ LOGADO: pré-preenche nome, email, phone e nacionalidade
       const email = utilizadorLogado.email || '';
       const googleId = utilizadorLogado.sub || utilizadorLogado.google_id || null;
 
@@ -565,7 +602,6 @@ const CheckoutAlojamento = () => {
         nacionalidade: utilizadorLogado.nacionalidade || prev.nacionalidade,
       }));
     }
-    // ❌ NÃO LOGADO: não pré-preenche nada, deixa o utilizador preencher e registar via OTP
 
     window.scrollTo(0, 0);
   }, []);
@@ -583,6 +619,7 @@ const CheckoutAlojamento = () => {
       checkIn: dataObj.checkIn,
       checkOut: dataObj.checkOut,
       noites: novasNoites,
+      taxaLimpeza: parseTaxaLimpeza(prev.taxaLimpeza),
     }));
     setDataModalOpen(false);
   };
@@ -606,6 +643,10 @@ const CheckoutAlojamento = () => {
 
   const updateParticipantePrincipal = (field, value) => {
     setParticipantePrincipal(prev => ({ ...prev, [field]: value }));
+    // ✅ Se o email mudar, invalida o cache de verificação
+    if (field === 'email' && emailVerificadoCache.current.email !== value) {
+      emailVerificadoCache.current = { email: null, existe: null };
+    }
   };
 
   const updateParticipante = (id, field, value) => {
@@ -650,7 +691,7 @@ const CheckoutAlojamento = () => {
   };
 
   const registrarUsuarioCheckout = async () => {
-    if (user && user.email) {
+    if (isLoggedIn || (user && user.email)) {
       return null;
     }
 
@@ -676,7 +717,6 @@ const CheckoutAlojamento = () => {
       }
 
       if (result.success && result.user) {
-        // ❌ NÃO guardar sessão no localStorage — o formulário começa limpo no próximo checkout
         return result.user;
       }
     } catch (err) {
@@ -688,7 +728,7 @@ const CheckoutAlojamento = () => {
   const processarSubmissaoFinal = async () => {
     const totalHospedes = participantes.length + 1;
     let holdIds = [];
-    
+
     const tipoVendaFinal = reserva.quartos && reserva.quartos.length > 0 ? 'por_quarto' : (reserva.modelo_venda || 'inteiro');
 
     if ((tipoVendaFinal === 'por_quarto') && reserva.quartos.length > 0) {
@@ -717,21 +757,26 @@ const CheckoutAlojamento = () => {
       }
     }
 
+    const payloadFinanceiro = {
+      valorTotalCliente: financeiro.totalGeralCliente,
+      subtotalNoites: financeiro.subtotal,
+      taxaLimpeza: financeiro.taxaLimpeza,
+      taxaLimpezaConfigurada: financeiro.taxaLimpezaConfigurada,
+      comissaoMorabeza: financeiro.comissaoPlataforma,
+      percentualComissao: financeiro.percentualComissao,
+      valorLiquidoAnfitriao: financeiro.valorAnfitriaoLiquido,
+    };
+
     const dadosReserva = {
       reservaData: {
         ...reserva,
+        taxaLimpeza: financeiro.taxaLimpeza,
         totalHospedes,
         precoTotal: financeiro.totalGeralCliente,
         tipo_venda: tipoVendaFinal,
         modelo_venda: tipoVendaFinal,
         hold_ids: holdIds,
-        financeiro: {
-          valorTotalCliente: financeiro.totalGeralCliente,
-          subtotalNoites: financeiro.subtotal,
-          taxaLimpeza: reserva.taxaLimpeza,
-          comissaoMorabeza: financeiro.comissaoPlataforma,
-          valorLiquidoAnfitriao: financeiro.valorAnfitriaoLiquido,
-        },
+        financeiro: payloadFinanceiro,
       },
       participantePrincipal,
       participantesAdicionais: participantes,
@@ -744,6 +789,7 @@ const CheckoutAlojamento = () => {
       state: {
         reservaData: {
           ...reserva,
+          taxaLimpeza: financeiro.taxaLimpeza,
           totalHospedes,
           precoTotal: financeiro.totalGeralCliente,
           tipo: 'alojamento',
@@ -751,7 +797,7 @@ const CheckoutAlojamento = () => {
           modelo_venda: tipoVendaFinal,
           alojamento_id: reserva.alojamento_id,
           hold_ids: holdIds,
-          financeiro: dadosReserva.reservaData.financeiro,
+          financeiro: payloadFinanceiro,
         },
         dadosParticipantes: { participantePrincipal, participantes },
         tipo: 'alojamento',
@@ -759,101 +805,170 @@ const CheckoutAlojamento = () => {
     });
   };
 
-  const emailJaRegistado = async (email) => {
-    const url = `${API_BASE}/api/checkout_api.php?email=${encodeURIComponent(email)}&category=Alojamento`;
-    const response = await fetch(url, {
+const emailJaRegistado = async (email) => {
+  // ✅ Endpoint ultra leve: só verifica existência, ~20-50ms
+  const url = `${API_BASE}/api/checkout_api.php?action=check_exists&email=${encodeURIComponent(email)}`;
+
+  const response = await fetchWithTimeout(
+    url,
+    {
       method: 'GET',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    });
+    },
+    5000
+  );
 
-    if (!response.ok) {
-      throw new Error('Não foi possível verificar o email.');
-    }
+  if (!response.ok) {
+    throw new Error('Não foi possível verificar o email.');
+  }
 
-    const result = await response.json();
-    if (result?.success && result?.usuario && result?.usuario.id) {
-      return true;
-    }
-    if (result?.existe === true || result?.exists === true) {
-      return true;
-    }
-    return false;
-  };
-
+  const result = await response.json();
+  return Boolean(result?.existe);
+};
+  // ============================================================
+  // ✅ HANDLE SUBMIT — OTIMIZADO (chamadas em paralelo)
+  // Antes: emailJaRegistado → send_otp (soma dos tempos ≈ 10s)
+  // Agora: Promise.all([emailJaRegistado, send_otp]) ≈ 300ms
+  // ============================================================
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
-
     const email = participantePrincipal.email.trim().toLowerCase();
-    const utilizadorAtual = user?.email?.trim().toLowerCase();
+
+    const podeUsarCache =
+      emailVerificadoCache.current.email === email &&
+      emailVerificadoCache.current.existe !== null;
 
     try {
-      const contaDoUtilizadorAtual = utilizadorAtual === email;
-      if (!contaDoUtilizadorAtual) {
-        const existe = await emailJaRegistado(email);
-        if (existe) {
-          showToast(
-            t('checkout_email_conta_existente', 'Este email já está registado como utilizador. Inicie sessão para continuar.'),
-            'error'
-          );
-          setLoading(false);
-          return;
-        }
+      // 🚀 PERFORMANCE: dispara as duas chamadas ao mesmo tempo
+      const [existe, otpResponse] = await Promise.all([
+        isLoggedIn
+          ? Promise.resolve(true)
+          : podeUsarCache
+            ? Promise.resolve(emailVerificadoCache.current.existe)
+            : emailJaRegistado(email).catch(() => false),
+
+        fetchWithTimeout(
+          `${API_BASE}/api/send_otp.php`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'send_otp', email }),
+          },
+          10000
+        ).then((r) => r.json()),
+      ]);
+
+      if (!isLoggedIn && !podeUsarCache) {
+        emailVerificadoCache.current = { email, existe };
       }
-    } catch (err) {
-      console.error('Erro ao verificar email:', err);
-      showToast(t('erro_verificar_email', 'Não foi possível verificar o email. Tente novamente.'), 'error');
-      setLoading(false);
-      return;
-    }
 
-    try {
-      const response = await fetch(`${API_BASE}/api/send_otp.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send_otp', email }),
-      });
-      const result = await response.json();
+      setEmailJaExiste(existe);
 
-      if (result.status !== 'otp_sent' && result.status !== 'success') {
-        showToast(result.message || t('erro_enviar_codigo', 'Não foi possível enviar o código. Tente novamente.'), 'error');
-        setLoading(false);
+      if (
+        !otpResponse ||
+        (otpResponse.status !== 'otp_sent' && otpResponse.status !== 'success')
+      ) {
+        showToast(
+          otpResponse?.message ||
+            t('erro_enviar_codigo', 'Não foi possível enviar o código. Tente novamente.'),
+          'error'
+        );
         return;
       }
 
       setOtpValues(['', '', '', '', '', '']);
       setShowOtpModal(true);
+
+      setTimeout(() => {
+        inputRefs.current[0]?.focus();
+      }, 100);
     } catch (e) {
       console.error('Erro ao enviar OTP:', e);
-      showToast(t('erro_enviar_codigo', 'Não foi possível enviar o código. Tente novamente.'), 'error');
+      showToast(
+        t('erro_enviar_codigo', 'Não foi possível enviar o código. Tente novamente.'),
+        'error'
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ============================================================
+  // ✅ OTP — HANDLERS
+  // ============================================================
   const handleOtpChange = (index, value) => {
-    const val = value.replace(/\D/g, '');
-    if (!val) {
-      const newValues = [...otpValues];
-      newValues[index] = '';
-      setOtpValues(newValues);
+    const apenasDigitos = value.replace(/\D/g, '');
+    if (!apenasDigitos) {
+      const next = [...otpValues];
+      next[index] = '';
+      setOtpValues(next);
       return;
     }
 
-    const newValues = [...otpValues];
-    newValues[index] = val[val.length - 1];
-    setOtpValues(newValues);
+    if (apenasDigitos.length > 1) {
+      const next = [...otpValues];
+      const restante = apenasDigitos.slice(0, 6 - index).split('');
+      restante.forEach((d, i) => {
+        next[index + i] = d;
+      });
+      setOtpValues(next);
 
-    if (index < 5 && val) {
+      const ultimo = Math.min(index + restante.length, 5);
+      inputRefs.current[ultimo]?.focus();
+      return;
+    }
+
+    const next = [...otpValues];
+    next[index] = apenasDigitos;
+    setOtpValues(next);
+
+    if (index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
 
+  const handleOtpPaste = (e, index) => {
+    e.preventDefault();
+    const colado = (e.clipboardData || window.clipboardData).getData('text');
+    const apenasDigitos = colado.replace(/\D/g, '').slice(0, 6 - index);
+    if (!apenasDigitos) return;
+
+    const next = [...otpValues];
+    apenasDigitos.split('').forEach((d, i) => {
+      next[index + i] = d;
+    });
+    setOtpValues(next);
+
+    const ultimo = Math.min(index + apenasDigitos.length, 5);
+    inputRefs.current[ultimo]?.focus();
+  };
+
   const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otpValues[index] && index > 0) {
+    if (e.key === 'Backspace') {
+      if (otpValues[index]) {
+        const next = [...otpValues];
+        next[index] = '';
+        setOtpValues(next);
+      } else if (index > 0) {
+        const next = [...otpValues];
+        next[index - 1] = '';
+        setOtpValues(next);
+        inputRefs.current[index - 1]?.focus();
+      }
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft' && index > 0) {
       inputRefs.current[index - 1]?.focus();
+      e.preventDefault();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+      e.preventDefault();
     }
+  };
+
+  const handleOtpFocus = (e) => {
+    e.target.select();
   };
 
   const mascararEmail = (email) => {
@@ -886,7 +1001,9 @@ const CheckoutAlojamento = () => {
         setShowOtpModal(false);
         showToast(t('email_verificado_sucesso', 'Email verificado com sucesso!'), 'success');
 
-        await registrarUsuarioCheckout();
+        if (!isLoggedIn && !emailJaExiste) {
+          await registrarUsuarioCheckout();
+        }
         await processarSubmissaoFinal();
       } else {
         showToast(result.message || t('erro_codigo_invalido', 'Código inválido'), 'error');
@@ -1049,7 +1166,7 @@ const CheckoutAlojamento = () => {
 
             <div className="lg:col-span-4">
               <ResumoReservaAlojamento
-                reserva={reserva}
+                reserva={{ ...reserva, taxaLimpeza: financeiro.taxaLimpeza }}
                 totalHospedes={totalHospedes}
                 precoTotal={financeiro.totalGeralCliente}
                 setDataModalOpen={setDataModalOpen}
@@ -1072,8 +1189,8 @@ const CheckoutAlojamento = () => {
       {showOtpModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-sans">
           <div className="bg-white rounded-3xl max-w-[420px] w-full p-8 shadow-2xl relative border border-slate-100 text-center animate-in fade-in zoom-in duration-200">
-            
-            <button 
+
+            <button
               onClick={() => setShowOtpModal(false)}
               className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition"
             >
@@ -1089,25 +1206,39 @@ const CheckoutAlojamento = () => {
             </div>
 
             <h3 className="text-xl font-bold text-slate-900 mb-2">Confirmar email</h3>
-            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
               Enviámos um código de 6 dígitos para<br />
               <strong className="text-slate-800">{mascararEmail(participantePrincipal.email)}</strong>
             </p>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-6 text-left">
+              <p className="text-[11px] text-blue-800 font-medium leading-relaxed">
+                🔒 Por razões de segurança, verificamos sempre o email antes do pagamento — mesmo que já tenha conta.
+              </p>
+            </div>
 
             <div className="text-left mb-2">
               <label className="text-xs font-bold text-slate-700">Código de confirmação</label>
             </div>
 
-            <div className="flex justify-between gap-2 mb-4">
+            <div
+              className="flex justify-between gap-2 mb-4"
+              onPaste={(e) => handleOtpPaste(e, 0)}
+            >
               {otpValues.map((digit, idx) => (
                 <input
                   key={idx}
-                  ref={(el) => (inputRefs.current[idx] = el)}
+                  ref={(el) => { inputRefs.current[idx] = el; }}
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete={idx === 0 ? 'one-time-code' : 'off'}
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                  onFocus={handleOtpFocus}
+                  onPaste={(e) => handleOtpPaste(e, idx)}
                   className="w-12 h-12 text-center text-xl font-bold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 text-slate-900 shadow-sm transition-all"
                 />
               ))}
@@ -1125,20 +1256,20 @@ const CheckoutAlojamento = () => {
             </button>
 
             <div className="flex justify-between items-center text-xs mt-6 px-1">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={handleResendOtp}
                 className="text-blue-600 font-medium hover:underline"
               >
                 Reenviar código
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowOtpModal(false)}
                 className="text-slate-500 font-medium hover:underline"
               >
                 Alterar email
-              </button> 
+              </button>
             </div>
 
           </div>

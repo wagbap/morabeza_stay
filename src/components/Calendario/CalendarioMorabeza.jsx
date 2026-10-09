@@ -27,9 +27,6 @@ const formatarDiaSemana = (dayName) => {
   return mapa[clean] || clean;
 };
 
-// ============================================================
-// Normalizar data para "YYYY-MM-DD"
-// ============================================================
 const paraISO = (d) => {
   if (!d) return null;
   if (typeof d === 'string') {
@@ -63,15 +60,10 @@ const CalendarioMorabeza = ({
   dateFormat,
   tipoQuartoId = null,
   datasBloqueadasPorQuarto = {},
-  // 🔑 Lista normalizada de bloqueios da BD
-  //    [{ quarto_id, data (YYYY-MM-DD) }, ...]
-  //    - quarto_id = 0  ou null → bloqueio GLOBAL
-  //    - quarto_id > 0           → bloqueio apenas desse quarto
   bloqueiosQuartoOcupacao = [],
-  // 🔑 Datas com reservas reais (bloqueiam sempre)
   datasReservadas = [],
-  // 🔑 Total de quartos do alojamento
   totalQuartos = 0,
+  permitirCheckoutEmBloqueado = true,
   ...rest
 }) => {
   const hojeMeiaNoite = new Date();
@@ -79,25 +71,13 @@ const CalendarioMorabeza = ({
 
   const minDateEfetiva = minDate ?? hojeMeiaNoite;
 
-  // ============================================================
-  // 🔥 CALCULAR DATAS BLOQUEADAS (misturado: por quarto + global)
-  //
-  // Regras:
-  //  1) `datasBloqueadasPorQuarto[tipoQuartoId]` (formato antigo)
-  //  2) `bloqueiosQuartoOcupacao` (novo):
-  //       - quarto_id = 0 / null → bloqueio GLOBAL (sempre)
-  //       - quarto_id = tipoQuartoId → bloqueia este quarto
-  //       - quarto_id > 0 (outro): só bloqueia se TODOS os
-  //         quartos estiverem bloqueados nesse dia
-  //  3) `datasReservadas` → bloqueiam SEMPRE
-  //  4) `excludeDates` → só como fallback (sem tipoQuartoId)
-  // ============================================================
+  // ------------------------------------------------------------
+  // Datas bloqueadas efetivas
+  // ------------------------------------------------------------
   const datasBloqueadasEfetivas = useMemo(() => {
     const conjunto = new Set();
 
-    // ----------------------------------------------------------
-    // 1) Mapa antigo: datasBloqueadasPorQuarto[tipoQuartoId]
-    // ----------------------------------------------------------
+    // Mapa legado por tipoQuartoId
     if (tipoQuartoId != null && datasBloqueadasPorQuarto) {
       const chave = String(tipoQuartoId);
       const especificas = datasBloqueadasPorQuarto[chave] || [];
@@ -107,21 +87,19 @@ const CalendarioMorabeza = ({
       });
     }
 
-    // ----------------------------------------------------------
-    // 2) Lista normalizada de quarto_ocupacao
-    // ----------------------------------------------------------
+    // Lista normalizada de ocupações
     if (Array.isArray(bloqueiosQuartoOcupacao) && bloqueiosQuartoOcupacao.length > 0) {
-      const quartosPorData = {}; // { 'YYYY-MM-DD': Set(quarto_id) }
-      const globais = new Set(); // datas com quarto_id = 0/null
+      const quartosPorData = {};
+      const globais = new Set();
 
       bloqueiosQuartoOcupacao.forEach((b) => {
         const iso = paraISO(b?.data);
         if (!iso) return;
         const qid = b?.quarto_id;
 
-        // 🔑 Global (0, null, undefined)
+        // ✅ Em modo por-quarto, bloqueios sem quarto_id NÃO bloqueiam tudo
         if (qid == null || Number(qid) === 0) {
-          globais.add(iso);
+          if (tipoQuartoId == null) globais.add(iso);
           return;
         }
 
@@ -129,16 +107,14 @@ const CalendarioMorabeza = ({
         if (!quartosPorData[iso]) quartosPorData[iso] = new Set();
         quartosPorData[iso].add(n);
 
-        // 🔑 Este é o quarto selecionado → bloqueia já
         if (tipoQuartoId != null && n === Number(tipoQuartoId)) {
           conjunto.add(iso);
         }
       });
 
-      // Globais entram sempre
       globais.forEach((iso) => conjunto.add(iso));
 
-      // 🔑 Se TODOS os quartos estiverem bloqueados → bloqueia também
+      // Se TODOS os quartos físicos estiverem ocupados, o dia fica bloqueado
       if (totalQuartos > 0) {
         Object.entries(quartosPorData).forEach(([iso, set]) => {
           if (set.size >= totalQuartos) conjunto.add(iso);
@@ -146,9 +122,7 @@ const CalendarioMorabeza = ({
       }
     }
 
-    // ----------------------------------------------------------
-    // 3) Reservas reais — bloqueiam sempre
-    // ----------------------------------------------------------
+    // Reservas reais
     if (Array.isArray(datasReservadas)) {
       datasReservadas.forEach((d) => {
         const iso = paraISO(d);
@@ -156,9 +130,7 @@ const CalendarioMorabeza = ({
       });
     }
 
-    // ----------------------------------------------------------
-    // 4) Fallback: excludeDates só se não houver tipoQuartoId
-    // ----------------------------------------------------------
+    // Fallback antigo (modo inteiro)
     if (tipoQuartoId == null) {
       (excludeDates || []).forEach((d) => {
         const iso = paraISO(d);
@@ -189,12 +161,51 @@ const CalendarioMorabeza = ({
     return '';
   };
 
+  // ------------------------------------------------------------
+  // Exclude dinâmico
+  // ------------------------------------------------------------
   const excludeDatesParaPicker = useMemo(() => {
-    return datasBloqueadasEfetivas.map((iso) => {
+    const paraDate = (iso) => {
       const [y, m, d] = iso.split('-').map(Number);
       return new Date(y, m - 1, d);
-    });
-  }, [datasBloqueadasEfetivas]);
+    };
+
+    if (selectsRange && startDate && !endDate && permitirCheckoutEmBloqueado) {
+      const isoStart = paraISO(startDate);
+      return datasBloqueadasEfetivas
+        .filter((iso) => iso < isoStart)
+        .map(paraDate);
+    }
+
+    return datasBloqueadasEfetivas.map(paraDate);
+  }, [datasBloqueadasEfetivas, selectsRange, startDate, endDate, permitirCheckoutEmBloqueado]);
+
+  // ------------------------------------------------------------
+  // onChange com validação
+  // ------------------------------------------------------------
+  const handleChangeInterno = (update) => {
+    if (Array.isArray(update)) {
+      const [start, end] = update;
+
+      // Rejeita apenas check-in em dia bloqueado
+      if (start && !end) {
+        const isoStart = paraISO(start);
+        if (isoStart && datasBloqueadasEfetivas.includes(isoStart)) {
+          return;
+        }
+      }
+
+      onChange(update);
+    } else {
+      if (update) {
+        const iso = paraISO(update);
+        if (iso && datasBloqueadasEfetivas.includes(iso)) {
+          return;
+        }
+      }
+      onChange(update);
+    }
+  };
 
   return (
     <div className="morabeza-calendar-wrapper">
@@ -206,7 +217,7 @@ const CalendarioMorabeza = ({
         selected={!selectsRange ? selected : undefined}
         startDate={selectsRange ? startDate : undefined}
         endDate={selectsRange ? endDate : undefined}
-        onChange={onChange}
+        onChange={handleChangeInterno}
         excludeDates={excludeDatesParaPicker}
         minDate={minDateEfetiva}
         maxDate={maxDate}
