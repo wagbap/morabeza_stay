@@ -974,7 +974,7 @@ esgotado_para_datas: "Kártu li sta xéiu pa es datas",
       noite: "noti",
       noites: "notis",
       escolha_quarto: "Skolhi bu kártu",
-      pode_combinar_quartos: "Bu pode kombiná vários tipu di kártu. Klika na kártu pa skolhi ô tirá."
-
+      pode_combinar_quartos: "Bu pode kombiná vários tipu di kártu. Klika na kártu pa skolhi ô tirá.",
+      indisponivel_para_datas:"Indispunivel pa kes datas la"
   }
 };

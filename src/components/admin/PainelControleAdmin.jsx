@@ -277,7 +277,7 @@ const PainelControleAdmin = () => {
               {statsServer.aprovacoes_pendentes} {statsServer.aprovacoes_pendentes === 1 ? 'item aguarda' : 'itens aguardam'} verificação na plataforma.
             </p>
             <button 
-              onClick={() => window.location.href = '/admin/anfitrioes'} 
+              onClick={() => window.location.href = '/admin/propriedades'} 
               className="w-full bg-[#4b7a69] hover:bg-[#3d6355] text-white py-2.5 rounded-xl font-medium transition-colors shadow-sm text-sm"
             >
               Verificar Agora

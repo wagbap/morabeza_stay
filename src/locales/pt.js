@@ -997,6 +997,7 @@ erro_enviar_codigo: "Não foi possível enviar o código. Tente novamente.",
     noites: "noites",
     stock_maximo_atingido: "Só existem {{n}} disponíveis para este quarto.",
     escolha_quarto: "Escolha o seu quarto",
-    pode_combinar_quartos: "Pode combinar vários tipos de quarto. Clique no cartão para escolher ou remover."
+    pode_combinar_quartos: "Pode combinar vários tipos de quarto. Clique no cartão para escolher ou remover.",
+    indisponivel_para_datas:"Indisponível para estas datas"
   }
 };

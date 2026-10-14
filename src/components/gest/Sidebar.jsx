@@ -157,7 +157,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="flex flex-wrap gap-1 mt-3">
           {userRoles.anfitrion && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-medium rounded-full">
-              <Home size={10} /> Anfitrião
+              <Home size={10} /> Aloajmentos
             </span>
           )}
           {userRoles.proprietarioVeiculos && (

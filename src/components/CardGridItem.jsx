@@ -113,7 +113,7 @@ const CardGridItem = ({ item }) => {
           {/* Preço à direita */}
           <div className="flex items-baseline gap-1 text-right">
             <span className="text-xl font-extrabold text-[#1a2b6d]">
-              {preco.toLocaleString('pt-PT')}
+              {preco.toLocaleString('pt-PT')} cve
             </span>
             <span className="text-[10px] font-bold text-gray-500 uppercase">{t('cve')}</span>
             <span className="text-[10px] font-semibold text-gray-400 truncate">

@@ -82,7 +82,7 @@ const CardAlojamentoItem = ({ id, imagem_url, titulo, localizacao, preco_noite, 
           <span className="text-2xl font-extrabold text-[#1a2b6d]">
             {preco.toLocaleString('pt-PT')}
           </span>
-          <span className="text-sm font-semibold text-gray-500">/ noite</span>
+          <span className="text-sm font-semibold text-gray-500">cve / noite</span>
         </div>
       </div>
       

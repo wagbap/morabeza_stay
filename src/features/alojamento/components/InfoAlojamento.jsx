@@ -369,11 +369,14 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
   const textoLocalizacao = endereco || localizacao || (t('localizacao_nao_informada') || 'Localização não informada');
   const cidadeNome = textoLocalizacao.split(',').shift();
 
-  const abrirPaginaMapa = () => {
+  const latStr = latitude != null ? String(latitude) : '';
+  const lngStr = longitude != null ? String(longitude) : '';
+
+  const abrirPaginaMapa = useCallback(() => {
     if (onMapClick) onMapClick();
     if (alojamentoId) navigate(`/mapa?foco=${alojamentoId}`);
     else navigate('/mapa');
-  };
+  }, [onMapClick, alojamentoId, navigate]);
 
   useEffect(() => {
     if (!temCoordenadas || !mapContainer.current || map.current) return;
@@ -400,7 +403,8 @@ const MapLocation = ({ localizacao, pontosProximos, endereco, latitude, longitud
     return () => {
       if (map.current) { map.current.remove(); map.current = null; }
     };
-  }, [temCoordenadas, latitude, longitude]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [temCoordenadas, latStr, lngStr]);
 
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
@@ -559,7 +563,7 @@ const HorariosCheckInOut = ({ alojamento }) => {
 };
 
 // ============================================================
-// SIDEBAR DE RESERVA — agora ligada ao SearchBar via datasIniciais
+// SIDEBAR DE RESERVA
 // ============================================================
 const SidebarReserva = ({
   carrinhoQuartos = [],
@@ -571,18 +575,30 @@ const SidebarReserva = ({
   vendaPorQuarto = true,
   capacidadeBase = 2,
   datasIniciais = null,
+  quartoSelecionado = null,
+  precoBase = 0,
 }) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
 
-  // 🔑 Inicializar com as datas vindas do SearchBar
   const [startDate, setStartDate] = useState(() => fromISODate(datasIniciais?.checkIn));
   const [endDate, setEndDate] = useState(() => fromISODate(datasIniciais?.checkOut));
   const [numHospedes, setNumHospedes] = useState(() => Number(datasIniciais?.adultos) || 2);
   const [showCalendar, setShowCalendar] = useState(false);
   const [validandoStock, setValidandoStock] = useState(false);
 
-  // 🔑 Se o utilizador mudar de URL (nova pesquisa) sem recarregar página
+  const ultimoEnviadoRef = useRef({ checkIn: null, checkOut: null });
+
+  const temQuartoEscolhido = vendaPorQuarto
+    ? carrinhoQuartos.length > 0
+    : true;
+
+  useEffect(() => {
+    if (temQuartoEscolhido && !startDate && !endDate) {
+      setShowCalendar(true);
+    }
+  }, [temQuartoEscolhido, startDate, endDate]);
+
   useEffect(() => {
     const s = fromISODate(datasIniciais?.checkIn);
     const e = fromISODate(datasIniciais?.checkOut);
@@ -605,15 +621,23 @@ const SidebarReserva = ({
 
   useEffect(() => {
     if (numHospedes > capacidadeTotal) setNumHospedes(capacidadeTotal);
-  }, [capacidadeTotal]);
+  }, [capacidadeTotal, numHospedes]);
 
   useEffect(() => {
-    if (onDatasChange) {
-      onDatasChange({
-        checkIn: startDate ? startDate.toISOString().split('T')[0] : null,
-        checkOut: endDate ? endDate.toISOString().split('T')[0] : null,
-      });
+    if (!onDatasChange) return;
+
+    const novoCheckIn  = startDate ? startDate.toISOString().split('T')[0] : null;
+    const novoCheckOut = endDate   ? endDate.toISOString().split('T')[0]   : null;
+
+    if (
+      ultimoEnviadoRef.current.checkIn === novoCheckIn &&
+      ultimoEnviadoRef.current.checkOut === novoCheckOut
+    ) {
+      return;
     }
+
+    ultimoEnviadoRef.current = { checkIn: novoCheckIn, checkOut: novoCheckOut };
+    onDatasChange({ checkIn: novoCheckIn, checkOut: novoCheckOut });
   }, [startDate, endDate, onDatasChange]);
 
   const onChange = (dates) => {
@@ -665,7 +689,9 @@ const SidebarReserva = ({
       <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
         <div className="flex justify-between items-end mb-5">
           <div className="text-2xl font-bold text-slate-900">
-            {precoMedioNoite.toLocaleString('pt-PT')} CVE
+            {precoMedioNoite > 0
+              ? `${precoMedioNoite.toLocaleString('pt-PT')} CVE`
+              : (precoBase ? `${Number(precoBase).toLocaleString('pt-PT')} CVE` : '—')}
             <span className="text-sm font-normal text-slate-500"> / {t('noite') || 'noite'}</span>
           </div>
           <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
@@ -780,23 +806,28 @@ const SidebarReserva = ({
           </div>
         </div>
 
-     <button
-  onClick={handleContinue}
-  disabled={!podeContinuar || validandoStock}
-  className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl mb-4 mt-6 hover:bg-blue-950 transition-all shadow-lg text-sm active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
->
-  {validandoStock ? (
-    <>
-      <Loader2 className="animate-spin" size={16} />
-      {t('verificando_disponibilidade', 'A verificar disponibilidade...')}
-    </>
-  ) : (
-    <>
-      <ShieldCheck size={16} />
-      {t('continuar_para_reserva') || 'Continuar para reserva'}
-    </>
-  )}
-</button>
+        <button
+          onClick={handleContinue}
+          disabled={!podeContinuar || validandoStock || !startDate || !endDate}
+          className="w-full bg-blue-900 text-white font-bold py-3 rounded-xl mb-4 mt-6 hover:bg-blue-950 transition-all shadow-lg text-sm active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {validandoStock ? (
+            <>
+              <Loader2 className="animate-spin" size={16} />
+              {t('verificando_disponibilidade', 'A verificar disponibilidade...')}
+            </>
+          ) : !startDate || !endDate ? (
+            <>
+              <CalendarDays size={16} />
+              {t('escolha_datas_para_continuar', 'Escolha as datas para continuar')}
+            </>
+          ) : (
+            <>
+              <ShieldCheck size={16} />
+              {t('continuar_para_reserva') || 'Continuar para reserva'}
+            </>
+          )}
+        </button>
 
         <div className="flex items-start gap-2 p-3 bg-green-50 rounded-xl border border-green-100">
           <CheckCircle className="text-green-600 mt-0.5 shrink-0" size={14} />
@@ -1006,12 +1037,17 @@ export const InfoAlojamento = () => {
   const [carrinhoDatas, setCarrinhoDatas] = useState({ checkIn: null, checkOut: null });
   const [stocksPorTipo, setStocksPorTipo] = useState({});
 
+  const [datasSelecionadas, setDatasSelecionadas] = useState({
+    checkIn: null,
+    checkOut: null,
+  });
+
   const vendaPorQuarto = Array.isArray(tiposQuarto) && tiposQuarto.length > 0;
   const precoBase = Number(alojamento?.preco_noite || 0);
   const capacidadeBase = Number(alojamento?.capacidade || 2);
 
   // ============================================================
-  // 🔑 LER PARÂMETROS DA PESQUISA (vindos do SearchBar)
+  // LER PARÂMETROS DA PESQUISA
   // ============================================================
   const datasIniciais = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -1029,6 +1065,15 @@ export const InfoAlojamento = () => {
       pet:      params.get('pet') === '1',
     };
   }, [location.search]);
+
+  useEffect(() => {
+    if (datasIniciais?.checkIn || datasIniciais?.checkOut) {
+      setDatasSelecionadas({
+        checkIn: datasIniciais.checkIn || null,
+        checkOut: datasIniciais.checkOut || null,
+      });
+    }
+  }, [datasIniciais?.checkIn, datasIniciais?.checkOut]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -1247,6 +1292,11 @@ export const InfoAlojamento = () => {
     );
   }, [tiposQuarto]);
 
+  const handleDatasChange = useCallback((datas) => {
+    setCarrinhoDatas(datas);
+    setDatasSelecionadas(datas);
+  }, []);
+
   const handleContinueToCheckout = async (reservaInfo) => {
     registrarCliqueReserva();
     if (!alojamento) return;
@@ -1284,7 +1334,9 @@ export const InfoAlojamento = () => {
 
       if (data.disponivel === false) {
         let msg = data.mensagem || 'Datas indisponíveis.';
-        if (data.motivo === 'bloqueio_manual' && data.datas?.length) {
+        if (data.motivo === 'bloqueio_manual') {
+          msg = data.mensagem || 'Datas bloqueadas pelo anfitrião.';
+        } else if (data.motivo === 'bloqueio_manual' && data.datas?.length) {
           msg = `Datas bloqueadas: ${data.datas.join(', ')}.`;
         } else if (data.motivo === 'stock_insuficiente' && data.conflitos?.length) {
           msg = 'Alguns quartos já não têm stock suficiente para as datas escolhidas.';
@@ -1372,8 +1424,9 @@ export const InfoAlojamento = () => {
       </nav>
 
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
+
+          <div className="order-1 lg:order-none lg:col-span-2">
             <ImageGallery
               images={images}
               onImageChange={setCurrentImageIndex}
@@ -1385,7 +1438,27 @@ export const InfoAlojamento = () => {
               <h3 className="text-sm font-bold text-slate-900 mb-4">{t('comodidades_principais') || 'Comodidades principais'}</h3>
               <AmenitiesBar infoBasica={alojamento.info_basica} comodidades={alojamento.comodidades} />
             </div>
+          </div>
 
+          <div className="order-2 lg:order-none lg:col-span-1 lg:self-start">
+            <div className="lg:sticky lg:top-24 z-30">
+              <SidebarReserva
+                carrinhoQuartos={carrinhoQuartos}
+                estrelas={alojamento.estrelas}
+                datasBloqueadas={datasBloqueadasEfetivas}
+                onContinueToCheckout={handleContinueToCheckout}
+                onRemoveQuarto={handleRemoverQuarto}
+                onDatasChange={handleDatasChange}
+                vendaPorQuarto={vendaPorQuarto}
+                capacidadeBase={capacidadeBase}
+                datasIniciais={datasIniciais}
+                quartoSelecionado={quartoSelecionado}
+                precoBase={precoBase}
+              />
+            </div>
+          </div>
+
+          <div className="order-3 lg:order-none lg:col-span-2">
             {vendaPorQuarto ? (
               <SeccaoEscolhaQuarto
                 quartoSelecionado={quartoSelecionado}
@@ -1397,9 +1470,10 @@ export const InfoAlojamento = () => {
                 alojamentoId={alojamento.id}
                 datasBloqueadas={alojamento.datas_bloqueadas || []}
                 datasBloqueadasPorQuarto={alojamento.datas_bloqueadas_por_quarto || {}}
+                datasSelecionadas={datasSelecionadas}
               />
             ) : (
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-left">
+              <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-left">
                 <p className="text-xs font-bold text-blue-900">
                   {t('alojamento_inteiro', 'Este alojamento é reservado na totalidade')}
                 </p>
@@ -1413,21 +1487,6 @@ export const InfoAlojamento = () => {
             )}
           </div>
 
-          <div className="lg:self-start">
-            <div className="sticky top-24 z-30">
-              <SidebarReserva
-                carrinhoQuartos={carrinhoQuartos}
-                estrelas={alojamento.estrelas}
-                datasBloqueadas={datasBloqueadasEfetivas}
-                onContinueToCheckout={handleContinueToCheckout}
-                onRemoveQuarto={handleRemoverQuarto}
-                onDatasChange={setCarrinhoDatas}
-                vendaPorQuarto={vendaPorQuarto}
-                capacidadeBase={capacidadeBase}
-                datasIniciais={datasIniciais}
-              />
-            </div>
-          </div>
         </div>
       </div>
 

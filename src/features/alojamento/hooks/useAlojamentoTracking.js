@@ -5,109 +5,137 @@ const useAlojamentoTracking = (alojamentoId, usuarioId = null) => {
   const startTimeRef = useRef(Date.now());
   const hasRegisteredView = useRef(false);
   const intervalRef = useRef(null);
-  
+
+  // ✅ Manter alojamentoId e usuarioId em refs para acesso dentro dos callbacks
+  const alojamentoIdRef = useRef(alojamentoId);
+  const usuarioIdRef = useRef(usuarioId);
+
+  useEffect(() => {
+    alojamentoIdRef.current = alojamentoId;
+  }, [alojamentoId]);
+
+  useEffect(() => {
+    usuarioIdRef.current = usuarioId;
+  }, [usuarioId]);
+
+  // ✅ Função interna instável — guardada numa ref
   const registrarEvento = useCallback(async (tipo, dadosAdicionais = {}) => {
-    if (!alojamentoId) {
+    const id = alojamentoIdRef.current;
+    if (!id) {
       console.log('⚠️ Sem alojamentoId, ignorando tracking');
       return;
     }
-    
-    // Usar a API CORRETA para alojamentos
+
     const payload = {
-      alojamento_id: alojamentoId,  // Mudado de experiencia_id para alojamento_id
+      alojamento_id: id,
       tipo: tipo,
-      usuario_id: usuarioId,
+      usuario_id: usuarioIdRef.current,
       ...dadosAdicionais
     };
-    
+
     try {
-     const response = await fetch('https://welovepalop.com/api/tracking/registrar_alojamento.php', {
+      const response = await fetch('https://welovepalop.com/api/tracking/registrar_alojamento.php', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
+
       const data = await response.json();
       if (!data.success) {
         console.error(`Erro ao registrar ${tipo}:`, data.message);
       } else {
-        console.log(`✅ Evento registrado: ${tipo} para alojamento ${alojamentoId}`);
+        console.log(`✅ Evento registrado: ${tipo} para alojamento ${id}`);
       }
     } catch (error) {
       console.error(`Erro na requisição para ${tipo}:`, error);
     }
-  }, [alojamentoId, usuarioId]);
-  
+  }, []); // ✅ VAZIO — usa refs internamente
+
+  // ✅ Manter a função numa ref para que os callbacks públicos sejam estáveis
+  const registrarEventoRef = useRef(registrarEvento);
+  useEffect(() => {
+    registrarEventoRef.current = registrarEvento;
+  }, [registrarEvento]);
+
+  // ✅ Callbacks públicos com dependências VAZIAS — referências nunca mudam
   const registrarVisualizacao = useCallback(() => {
-    if (!hasRegisteredView.current && alojamentoId) {
-      registrarEvento('view');
+    if (!hasRegisteredView.current && alojamentoIdRef.current) {
+      registrarEventoRef.current('view');
       hasRegisteredView.current = true;
     }
-  }, [registrarEvento, alojamentoId]);
-  
+  }, []); // ✅ VAZIO
+
   const registrarCliqueReserva = useCallback(() => {
-    registrarEvento('click_reserva');
-  }, [registrarEvento]);
-  
+    registrarEventoRef.current('click_reserva');
+  }, []);
+
   const registrarCliqueContato = useCallback(() => {
-    registrarEvento('click_contato');
-  }, [registrarEvento]);
-  
+    registrarEventoRef.current('click_contato');
+  }, []);
+
   const registrarVisualizacaoMapa = useCallback(() => {
-    registrarEvento('view_mapa');
-  }, [registrarEvento]);
-  
+    registrarEventoRef.current('view_mapa');
+  }, []);
+
   const registrarTempoPermanencia = useCallback(() => {
     if (!hasRegisteredView.current) return;
-    
+
     const tempoTotal = Math.floor((Date.now() - startTimeRef.current) / 1000);
     if (tempoTotal >= 5) {
-      registrarEvento('tempo_permanencia', { tempo_segundos: tempoTotal });
+      registrarEventoRef.current('tempo_permanencia', { tempo_segundos: tempoTotal });
     }
-  }, [registrarEvento]);
-  
+  }, []); // ✅ VAZIO
+
   const iniciarHeartbeat = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    
+
     intervalRef.current = setInterval(() => {
       if (hasRegisteredView.current && document.visibilityState === 'visible') {
         const tempoDecorrido = Math.floor((Date.now() - startTimeRef.current) / 1000);
         if (tempoDecorrido % 30 === 0 && tempoDecorrido > 0) {
-          registrarEvento('tempo_permanencia', { tempo_segundos: tempoDecorrido });
+          registrarEventoRef.current('tempo_permanencia', { tempo_segundos: tempoDecorrido });
         }
       }
     }, 30000);
-  }, [registrarEvento]);
-  
+  }, []); // ✅ VAZIO
+
+  // ✅ useEffect principal: só depende de alojamentoId
   useEffect(() => {
-    if (alojamentoId) {
-      registrarVisualizacao();
-      iniciarHeartbeat();
-    }
-    
+    if (!alojamentoId) return;
+
+    // Reset quando o alojamento muda
+    hasRegisteredView.current = false;
+    startTimeRef.current = Date.now();
+
+    registrarVisualizacao();
+    iniciarHeartbeat();
+
     const handleBeforeUnload = () => {
       registrarTempoPermanencia();
     };
-    
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         registrarTempoPermanencia();
       }
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       registrarTempoPermanencia();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+    // ✅ Todas as funções usadas têm deps [] — estáveis
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alojamentoId]);
-  
+
   return {
     registrarCliqueReserva,
     registrarCliqueContato,

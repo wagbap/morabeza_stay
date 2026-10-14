@@ -77,7 +77,13 @@ const CalendarioMorabeza = ({
   const datasBloqueadasEfetivas = useMemo(() => {
     const conjunto = new Set();
 
-    // Mapa legado por tipoQuartoId
+    // 1) excludeDates diretas (caminho preferido — vem já filtrado do pai)
+    (excludeDates || []).forEach((d) => {
+      const iso = paraISO(d);
+      if (iso) conjunto.add(iso);
+    });
+
+    // 2) Mapa legado por tipoQuartoId
     if (tipoQuartoId != null && datasBloqueadasPorQuarto) {
       const chave = String(tipoQuartoId);
       const especificas = datasBloqueadasPorQuarto[chave] || [];
@@ -87,7 +93,7 @@ const CalendarioMorabeza = ({
       });
     }
 
-    // Lista normalizada de ocupações
+    // 3) Lista normalizada de ocupações (bloqueios + reservas)
     if (Array.isArray(bloqueiosQuartoOcupacao) && bloqueiosQuartoOcupacao.length > 0) {
       const quartosPorData = {};
       const globais = new Set();
@@ -97,24 +103,23 @@ const CalendarioMorabeza = ({
         if (!iso) return;
         const qid = b?.quarto_id;
 
-        // ✅ Em modo por-quarto, bloqueios sem quarto_id NÃO bloqueiam tudo
+        // Bloqueio sem quarto_id → global
         if (qid == null || Number(qid) === 0) {
-          if (tipoQuartoId == null) globais.add(iso);
+          globais.add(iso);
           return;
         }
 
         const n = Number(qid);
         if (!quartosPorData[iso]) quartosPorData[iso] = new Set();
         quartosPorData[iso].add(n);
-
-        if (tipoQuartoId != null && n === Number(tipoQuartoId)) {
-          conjunto.add(iso);
-        }
       });
 
-      globais.forEach((iso) => conjunto.add(iso));
+      // Globais só bloqueiam quando não há filtro por tipo
+      if (tipoQuartoId == null) {
+        globais.forEach((iso) => conjunto.add(iso));
+      }
 
-      // Se TODOS os quartos físicos estiverem ocupados, o dia fica bloqueado
+      // Se todos os quartos físicos estiverem ocupados → dia bloqueado
       if (totalQuartos > 0) {
         Object.entries(quartosPorData).forEach(([iso, set]) => {
           if (set.size >= totalQuartos) conjunto.add(iso);
@@ -122,17 +127,9 @@ const CalendarioMorabeza = ({
       }
     }
 
-    // Reservas reais
+    // 4) Reservas reais
     if (Array.isArray(datasReservadas)) {
       datasReservadas.forEach((d) => {
-        const iso = paraISO(d);
-        if (iso) conjunto.add(iso);
-      });
-    }
-
-    // Fallback antigo (modo inteiro)
-    if (tipoQuartoId == null) {
-      (excludeDates || []).forEach((d) => {
         const iso = paraISO(d);
         if (iso) conjunto.add(iso);
       });
@@ -187,7 +184,7 @@ const CalendarioMorabeza = ({
     if (Array.isArray(update)) {
       const [start, end] = update;
 
-      // Rejeita apenas check-in em dia bloqueado
+      // Rejeita check-in em dia bloqueado
       if (start && !end) {
         const isoStart = paraISO(start);
         if (isoStart && datasBloqueadasEfetivas.includes(isoStart)) {

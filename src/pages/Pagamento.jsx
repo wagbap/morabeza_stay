@@ -1,15 +1,10 @@
-// Pagamento.jsx - v5 (sem holds / quarto_ocupacao) + FormularioPagamentoStripe UI
+// Pagamento.jsx - v6 (sem holds / quarto_ocupacao) + FormularioPagamentoStripe UI + fetch robusto
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Check, ArrowLeft, ShieldCheck, AlertCircle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
-import {
-  Elements,
-  useStripe,
-  useElements,
-  CardNumberElement,
-} from '@stripe/react-stripe-js';
+import { Elements, useStripe, useElements, CardNumberElement } from '@stripe/react-stripe-js';
 import { useToast } from '../Toast';
 import FormularioPagamentoStripe from './FormularioPagamentoStripe';
 
@@ -37,6 +32,36 @@ const getStripePromise = () => {
     stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
   }
   return stripePromise;
+};
+
+// Helper robusto: lê a resposta como texto e só depois faz JSON.parse
+const lerJsonSeguro = async (response) => {
+  const texto = await response.text();
+  if (!texto || !texto.trim()) {
+    throw new Error('Resposta vazia do servidor.');
+  }
+  try {
+    return JSON.parse(texto);
+  } catch (e) {
+    console.error('Resposta não-JSON do servidor:', texto.slice(0, 300));
+    throw new Error('Resposta inválida do servidor.');
+  }
+};
+
+const fetchComTimeout = async (url, options = {}, timeoutMs = 8000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Tempo limite excedido. Tente novamente.');
+    }
+    throw new Error('Falha de rede. Verifique a sua ligação.');
+  }
 };
 
 const PagamentoContent = () => {
@@ -256,29 +281,18 @@ const PagamentoContent = () => {
       };
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const response = await fetchComTimeout(`${API_BASE}/api/checkout_api.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }, 8000);
 
-    try {
-      const response = await fetch(`${API_BASE}/api/checkout_api.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      const result = await response.json();
-      if (result.success && result.data) {
-        enviarEmailsConfirmacao(result.data);
-      }
-      return result;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('Tempo limite excedido. Tente novamente.');
-      }
-      throw error;
+    const result = await lerJsonSeguro(response);
+
+    if (result.success && result.data) {
+      enviarEmailsConfirmacao(result.data);
     }
+    return result;
   }, [tipo, t, enviarEmailsConfirmacao]);
 
   // ---------------------------------------------------------
@@ -292,7 +306,7 @@ const PagamentoContent = () => {
 
     try {
       if (!stripe || !elements) {
-        setError(t('erro_stripe_nao_carregado'));
+        setError(t('erro_stripe_nao_carregado', 'Stripe não carregado. Recarregue a página.'));
         return;
       }
 
@@ -312,28 +326,20 @@ const PagamentoContent = () => {
 
       const valorEmCentavos = Math.round(valorEmEUR * 100);
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      let resIntent, dataIntent;
-      try {
-        resIntent = await fetch(`${API_BASE}/api/create-payment-intent.php`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: valorEmCentavos, currency: 'eur' }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        dataIntent = await resIntent.json();
-      } catch (err) {
-        clearTimeout(timeoutId);
-        if (err.name === 'AbortError') {
-          throw new Error('Tempo limite excedido. Tente novamente.');
-        }
-        throw err;
-      }
+      const resIntent = await fetchComTimeout(`${API_BASE}/api/create-payment-intent.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: valorEmCentavos, currency: 'eur' }),
+      }, 8000);
 
       if (!resIntent.ok) {
-        throw new Error(dataIntent.error || t('erro_servidor_pagamentos'));
+        throw new Error(t('erro_servidor_pagamentos', 'Servidor de pagamentos indisponível.'));
+      }
+
+      const dataIntent = await lerJsonSeguro(resIntent);
+
+      if (!dataIntent.clientSecret) {
+        throw new Error(dataIntent.error || t('erro_servidor_pagamentos', 'Servidor de pagamentos indisponível.'));
       }
 
       const result = await stripe.confirmCardPayment(dataIntent.clientSecret, {
@@ -365,16 +371,15 @@ const PagamentoContent = () => {
         });
         return;
       } else {
-        setError(saveResult.error || t('erro_registar_reserva'));
+        setError(saveResult.error || t('erro_registar_reserva', 'Erro ao registar a reserva.'));
         showToast(
-          t('pagamento_cobrado_reserva_falhou',
-            'Pagamento efetuado mas houve um erro ao registar. Contacte o suporte.'),
+          t('pagamento_cobrado_reserva_falhou', 'Pagamento efetuado mas houve um erro ao registar. Contacte o suporte.'),
           'error'
         );
       }
     } catch (err) {
       console.error('Erro no pagamento:', err);
-      setError(err.message || t('erro_geral_pagamento'));
+      setError(err.message || t('erro_geral_pagamento', 'Erro ao processar o pagamento.'));
     } finally {
       setLoading(false);
       isProcessingRef.current = false;

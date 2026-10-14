@@ -5,6 +5,8 @@ import {
   Lock, Unlock, Loader2, MousePointer2, Info, Building2, Bed, X, Palette
 } from 'lucide-react';
 import LegendaCoresTooltip from './LegendaCoresTooltip';
+import ModalStock from './ModalStock';
+
 const API_BASE = 'https://welovepalop.com';
 
 function useIsMobile(breakpoint = 768) {
@@ -292,9 +294,16 @@ export default function Calendario() {
   const [motivoModalAberto, setMotivoModalAberto] = useState(false);
   const [legendaModalAberto, setLegendaModalAberto] = useState(false);
 
+  // Estados para Modal de Stock
+  const [modalStockAberto, setModalStockAberto] = useState(false);
+  const [stocksDados, setStocksDados] = useState([]);
+  const [carregandoStock, setCarregandoStock] = useState(false);
+
   const [tiposQuarto, setTiposQuarto] = useState([]);
   const [carregandoQuartos, setCarregandoQuartos] = useState(false);
   const [quartoAtivo, setQuartoAtivo] = useState(null);
+  const disponibilidadeRequestRef = useRef(0);
+  const stockRequestRef = useRef(0);
 
   const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   const diasSemanaCurto = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
@@ -311,7 +320,7 @@ export default function Calendario() {
     return id != null ? Number(id) : null;
   };
 
-  const temQuartos = tiposQuarto.length > 0;
+  const temQuartos = Array.isArray(tiposQuarto) && tiposQuarto.length > 0;
   const modelo = String(selectedItem?.modelo_venda || '').toLowerCase();
   const isInteiro = modelo === 'inteiro' || modelo === 'alojamento_inteiro';
   const isPorQuarto = !isInteiro && temQuartos;
@@ -429,11 +438,13 @@ export default function Calendario() {
 
   const fetchDisponibilidade = async () => {
     if (!selectedItem) return;
+    const requestId = ++disponibilidadeRequestRef.current;
     try {
       const ano = selectedYear;
       const mes = selectedMonth;
       const ultimoDia = new Date(ano, mes + 1, 0).getDate();
       const disponibilidadeMap = {};
+      const pedidos = [];
       for (let dia = 1; dia <= ultimoDia; dia++) {
         const dataStr = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
         let url = '';
@@ -444,14 +455,25 @@ export default function Calendario() {
         } else if (activeTab === 'experiencias') {
           url = `${API_BASE}/api/disponibilidade/experiencia.php?experiencia_id=${selectedItem.id}&data=${dataStr}`;
         }
-        try {
-          const response = await fetch(url);
-          const result = await response.json();
-          disponibilidadeMap[dia] = result.success && result.data ? result.data.disponivel : true;
-        } catch (e) {
-          disponibilidadeMap[dia] = true;
-        }
+        pedidos.push(async () => {
+          try {
+            const response = await fetch(url);
+            const result = await response.json();
+            disponibilidadeMap[dia] = result.success && result.data
+              ? result.data.disponivel
+              : true;
+          } catch {
+            disponibilidadeMap[dia] = true;
+          }
+        });
       }
+      // Limita a concorrência para acelerar a carga sem disparar 28–31 pedidos
+      // de uma só vez contra a API.
+      for (let i = 0; i < pedidos.length; i += 6) {
+        await Promise.all(pedidos.slice(i, i + 6).map((pedido) => pedido()));
+        if (requestId !== disponibilidadeRequestRef.current) return;
+      }
+      if (requestId !== disponibilidadeRequestRef.current) return;
       setDisponibilidade(disponibilidadeMap);
     } catch (error) {
       console.error('Erro ao buscar disponibilidade:', error);
@@ -485,8 +507,7 @@ export default function Calendario() {
           };
         })
         .filter(tq => tq.tipo_quarto_id !== null);
-      if (normalizada.length > 0) setTiposQuarto(normalizada);
-      else setTiposQuarto([]);
+      setTiposQuarto(normalizada);
     } catch (e) {
       console.error('Erro ao buscar tipos de quarto:', e);
       setTiposQuarto([]);
@@ -523,7 +544,7 @@ export default function Calendario() {
         if (qid === 0) porData[dia].global = true;
         else porData[dia].quartos.add(qid);
       });
-      const totalQuartos = tiposQuarto.length || 0;
+      const totalQuartos = Array.isArray(tiposQuarto) ? tiposQuarto.length : 0;
       Object.values(porData).forEach(info => {
         info.todosQuartos = info.global || (totalQuartos > 0 && info.quartos.size >= totalQuartos);
       });
@@ -547,8 +568,10 @@ export default function Calendario() {
   }, [selectedItem, selectedMonth, selectedYear, activeTab, tiposQuarto, fetchBloqueiosManuais]);
 
   useEffect(() => {
-    if (!selectedItem) { setQuartoAtivo(null); return; }
-    if (tiposQuarto.length === 0) { setQuartoAtivo(null); return; }
+    if (!selectedItem || !Array.isArray(tiposQuarto) || tiposQuarto.length === 0) {
+      setQuartoAtivo(null);
+      return;
+    }
     const aindaExiste = quartoAtivo && tiposQuarto.some(
       tq => String(tq.tipo_quarto_id) === String(quartoAtivo.tipo_quarto_id)
     );
@@ -567,6 +590,45 @@ export default function Calendario() {
     setDragStart(null);
     setIsDragging(false);
   }, [selectedItem, selectedMonth, selectedYear, activeTab, quartoAtivo?.tipo_quarto_id]);
+
+  // Função para carregar e abrir o Modal de Stock
+  const abrirModalStock = async () => {
+    if (!selectedItem) return;
+    const requestId = ++stockRequestRef.current;
+    setModalStockAberto(true);
+    setCarregandoStock(true);
+    setStocksDados([]);
+    try {
+      const alojamentoId = obterAlojamentoId(selectedItem);
+      if (!alojamentoId) throw new Error('Alojamento inválido');
+      const url = `${API_BASE}/api/get_stock_quartos.php?alojamento_id=${alojamentoId}&ano=${selectedYear}&mes=${selectedMonth + 1}`;
+      const { ok, data } = await fetchJsonBlindado(url);
+      if (ok && data?.success) {
+        const lista = data.stocks || data.quartos || data.data || [];
+        const normalizados = (Array.isArray(lista) ? lista : []).map((stock) => {
+          const tipoId = Number(stock.tipo_quarto_id ?? stock.tipoQuartoId ?? stock.tipo_catalogo_id ?? stock.id);
+          const tipo = tiposQuarto.find((quarto) => Number(quarto.tipo_quarto_id) === tipoId);
+          return {
+            ...stock,
+            tipo_quarto_id: tipoId,
+            nome: stock.nome || stock.tipo_nome || tipo?.nome || 'Quarto',
+            quantidade_total: Number(stock.quantidade_total ?? stock.quantidade ?? stock.total ?? 0),
+            quantidade_disponivel: Number(stock.quantidade_disponivel ?? stock.disponivel ?? 0),
+            quantidade_reservada: Number(stock.quantidade_reservada ?? stock.reservada ?? 0),
+            quantidade_bloqueada: Number(stock.quantidade_bloqueada ?? stock.bloqueada ?? 0),
+          };
+        });
+        if (requestId === stockRequestRef.current) setStocksDados(normalizados);
+      } else {
+        if (requestId === stockRequestRef.current) setStocksDados([]);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar stock:', e);
+      if (requestId === stockRequestRef.current) setStocksDados([]);
+    } finally {
+      if (requestId === stockRequestRef.current) setCarregandoStock(false);
+    }
+  };
 
   const getEstadoDiaAtual = (dataStr) => {
     if (!dataStr) return 'fora';
@@ -738,9 +800,6 @@ export default function Calendario() {
   const executarAcao = async (motivoFinal = null) => {
     if (!selectedItem || selecionados.size === 0 || !isAlojamento) return;
 
-    // ✅ CORREÇÃO: por_quarto envia o alojamento_quarto_id (quarto físico),
-    // NÃO o tipo_quarto_id. Assim o PHP bloqueia apenas esse quarto,
-    // em vez de bloquear todos os quartos do mesmo tipo.
     const quartoFisicoId = isPorQuarto
       ? Number(quartoAtivo?.alojamento_quarto_id)
       : 0;
@@ -760,12 +819,10 @@ export default function Calendario() {
       const body = {
         alojamento_id: Number(alojamentoId),
         datas: Array.from(selecionados),
-        quarto_id: quartoFisicoId,   // ✅ quarto físico específico
-        tipo_quarto_id: 0,           // ✅ 0 = não bloquear por tipo
+        quarto_id: quartoFisicoId,
+        tipo_quarto_id: 0,
         motivo: modoSelecao === 'bloquear' ? (motivoFinal || 'Bloqueio manual') : 'Desbloqueio manual',
       };
-
-      console.log('📦 [Calendario] POST →', endpoint, body);
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -774,8 +831,6 @@ export default function Calendario() {
       });
 
       const texto = await res.text();
-      console.log('📦 [Calendario] response → status:', res.status, 'body:', texto);
-
       if (!res.ok) {
         mostrarToast('erro', `Erro do servidor (${res.status}).`);
         return;
@@ -791,7 +846,6 @@ export default function Calendario() {
       try {
         data = JSON.parse(texto.substring(inicio, fim + 1));
       } catch (e) {
-        console.error('[Calendario] JSON inválido:', texto);
         mostrarToast('erro', 'Erro ao processar resposta.');
         return;
       }
@@ -808,7 +862,6 @@ export default function Calendario() {
         mostrarToast('erro', data.error || 'Erro ao aplicar ação.');
       }
     } catch (e) {
-      console.error('[Calendario executarAcao]', e);
       mostrarToast('erro', 'Erro de rede.');
     } finally {
       setAGuardar(false);
@@ -965,19 +1018,33 @@ export default function Calendario() {
                 )}
               </div>
 
-              {isAlojamento && isPorQuarto && (
-                <select
-                  value={quartoAtivo?.tipo_quarto_id ?? ''}
-                  onChange={handleTrocarQuarto}
-                  className="shrink-0 max-w-[140px] px-3 py-2.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 truncate"
-                  title={quartoAtivo?.nome || 'Quarto'}
-                >
-                  {tiposQuarto.map(tq => (
-                    <option key={tq.tipo_quarto_id} value={tq.tipo_quarto_id}>
-                      {tq.nome}
-                    </option>
-                  ))}
-                </select>
+              {carregandoQuartos ? (
+                <div className="shrink-0 px-3 py-2.5 text-xs text-slate-400 flex items-center gap-1.5">
+                  <Loader2 size={14} className="animate-spin" /> Quartos...
+                </div>
+              ) : isAlojamento && isPorQuarto && (
+                <>
+                  <select
+                    value={quartoAtivo?.tipo_quarto_id ?? ''}
+                    onChange={handleTrocarQuarto}
+                    className="shrink-0 max-w-[140px] px-3 py-2.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 truncate"
+                    title={quartoAtivo?.nome || 'Quarto'}
+                  >
+                    {tiposQuarto.map(tq => (
+                      <option key={tq.tipo_quarto_id} value={tq.tipo_quarto_id}>
+                        {tq.nome}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={abrirModalStock}
+                    className="shrink-0 px-3 py-2 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm flex items-center gap-1.5"
+                  >
+                    <Bed size={14} className="text-blue-600" />
+                    <span>Stock</span>
+                  </button>
+                </>
               )}
 
               {renderLegenda()}
@@ -985,7 +1052,7 @@ export default function Calendario() {
           )}
         </div>
 
-        {isAlojamento && !isPorQuarto && selectedItem && (
+        {isAlojamento && !isPorQuarto && selectedItem && !carregandoQuartos && (
           <div className="mb-4 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-2 text-xs text-slate-700 font-semibold">
             <Building2 size={14} className="shrink-0 mt-0.5" />
             <span>A bloquear <strong>alojamento inteiro</strong>.</span>
@@ -1147,6 +1214,26 @@ export default function Calendario() {
           quantidadeDias={selecionados.size}
           nomeItem={isPorQuarto ? quartoAtivo?.nome : selectedItem?.titulo}
         />
+
+        <ModalStock
+          isOpen={modalStockAberto}
+          onClose={() => setModalStockAberto(false)}
+          stocks={stocksDados}
+          carregando={carregandoStock}
+          mesLabel={`${meses[selectedMonth]} ${selectedYear}`}
+          tipoAtivoId={quartoAtivo?.tipo_quarto_id}
+          onEscolherTipo={(tipoId) => {
+            const tq = tiposQuarto.find(t => Number(t.tipo_quarto_id) === Number(tipoId));
+            if (tq) {
+              setQuartoAtivo({
+                tipo_quarto_id: Number(tq.tipo_quarto_id),
+                alojamento_quarto_id: Number(tq.alojamento_quarto_id),
+                nome: tq.nome,
+              });
+            }
+            setModalStockAberto(false);
+          }}
+        />
       </div>
     );
   }
@@ -1177,6 +1264,9 @@ export default function Calendario() {
           <h2 className="text-[16px] md:text-[18px] font-bold text-[#0f172a]">
             {meses[selectedMonth]} {selectedYear}
           </h2>
+          <button onClick={() => mudarMes(1)} className="p-1.5 hover:bg-gray-100 rounded-lg border border-gray-200 bg-white">
+            <ChevronRight className="w-5 h-5 text-gray-600" />
+          </button>
           <button
             onClick={() => { setSelectedMonth(new Date().getMonth()); setSelectedYear(new Date().getFullYear()); }}
             disabled={jaEstouNoMesAtual}
@@ -1244,7 +1334,11 @@ export default function Calendario() {
               )}
             </div>
 
-            {isAlojamento && isPorQuarto && (
+            {carregandoQuartos ? (
+              <div className="shrink-0 px-3 py-2.5 text-xs text-slate-400 flex items-center gap-1.5">
+                <Loader2 size={14} className="animate-spin" /> Quartos...
+              </div>
+            ) : isAlojamento && isPorQuarto && (
               <>
                 <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 font-semibold">
                   <Bed size={14} />
@@ -1261,6 +1355,14 @@ export default function Calendario() {
                     </option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  onClick={abrirModalStock}
+                  className="shrink-0 px-3 py-2.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold hover:bg-blue-100 transition shadow-sm flex items-center gap-1.5"
+                >
+                  <Bed size={15} className="text-blue-600" />
+                  <span>Ver Stock</span>
+                </button>
               </>
             )}
 
@@ -1269,7 +1371,7 @@ export default function Calendario() {
         )}
       </div>
 
-      {isAlojamento && !isPorQuarto && selectedItem && (
+      {isAlojamento && !isPorQuarto && selectedItem && !carregandoQuartos && (
         <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold">
           <Building2 size={14} />
           <span>A bloquear o alojamento inteiro</span>
@@ -1417,6 +1519,26 @@ export default function Calendario() {
         aGuardar={aGuardar}
         quantidadeDias={selecionados.size}
         nomeItem={isPorQuarto ? quartoAtivo?.nome : selectedItem?.titulo}
+      />
+
+      <ModalStock
+        isOpen={modalStockAberto}
+        onClose={() => setModalStockAberto(false)}
+        stocks={stocksDados}
+        carregando={carregandoStock}
+        mesLabel={`${meses[selectedMonth]} ${selectedYear}`}
+        tipoAtivoId={quartoAtivo?.tipo_quarto_id}
+        onEscolherTipo={(tipoId) => {
+          const tq = tiposQuarto.find(t => Number(t.tipo_quarto_id) === Number(tipoId));
+          if (tq) {
+            setQuartoAtivo({
+              tipo_quarto_id: Number(tq.tipo_quarto_id),
+              alojamento_quarto_id: Number(tq.alojamento_quarto_id),
+              nome: tq.nome,
+            });
+          }
+          setModalStockAberto(false);
+        }}
       />
     </div>
   );
