@@ -1,32 +1,39 @@
 import { useState, useEffect } from 'react';
-import api from '../api/api';
+import { requestApiJson } from '../services/apiJson';
+
+const SOURCES = {
+  alojamentos: '/get_alojamentos.php',
+  carros: '/get_carro.php',
+  experiencias: '/get_experiencias.php',
+};
 
 export const useFetchHomeData = () => {
   const [data, setData] = useState({ alojamentos: [], carros: [], experiencias: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchAllData = async () => {
-      setLoading(true);
-      try {
-        const [alojRes, carrosRes, expRes] = await Promise.all([
-          api.get('/get_alojamentos.php'),
-          api.get('/get_carro.php'),
-          api.get('/get_experiencias.php')
-        ]);
-
-        setData({
-          alojamentos: Array.isArray(alojRes.data) ? alojRes.data : alojRes.data?.data || [],
-          carros: Array.isArray(carrosRes.data) ? carrosRes.data : carrosRes.data?.data || [],
-          experiencias: Array.isArray(expRes.data) ? expRes.data : expRes.data?.data || []
-        });
-      } catch (err) {
-        console.error("Erro na API:", err);
-      } finally {
-        setLoading(false);
-      }
+      const results = await Promise.allSettled(Object.values(SOURCES).map(url =>
+        requestApiJson(url, { signal: controller.signal })
+      ));
+      if (controller.signal.aborted) return;
+      const next = {};
+      Object.keys(SOURCES).forEach((key, index) => {
+        const result = results[index];
+        if (result.status === 'fulfilled') {
+          const list = Array.isArray(result.value) ? result.value : result.value?.data;
+          next[key] = Array.isArray(list) ? list : [];
+        } else {
+          next[key] = [];
+          console.warn(`API indisponivel: ${key}`, { status: result.reason?.response?.status || null });
+        }
+      });
+      setData(next);
+      setLoading(false);
     };
-    fetchAllData();
+    void fetchAllData();
+    return () => controller.abort();
   }, []);
 
   return { ...data, loading };

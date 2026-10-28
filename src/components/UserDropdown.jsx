@@ -215,7 +215,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   onClick={() => handleNavigation('/alojamento-registro/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
                 >
-                  <Home size={16} /> Anuncie Alojamento
+                  <Home size={16} /> Meus Alojamento
                 </button>
               )}
 
@@ -224,7 +224,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   onClick={() => handleNavigation('/carro-registo/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
                 >
-                  <Car size={16} /> Anuncie Carros
+                  <Car size={16} /> Meus Carros
                 </button>
               )}
 
@@ -233,7 +233,7 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
                   onClick={() => handleNavigation('/experiencia-registo/meus')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"
                 >
-                  <Compass size={16} /> Anuncie Experiência
+                  <Compass size={16} /> Minha Experiência
                 </button>
               )}
 

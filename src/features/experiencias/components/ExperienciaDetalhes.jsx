@@ -1,3 +1,4 @@
+import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
 // src/features/experiencias/components/ExperienciaDetalhes.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -107,10 +108,9 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
         <ChevronRight size={24} />
       </button>
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">
-        {currentIndex + 1} / {images.length}
+        {Math.min(currentIndex + 1, Math.max(1, images.length))} / {Math.max(1, images.length)}
       </div>
-      <img
-        src={images[currentIndex]}
+      <img onError={substituirImagemIndisponivel} src={images[currentIndex] || IMAGEM_INDISPONIVEL}
         alt={`Imagem ${currentIndex + 1}`}
         className="max-w-[90vw] max-h-[90vh] object-contain cursor-pointer"
         onClick={handleModalClick}
@@ -861,7 +861,7 @@ const SidebarReservaExperiencia = ({
 
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   const { t } = useTranslation();
-  const placeholder = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop";
+  const placeholder = IMAGEM_INDISPONIVEL;
   const img1 = images[0] || placeholder;
   const img2 = images[1] || placeholder;
   const img3 = images[2] || placeholder;
@@ -870,21 +870,21 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   return (
     <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
       <div className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => { onImageChange(0); onOpenModal(); }}>
-        <img src={img1} className="w-full h-full object-cover transition-transform hover:scale-[1.01]" alt={titulo} />
+        <img onError={substituirImagemIndisponivel} src={img1} className="w-full h-full object-cover transition-transform hover:scale-[1.01]" alt={titulo} />
         <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-md text-xs backdrop-blur-sm pointer-events-none">
           1 / {images.length || 1}
         </div>
       </div>
       <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
         <div className="h-1/2 rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => { onImageChange(1); onOpenModal(); }}>
-          <img src={img2} className="w-full h-full object-cover transition-transform hover:scale-[1.01]" alt={titulo} />
+          <img onError={substituirImagemIndisponivel} src={img2} className="w-full h-full object-cover transition-transform hover:scale-[1.01]" alt={titulo} />
         </div>
         <div className="h-1/2 flex gap-2.5">
           <div className="flex-1 rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => { onImageChange(2); onOpenModal(); }}>
-            <img src={img3} className="w-full h-full object-cover transition-transform hover:scale-[1.01]" alt={titulo} />
+            <img onError={substituirImagemIndisponivel} src={img3} className="w-full h-full object-cover transition-transform hover:scale-[1.01]" alt={titulo} />
           </div>
           <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => { onImageChange(3); onOpenModal(); }}>
-            <img src={img4} className="w-full h-full object-cover transition-transform hover:scale-[1.01]" alt={titulo} />
+            <img onError={substituirImagemIndisponivel} src={img4} className="w-full h-full object-cover transition-transform hover:scale-[1.01]" alt={titulo} />
             <div onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
               className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md z-20">
               <Camera size={12} /> {t('ver_todas_fotos') || 'Ver todas as fotos'}
@@ -1079,7 +1079,7 @@ const ExperienciaDetalhes = () => {
         } else if (dados.imagem_principal) {
           setImages([dados.imagem_principal]);
         } else {
-          setImages(["https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop"]);
+          setImages([IMAGEM_INDISPONIVEL]);
         }
 
         if (dados.anfitriao) setAnfitriao(dados.anfitriao);
@@ -1170,8 +1170,8 @@ const ExperienciaDetalhes = () => {
     setMostrarChat(true);
   };
 
-  const handlePrevImage = () => setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  const handleNextImage = () => setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  const handlePrevImage = () => setCurrentImageIndex((prev) => ((prev - 1 + Math.max(1, images.length)) % Math.max(1, images.length)));
+  const handleNextImage = () => setCurrentImageIndex((prev) => ((prev + 1) % Math.max(1, images.length)));
   const handleImageChange = (index) => setCurrentImageIndex(index);
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);

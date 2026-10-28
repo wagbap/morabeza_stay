@@ -1,3 +1,4 @@
+import { carregarFavoritosApi } from '../services/favoritosApi';
 // src/hooks/useFavoritos.js
 import { useState, useEffect, useCallback } from 'react';
 
@@ -11,6 +12,7 @@ export const useFavoritos = () => {
     experiencias: []
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [totalFavoritos, setTotalFavoritos] = useState(0);
 
   // Obter ID/Utilizador de forma segura (JWT ou LocalStorage)
@@ -54,16 +56,9 @@ export const useFavoritos = () => {
     
     setLoading(true);
     try {
-      let url = `${API_URL}?action=listar`;
-      if (user?.email) {
-        url += `&email=${encodeURIComponent(user.email)}`;
-      } else if (user?.id) {
-        url += `&usuario_id=${user.id}`;
-      }
-      
-      const response = await fetch(url);
-      const result = await response.json();
-      
+      setError(null);
+      const result = await carregarFavoritosApi(user?.email, user?.id);
+
       if (result.success && result.data) {
         const novosFavoritos = {
           alojamentos: [],
@@ -114,7 +109,7 @@ export const useFavoritos = () => {
         setTotalFavoritos(0);
       }
     } catch (error) {
-      console.error('Erro ao carregar favoritos:', error);
+      setError(error.response?.status || 'network');
     } finally {
       setLoading(false);
     }
@@ -240,6 +235,7 @@ export const useFavoritos = () => {
 
   return {
     favoritos,
+    error,
     totalFavoritos,
     isFavorito,
     adicionarFavorito,

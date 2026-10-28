@@ -4,8 +4,7 @@ import Hero from '../features/alojamento/components/AlojamentoHeroHome';
 import SearchBar from '../features/alojamento/components/SearchBarAlojamento';
 import CategoryBar from '../components/CategoryBar';
 import TabsComponent from '../components/TabsComponent';
-import CardGridItem from '../components/CardGridItem';
-import CardPromocionalBanner from '../components/CardPromocionalBanner';
+import ExperiencesSection from '../features/experiencias/components/ExperiencesSection';
 
 const Home = ({ alojamentos, carros, experiencias, loading }) => {
   const { t } = useTranslation();
@@ -33,19 +32,7 @@ const Home = ({ alojamentos, carros, experiencias, loading }) => {
           experiencias={experiencias}
         />
 
-        <section className="mb-24 mt-20">
-          <div className="flex flex-col mb-8 text-left">
-            <h2 className="text-2xl font-black text-gray-900 tracking-tighter uppercase italic">
-              {t('adicione_conforto_estadia')}
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {carros.length > 0 ? <CardGridItem item={carros[0]} /> : <div className="h-[450px] bg-gray-100 animate-pulse rounded-[2.5rem]"></div>}
-            {experiencias.length > 0 ? <CardGridItem item={experiencias[0]} /> : <div className="h-[450px] bg-gray-100 animate-pulse rounded-[2.5rem]"></div>}
-            <CardPromocionalBanner />
-          </div>
-        </section>
+        <ExperiencesSection carros={carros} experiencias={experiencias} loading={loading} />
 
         {loading && <div className="py-10 text-center opacity-30 font-black uppercase text-xs">{t('carregando_morabeza')}</div>}
       </main>

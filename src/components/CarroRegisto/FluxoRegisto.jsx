@@ -1,6 +1,9 @@
+import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
+import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/CarroRegisto/FluxoRegisto.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Check, ChevronRight, HelpCircle, Loader, Save, X, AlertCircle } from 'lucide-react';
 import InformacoesBasicas from './InformacoesBasicas';
 import Especificacoes from './Especificacoes';
@@ -15,6 +18,7 @@ const RASCUNHO_KEY = 'morabeza_rascunho_carro';
 
 const FluxoRegisto = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { showToast } = useToast();
 
   const [fase, setFase] = useState(1);
@@ -262,33 +266,7 @@ const FluxoRegisto = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => {
-    const fasesLista = ['Info', 'Especificações', 'Localização', 'Características', 'Fotos'];
-    return (
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          {fasesLista.map((nome, index) => (
-            <div key={index} className="flex-1 text-center">
-              <div className={`text-xs font-medium ${fase > index + 1 ? 'text-[#006ce4]' : fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>
-                {nome}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {fasesLista.map((_, index) => (
-            <div
-              key={index}
-              className={`h-1 flex-1 rounded-full ${
-                fase > index + 1 ? 'bg-[#006ce4]' :
-                fase === index + 1 ? 'bg-[#006ce4]' : 'bg-gray-200'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
+  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onBack={handleBack} onNext={handleNext} />;
 
   const temRascunho = !!localStorage.getItem(RASCUNHO_KEY);
 
@@ -304,10 +282,17 @@ const FluxoRegisto = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <RegistoVisual>
       <header className="bg-[#003580] text-white px-4 py-2 flex items-center justify-between shadow-sm">
         <div className="flex items-center">
-          <div className="font-bold text-lg tracking-tight truncate max-w-[140px]"></div>
+          <Link
+            to="/gest/unidades-veiculos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg border border-white/30 px-3 py-2 text-xs font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+          >
+            {t('registo_atalho_unidades')}
+          </Link>
         </div>
 
         <div className="flex items-center gap-3">
@@ -335,11 +320,10 @@ const FluxoRegisto = () => {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {renderProgressBar()}
 
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
           {fase === 1 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Informações do Veículo</h1>
-              <p className="text-gray-600 mb-6">Preencha os dados básicos do carro.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={false} />
               <InformacoesBasicas
                 dados={informacoes}
                 onChange={setInformacoes}
@@ -350,8 +334,7 @@ const FluxoRegisto = () => {
 
           {fase === 2 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Especificações Técnicas</h1>
-              <p className="text-gray-600 mb-6">Detalhes técnicos do veículo.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={false} />
               <Especificacoes
                 dados={especificacoes}
                 onChange={setEspecificacoes}
@@ -362,8 +345,7 @@ const FluxoRegisto = () => {
 
           {fase === 3 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Localização</h1>
-              <p className="text-gray-600 mb-6">Onde o veículo está disponível?</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={false} />
               <Localizacao
                 dados={localizacao}
                 onChange={setLocalizacao}
@@ -374,8 +356,7 @@ const FluxoRegisto = () => {
 
           {fase === 4 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Características</h1>
-              <p className="text-gray-600 mb-6">Selecione os equipamentos do veículo.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={false} />
               <Caracteristicas
                 items={caracteristicas}
                 onChange={setCaracteristicas}
@@ -386,8 +367,7 @@ const FluxoRegisto = () => {
 
           {fase === 5 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Fotos do Veículo</h1>
-              <p className="text-gray-600 mb-6">Adicione fotos para mostrar o carro.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={false} />
               <ImagensUpload
                 imagens={imagens}
                 onChange={setImagens}
@@ -407,7 +387,7 @@ const FluxoRegisto = () => {
               <ArrowLeft size={18} /> Voltar
             </button>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex w-full flex-wrap gap-3 sm:w-auto">
               <button
                 onClick={guardarRascunhoLocal}
                 className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
@@ -429,30 +409,14 @@ const FluxoRegisto = () => {
               {fase < 5 && (
                 <button
                   onClick={handleNext}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#006ce4] text-white rounded-lg font-semibold hover:bg-[#0053b3]"
+                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
                 >
                   Continuar <ChevronRight size={18} />
                 </button>
               )}
 
               {fase === 5 && (
-                <button
-                  onClick={handleFinalizar}
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader size={18} className="animate-spin" />
-                      A enviar...
-                    </>
-                  ) : (
-                    <>
-                      <Check size={18} />
-                      Finalizar Registo
-                    </>
-                  )}
-                </button>
+                <BotaoAcaoRegisto onClick={handleFinalizar} loading={isSubmitting} modo="analise" />
               )}
             </div>
           </div>
@@ -493,7 +457,7 @@ const FluxoRegisto = () => {
           </div>
         </div>
       )}
-    </div>
+    </RegistoVisual>
   );
 };
 

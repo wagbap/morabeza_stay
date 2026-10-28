@@ -1,7 +1,9 @@
 // AvaliacoesSeccaoAlojamento.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Star, User, Calendar, ThumbsUp, Flag, X, Loader2, CheckCircle } from 'lucide-react';
+
+import { requestApiJson } from '../../../services/apiJson';
 
 const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginModal, isEmbedded = false }) => {
   const { t } = useTranslation();
@@ -20,32 +22,39 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
     data_estadia: ''
   });
 
-  const fetchAvaliacoes = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`https://welovepalop.com/api/get_alojamento_avaliacoes.php?id=${alojamentoId}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setAvaliacoes(data.avaliacoes || []);
-        setMediaRating(Number(data.media_rating) || 0);
-        setTotalReviews(Number(data.total_reviews) || 0);
-      } else {
-        setError(data.message || t('erro_carregar_avaliacoes'));
-      }
-    } catch (err) {
-      console.error('Erro ao buscar avaliações:', err);
-      setError(t('erro_carregar_avaliacoes'));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [retryVersion, setRetryVersion] = useState(0);
+  const fetchAvaliacoes = useCallback(() => setRetryVersion(value => value + 1), []);
 
   useEffect(() => {
-    if (alojamentoId) {
-      fetchAvaliacoes();
+    const controller = new AbortController();
+    setError(null);
+    setAvaliacoes([]);
+    setMediaRating(0);
+    setTotalReviews(0);
+    if (!alojamentoId) {
+      setLoading(false);
+      return () => controller.abort();
     }
-  }, [alojamentoId]);
+    setLoading(true);
+    requestApiJson('/get_alojamento_avaliacoes.php', {
+      params: { id: alojamentoId },
+      signal: controller.signal,
+    }).then(data => {
+      if (controller.signal.aborted) return;
+      if (!data.success || !Array.isArray(data.avaliacoes)) {
+        throw new Error('Invalid reviews response');
+      }
+      setAvaliacoes(data.avaliacoes);
+      setMediaRating(Number(data.media_rating) || 0);
+      setTotalReviews(Number(data.total_reviews) || 0);
+      setError(null);
+    }).catch(() => {
+      if (!controller.signal.aborted) setError(true);
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => controller.abort();
+  }, [alojamentoId, retryVersion]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -148,8 +157,8 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-500 text-sm">{error}</p>
-        <button onClick={fetchAvaliacoes} className="mt-2 text-[#003580] text-sm underline">
+        <p className="text-red-500 text-sm">{t('erro_carregar_avaliacoes')}</p>
+        <button onClick={() => fetchAvaliacoes()} className="mt-2 text-[#003580] text-sm underline">
           {t('tentar_novamente')}
         </button>
       </div>

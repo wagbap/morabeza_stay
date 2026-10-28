@@ -7,6 +7,7 @@
 // ============================================================
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Users, Bed, Camera, Plus, Minus, X, ChevronLeft, ChevronRight, Check,
@@ -18,6 +19,7 @@ import {
   DoorOpen, Wine, Fan
 } from 'lucide-react';
 import { useFotosDoQuarto } from '../../../hooks/useFotosDoQuarto';
+import { ajustesDisponibilidade } from '../utils/sincronizarQuartos';
 import { useToast } from '../../../Toast';
 import comodidadesService from '../../../services/comodidadesQuartoService';
 
@@ -646,6 +648,28 @@ const SeccaoEscolhaQuarto = ({
     return mapa;
   }, [tiposQuartoEnriquecidos, datasBloqueadasPorQuarto, datasSelecionadas, datasBloqueadas]);
 
+  const ultimoAjusteRef = useRef('');
+  useEffect(() => {
+    if (!datasSelecionadas?.checkIn || !datasSelecionadas?.checkOut) return;
+    const ajustes = ajustesDisponibilidade(quantidades, stocksPorQuarto, quartosBloqueadosNoPeriodo);
+    if (!ajustes.length) {
+      ultimoAjusteRef.current = '';
+      return;
+    }
+    const assinatura = JSON.stringify([datasSelecionadas, quantidades, ajustes]);
+    if (ultimoAjusteRef.current === assinatura) return;
+    ultimoAjusteRef.current = assinatura;
+    if (onQuantidadeChange) {
+      ajustes.forEach(({ id, quantidade }) => onQuantidadeChange(id, quantidade));
+    } else {
+      setQuantidadesLocais(prev => ({
+        ...prev,
+        ...Object.fromEntries(ajustes.map(({ id, quantidade }) => [id, quantidade])),
+      }));
+    }
+    showToast(t('alojamento_selecao_ajustada', 'Room selection updated for availability on the chosen dates.'), 'info');
+  }, [datasSelecionadas, quantidades, stocksPorQuarto, quartosBloqueadosNoPeriodo, onQuantidadeChange, showToast, t]);
+
   // ============================================================
   // HANDLERS
   // ============================================================
@@ -706,6 +730,13 @@ const SeccaoEscolhaQuarto = ({
     return () => window.removeEventListener('keydown', keyHandler);
   }, [modalFotos.aberta, navegarFoto]);
 
+  useEffect(() => {
+    if (!modalFotos.aberta) return;
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = overflowAnterior; };
+  }, [modalFotos.aberta]);
+
   if (!tiposQuarto || tiposQuarto.length === 0) return null;
 
   return (
@@ -746,8 +777,8 @@ const SeccaoEscolhaQuarto = ({
         })}
       </div>
 
-      {modalFotos.aberta && modalFotos.fotos.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm">
+      {modalFotos.aberta && modalFotos.fotos.length > 0 && createPortal(
+        <div className="fixed inset-0 z-[300] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="relative max-w-4xl w-full">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-white text-sm font-bold">{modalFotos.titulo}</h3>
@@ -786,7 +817,8 @@ const SeccaoEscolhaQuarto = ({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

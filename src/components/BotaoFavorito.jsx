@@ -3,7 +3,7 @@ import React from 'react';
 import { Heart, Loader } from 'lucide-react';
 import { useFavoritos } from '../hooks/useFavoritos';
 
-const BotaoFavorito = ({ tipo, item, size = 18, className = '' }) => {
+const BotaoFavorito = ({ tipo, item, size = 18, className = '', variant = 'default', onFavoritoChange }) => {
   const { isFavorito, toggleFavorito, loading } = useFavoritos();
   
   const tipoCorreto = tipo === 'alojamentos' ? 'alojamento' : 
@@ -30,14 +30,15 @@ const BotaoFavorito = ({ tipo, item, size = 18, className = '' }) => {
   const handleClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    await toggleFavorito(tipoCorreto, itemParaFavorito);
+    const success = await toggleFavorito(tipoCorreto, itemParaFavorito);
+    if (success) await onFavoritoChange?.();
   };
 
   return (
     <button
       onClick={handleClick}
       disabled={loading}
-      className={`p-2 bg-white/95 backdrop-blur-sm rounded-full shadow-md z-20 hover:scale-110 transition-transform active:scale-95 disabled:opacity-50 ${className}`}
+      className={`p-2 rounded-full z-20 hover:scale-110 transition-transform active:scale-95 disabled:opacity-50 ${variant === 'overlay' ? 'bg-transparent text-white drop-shadow-md' : 'bg-white/95 backdrop-blur-sm shadow-md'} ${className}`}
       aria-label={favoritado ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
     >
       {loading ? (
@@ -49,7 +50,7 @@ const BotaoFavorito = ({ tipo, item, size = 18, className = '' }) => {
           className={`transition-colors ${
             favoritado 
               ? 'fill-red-500 text-red-500' 
-              : 'text-gray-900'
+              : variant === 'overlay' ? 'text-white' : 'text-gray-900'
           }`}
         />
       )}

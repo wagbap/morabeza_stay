@@ -16,10 +16,27 @@ import {
   TIPOS_ALOJAMENTO,
   mostraQuartos as mostrarQuartosPorTipo,
 } from '../../utils/tipoAlojamento';
+import { useTranslation } from 'react-i18next';
 import ConfiguracaoHorarios from './ConfiguracaoHorarios';
 
 const API_BASE = 'https://welovepalop.com';
 const UPLOAD_URL = `${API_BASE}/api/alojamento/upload_foto.php`;
+
+// Resolve stored paths and replace missing files with a stable thumbnail.
+const FotoQuartoEdicao = ({ src, alt, className }) => {
+  const { t } = useTranslation();
+  const [failed, setFailed] = useState(false);
+  const raw = typeof src === 'string' ? src.trim() : '';
+  const url = /^(https?:|blob:|data:image\/)/i.test(raw) ? raw
+    : raw ? `https://welovepalop.com/${raw.replace(/^\/+/, '')}` : '';
+  if (!url || failed) return (
+    <div role="img" aria-label={t('alojamento_foto_indisponivel', 'Photo unavailable')}
+      className={`${className} flex items-center justify-center bg-slate-100 text-slate-400`}>
+      <Camera size={20} />
+    </div>
+  );
+  return <img src={url} alt={alt} className={className} onError={() => setFailed(true)} />;
+};
 
 // ============================================================
 // MAPEAMENTO DE ÍCONES PARA COMODIDADES
@@ -760,7 +777,7 @@ const InformacoesBasicas = ({
                 type="button"
                 onClick={() => !readOnly && handleChange('tipo_propriedade', tipo.value)}
                 disabled={readOnly}
-                className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                className={`flex min-h-[68px] items-center gap-3 p-3 rounded-xl border transition-all ${
                   selecionado
                     ? 'border-[#006ce4] bg-blue-50 text-[#006ce4]'
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -775,7 +792,9 @@ const InformacoesBasicas = ({
                     <p className="text-xs text-gray-400 hidden md:block">{descricao}</p>
                   )}
                 </div>
-                {selecionado && <Check size={16} className="ml-auto" />}
+                <span className={`ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${selecionado ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300'}`}>
+                  {selecionado && <span className="h-2 w-2 rounded-full bg-white" />}
+                </span>
               </button>
             );
           })}
@@ -942,7 +961,8 @@ const InformacoesBasicas = ({
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
                             {imagemPrincipalCard ? (
-                              <img
+                              <FotoQuartoEdicao
+                                key={imagemPrincipalCard}
                                 src={imagemPrincipalCard}
                                 alt={quarto.tipo_nome}
                                 className="w-14 h-14 object-cover rounded-lg"
@@ -1058,13 +1078,11 @@ const InformacoesBasicas = ({
                                 key={fIdx}
                                 className="relative w-16 h-12 rounded-md overflow-hidden border border-gray-200 shrink-0 group"
                               >
-                                <img
+                                <FotoQuartoEdicao
+                                  key={fUrl}
                                   src={fUrl}
-                                  alt="Miniatura"
+                                  alt={quarto.tipo_nome}
                                   className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.target.style.opacity = '0.3';
-                                  }}
                                 />
                                 <button
                                   type="button"

@@ -1,8 +1,11 @@
+import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
+import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/CarroRegisto/EditarCarro.jsx
 // CORRIGIDO - Localização funcionando corretamente + Toast padrão do projeto
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Check, ChevronRight, HelpCircle, User, Loader } from 'lucide-react';
 import InformacoesBasicas from './InformacoesBasicas';
 import Especificacoes from './Especificacoes';
@@ -14,6 +17,7 @@ import { useToast } from '../../Toast';
 
 const EditarCarro = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { id } = useParams();
   const { showToast } = useToast();
 
@@ -149,27 +153,7 @@ const EditarCarro = () => {
     }
   };
 
-  const renderProgressBar = () => {
-    const fasesLista = ['Info', 'Especificações', 'Localização', 'Características', 'Fotos'];
-    return (
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          {fasesLista.map((nome, index) => (
-            <div key={index} className="flex-1 text-center">
-              <div className={`text-xs font-medium ${fase > index + 1 ? 'text-[#006ce4]' : fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>
-                {nome}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {fasesLista.map((_, index) => (
-            <div key={index} className={`h-1 flex-1 rounded-full ${fase > index + 1 ? 'bg-[#006ce4]' : fase === index + 1 ? 'bg-[#006ce4]' : 'bg-gray-200'}`} />
-          ))}
-        </div>
-      </div>
-    );
-  };
+  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onBack={handleBack} onNext={handleNext} />;
 
   if (loading) {
     return (
@@ -181,7 +165,7 @@ const EditarCarro = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <RegistoVisual>
       <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
         <div className="font-bold text-2xl tracking-tight"></div>
         <div className="flex items-center gap-6 text-sm">
@@ -203,15 +187,24 @@ const EditarCarro = () => {
 
         </div>
       </header>
+      <div className="mx-auto flex w-full max-w-4xl px-4 pt-4 sm:justify-end">
+        <Link
+          to="/gest/unidades-veiculos"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-11 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-3 text-center text-sm font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-auto"
+        >
+          {t('registo_atalho_unidades')}
+        </Link>
+      </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         {renderProgressBar()}
 
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
           {fase === 1 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Informações</h1>
-              <p className="text-gray-600 mb-6">Atualize os dados do veículo.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={true} />
               <InformacoesBasicas
                 dados={informacoes}
                 onChange={setInformacoes}
@@ -222,8 +215,7 @@ const EditarCarro = () => {
 
           {fase === 2 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Especificações</h1>
-              <p className="text-gray-600 mb-6">Atualize os detalhes técnicos.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={true} />
               <Especificacoes
                 dados={especificacoes}
                 onChange={setEspecificacoes}
@@ -234,8 +226,7 @@ const EditarCarro = () => {
 
           {fase === 3 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Localização</h1>
-              <p className="text-gray-600 mb-6">Atualize onde o veículo está disponível.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={true} />
               <Localizacao
                 dados={localizacao}
                 onChange={setLocalizacao}
@@ -247,8 +238,7 @@ const EditarCarro = () => {
 
           {fase === 4 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Características</h1>
-              <p className="text-gray-600 mb-6">Atualize os equipamentos do veículo.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={true} />
               <Caracteristicas
                 items={caracteristicas}
                 onChange={setCaracteristicas}
@@ -259,8 +249,7 @@ const EditarCarro = () => {
 
           {fase === 5 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar Fotos</h1>
-              <p className="text-gray-600 mb-6">Atualize as fotos do veículo.</p>
+              <TituloRegisto dominio="carro" fase={fase} editar={true} />
               <ImagensUpload
                 imagens={imagens}
                 onChange={setImagens}
@@ -270,7 +259,7 @@ const EditarCarro = () => {
             </>
           )}
 
-          <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+          <div className="flex flex-col gap-4 mt-8 pt-6 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={handleBack}
               className="flex items-center gap-2 px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
@@ -281,29 +270,19 @@ const EditarCarro = () => {
             {fase < 5 && (
               <button
                 onClick={handleNext}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#006ce4] text-white rounded-lg font-semibold hover:bg-[#0053b3]"
+                className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
               >
                 Continuar <ChevronRight size={18} />
               </button>
             )}
 
             {fase === 5 && (
-              <button
-                onClick={handleFinalizar}
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <><Loader size={18} className="animate-spin" /> Salvando...</>
-                ) : (
-                  <><Check size={18} /> Salvar Alterações</>
-                )}
-              </button>
+              <BotaoAcaoRegisto onClick={handleFinalizar} loading={isSubmitting} modo="guardar" />
             )}
           </div>
         </div>
       </div>
-    </div>
+    </RegistoVisual>
   );
 };
 

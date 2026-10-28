@@ -1,3 +1,4 @@
+import { requestApiJson } from '../services/apiJson';
 // src/hooks/useFotosDoQuarto.js
 import { useState, useEffect } from 'react';
 
@@ -21,26 +22,11 @@ const normalizarUrl = (url) => {
 // ============================================================
 // SEM CACHE — SEMPRE FRESCO DA API
 // ============================================================
-const buscarImagensNaAPI = async (alojamentoId) => {
+const carregarImagensNaAPI = async (alojamentoId) => {
   try {
-    let urlFinal = `${ENDPOINT}?t=${Date.now()}`;
-    if (alojamentoId) urlFinal += `&alojamento_id=${alojamentoId}`;
-
-    console.log('📡 [useFotosDoQuarto] A chamar:', urlFinal);
-
-    const res = await fetch(urlFinal, { cache: 'no-store' });
-    const textData = await res.text();
-    let data = null;
-
-    try {
-      data = JSON.parse(textData);
-    } catch (e) {
-      const match = textData.match(/\{[\s\S]*\}/);
-      if (match) {
-        try { data = JSON.parse(match[0]); }
-        catch (err) { console.error('❌ JSON inválido:', err); }
-      }
-    }
+    const data = await requestApiJson(ENDPOINT, {
+      params: alojamentoId ? { alojamento_id: alojamentoId } : {},
+    });
 
     if (!data || !data.success) {
       return { grouped: {}, lista: [] };
@@ -63,6 +49,19 @@ const buscarImagensNaAPI = async (alojamentoId) => {
     console.error('❌ [useFotosDoQuarto] Erro:', err);
     return { grouped: {}, lista: [] };
   }
+};
+
+// Share only pending requests: every room uses the same accommodation response.
+// Removing the entry after completion keeps later visits fresh.
+const pedidosPendentes = new Map();
+const buscarImagensNaAPI = (alojamentoId) => {
+  const key = String(alojamentoId || 'todos');
+  if (!pedidosPendentes.has(key)) {
+    const pedido = carregarImagensNaAPI(alojamentoId)
+      .finally(() => pedidosPendentes.delete(key));
+    pedidosPendentes.set(key, pedido);
+  }
+  return pedidosPendentes.get(key);
 };
 
 // ============================================================

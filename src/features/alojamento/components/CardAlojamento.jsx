@@ -1,184 +1,88 @@
-// src/features/alojamento/components/CardAlojamento.jsx
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Star, ArrowRight } from 'lucide-react';
+import { MapPin, Star, House, Building2, Users, BedDouble, Bath, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import BotaoFavorito from '../../../components/BotaoFavorito';
+import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
+import { obterCasasBanho } from '../utils/casasBanho';
 
-const BASE_URL_IMAGENS = "https://welovepalop.com/api/uploads/";
-const PLACEHOLDER = "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=400";
+const imageUrl = value => {
+  const url = typeof value === 'string' ? value : value?.caminho_url || value?.url || value?.imagem_url;
+  if (!url) return null;
+  if (/^https?:\/\//.test(url)) return url;
+  return `https://welovepalop.com${url.startsWith('/') ? '' : '/api/uploads/'}${url}`;
+};
 
-const CardAlojamento = ({
-  id,
-  slug,
-  imagem_url,
-  titulo,
-  localizacao,
-  descricao,
-  preco_noite,
-  preco_mostrar,
-  preco_rotulo,
-  tipo,
-  tipo_propriedade,
-  estrelas,
-  comodidades,
-  imagens_extra,
-  total_avaliacoes,
-  isList
-}) => {
+const CardAlojamento = (props) => {
+  const { id, slug, titulo, localizacao, tipo_propriedade, tipo, estrelas, total_avaliacoes,
+    preco_mostrar, preco_noite, preco_rotulo, imagem_url, imagens_extra, isList } = props;
   const { t } = useTranslation();
-
-  // 🔑 LER OS PARÂMETROS DA PESQUISA ATUAL
   const location = useLocation();
-  const query = location.search || ''; // já vem com "?" no início
-
-  const imagemCompleta = imagem_url
-    ? (imagem_url.startsWith('http') ? imagem_url : `${BASE_URL_IMAGENS}${imagem_url}`)
-    : PLACEHOLDER;
-
-  // 🔑 CONCATENAR OS PARAMS DA PESQUISA AO LINK
-  const baseLink = slug ? `/alojamentos/${slug}` : `/alojamentos/${id}`;
-  const linkTo = `${baseLink}${query}`;
-
-  const itemFavorito = {
-    id,
-    titulo,
-    localizacao,
-    imagem_url: imagemCompleta,
-    preco_noite,
-    estrelas,
-    slug,
-    tipo: 'alojamento'
+  const [slide, setSlide] = useState(0);
+  const [shareStatus, setShareStatus] = useState(null);
+  const price = Number(preco_mostrar ?? preco_noite ?? 0);
+  const eur = (price / 110.265).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const photos = [...new Set([imagem_url, ...(Array.isArray(imagens_extra) ? imagens_extra : [])].map(imageUrl).filter(Boolean))];
+  const active = slide % Math.max(1, photos.length);
+  const type = tipo_propriedade || tipo || t('alojamento', 'Alojamento');
+  const rating = Number(estrelas) || 0;
+  const link = `/alojamentos/${encodeURIComponent(String(slug || id).trim())}${location.search}`;
+  const share = async () => {
+    const url = new URL(link, window.location.origin).href;
+    try {
+      if (navigator.share) await navigator.share({ title: titulo, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setShareStatus('alojamento_card_copiado');
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') setShareStatus('alojamento_card_partilha_erro');
+    }
   };
-
-  // 🔑 Tipo a mostrar: prioriza tipo_propriedade sobre tipo (enum antigo)
-  const tipoFinal =
-    (typeof tipo_propriedade === 'string' && tipo_propriedade.trim()) ||
-    (typeof tipo === 'string' && tipo.trim()) ||
-    t('alojamento');
-
-  // 🔑 Preço a mostrar: usa preco_mostrar (calculado pela API) com fallback em preco_noite
-  const precoFinal = Number(preco_mostrar ?? preco_noite ?? 0);
-  const precoFormatado = precoFinal.toLocaleString('pt-PT');
-  const mostrarAPartirDe = preco_rotulo === 'a_partir_de';
-
-  const estrelasFormatadas = Number(estrelas || 4.8).toFixed(1);
+  const countLabel = (value, singular, plural) => value == null || typeof value === 'object'
+    ? '\u2014' : `${value} ${t(Number(value) === 1 ? singular : plural)}`;
+  const facts = [
+    { icon: /apart/i.test(type) ? Building2 : House, text: type },
+    { icon: Users, text: countLabel(props.capacidade_efetiva ?? props.capacidade, 'hospede', 'hospedes') },
+    { icon: BedDouble, text: countLabel(props.numero_quartos ?? props.quartos, 'quarto', 'quartos') },
+    { icon: Bath, text: countLabel(obterCasasBanho(props.casas_banho, props.comodidades), 'alojamento_card_banho', 'alojamento_card_banhos') },
+  ];
+  const item = { ...props, imagem_url: photos[0], tipo: 'alojamento' };
 
   return (
-    <div
-      className={`relative group bg-white border border-gray-100 overflow-hidden transition-shadow duration-200 hover:shadow-lg [content-visibility:auto] [contain-intrinsic-size:380px] ${
-        isList
-          ? "flex flex-col md:flex-row rounded-[40px] p-4 gap-6 w-full"
-          : "flex flex-col h-full w-full rounded-2xl"
-      }`}
-    >
-      <div
-        className={`relative overflow-hidden shrink-0 bg-gray-100 ${
-          isList
-            ? "w-full md:w-[320px] lg:w-[360px] h-56 md:h-64 rounded-[32px]"
-            : "aspect-[4/3] w-full rounded-t-2xl"
-        }`}
-      >
-        <img
-          src={imagemCompleta}
-          alt={titulo}
-          className="absolute inset-0 w-full h-full object-cover transform-gpu transition-transform duration-300 ease-out will-change-transform group-hover:scale-[1.03]"
-          loading="lazy"
-          decoding="async"
-          fetchpriority="low"
-        />
-
-        <div className="absolute bottom-3 left-3 bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-md z-10">
-          {tipoFinal}
-        </div>
-
-        <BotaoFavorito
-          tipo="alojamentos"
-          item={itemFavorito}
-          size={18}
-          className="absolute top-3 right-3 z-10"
-        />
+    <article className={`relative isolate overflow-hidden rounded-[14px] border border-slate-200 bg-white transition-shadow hover:shadow-lg ${isList ? 'flex flex-col md:flex-row' : 'flex h-full flex-col'}`}>
+      <div className={`relative h-[240px] shrink-0 overflow-hidden rounded-t-[13px] bg-[#b5b5b5] ${isList ? 'w-full md:w-[38%] md:rounded-l-[14px] md:rounded-tr-none' : 'w-full'}`}>
+        <img key={photos[active] || 'empty'} src={photos[active] || IMAGEM_INDISPONIVEL} alt={titulo} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center" onError={substituirImagemIndisponivel} />
+        <span className="absolute left-2.5 top-2.5 rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">{type}</span>
+        <button type="button" onClick={share} aria-label={t('alojamento_card_partilhar')} className="absolute right-14 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-600 shadow-sm hover:bg-white"><Share2 size={22} /></button>
+        <BotaoFavorito onFavoritoChange={props.onFavoritoChange} tipo="alojamentos" item={item} size={25} className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center" />
+        {photos.length > 1 && <>
+          <button type="button" onClick={() => setSlide((active + photos.length - 1) % photos.length)} aria-label={t('alojamento_card_anterior', 'Previous photo')} className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white p-1.5 text-blue-600 hover:bg-white"><ChevronLeft size={22} /></button>
+          <button type="button" onClick={() => setSlide((active + 1) % photos.length)} aria-label={t('alojamento_card_seguinte', 'Next photo')} className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white p-1.5 text-blue-600 hover:bg-white"><ChevronRight size={22} /></button>
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center gap-1.5">
+            {photos.map((photo, index) => <span key={photo} className={`h-2 w-2 rounded-full ${active === index ? 'bg-white' : 'bg-white/50'}`} />)}
+          </div>
+        </>}
       </div>
-
-      <div className={`flex flex-col flex-1 text-left ${isList ? 'py-4 pr-4 justify-between' : 'p-4'}`}>
-
-        <div>
-          <div className="flex items-center gap-1.5 text-[#1a2b6d] mb-1.5">
-            <MapPin size={14} className="text-blue-500" />
-            <span className="text-[11px] font-bold opacity-80 tracking-tight truncate">
-              {localizacao}
-            </span>
-          </div>
-
-          <h3 className="text-lg font-bold text-[#1a2b6d] mb-3 leading-tight line-clamp-2 transition-colors duration-150 group-hover:text-blue-600">
-            {titulo}
-          </h3>
-
-          {isList && (
-            <p className="text-gray-400 text-sm font-medium mb-4 line-clamp-2 leading-relaxed">
-              {descricao || t('descricao_padrao_alojamento', { tipo: tipoFinal, localizacao })}
-            </p>
-          )}
-
-          {comodidades && comodidades.length > 0 && !isList && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {comodidades.slice(0, 3).map((comodidade, index) => (
-                <span key={index} className="text-[9px] text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
-                  {comodidade.nome}
-                </span>
-              ))}
-              {comodidades.length > 3 && (
-                <span className="text-[9px] text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
-                  +{comodidades.length - 3}
-                </span>
-              )}
-            </div>
-          )}
+      <div className="flex h-[220px] min-w-0 shrink-0 flex-col px-3 pb-3 pt-2.5 md:flex-1">
+        <h3 className="truncate text-base font-bold leading-tight tracking-tight text-[#080e3b]">{titulo}</h3>
+        <div className="mt-1.5 flex items-center gap-1 text-xs text-[#64739e]"><span className="text-blue-600"><MapPin size={14} className="shrink-0" /></span><span className="truncate">{localizacao || props.ilha}</span></div>
+        <div className="mb-3 mt-3.5 grid min-h-[50px] grid-cols-4 gap-1 text-[#64739e]">
+          {facts.map(({ icon: Icon, text }, index) => <div key={index} className="flex min-w-0 flex-col items-center gap-1.5 text-center"><span className="text-gray-400">{React.createElement(Icon, { size: 21, strokeWidth: 2 })}</span><span className="line-clamp-2 h-[26px] text-[10px] leading-[13px]">{text}</span></div>)}
         </div>
-
-        <div className={`flex items-center justify-between ${!isList ? 'mt-auto border-t border-gray-50 pt-3' : ''}`}>
-
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-lg w-fit">
-              <Star size={14} className="fill-orange-400 text-orange-400" />
-              <span className="text-xs font-black text-gray-800">
-                {estrelasFormatadas}
-              </span>
-              <span className="text-[10px] text-gray-400 font-bold">
-                ({total_avaliacoes || 0})
-              </span>
-            </div>
-            <div className="flex flex-col">
-              {mostrarAPartirDe && (
-                <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">
-                  {t('a_partir_de') || 'A partir de'}
-                </span>
-              )}
-              <div className="flex items-baseline gap-1">
-                <span className={`${isList ? 'text-2xl' : 'text-xl'} font-black text-[#1a2b6d]`}>
-                  {precoFormatado}
-                </span>
-                <span className="text-[10px] font-black text-gray-500 uppercase">{t('cve')}</span>
-                <span className="text-xs font-semibold text-gray-400">{t('por_noite_curto')}</span>
-              </div>
-            </div>
+        <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
+          <div className="flex items-center gap-1 text-xs text-slate-600"><span className="text-amber-400 [&_svg]:fill-current"><Star size={16} strokeWidth={0} /></span>{Number(total_avaliacoes) > 0 ? <><span className="font-semibold">{rating.toFixed(1)}</span><span className="text-slate-500">({Number(total_avaliacoes)})</span></> : <span className="text-xs text-[#64739e]">{t('alojamento_card_sem_avaliacoes')}</span>}</div>
+          <div className="text-right leading-tight">
+            {preco_rotulo === 'a_partir_de' && <p className="text-xs text-[#64739e]">{t('a_partir_de', 'A partir de')}</p>}
+            <p className="text-[22px] font-semibold tracking-tight text-[#080e3b]">{price.toLocaleString('pt-PT')}<span className="ml-1 text-xs font-medium">CVE</span></p>
+            <p className="mt-0.5 text-[10px] text-[#64739e]">&asymp; {eur} EUR{Number(props.preco_usd) > 0 ? ` \u00b7 ${Number(props.preco_usd).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD` : ''}</p>
+            <p className="text-sm text-[#64739e]">/ {t('noite', 'noite')}</p>
           </div>
-
-          {isList && (
-            <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md">
-              {t('ver_detalhes')} <ArrowRight size={14} />
-            </div>
-          )}
         </div>
       </div>
-
-      {/* 🔑 LINK COM OS PARAMS DA PESQUISA */}
-      <Link
-        to={linkTo}
-        className="absolute inset-0 z-0"
-        aria-label={`${t('ver_detalhes_de')} ${titulo}`}
-      />
-    </div>
+      {shareStatus && <p role="status" className="absolute inset-x-3 top-14 z-20 rounded-lg bg-white/95 px-3 py-2 text-xs text-blue-700 shadow-sm">{t(shareStatus)}</p>}
+      <Link to={link} className="absolute inset-0 z-10 rounded-[14px] focus-visible:outline-2 focus-visible:outline-blue-600" aria-label={`${t('ver_detalhes_de')} ${titulo}`} />
+    </article>
   );
 };
 

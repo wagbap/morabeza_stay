@@ -1,3 +1,5 @@
+import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
+import { requestApiJson } from '../../../services/apiJson';
 // src/features/alojamento/components/InfoAlojamento.jsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -89,6 +91,8 @@ const obterIdCanonicoQuarto = (tipo) => {
 // ============================================================
 // HELPER: string ISO -> Date local
 // ============================================================
+const toISODateLocal = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
 const fromISODate = (str) => {
   if (!str) return null;
   const [y, m, d] = String(str).split('-').map(Number);
@@ -124,10 +128,9 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
         <ChevronRight size={24} />
       </button>
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">
-        {currentIndex + 1} / {images.length}
+        {Math.min(currentIndex + 1, Math.max(1, images.length))} / {Math.max(1, images.length)}
       </div>
-      <img
-        src={images[currentIndex]}
+      <img onError={substituirImagemIndisponivel} src={images[currentIndex] || IMAGEM_INDISPONIVEL}
         alt={`Imagem ${currentIndex + 1}`}
         className="max-w-[90vw] max-h-[90vh] object-contain cursor-pointer"
         onClick={handleModalClick}
@@ -577,6 +580,7 @@ const SidebarReserva = ({
   datasIniciais = null,
   quartoSelecionado = null,
   precoBase = 0,
+  pedidoCalendarioMobile = 0,
 }) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -588,6 +592,19 @@ const SidebarReserva = ({
   const [validandoStock, setValidandoStock] = useState(false);
 
   const ultimoEnviadoRef = useRef({ checkIn: null, checkOut: null });
+  const datasRef = useRef(null);
+
+  useEffect(() => {
+    if (!pedidoCalendarioMobile || !window.matchMedia('(max-width: 1023px)').matches) return;
+    setShowCalendar(true);
+    const frame = requestAnimationFrame(() => {
+      datasRef.current?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        block: 'start',
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pedidoCalendarioMobile]);
 
   const temQuartoEscolhido = vendaPorQuarto
     ? carrinhoQuartos.length > 0
@@ -626,8 +643,8 @@ const SidebarReserva = ({
   useEffect(() => {
     if (!onDatasChange) return;
 
-    const novoCheckIn  = startDate ? startDate.toISOString().split('T')[0] : null;
-    const novoCheckOut = endDate   ? endDate.toISOString().split('T')[0]   : null;
+    const novoCheckIn  = startDate ? toISODateLocal(startDate) : null;
+    const novoCheckOut = endDate   ? toISODateLocal(endDate)   : null;
 
     if (
       ultimoEnviadoRef.current.checkIn === novoCheckIn &&
@@ -699,7 +716,7 @@ const SidebarReserva = ({
           </div>
         </div>
 
-        <div className="border border-slate-300 rounded-xl mb-4 overflow-visible relative">
+        <div ref={datasRef} className="border border-slate-300 rounded-xl mb-4 overflow-visible relative scroll-mt-24">
           <div
             className="flex border-b border-slate-300 cursor-pointer hover:bg-slate-50 transition-all rounded-t-xl"
             onClick={() => setShowCalendar(!showCalendar)}
@@ -903,7 +920,7 @@ const AmenitiesBar = ({ infoBasica, comodidades }) => {
 // ============================================================
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   const { t } = useTranslation();
-  const placeholder = "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop";
+  const placeholder = IMAGEM_INDISPONIVEL;
   const img1 = images[0] || placeholder;
   const img2 = images[1] || placeholder;
   const img3 = images[2] || placeholder;
@@ -915,7 +932,7 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
         className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm"
         onClick={() => { onImageChange(0); onOpenModal(); }}
       >
-        <img src={img1} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} />
+        <img onError={substituirImagemIndisponivel} src={img1} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} />
         <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">
           1 / {images.length || 1}
         </div>
@@ -923,15 +940,15 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
 
       <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
         <div className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => { onImageChange(1); onOpenModal(); }}>
-          <img src={img2} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Imagem 2`} />
+          <img onError={substituirImagemIndisponivel} src={img2} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Imagem 2`} />
         </div>
 
         <div className="h-1/2 flex gap-2.5">
           <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => { onImageChange(2); onOpenModal(); }}>
-            <img src={img3} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Imagem 3`} />
+            <img onError={substituirImagemIndisponivel} src={img3} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Imagem 3`} />
           </div>
           <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => { onImageChange(3); onOpenModal(); }}>
-            <img src={img4} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Imagem 4`} />
+            <img onError={substituirImagemIndisponivel} src={img4} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Imagem 4`} />
             <div
               onClick={(e) => { e.stopPropagation(); onImageChange(0); onOpenModal(); }}
               className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
@@ -1028,12 +1045,14 @@ export const InfoAlojamento = () => {
   const [alojamento, setAlojamento] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [tentativaCarregamento, setTentativaCarregamento] = useState(0);
   const [images, setImages] = useState([]);
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [tiposQuarto, setTiposQuarto] = useState([]);
 
   const [quantidades, setQuantidades] = useState({});
   const [quartoSelecionado, setQuartoSelecionado] = useState(null);
+  const [pedidoCalendarioMobile, setPedidoCalendarioMobile] = useState(0);
   const [carrinhoDatas, setCarrinhoDatas] = useState({ checkIn: null, checkOut: null });
   const [stocksPorTipo, setStocksPorTipo] = useState({});
 
@@ -1084,15 +1103,22 @@ export const InfoAlojamento = () => {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchAlojamento = async () => {
       if (!slug) {
-        setError(t('slug_nao_fornecido') || 'Slug do alojamento não fornecido');
+        setError('slug_nao_fornecido');
         setLoading(false);
         return;
       }
 
       setLoading(true);
       setError(null);
+      setAlojamento(null);
+      setTiposQuarto([]);
+      setImages([]);
+      setQuantidades({});
+      setQuartoSelecionado(null);
+      setStocksPorTipo({});
 
       const resolverUrlImagem = (url) => {
         if (!url || typeof url !== 'string') return null;
@@ -1104,11 +1130,14 @@ export const InfoAlojamento = () => {
       };
 
       try {
-        const response = await fetch(`${API_BASE}/api/get_alojamento_detalhes.php?slug=${slug}&t=${Date.now()}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        const data = await requestApiJson('/get_alojamento_detalhes.php', {
+          params: { slug },
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (!data || data.error || data.success === false || !data.id || !data.titulo) {
+          throw new Error('Invalid accommodation response');
+        }
 
         setAlojamento(data);
 
@@ -1131,20 +1160,23 @@ export const InfoAlojamento = () => {
         }
 
         if (fotosUrls.length === 0) {
-          fotosUrls.push("https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=1200&h=800&fit=crop");
+          fotosUrls.push(IMAGEM_INDISPONIVEL);
         }
 
         setImages(fotosUrls);
       } catch (err) {
-        console.error('Erro ao buscar alojamento:', err);
-        setError(err.message || (t('erro_carregar') || 'Erro ao carregar dados do alojamento'));
+        if (!controller.signal.aborted) {
+          console.error('Erro ao buscar alojamento:', { status: err.response?.status || null });
+          setError('erro_carregar');
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
-    fetchAlojamento();
-  }, [slug, t]);
+    void fetchAlojamento();
+    return () => controller.abort();
+  }, [slug, tentativaCarregamento]);
 
   // ============================================================
   // FETCH STOCKS
@@ -1155,12 +1187,13 @@ export const InfoAlojamento = () => {
     if (!alojamento?.id) return;
 
     let cancelado = false;
+    setStocksPorTipo({});
     const fetchStocks = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/verificar_stock_multi.php`, {
+        const data = await requestApiJson('/verificar_stock_multi.php', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          retries: 2, // Read-only stock lookup, safe to repeat.
+          data: {
             alojamento_id: alojamento.id,
             quartos: tiposQuarto.map(tq => ({
               tipo_quarto_id: tq.tipo_quarto_id || tq.id,
@@ -1168,9 +1201,9 @@ export const InfoAlojamento = () => {
             })),
             checkin: carrinhoDatas.checkIn,
             checkout: carrinhoDatas.checkOut,
-          }),
+          },
         });
-        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Stock unavailable');
         if (cancelado) return;
 
         const mapa = {};
@@ -1255,9 +1288,15 @@ export const InfoAlojamento = () => {
 
   const handleQuantidadeChange = useCallback((tipoId, novaQtd) => {
     setQuantidades(prev => ({ ...prev, [tipoId]: novaQtd }));
+    if (novaQtd === 0) {
+      setQuartoSelecionado(prev => String(prev) === String(tipoId) ? null : prev);
+    }
   }, []);
 
   const handleSelecaoQuarto = useCallback((idQuarto, titulo, novoPreco) => {
+    if (!(quantidades[idQuarto] > 0) && window.matchMedia('(max-width: 1023px)').matches) {
+      setPedidoCalendarioMobile(value => value + 1);
+    }
     setQuantidades(prev => {
       const atual = prev[idQuarto] || 0;
       if (atual > 0) {
@@ -1266,7 +1305,7 @@ export const InfoAlojamento = () => {
       return { ...prev, [idQuarto]: 1 };
     });
     setQuartoSelecionado(prev => (prev === idQuarto ? null : idQuarto));
-  }, []);
+  }, [quantidades]);
 
   const handleRemoverQuarto = useCallback((tipoId) => {
     if (tipoId === null || tipoId === undefined) return;
@@ -1301,8 +1340,8 @@ export const InfoAlojamento = () => {
     registrarCliqueReserva();
     if (!alojamento) return;
 
-    const checkInStr  = reservaInfo.startDate.toISOString().split('T')[0];
-    const checkOutStr = reservaInfo.endDate.toISOString().split('T')[0];
+    const checkInStr  = toISODateLocal(reservaInfo.startDate);
+    const checkOutStr = toISODateLocal(reservaInfo.endDate);
 
     try {
       const payload = {
@@ -1319,13 +1358,11 @@ export const InfoAlojamento = () => {
         }));
       }
 
-      const res = await fetch(`${API_BASE}/api/verificar_stock_multi.php`, {
+      const data = await requestApiJson('/verificar_stock_multi.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        retries: 2,
+        data: payload,
       });
-
-      const data = await res.json();
 
       if (!data.success) {
         showToast(data.error || 'Erro ao verificar disponibilidade.', 'error');
@@ -1394,7 +1431,14 @@ export const InfoAlojamento = () => {
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">⚠️</div>
           <h2 className="text-xl font-bold text-slate-800 mb-2">{t('erro_carregar_titulo') || 'Erro ao carregar'}</h2>
-          <p className="text-slate-600 mb-4">{error || (t('alojamento_nao_encontrado') || 'Alojamento não encontrado')}</p>
+          <p className="text-slate-600 mb-4">{t(error || 'alojamento_nao_encontrado', t('erro_carregar', 'Erro ao carregar'))}</p>
+          <button
+            type="button"
+            onClick={() => setTentativaCarregamento(value => value + 1)}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 mr-3"
+          >
+            {t('tentar_novamente', 'Tentar novamente')}
+          </button>
           <button onClick={() => navigate(-1)} className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition">
             {t('voltar') || 'Voltar'}
           </button>
@@ -1410,8 +1454,8 @@ export const InfoAlojamento = () => {
           images={images}
           currentIndex={currentImageIndex}
           onClose={() => setIsModalOpen(false)}
-          onPrev={() => setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
-          onNext={() => setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
+          onPrev={() => setCurrentImageIndex((prev) => ((prev - 1 + Math.max(1, images.length)) % Math.max(1, images.length)))}
+          onNext={() => setCurrentImageIndex((prev) => ((prev + 1) % Math.max(1, images.length)))}
         />
       )}
 
@@ -1454,6 +1498,7 @@ export const InfoAlojamento = () => {
                 datasIniciais={datasIniciais}
                 quartoSelecionado={quartoSelecionado}
                 precoBase={precoBase}
+                pedidoCalendarioMobile={pedidoCalendarioMobile}
               />
             </div>
           </div>

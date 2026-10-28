@@ -2,7 +2,22 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Image, Star, Trash2, Move, AlertCircle, Check, Plus, Loader } from 'lucide-react';
 
+import { useTranslation } from 'react-i18next';
+
 const API_URL = 'https://welovepalop.com';
+
+const MiniaturaUpload = ({ src, nome }) => {
+  const { t } = useTranslation();
+  const [falhou, setFalhou] = useState(false);
+  if (!src || falhou) return (
+    <div className="flex h-40 w-full flex-col items-center justify-center gap-2 bg-slate-100 text-slate-400">
+      <Image size={28} />
+      <span className="text-xs">{t('alojamento_foto_indisponivel', 'Photo unavailable')}</span>
+    </div>
+  );
+  return <img src={src} alt={nome || t('alojamento_foto_indisponivel', 'Photo unavailable')}
+    className="w-full h-40 object-cover" onError={() => setFalhou(true)} />;
+};
 
 const ImagensUpload = ({ 
   fotos = [], 
@@ -343,10 +358,10 @@ const ImagensUpload = ({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {fotos.map((foto, index) => {
               // Construir URL completa da imagem
-              const imageUrl = foto.url?.startsWith('http') || foto.url?.startsWith('data:') 
-                ? foto.url 
-                : `${API_URL}${foto.url}`
-              
+              const raw = String(foto.url || foto.caminho_url || foto.imagem_url || '').trim();
+              const imageUrl = /^(https?:|blob:|data:image\/)/i.test(raw) ? raw
+                : raw ? `${API_URL}/${raw.replace(/^\/+/, '')}` : '';
+
               return (
                 <div
                   key={foto.id}
@@ -366,15 +381,7 @@ const ImagensUpload = ({
                     </div>
                   )}
                   
-                  <img
-                    src={imageUrl}
-                    alt={foto.nome}
-                    className="w-full h-40 object-cover"
-                    onError={(e) => {
-                      console.error('Erro ao carregar imagem:', imageUrl);
-                      e.target.src = 'https://via.placeholder.com/400x300?text=Erro+ao+carregar';
-                    }}
-                  />
+                  <MiniaturaUpload key={imageUrl} src={imageUrl} nome={foto.nome} />
                   
                   <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     {!readOnly && !uploading && fotoPrincipalId !== foto.id && (

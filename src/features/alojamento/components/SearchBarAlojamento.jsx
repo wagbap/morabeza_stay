@@ -365,6 +365,8 @@ const SearchBar = ({ onSearch, className = '' }) => {
                     locale="pt"
                     monthsShown={1}
                   />
+
+                  
                 <div className="p-2 border-t border-slate-100 flex items-center justify-between">
                   <button
                     type="button"

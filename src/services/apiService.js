@@ -1,3 +1,4 @@
+import { requestApiJson } from './apiJson';
 // src/services/apiService.js
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://welovepalop.com/api';
@@ -55,45 +56,24 @@ async function apiRequest(endpoint, method, data = null) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const options = {
-        method: method,
-        mode: 'cors',
-        headers: headers,
-    };
-
-    if (data && (method === 'POST' || method === 'PUT')) {
-        options.body = JSON.stringify(data);
-    }
-
-    try {
-        const url = `${API_BASE_URL}${endpoint}`;
-        console.log(`📡 API ${method}: ${url}`);
-
-        const response = await fetch(url, options);
-        const contentType = response.headers.get('content-type');
-
-        if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.message || 'Erro na requisição');
-            }
-            return result;
-        } else {
-            const text = await response.text();
-            throw new Error(`Resposta da API não é JSON: ${text.substring(0, 100)}...`);
-        }
-    } catch (error) {
-        console.error('❌ API Error:', error);
-        throw error;
-    }
+    return requestApiJson(endpoint, {
+        baseURL: API_BASE_URL,
+        method,
+        headers,
+        ...(data != null && ['POST', 'PUT'].includes(method) ? { data } : {}),
+    });
 }
 
 // ==================== QUARTOS ====================
 
-export async function buscarTiposQuarto() {
+let pedidoTiposQuarto = null;
+
+async function carregarTiposQuarto() {
     try {
-        const response = await fetch(`${API_BASE_URL}/alojamento/quartos.php?tipos=1`);
-        const data = await response.json();
+        const data = await requestApiJson('/alojamento/quartos.php', {
+            baseURL: API_BASE_URL,
+            params: { tipos: 1 },
+        });
         if (data.success) {
             return { success: true, data: data.data || [] };
         }
@@ -102,6 +82,13 @@ export async function buscarTiposQuarto() {
         console.error('Erro ao buscar tipos de quarto:', error);
         return { success: false, data: [], message: error.message };
     }
+}
+
+export function buscarTiposQuarto() {
+    if (!pedidoTiposQuarto) {
+        pedidoTiposQuarto = carregarTiposQuarto().finally(() => { pedidoTiposQuarto = null; });
+    }
+    return pedidoTiposQuarto;
 }
 
 export async function buscarQuartosDoAlojamento(alojamentoId) {
@@ -398,7 +385,17 @@ export async function buscarLocalizacaoPersistente(alojamentoId) {
 
 // ==================== LÓGICA DE INTEGRAÇÃO COMPLETA ====================
 
-export async function buscarAlojamentoCompleto(id) {
+const alojamentosPendentes = new Map();
+export function buscarAlojamentoCompleto(id) {
+    const key = String(id);
+    if (!alojamentosPendentes.has(key)) {
+        alojamentosPendentes.set(key, carregarAlojamentoCompleto(id)
+            .finally(() => alojamentosPendentes.delete(key)));
+    }
+    return alojamentosPendentes.get(key);
+}
+
+async function carregarAlojamentoCompleto(id) {
     try {
         console.log(`🔍 Buscando dados para o alojamento #${id}`);
 

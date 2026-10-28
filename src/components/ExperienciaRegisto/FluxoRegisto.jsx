@@ -1,6 +1,9 @@
+import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
+import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/ExperienciaRegisto/FluxoRegisto.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Check, ChevronRight, HelpCircle, Loader, Save, X, AlertCircle } from 'lucide-react';
 import InformacoesBasicas from './InformacoesBasicas';
 import Localizacao from './Localizacao';
@@ -18,6 +21,7 @@ const RASCUNHO_KEY = 'morabeza_rascunho_experiencia';
 
 const FluxoRegisto = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { showToast } = useToast();
 
   const [fase, setFase] = useState(1);
@@ -284,33 +288,7 @@ const FluxoRegisto = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => {
-    const fasesLista = ['Info', 'Local', 'Categoria', 'Inclusões', 'Requisitos', 'Idiomas', 'Fotos', 'Disponibilidade'];
-    return (
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          {fasesLista.map((nome, index) => (
-            <div key={index} className="flex-1 text-center">
-              <div className={`text-xs font-medium ${fase > index + 1 ? 'text-[#006ce4]' : fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>
-                {nome}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {fasesLista.map((_, index) => (
-            <div
-              key={index}
-              className={`h-1 flex-1 rounded-full ${
-                fase > index + 1 ? 'bg-[#006ce4]' :
-                fase === index + 1 ? 'bg-[#006ce4]' : 'bg-gray-200'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
+  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onBack={handleBack} onNext={handleNext} />;
 
   const temRascunho = !!localStorage.getItem(RASCUNHO_KEY);
 
@@ -326,11 +304,18 @@ const FluxoRegisto = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <RegistoVisual>
       {/* Header */}
       <header className="bg-[#003580] text-white px-3 py-2 flex items-center justify-between shadow-sm">
         <div className="flex items-center">
-          <div className="font-bold text-base tracking-tight truncate max-w-[130px]"></div>
+          <Link
+            to="/gest/minhas-experiencias"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-lg border border-white/30 px-3 py-2 text-xs font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+          >
+            {t('registo_atalho_sessoes')}
+          </Link>
         </div>
 
         <div className="flex items-center gap-2">
@@ -361,12 +346,11 @@ const FluxoRegisto = () => {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {renderProgressBar()}
 
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
           {/* FASE 1 - Informações Básicas */}
           {fase === 1 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Informações da Experiência</h1>
-              <p className="text-gray-600 mb-6">Preencha os dados principais da sua experiência.</p>
+              <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <InformacoesBasicas
                 dados={informacoes}
                 onChange={setInformacoes}
@@ -378,8 +362,7 @@ const FluxoRegisto = () => {
           {/* FASE 2 - Localização */}
           {fase === 2 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Onde acontece?</h1>
-              <p className="text-gray-600 mb-6">Informe o local da experiência.</p>
+              <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <Localizacao
                 dados={endereco}
                 onChange={setEndereco}
@@ -392,8 +375,7 @@ const FluxoRegisto = () => {
           {/* FASE 3 - Categoria */}
           {fase === 3 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Categoria</h1>
-              <p className="text-gray-600 mb-6">Selecione a categoria da experiência.</p>
+              <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <Categoria
                 value={categoria}
                 onChange={setCategoria}
@@ -405,8 +387,7 @@ const FluxoRegisto = () => {
           {/* FASE 4 - Inclusões */}
           {fase === 4 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">O que está incluído?</h1>
-              <p className="text-gray-600 mb-6">Liste os itens inclusos na experiência.</p>
+              <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <Inclusoes
                 items={inclusoes}
                 onChange={setInclusoes}
@@ -418,8 +399,7 @@ const FluxoRegisto = () => {
           {/* FASE 5 - Requisitos */}
           {fase === 5 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Requisitos</h1>
-              <p className="text-gray-600 mb-6">O que os participantes precisam saber?</p>
+              <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <Requisitos
                 items={requisitos}
                 onChange={setRequisitos}
@@ -431,8 +411,7 @@ const FluxoRegisto = () => {
           {/* FASE 6 - Idiomas */}
           {fase === 6 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Idiomas</h1>
-              <p className="text-gray-600 mb-6">Quais idiomas são falados?</p>
+              <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <Idiomas
                 items={idiomas}
                 onChange={setIdiomas}
@@ -444,8 +423,7 @@ const FluxoRegisto = () => {
           {/* FASE 7 - Fotos */}
           {fase === 7 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Fotos da Experiência</h1>
-              <p className="text-gray-600 mb-6">Adicione fotos para mostrar sua experiência.</p>
+              <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <ImagensUpload
                 imagens={imagens}
                 onChange={setImagens}
@@ -458,8 +436,7 @@ const FluxoRegisto = () => {
           {/* FASE 8 - Disponibilidade */}
           {fase === 8 && (
             <>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Disponibilidade</h1>
-              <p className="text-gray-600 mb-6">Defina os dias e horários da experiência.</p>
+              <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <Disponibilidade
                 dados={disponibilidade}
                 onChange={setDisponibilidade}
@@ -477,7 +454,7 @@ const FluxoRegisto = () => {
               <ArrowLeft size={18} /> Voltar
             </button>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex w-full flex-wrap gap-3 sm:w-auto">
               {/* Guardar rascunho */}
               <button
                 onClick={guardarRascunhoLocal}
@@ -501,30 +478,14 @@ const FluxoRegisto = () => {
               {fase < 8 && (
                 <button
                   onClick={handleNext}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[#006ce4] text-white rounded-lg font-semibold hover:bg-[#0053b3]"
+                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
                 >
                   Continuar <ChevronRight size={18} />
                 </button>
               )}
 
               {fase === 8 && (
-                <button
-                  onClick={handleFinalizar}
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader size={18} className="animate-spin" />
-                      A enviar...
-                    </>
-                  ) : (
-                    <>
-                      <Check size={18} />
-                      Enviar para análise
-                    </>
-                  )}
-                </button>
+                <BotaoAcaoRegisto onClick={handleFinalizar} loading={isSubmitting} modo="analise" />
               )}
             </div>
           </div>
@@ -566,7 +527,7 @@ const FluxoRegisto = () => {
           </div>
         </div>
       )}
-    </div>
+    </RegistoVisual>
   );
 };
 

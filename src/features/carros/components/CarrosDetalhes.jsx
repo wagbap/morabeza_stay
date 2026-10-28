@@ -1,3 +1,5 @@
+import { extrairFotosCarro } from '../utils/fotosCarro';
+import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
 // src/features/carros/CarrosDetalhes.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -26,33 +28,6 @@ const API_URL = 'https://welovepalop.com';
 // ============================================================
 // HELPERS DE IMAGEM
 // ============================================================
-const normalizarUrlImagem = (item) => {
-  if (!item) return null;
-  let raw = typeof item === 'string' ? item : (item.caminho_url || item.url || item.path || null);
-  if (!raw) return null;
-  if (raw.startsWith('http') || raw.startsWith('data:')) return raw;
-  if (!raw.startsWith('/')) raw = '/' + raw;
-  return `${API_URL}${raw}`;
-};
-
-const extrairImagens = (data) => {
-  if (Array.isArray(data?.imagens) && data.imagens.length > 0) {
-    return data.imagens.slice().sort((a, b) => {
-      if (a.principal && !b.principal) return -1;
-      if (!a.principal && b.principal) return 1;
-      return (a.ordem || 0) - (b.ordem || 0);
-    }).map(normalizarUrlImagem).filter(Boolean);
-  }
-  if (data?.imagem_url) return [normalizarUrlImagem(data.imagem_url)].filter(Boolean);
-  if (data?.imagens_extra) {
-    try {
-      const extra = typeof data.imagens_extra === 'string' ? JSON.parse(data.imagens_extra) : data.imagens_extra;
-      if (Array.isArray(extra)) return extra.map(normalizarUrlImagem).filter(Boolean);
-    } catch {}
-  }
-  return [];
-};
-
 // ============================================================
 // MODAL DE IMAGENS
 // ============================================================
@@ -62,13 +37,12 @@ const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => 
       <button onClick={onClose} className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><X size={24} /></button>
       <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><ChevronLeft size={24} /></button>
       <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><ChevronRight size={24} /></button>
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">{currentIndex + 1} / {images.length}</div>
-      <img
-        src={images[currentIndex]}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">{Math.min(currentIndex + 1, Math.max(1, images.length))} / {Math.max(1, images.length)}</div>
+      <img src={images[currentIndex] || IMAGEM_INDISPONIVEL}
         alt={`Imagem ${currentIndex + 1}`}
         className="max-w-[90vw] max-h-[90vh] object-contain cursor-pointer"
         onClick={(e) => e.stopPropagation()}
-        onError={(e) => e.target.src = 'https://via.placeholder.com/1200x800?text=Imagem+indispon%C3%ADvel'}
+        onError={substituirImagemIndisponivel}
       />
     </div>
   );
@@ -168,7 +142,7 @@ const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
 // ============================================================
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   const { t } = useTranslation();
-  const placeholder = "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=600&h=400&fit=crop";
+  const placeholder = IMAGEM_INDISPONIVEL;
 
   const total = Array.isArray(images) ? images.length : 0;
   const lista = total > 0 ? images : [placeholder];
@@ -182,7 +156,7 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   if (lista.length === 1) {
     return (
       <div className="w-full h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
-        <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={(e) => e.target.src = placeholder} />
+        <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={substituirImagemIndisponivel} />
         <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 1</div>
       </div>
     );
@@ -193,7 +167,7 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full">
         {[0, 1].map((i) => (
           <div key={i} className="h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(i)}>
-            <img src={lista[i]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - ${i + 1}`} onError={(e) => e.target.src = placeholder} />
+            <img src={lista[i]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - ${i + 1}`} onError={substituirImagemIndisponivel} />
             {i === 0 && <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 2</div>}
           </div>
         ))}
@@ -205,13 +179,13 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
     return (
       <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
         <div className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
-          <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={(e) => e.target.src = placeholder} />
+          <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={substituirImagemIndisponivel} />
           <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 3</div>
         </div>
         <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
           {[1, 2].map((i) => (
             <div key={i} className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(i)}>
-              <img src={lista[i]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - ${i + 1}`} onError={(e) => e.target.src = placeholder} />
+              <img src={lista[i]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - ${i + 1}`} onError={substituirImagemIndisponivel} />
             </div>
           ))}
         </div>
@@ -222,20 +196,20 @@ const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   return (
     <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
       <div className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
-        <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={(e) => e.target.src = placeholder} />
+        <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={substituirImagemIndisponivel} />
         <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / {lista.length}</div>
       </div>
 
       <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
         <div className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(1)}>
-          <img src={lista[1]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 2`} onError={(e) => e.target.src = placeholder} />
+          <img src={lista[1]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 2`} onError={substituirImagemIndisponivel} />
         </div>
         <div className="h-1/2 flex gap-2.5">
           <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(2)}>
-            <img src={lista[2]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 3`} onError={(e) => e.target.src = placeholder} />
+            <img src={lista[2]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 3`} onError={substituirImagemIndisponivel} />
           </div>
           <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(3)}>
-            <img src={lista[3]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 4`} onError={(e) => e.target.src = placeholder} />
+            <img src={lista[3]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 4`} onError={substituirImagemIndisponivel} />
             {imagensEscondidas > 0 && (
               <div className="absolute inset-0 bg-black/55 flex items-center justify-center pointer-events-none">
                 <span className="text-white font-bold text-sm">+{imagensEscondidas} {t('fotos') || 'fotos'}</span>
@@ -790,11 +764,11 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
 
         if (data.success && data.data) {
           setCarro(data.data);
-          const imagensExtraidas = extrairImagens(data.data);
+          const imagensExtraidas = extrairFotosCarro(data.data);
           if (imagensExtraidas.length > 0) {
             setImages(imagensExtraidas);
           } else {
-            setImages(["https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=1200&h=800&fit=crop"]);
+            setImages([IMAGEM_INDISPONIVEL]);
           }
         } else {
           throw new Error(data.error || 'Erro ao carregar dados');

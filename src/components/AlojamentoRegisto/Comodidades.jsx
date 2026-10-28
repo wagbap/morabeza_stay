@@ -3,7 +3,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Check, Loader, AlertCircle, Search } from 'lucide-react';
 import { getIconeComodidade } from '../../utils/comodidadesQuarto';
 
-const API_URL = 'https://welovepalop.com';
+import { requestApiJson } from '../../services/apiJson';
+import { useTranslation } from 'react-i18next';
+const API_URL = import.meta.env.VITE_API_URL || 'https://welovepalop.com/api';
 
 // ============================================================
 // Helper local — usa a biblioteca central de ícones
@@ -13,12 +15,13 @@ const getIcone = (iconeNome, nomeCompleto) => {
 };
 
 const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodidades = [] }) => {
+  const { t } = useTranslation();
   const [categoriaAtiva, setCategoriaAtiva] = useState('todas');
   const [busca, setBusca] = useState('');
   const [comodidades, setComodidades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const saving = false;
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'success') => {
@@ -69,18 +72,13 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
 
       let url;
       if (alojamentoId) {
-        url = `${API_URL}/api/alojamento/buscar_comodidades_com_selecao.php?id=${alojamentoId}`;
+        url = `${API_URL}/alojamento/buscar_comodidades_com_selecao.php?id=${alojamentoId}`;
       } else {
-        url = `${API_URL}/api/alojamento/buscar_comodidades.php`;
+        url = `${API_URL}/alojamento/buscar_comodidades.php`;
       }
 
       console.log(`🔄 Buscando comodidades de: ${url}`);
-      const response = await fetch(url);
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const data = await response.json();
-      console.log('📦 Resposta da API:', data);
+      const data = await requestApiJson(url, { baseURL: '' });
 
       let comodidadesLista = [];
 
@@ -120,7 +118,7 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
       console.error('❌ Erro ao carregar comodidades:', err);
       setError(err.message);
 
-      const savedComodidades = carregarDoLocalStorage();
+      const savedComodidades = alojamentoId ? initialComodidades : carregarDoLocalStorage();
       if (savedComodidades.length > 0) {
         console.log('📦 Usando comodidades do localStorage como fallback');
         setComodidades(savedComodidades.map((c) => ({ ...c, selecionada: true })));
@@ -139,94 +137,30 @@ const Comodidades = ({ alojamentoId, onChange, readOnly = false, initialComodida
   // ============================================================
   // TOGGLE COMODIDADE
   // ============================================================
-  const toggleComodidade = async (id) => {
-    if (readOnly) return;
-
-    const comodidade = comodidades.find((c) => c.id === id);
-    if (!comodidade) return;
-
-    const novoEstado = !comodidade.selecionada;
-
-    setComodidades((prev) => {
-      const novas = prev.map((c) =>
-        c.id === id ? { ...c, selecionada: novoEstado } : c
-      );
-
-      const selecionadas = novas.filter((c) => c.selecionada);
-      salvarNoLocalStorage(selecionadas);
-
-      if (onChange) {
-        onChange(selecionadas);
-      }
-
-      return novas;
-    });
-
-    showToast(
-      novoEstado ? `${comodidade.nome} adicionada` : `${comodidade.nome} removida`,
-      novoEstado ? 'success' : 'info'
-    );
-
-    if (alojamentoId) {
-      setSaving(true);
-      try {
-        const response = await fetch(`${API_URL}/api/alojamento/alternar_comodidade.php`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            alojamento_id: alojamentoId,
-            comodidade_id: id,
-            ativar: novoEstado ? 1 : 0,
-          }),
-        });
-        const data = await response.json();
-        if (!data.success) {
-          console.error('Erro ao salvar no backend');
-        }
-      } catch (error) {
-        console.error('Erro ao salvar no backend:', error);
-      } finally {
-        setSaving(false);
-      }
-    }
+  // The parent saves the selection with the rest of the accommodation.
+  // Notify from the event handler, never from a React state updater.
+  const atualizarSelecao = (novas) => {
+    setComodidades(novas);
+    const selecionadas = novas.filter(c => c.selecionada);
+    if (!alojamentoId) salvarNoLocalStorage(selecionadas);
+    onChange?.(selecionadas);
+    showToast(t('alojamento_comodidades_pendente', 'Selection updated. Save the accommodation to apply changes.'), 'info');
   };
 
-  // ============================================================
-  // LIMPAR TODAS
-  // ============================================================
+  const toggleComodidade = (id) => {
+    if (readOnly) return;
+    atualizarSelecao(comodidades.map(c => c.id === id ? { ...c, selecionada: !c.selecionada } : c));
+  };
+
   const limparTodas = () => {
     if (readOnly) return;
-
-    setComodidades((prev) => {
-      const novas = prev.map((c) => ({ ...c, selecionada: false }));
-      salvarNoLocalStorage([]);
-      if (onChange) onChange([]);
-      return novas;
-    });
-    showToast('Todas as comodidades removidas', 'info');
+    atualizarSelecao(comodidades.map(c => ({ ...c, selecionada: false })));
   };
 
-  // ============================================================
-  // SELECIONAR TODAS DA CATEGORIA ATUAL
-  // ============================================================
   const selecionarTodasDaCategoria = () => {
     if (readOnly) return;
-
-    setComodidades((prev) => {
-      const novas = prev.map((c) => {
-        const categoria = c.categoria || 'Outros';
-        if (categoriaAtiva === 'todas' || categoria === categoriaAtiva) {
-          return { ...c, selecionada: true };
-        }
-        return c;
-      });
-
-      const selecionadas = novas.filter((c) => c.selecionada);
-      salvarNoLocalStorage(selecionadas);
-      if (onChange) onChange(selecionadas);
-      return novas;
-    });
-    showToast(`Todas as comodidades da categoria selecionadas`, 'success');
+    atualizarSelecao(comodidades.map(c => categoriaAtiva === 'todas' || (c.categoria || 'Outros') === categoriaAtiva
+      ? { ...c, selecionada: true } : c));
   };
 
   const categorias = ['todas', ...new Set(comodidades.map((c) => c.categoria || 'Outros').filter((c) => c))];

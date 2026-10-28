@@ -2,7 +2,7 @@
 import React, {
   useState, useEffect, useMemo, useCallback, useDeferredValue, memo,
 } from 'react';
-import axios from 'axios';
+import { requestApiJson } from '../../../services/apiJson';
 import { Helmet } from 'react-helmet-async';
 import { Loader2, LayoutGrid, List, Info, ArrowRight, ChevronDown, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -157,6 +157,7 @@ const Alojamentos = () => {
   const [alojamentos, setAlojamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
+  const [tentativa, setTentativa] = useState(0);
 
   const [viewMode, setViewMode] = useState('grid');
   const [ordenar, setOrdenar] = useState('recomendados');
@@ -235,32 +236,29 @@ const Alojamentos = () => {
           pet:      searchParams.pet ? 1 : 0,
         };
 
-        console.log('📡 GET get_alojamentos.php', apiParams);
-
-        const response = await axios.get(
-          'https://welovepalop.com/api/get_alojamentos.php',
-          { params: apiParams, signal: controller.signal }
-        );
-
-        const lista = Array.isArray(response.data) ? response.data : [];
-
-        console.log(`📦 API devolveu ${lista.length} alojamentos`);
+        const lista = await requestApiJson('/get_alojamentos.php', {
+          params: apiParams,
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(lista)) throw new Error('Invalid accommodation list');
 
         setAlojamentos(lista);
       } catch (error) {
-        if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+        if (!controller.signal.aborted) {
           console.error('❌ Erro na API Morabeza:', error);
-          setErro(error.message || 'Erro ao carregar alojamentos');
+          setErro(true);
           setAlojamentos([]);
         }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     fetchDados();
     return () => controller.abort();
   }, [
+    tentativa,
     searchParams.destino,
     searchParams.entrada,
     searchParams.saida,
@@ -477,7 +475,7 @@ const Alojamentos = () => {
               <h1 className="text-xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter text-left">
                 {filtroDestino || t('explorar', 'Explorar')}:{' '}
                 <span className="text-blue-600 text-3xl md:text-4xl">
-                  {alojamentosOrdenados.length}
+                  {loading || erro ? '\u2014' : alojamentosOrdenados.length}
                 </span>{' '}
                 {t('opcoes', 'opções')}
               </h1>
@@ -557,10 +555,10 @@ const Alojamentos = () => {
               <div className="mb-6 bg-red-50 border border-red-100 text-red-800 p-4 rounded-xl flex items-start gap-3 text-sm text-left">
                 <X size={18} className="text-red-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold">{t('erro_carregar', 'Erro ao carregar')}</p>
-                  <p className="text-xs mt-1 opacity-80">{erro}</p>
+                  <p className="font-bold">{t('alojamento_lista_erro', 'Unable to load accommodations')}</p>
+                  <p className="text-xs mt-1 opacity-80">{t('alojamento_lista_erro_ajuda', 'Please try again in a moment.')}</p>
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => setTentativa(value => value + 1)}
                     className="mt-2 text-[10px] font-black uppercase underline"
                   >
                     {t('tentar_novamente', 'Tentar novamente')}
@@ -572,7 +570,7 @@ const Alojamentos = () => {
             {loading ? (
               <LoadingState t={t} />
             ) : (
-              <div className={gridClassName}>
+              !erro && <div className={gridClassName}>
                 {alojamentosOrdenados.length > 0 ? (
                   alojamentosOrdenados.map((casa) => (
                     <CardAlojamento key={casa.id} {...casa} isList={isListMode} />

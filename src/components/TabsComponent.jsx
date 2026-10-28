@@ -99,7 +99,7 @@ const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
           className="!overflow-visible" 
         >
           {currentData.map((item, index) => (
-            <SwiperSlide key={item.id || index} className="h-auto pb-4">
+            <SwiperSlide key={item.id || index} className="!h-auto pb-4">
               {activeTab === 'alojamentos' && <CardAlojamentoItem {...item} />}
               {activeTab === 'carros' && <CardCarro carro={item} />}
               {activeTab === 'experiencias' && <CardExperienciaTab experiencia={item} />}

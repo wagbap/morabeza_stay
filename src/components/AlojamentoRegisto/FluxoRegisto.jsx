@@ -1,3 +1,5 @@
+import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
+import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/AlojamentoRegisto/FluxoRegisto.jsx
 import React, { useState, useCallback, useRef, useEffect, createContext, useContext } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -686,7 +688,7 @@ const FluxoRegistoContent = () => {
           <ArrowLeft size={18} /> Voltar
         </button>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex w-full flex-wrap gap-3 sm:w-auto">
           {/* Guardar rascunho (localStorage) */}
           <button
             onClick={guardarRascunhoLocal}
@@ -720,7 +722,7 @@ const FluxoRegistoContent = () => {
           {mostrarContinuar && (
             <button
               onClick={onContinuar}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#006ce4] text-white rounded-lg font-semibold hover:bg-[#0053b3]"
+              className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
             >
               {continuarLabel} <ChevronRight size={18} />
             </button>
@@ -731,41 +733,14 @@ const FluxoRegistoContent = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => {
-    const fasesLista = ['Informações', 'Localização', 'Comodidades', 'Regras', 'Fotos'];
-    return (
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          {fasesLista.map((nome, index) => (
-            <div key={index} className="flex-1 text-center">
-              <div className={`text-xs font-medium ${fase > index + 1 ? 'text-[#006ce4]' : fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>
-                {nome}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {fasesLista.map((_, index) => (
-            <div
-              key={index}
-              className={`h-1 flex-1 rounded-full ${
-                fase > index + 1 ? 'bg-[#006ce4]' :
-                fase === index + 1 ? 'bg-[#006ce4] bg-opacity-50' : 'bg-gray-200'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
+  const renderProgressBar = () => <EtapasRegisto dominio="alojamento" fase={fase} onBack={handleBack} onNext={({ 1: handleSaveInformacoes, 2: handleSaveLocalizacao, 3: handleSaveComodidades, 4: handleSaveRegras })[fase]} />;
 
   // ==================== FASES ====================
   const renderFaseInformacoes = () => (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Informações básicas da propriedade</h1>
-          <p className="text-gray-600 mb-8">Preencha os dados principais do seu alojamento.</p>
+        <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
+          <TituloRegisto dominio="alojamento" fase={fase} editar={false} />
 
           <InformacoesBasicas
             dados={informacoesBasicas}
@@ -806,9 +781,8 @@ const FluxoRegistoContent = () => {
   const renderFaseComodidades = () => (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Comodidades</h1>
-          <p className="text-gray-600 mb-6">Selecione as comodidades oferecidas pela propriedade</p>
+        <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
+          <TituloRegisto dominio="alojamento" fase={fase} editar={false} />
 
           <Comodidades
             alojamentoId={alojamentoId}
@@ -826,9 +800,8 @@ const FluxoRegistoContent = () => {
   const renderFaseRegras = () => (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Regras da Casa</h1>
-          <p className="text-gray-600 mb-6">Defina as regras para os hóspedes</p>
+        <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
+          <TituloRegisto dominio="alojamento" fase={fase} editar={false} />
 
           <Regras
             alojamentoId={alojamentoId}
@@ -850,7 +823,7 @@ const FluxoRegistoContent = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 py-12">
-          <div className="bg-white rounded-lg shadow-md p-8">
+          <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Fotos do Alojamento</h1>
             <p className="text-gray-600 mb-6">
               Adicione fotos e escolha manualmente a fotografia principal (clique na estrela ou no botão "Principal").
@@ -874,7 +847,7 @@ const FluxoRegistoContent = () => {
                 <ArrowLeft size={18} /> Voltar
               </button>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex w-full flex-wrap gap-3 sm:w-auto">
                 <button
                   onClick={guardarRascunhoLocal}
                   className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
@@ -902,23 +875,7 @@ const FluxoRegistoContent = () => {
                   </button>
                 )}
 
-                <button
-                  onClick={handleEnviarParaAnalise}
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader size={18} className="animate-spin" />
-                      A enviar...
-                    </>
-                  ) : (
-                    <>
-                      <Check size={18} />
-                      Enviar para análise
-                    </>
-                  )}
-                </button>
+                <BotaoAcaoRegisto onClick={handleEnviarParaAnalise} loading={isSubmitting} modo="analise" />
               </div>
             </div>
           </div>
@@ -939,7 +896,7 @@ const FluxoRegistoContent = () => {
   }
 
   return (
-    <>
+    <RegistoVisual>
       <header className="bg-[#003580] text-white px-4 py-2 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <div className="font-bold text-lg tracking-tight truncate max-w-[200px]">
@@ -1017,7 +974,7 @@ const FluxoRegistoContent = () => {
           </div>
         </div>
       )}
-    </>
+    </RegistoVisual>
   );
 };
 

@@ -1,3 +1,5 @@
+import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
+import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/AlojamentoRegisto/EditarAlojamento.jsx
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -80,7 +82,7 @@ export const useToast = () => {
 // ============================================================
 const carregarImagensPorAlojamento = async (alojamentoId) => {
   try {
-    const res = await fetch(`${API_BASE}/api/alojamento/get_quarto_imagens.php?t=${Date.now()}`, {
+    const res = await fetch(`${API_BASE}/api/alojamento/get_quarto_imagens.php?alojamento_id=${encodeURIComponent(alojamentoId)}`, {
       cache: 'no-store',
     });
     const textData = await res.text();
@@ -585,30 +587,7 @@ const EditarAlojamentoContent = () => {
     else navigate('/alojamento-registro/meus');
   };
 
-  const renderProgressBar = () => {
-    const fasesLista = ['Informações', 'Localização', 'Comodidades', 'Regras', 'Fotos'];
-    return (
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          {fasesLista.map((nome, index) => (
-            <div key={index} className="flex-1 text-center">
-              <div className={`text-xs font-bold ${fase === index + 1 ? 'text-[#006ce4]' : 'text-gray-400'}`}>
-                {nome}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          {fasesLista.map((_, index) => (
-            <div
-              key={index}
-              className={`h-1.5 flex-1 rounded-full ${fase >= index + 1 ? 'bg-[#006ce4]' : 'bg-gray-200'}`}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
+  const renderProgressBar = () => <EtapasRegisto dominio="alojamento" fase={fase} onBack={handleBack} onNext={({ 1: handleSaveInformacoes, 2: handleSaveLocalizacao, 3: handleSaveComodidades, 4: handleSaveRegras })[fase]} />;
 
   if (isLoading) {
     return (
@@ -622,7 +601,7 @@ const EditarAlojamentoContent = () => {
   }
 
   return (
-    <>
+    <RegistoVisual>
       <header className="bg-[#003580] text-white h-[60px] flex items-center justify-between px-6 shadow-sm">
         <div className="font-bold text-lg tracking-tight"></div>
         <div className="flex items-center gap-6 text-sm">
@@ -643,14 +622,10 @@ const EditarAlojamentoContent = () => {
       {fase === 1 && (
         <div className="min-h-screen bg-gray-50 py-10">
           <div className="max-w-4xl mx-auto px-4">
-            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-              <ArrowLeft size={20} /><span>Voltar</span>
-            </button>
             {renderProgressBar()}
 
-            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Editar informações da propriedade</h1>
-              <p className="text-sm text-gray-500 mb-8">Atualize os dados e a configuração dos quartos.</p>
+            <div data-registo-card className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+              <TituloRegisto dominio="alojamento" fase={fase} editar={true} />
 
               <InformacoesBasicas
                 dados={informacoesBasicas}
@@ -662,13 +637,13 @@ const EditarAlojamentoContent = () => {
                 mostraQuartos={mostraQuartos}
               />
 
-              <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+              <div className="flex flex-col gap-4 mt-8 pt-6 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-between">
                 <button onClick={handleBack} className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-xl">
                   Voltar
                 </button>
                 <button
                   onClick={handleSaveInformacoes}
-                  className="px-6 py-2.5 bg-[#006ce4] text-white font-bold rounded-xl flex items-center gap-2"
+                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
                 >
                   Continuar <ChevronRight size={18} />
                 </button>
@@ -681,12 +656,9 @@ const EditarAlojamentoContent = () => {
       {fase === 2 && (
         <div className="min-h-screen bg-gray-50 py-10">
           <div className="max-w-2xl mx-auto px-4">
-            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-              <ArrowLeft size={20} /><span>Voltar</span>
-            </button>
             {renderProgressBar()}
 
-            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+            <div data-registo-card className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
               <h2 className="text-xl font-bold mb-4">📍 Localização do Alojamento</h2>
 
               <RegistarLocalizacao
@@ -700,7 +672,7 @@ const EditarAlojamentoContent = () => {
                 <button onClick={handleBack} className="px-6 py-2.5 border rounded-xl">Voltar</button>
                 <button
                   onClick={handleSaveLocalizacao}
-                  className="px-6 py-2.5 bg-[#006ce4] text-white font-bold rounded-xl"
+                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
                 >
                   Continuar
                 </button>
@@ -713,12 +685,9 @@ const EditarAlojamentoContent = () => {
       {fase === 3 && (
         <div className="min-h-screen bg-gray-50 py-10">
           <div className="max-w-4xl mx-auto px-4">
-            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-              <ArrowLeft size={20} /><span>Voltar</span>
-            </button>
             {renderProgressBar()}
 
-            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+            <div data-registo-card className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Comodidades da propriedade</h1>
 
               <Comodidades
@@ -728,11 +697,11 @@ const EditarAlojamentoContent = () => {
                 readOnly={false}
               />
 
-              <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+              <div className="flex flex-col gap-4 mt-8 pt-6 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-between">
                 <button onClick={handleBack} className="px-6 py-2.5 border rounded-xl">Voltar</button>
                 <button
                   onClick={handleSaveComodidades}
-                  className="px-6 py-2.5 bg-[#006ce4] text-white font-bold rounded-xl flex items-center gap-2"
+                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
                 >
                   Continuar <ChevronRight size={18} />
                 </button>
@@ -745,12 +714,9 @@ const EditarAlojamentoContent = () => {
       {fase === 4 && (
         <div className="min-h-screen bg-gray-50 py-10">
           <div className="max-w-3xl mx-auto px-4">
-            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-              <ArrowLeft size={20} /><span>Voltar</span>
-            </button>
             {renderProgressBar()}
 
-            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+            <div data-registo-card className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Regras da casa</h1>
 
               <Regras
@@ -761,11 +727,11 @@ const EditarAlojamentoContent = () => {
                 readOnly={false}
               />
 
-              <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+              <div className="flex flex-col gap-4 mt-8 pt-6 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-between">
                 <button onClick={handleBack} className="px-6 py-2.5 border rounded-xl">Voltar</button>
                 <button
                   onClick={handleSaveRegras}
-                  className="px-6 py-2.5 bg-[#006ce4] text-white font-bold rounded-xl flex items-center gap-2"
+                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
                 >
                   Continuar <ChevronRight size={18} />
                 </button>
@@ -778,14 +744,10 @@ const EditarAlojamentoContent = () => {
       {fase === 5 && (
         <div className="min-h-screen bg-gray-50 py-10">
           <div className="max-w-4xl mx-auto px-4">
-            <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
-              <ArrowLeft size={20} /><span>Voltar</span>
-            </button>
             {renderProgressBar()}
 
-            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Fotos da sua propriedade</h1>
-              <p className="text-sm text-gray-500 mb-8">Adicione fotos de alta qualidade da propriedade.</p>
+            <div data-registo-card className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+              <TituloRegisto dominio="alojamento" fase={fase} editar={true} />
 
               <ImagensUpload
                 fotos={fotos}
@@ -797,22 +759,15 @@ const EditarAlojamentoContent = () => {
                 mostraQuartos={mostraQuartos}
               />
 
-              <div className="flex justify-between gap-4 mt-8 pt-6 border-t border-gray-100">
+              <div className="flex flex-col gap-4 mt-8 pt-6 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-between">
                 <button onClick={handleBack} className="px-6 py-2.5 border rounded-xl">Voltar</button>
-                <button
-                  onClick={handleFinalizar}
-                  disabled={isSubmitting}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 py-2.5 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-colors"
-                >
-                  {isSubmitting ? <Loader size={18} className="animate-spin" /> : <Check size={18} />}
-                  Atualizar Registo
-                </button>
+                <BotaoAcaoRegisto onClick={handleFinalizar} loading={isSubmitting} modo="guardar" />
               </div>
             </div>
           </div>
         </div>
       )}
-    </>
+    </RegistoVisual>
   );
 };
 
