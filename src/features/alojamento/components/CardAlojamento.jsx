@@ -1,18 +1,13 @@
 import ConversaoPreco from '../../../components/ConversaoPreco';
-import React, { memo, useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MapPin, Star, House, Building2, Users, BedDouble, Bath, ChevronLeft, ChevronRight, ArrowRight, Share2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import BotaoFavorito from '../../../components/BotaoFavorito';
-import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
+import { extrairFotosAlojamento } from '../utils/fotosAlojamento';
 import { obterCasasBanho } from '../utils/casasBanho';
 
-const imageUrl = value => {
-  const url = typeof value === 'string' ? value : value?.caminho_url || value?.url || value?.imagem_url;
-  if (!url) return null;
-  if (/^https?:\/\//.test(url)) return url;
-  return `https://welovepalop.com${url.startsWith('/') ? '' : '/api/uploads/'}${url}`;
-};
+const IMAGEM_LOCAL = '/images/alojamento-indisponivel.svg';
 
 const CardAlojamento = (props) => {
   const { id, slug, titulo, localizacao, tipo_propriedade, tipo, estrelas, total_avaliacoes,
@@ -21,8 +16,10 @@ const CardAlojamento = (props) => {
   const location = useLocation();
   const [slide, setSlide] = useState(0);
   const [shareStatus, setShareStatus] = useState(null);
+  const [fotosComErro, setFotosComErro] = useState([]);
   const price = Number(preco_mostrar ?? preco_noite ?? 0);
-  const photos = [...new Set([imagem_url, ...(Array.isArray(imagens_extra) ? imagens_extra : [])].map(imageUrl).filter(Boolean))];
+  const todasFotos = useMemo(() => extrairFotosAlojamento({ imagem_url, imagens_extra, imagens: props.imagens, fotos: props.fotos }), [imagem_url, imagens_extra, props.imagens, props.fotos]);
+  const photos = todasFotos.filter(url => !fotosComErro.includes(url));
   const active = slide % Math.max(1, photos.length);
   const type = tipo_propriedade || tipo || t('alojamento', 'Alojamento');
   const rating = Number(estrelas) || 0;
@@ -52,7 +49,10 @@ const CardAlojamento = (props) => {
   return (
     <article className={`relative isolate overflow-hidden rounded-[14px] border border-slate-200 bg-white transition-shadow hover:shadow-lg ${isList ? 'flex flex-col md:flex-row' : 'flex h-full flex-col'}`}>
       <div className={`relative h-[240px] shrink-0 overflow-hidden rounded-t-[13px] bg-[#b5b5b5] ${isList ? 'w-full md:w-[38%] md:rounded-l-[14px] md:rounded-tr-none' : 'w-full'}`}>
-        <img key={photos[active] || 'empty'} src={photos[active] || IMAGEM_INDISPONIVEL} alt={titulo} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center" onError={substituirImagemIndisponivel} />
+        <img key={photos[active] || 'empty'} src={photos[active] || IMAGEM_LOCAL} alt={titulo} width={640} height={480} loading={props.imagemPrioritaria ? 'eager' : 'lazy'} decoding="async" className="absolute inset-0 h-full w-full object-cover object-center" onError={() => {
+          const url = photos[active];
+          if (url) setFotosComErro(previous => previous.includes(url) ? previous : [...previous, url]);
+        }} />
         <span className="absolute left-3 bottom-3 rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">{type}</span>
         <button type="button" onClick={share} aria-label={t('alojamento_card_partilhar')} className="absolute right-14 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-600 shadow-sm hover:bg-white"><Share2 size={22} /></button>
         <BotaoFavorito onFavoritoChange={props.onFavoritoChange} tipo="alojamentos" item={item} size={25} className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center" />

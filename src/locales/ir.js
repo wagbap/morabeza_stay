@@ -1,5 +1,6 @@
 export default {
   translation: {
+
     sidebar_validar_reservas: "Validate bookings",
     qr_sessao_anfitriao: "Sign in again as a host to validate bookings.",
     qr_auth_anfitriao_indisponivel: "Host authentication is not configured on the server yet.",

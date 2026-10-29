@@ -7,6 +7,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, useStripe, useElements, CardNumberElement } from '@stripe/react-stripe-js';
 import { useToast } from '../Toast';
 import FormularioPagamentoStripe from './FormularioPagamentoStripe';
+import api from '../api/api';
+import { obterTokenValidacao } from '../utils/tokenValidacaoReserva';
 
 const ResumoReservaExperiencia = React.lazy(() => import('../features/experiencias/components/ResumoReservaExperiencia'));
 const ResumoReservaAlojamento = React.lazy(() => import('../features/alojamento/components/ResumoReservaAlojamento'));
@@ -42,7 +44,7 @@ const lerJsonSeguro = async (response) => {
   }
   try {
     return JSON.parse(texto);
-  } catch (e) {
+  } catch {
     console.error('Resposta não-JSON do servidor:', texto.slice(0, 300));
     throw new Error('Resposta inválida do servidor.');
   }
@@ -74,6 +76,7 @@ const PagamentoContent = () => {
 
   const isProcessingRef = useRef(false);
   const hasMountedRef = useRef(false);
+  const [pagamentoRecebido, setPagamentoRecebido] = useState(false);
 
   const { reservaData, tipo: tipoState } = location.state || {};
 
@@ -141,6 +144,7 @@ const PagamentoContent = () => {
       }
 
       const emailPayload = {
+        tipo,
         email_cliente: participantePrincipal.email,
         nome_cliente: participantePrincipal.nome_completo || t('cliente'),
         phone_cliente: participantePrincipal.phone || '',
@@ -153,6 +157,11 @@ const PagamentoContent = () => {
         preco_total: getTotalPagar(tipo, rD),
         metodo_pagamento: 'cartao',
         status_pagamento: 'pago',
+        imagem: rD?.imagem || rD?.imagem_url || '',
+        quartos: (rD?.quartos || []).map(q => ({
+          nome: q.nome || '', imagem: q.imagem || '',
+          quantidade: q.quantidade, capacidade: q.capacidade,
+        })),
         participante_principal: {
           nome_completo: participantePrincipal.nome_completo || '',
           email: participantePrincipal.email || '',
@@ -165,10 +174,10 @@ const PagamentoContent = () => {
         })),
       };
 
-      fetch(`${API_BASE}/api/send_email.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailPayload),
+      const token = obterTokenValidacao(localStorage, 'host', true);
+      api.post('/send_email.php', emailPayload, {
+        timeout: 35000,
+        headers: { Authorization: `Bearer ${token || ''}` },
       }).catch(() => {});
     } catch (err) {
       console.error('❌ Erro ao enviar e-mails:', err);
@@ -179,6 +188,9 @@ const PagamentoContent = () => {
   // Salvar reserva (sem holds, sem quarto_ocupacao)
   // ---------------------------------------------------------
   const salvarReservaNoBackend = useCallback(async (dadosTransacao) => {
+    if (dadosTransacao?.status !== 'succeeded' || !dadosTransacao?.id) {
+      throw Object.assign(new Error(t('aguardando_pagamento')), { code: 'PAYMENT_NOT_SUCCEEDED' });
+    }
     const keyStorage = CACHE_KEYS[tipo];
     const cache = sessionStorage.getItem(keyStorage);
     if (!cache) throw new Error(t('erro_sessao_expirada'));
@@ -281,6 +293,7 @@ const PagamentoContent = () => {
       };
     }
 
+    payload.stripe_client_secret = dadosTransacao.client_secret;
     const response = await fetchComTimeout(`${API_BASE}/api/checkout_api.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -290,6 +303,9 @@ const PagamentoContent = () => {
     const result = await lerJsonSeguro(response);
 
     if (result.success && result.data) {
+      if (result.data.pagamento_status !== 'pago' || result.data.status !== 'confirmada') {
+        throw new Error(t('pagamento_cobrado_reserva_falhou', 'Pagamento efetuado mas houve um erro ao registar. Contacte o suporte.'));
+      }
       enviarEmailsConfirmacao(result.data);
     }
     return result;
@@ -354,6 +370,11 @@ const PagamentoContent = () => {
         return;
       }
 
+      if (result.paymentIntent?.status !== 'succeeded') {
+        setError(t('aguardando_pagamento'));
+        return;
+      }
+      setPagamentoRecebido(true);
       const saveResult = await salvarReservaNoBackend(result.paymentIntent);
 
       if (saveResult.success) {
@@ -470,14 +491,14 @@ const PagamentoContent = () => {
                   totalHospedes={reserva?.totalHospedes}
                   precoTotal={getTotalPagar('alojamento', reserva)}
                   showPaymentInfo={true}
-                  paymentStatus="pending"
+                  paymentStatus={pagamentoRecebido ? 'paid' : 'pending'}
                 />
               ) : tipo === 'carro' ? (
                 <ResumoReservaCarro
                   reserva={reserva}
                   precoTotal={getTotalPagar('carro', reserva)}
                   showPaymentInfo={true}
-                  paymentStatus="pending"
+                  paymentStatus={pagamentoRecebido ? 'paid' : 'pending'}
                 />
               ) : (
                 <ResumoReservaExperiencia
@@ -485,7 +506,7 @@ const PagamentoContent = () => {
                   totalPessoas={reserva?.participantes}
                   precoTotal={getTotalPagar('experiencia', reserva)}
                   showPaymentInfo={true}
-                  paymentStatus="pending"
+                  paymentStatus={pagamentoRecebido ? 'paid' : 'pending'}
                 />
               )}
             </React.Suspense>

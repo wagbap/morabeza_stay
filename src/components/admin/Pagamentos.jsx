@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CreditCard, DollarSign, TrendingUp, Calendar, CheckCircle, XCircle, Clock, Search, RefreshCw, Loader2, Eye, Filter, Download } from 'lucide-react';
 
 const Pagamentos = () => {
+  const { t } = useTranslation();
   const [pagamentos, setPagamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pesquisa, setPesquisa] = useState('');
@@ -72,7 +74,7 @@ const Pagamentos = () => {
   const renderBadgeStatus = (status) => {
     const s = (status || '').toLowerCase();
     if (s === 'confirmado' || s === 'pago' || s === 'success') {
-      return <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={12} /> Confirmado</span>;
+      return <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold flex items-center gap-1"><CheckCircle size={12} /> {t('pago', 'Pago')}</span>;
     }
     if (s === 'pendente' || s === 'aguardando' || s === 'pending') {
       return <span className="px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold flex items-center gap-1"><Clock size={12} /> Pendente</span>;

@@ -1,5 +1,6 @@
 export default {
   translation: {
+
     sidebar_validar_reservas: "Validar reservas",
     qr_sessao_anfitriao: "Inicie sess\u00e3o novamente como anfitri\u00e3o para validar reservas.",
     qr_auth_anfitriao_indisponivel: "A autentica\u00e7\u00e3o do anfitri\u00e3o ainda n\u00e3o est\u00e1 configurada no servidor.",

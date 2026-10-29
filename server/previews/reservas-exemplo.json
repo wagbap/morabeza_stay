@@ -1,0 +1,149 @@
+[
+  {
+    "reserva_id": 123,
+    "usuario_id": 1,
+    "codigo_reserva": "MS-EXEMPLO-001",
+    "status": "confirmada",
+    "status_pagamento": "pago",
+    "preco_total": 7500,
+    "nome_cliente": "Gerson Sanches",
+    "email_cliente": "cliente@example.com",
+    "phone_cliente": "",
+    "inicio": "2026-11-12",
+    "fim": "2026-11-15",
+    "hora_inicio": "15:00",
+    "hora_fim": "11:00",
+    "titulo": "Hotel Exemplo",
+    "localizacao": "Praia, Santiago",
+    "morada": "Morada de exemplo, Praia, Cabo Verde",
+    "imagem": "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=700&auto=format&fit=crop&q=85",
+    "detalhes": "3 noites \u00b7 2 adultos",
+    "itens": [
+      {
+        "nome": "Quarto Duplo com Vista Mar",
+        "imagem": "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=600&auto=format&fit=crop&q=85",
+        "descricao": "1 quarto \u00b7 1 cama de casal"
+      }
+    ],
+    "linhas_pagamento": [
+      {
+        "descricao": "1 quarto \u00d7 3 noites \u00d7 2.500 CVE",
+        "valor": 7500
+      }
+    ],
+    "metodo_pagamento": "cart\u00e3o",
+    "referencia_pagamento": "refer\u00eancia de exemplo",
+    "cancelamento": "Consulte as condi\u00e7\u00f5es de cancelamento aceites na reserva. Datas e condi\u00e7\u00f5es desta pr\u00e9-visualiza\u00e7\u00e3o s\u00e3o exemplos.",
+    "receipt_url": "#comprovativo-de-exemplo",
+    "support_email": "Contacte-nos atrav\u00e9s do site.",
+    "anfitriao_nome": "Anfitri\u00e3o de exemplo",
+    "anfitriao_phone": "",
+    "anfitriao_email": "",
+    "participante_principal": {
+      "nome_completo": "Gerson Sanches",
+      "email": "cliente@example.com"
+    },
+    "participantes_adicionais": [],
+    "instrucoes": "Consulte as instru\u00e7\u00f5es de acesso na sua reserva.",
+    "tipo": "alojamento",
+    "exemplo": true,
+    "latitude": 14.9193,
+    "longitude": -23.5086,
+    "pessoas_resumo": "2 adultos",
+    "quartos_quantidade": 1
+  },
+  {
+    "reserva_id": 123,
+    "usuario_id": 1,
+    "codigo_reserva": "MS-CARRO-EXEMPLO",
+    "status": "confirmada",
+    "status_pagamento": "pago",
+    "preco_total": 18000,
+    "nome_cliente": "Gerson Sanches",
+    "email_cliente": "cliente@example.com",
+    "phone_cliente": "",
+    "inicio": "2026-11-12",
+    "fim": "2026-11-15",
+    "hora_inicio": "10:00",
+    "hora_fim": "10:00",
+    "titulo": "Viatura de exemplo",
+    "localizacao": "Santa Maria, Sal",
+    "morada": "Local de levantamento de exemplo, Santa Maria",
+    "imagem": "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=700&auto=format&fit=crop&q=85",
+    "detalhes": "3 dias de aluguer \u00b7 Autom\u00e1tico",
+    "itens": [],
+    "linhas_pagamento": [
+      {
+        "descricao": "3 dias de aluguer",
+        "valor": 18000
+      }
+    ],
+    "metodo_pagamento": "cart\u00e3o",
+    "referencia_pagamento": "refer\u00eancia de exemplo",
+    "cancelamento": "Consulte as condi\u00e7\u00f5es de cancelamento aceites na reserva. Datas e condi\u00e7\u00f5es desta pr\u00e9-visualiza\u00e7\u00e3o s\u00e3o exemplos.",
+    "receipt_url": "#comprovativo-de-exemplo",
+    "support_email": "Contacte-nos atrav\u00e9s do site.",
+    "anfitriao_nome": "Anfitri\u00e3o de exemplo",
+    "anfitriao_phone": "",
+    "anfitriao_email": "",
+    "participante_principal": {
+      "nome_completo": "Gerson Sanches",
+      "email": "cliente@example.com"
+    },
+    "participantes_adicionais": [],
+    "instrucoes": "Consulte o ponto de levantamento na sua reserva.",
+    "tipo": "carro",
+    "exemplo": true,
+    "latitude": 16.599,
+    "longitude": -22.905,
+    "pessoas_resumo": "1 condutor"
+  },
+  {
+    "reserva_id": 123,
+    "usuario_id": 1,
+    "codigo_reserva": "MS-EXPERIENCIA-EXEMPLO",
+    "status": "confirmada",
+    "status_pagamento": "pago",
+    "preco_total": 6000,
+    "nome_cliente": "Gerson Sanches",
+    "email_cliente": "cliente@example.com",
+    "phone_cliente": "",
+    "inicio": "2026-11-12",
+    "fim": "2026-11-12",
+    "hora_inicio": "",
+    "hora_fim": "",
+    "titulo": "Passeio de jet ski de exemplo",
+    "localizacao": "Santa Maria, Sal",
+    "morada": "Ponto de encontro de exemplo, Santa Maria",
+    "imagem": "https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=700&auto=format&fit=crop&q=85",
+    "detalhes": "2 participantes \u00b7 1 hora \u00b7 1 jet ski",
+    "itens": [],
+    "linhas_pagamento": [
+      {
+        "descricao": "Atividade para 2 participantes",
+        "valor": 6000
+      }
+    ],
+    "metodo_pagamento": "cart\u00e3o",
+    "referencia_pagamento": "refer\u00eancia de exemplo",
+    "cancelamento": "Consulte as condi\u00e7\u00f5es de cancelamento aceites na reserva. Datas e condi\u00e7\u00f5es desta pr\u00e9-visualiza\u00e7\u00e3o s\u00e3o exemplos.",
+    "receipt_url": "#comprovativo-de-exemplo",
+    "support_email": "Contacte-nos atrav\u00e9s do site.",
+    "anfitriao_nome": "Anfitri\u00e3o de exemplo",
+    "anfitriao_phone": "",
+    "anfitriao_email": "",
+    "participante_principal": {
+      "nome_completo": "Gerson Sanches",
+      "email": "cliente@example.com"
+    },
+    "participantes_adicionais": [],
+    "instrucoes": "Consulte os requisitos e o ponto de encontro na sua reserva.",
+    "tipo": "experiencia",
+    "horario": "10:00",
+    "exemplo": true,
+    "latitude": 16.599,
+    "longitude": -22.905,
+    "pessoas_resumo": "2 pessoas",
+    "duracao": "1 hora"
+  }
+]

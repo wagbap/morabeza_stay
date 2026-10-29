@@ -1,6 +1,6 @@
 // src/features/alojamento/components/Alojamentos.jsx
 import React, {
-  useState, useEffect, useMemo, useCallback, useDeferredValue, memo,
+  useState, useEffect, useMemo, useCallback, useDeferredValue, useRef, memo,
 } from 'react';
 import { requestApiJson } from '../../../services/apiJson';
 import { Helmet } from 'react-helmet-async';
@@ -12,6 +12,8 @@ import CardAlojamento from './CardAlojamento';
 import FiltrosLateralAlojamento from './FiltrosLateralAlojamento';
 import SearchBar from './SearchBarAlojamento';
 import AlojamentoHero from './AlojamentoHero';
+import PaginacaoAnuncios from '../../../components/PaginacaoAnuncios';
+import usePaginacao from '../../../hooks/usePaginacao';
 
 // ============================================================
 // Constantes
@@ -126,6 +128,7 @@ const Alojamentos = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const resultadosRef = useRef(null);
 
   // ----------------------------------------------------------
   // URL como fonte de verdade
@@ -166,7 +169,6 @@ const Alojamentos = () => {
   // Filtros locais (client-side)
   const [orcamento, setOrcamento] = useState(ORCAMENTO_MAX_DEFAULT);
   const [tiposSelecionados, setTiposSelecionados] = useState([]);
-  const [mapaAberto, setMapaAberto] = useState(false);
 
   const orcamentoDeferido = useDeferredValue(orcamento);
   const tiposDeferidos = useDeferredValue(tiposSelecionados);
@@ -358,6 +360,13 @@ const Alojamentos = () => {
     return copia;
   }, [alojamentosFiltrados, ordenar]);
 
+  const chavePaginacao = JSON.stringify([searchParams, orcamentoDeferido, tiposDeferidos, ordenar]);
+  const paginacao = usePaginacao(alojamentosOrdenados, chavePaginacao, 9);
+  const mudarPagina = (pagina) => {
+    paginacao.onPage(pagina);
+    resultadosRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+  };
+
   // ----------------------------------------------------------
   // Callbacks
   // ----------------------------------------------------------
@@ -369,7 +378,7 @@ const Alojamentos = () => {
   }, [navigate]);
 
   const toggleDropdown = useCallback(() => setDropdownAberto((v) => !v), []);
-  const abrirMapa = useCallback(() => setMapaAberto(true), []);
+  const abrirMapa = useCallback(() => navigate(`/mapa${location.search}`), [navigate, location.search]);
   const setGridMode = useCallback(() => setViewMode('grid'), []);
   const setListMode = useCallback(() => setViewMode('list'), []);
   const irParaExperiencias = useCallback(() => navigate('/experiencias'), [navigate]);
@@ -470,7 +479,7 @@ const Alojamentos = () => {
           </aside>
 
           {/* LISTA */}
-          <div className="w-full lg:col-span-9">
+          <div ref={resultadosRef} className="w-full min-w-0 scroll-mt-6 lg:col-span-9">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
               <h1 className="text-xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter text-left">
                 {filtroDestino || t('explorar', 'Explorar')}:{' '}
@@ -572,8 +581,8 @@ const Alojamentos = () => {
             ) : (
               !erro && <div className={gridClassName}>
                 {alojamentosOrdenados.length > 0 ? (
-                  alojamentosOrdenados.map((casa) => (
-                    <CardAlojamento key={casa.id} {...casa} isList={isListMode} />
+                  paginacao.items.map((casa, index) => (
+                    <CardAlojamento key={casa.id} {...casa} isList={isListMode} imagemPrioritaria={index < 3} />
                   ))
                 ) : (
                   <EmptyState
@@ -584,6 +593,7 @@ const Alojamentos = () => {
                 )}
               </div>
             )}
+            {!loading && !erro && <PaginacaoAnuncios total={paginacao.total} pagina={paginacao.page} porPagina={9} onChange={mudarPagina} />}
           </div>
         </div>
 
