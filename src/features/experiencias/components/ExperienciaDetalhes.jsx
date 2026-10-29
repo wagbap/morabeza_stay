@@ -391,7 +391,7 @@ const SidebarReservaExperiencia = ({
 }) => {
   const { t } = useTranslation();
   const [showCalendar, setShowCalendar] = useState(false);
-  const [duracao, setDuracao] = useState("15 min");
+  const duracao = experiencia?.duracao || '';
   const [quantidadeJetSkis, setQuantidadeJetSkis] = useState(1);
   const [participantes, setParticipantes] = useState(1);
 
@@ -404,10 +404,7 @@ const SidebarReservaExperiencia = ({
   const minPessoasGrupo = Number(experiencia?.min_pessoas_grupo) || 1;
   const maxPessoasGrupo = Number(experiencia?.max_pessoas_grupo) || 10;
 
-  const opcoesDuracao = [
-    { label: "15 min", preco: 35 }, { label: "30 min", preco: 55 },
-    { label: "1 hora", preco: 90 }, { label: "2 horas", preco: 160 },
-  ];
+  const opcoesDuracao = duracao ? [{ label: duracao, preco: precoBase }] : [];
 
   const configBloqueios = configuracoes;
   const datasBloqueadas = bloqueios || [];
@@ -420,7 +417,7 @@ const SidebarReservaExperiencia = ({
   };
 
   const precoEpocaAlta = isEpocaAlta() ? Number(configBloqueios.preco_epoca_alta) : null;
-  const precoBaseAtual = precoEpocaAlta || (opcoesDuracao.find(o => o.label === duracao)?.preco || precoBase);
+  const precoBaseAtual = precoEpocaAlta ?? precoBase;
   const precoUnitarioAtual = precoBaseAtual;
 
   const precoTotal = isGrupoPrivado ? (precoEpocaAlta || precoGrupo) : precoUnitarioAtual * participantes;
@@ -686,7 +683,7 @@ const SidebarReservaExperiencia = ({
           </div>
         </div>
 
-        {!isGrupoPrivado && (
+        {!isGrupoPrivado && opcoesDuracao.length > 0 && (
           <div className="mb-5">
             <div className="flex justify-between items-center mb-2">
               <label className="text-[10px] font-black tracking-[0.1em] text-blue-900 uppercase">DURAÇÃO</label>
@@ -696,13 +693,13 @@ const SidebarReservaExperiencia = ({
               {opcoesDuracao.map((opt) => {
                 const isSelected = duracao === opt.label;
                 return (
-                  <button key={opt.label} onClick={() => setDuracao(opt.label)}
+                  <button key={opt.label} type="button"
                     className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
                       isSelected ? 'border-blue-600 bg-blue-50/30 ring-1 ring-blue-600' : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}>
                     <Clock size={16} className={isSelected ? 'text-blue-600' : 'text-slate-400'} />
                     <span className={`text-[10px] font-bold mt-1 text-center leading-tight ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>{opt.label}</span>
-                    <span className={`text-[8px] font-bold mt-0.5 ${isSelected ? 'text-blue-500' : 'text-slate-400'}`}>{opt.preco} CVE</span>
+                    <span className={`text-[8px] font-bold mt-0.5 ${isSelected ? 'text-blue-500' : 'text-slate-400'}`}>{precoUnitarioAtual} CVE</span>
                   </button>
                 );
               })}

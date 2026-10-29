@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import DataModalCarro from './DataModalCarro';
 import { useToast } from '../../../Toast';
+import { obterUtilizadorCheckout } from '../../../utils/utilizadorCheckout';
+import api from '../../../api/api';
 
 const API_BASE = 'https://welovepalop.com';
 
@@ -270,21 +272,32 @@ const CheckoutCarro = () => {
   });
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
+    let ativo = true;
+    const userData = obterUtilizadorCheckout();
+    if (userData) {
+      setCondutor(prev => ({
+        ...prev,
+        nome_completo: userData.nome || prev.nome_completo,
+        email: userData.email || prev.email,
+        phone: userData.phone || prev.phone,
+      }));
+      // O JWT do login Google pode nao incluir o telefone do perfil.
+      const params = { email: userData.email, category: 'Carro' };
+      if (userData.google_id) params.google_id = userData.google_id;
+      api.get('/checkout_api.php', { params }).then(({ data }) => {
+        if (!ativo || !data?.success || !data.usuario) return;
+        const perfil = data.usuario;
+        if ((perfil.email || '').trim().toLowerCase() !== userData.email.trim().toLowerCase()) return;
         setCondutor(prev => ({
           ...prev,
-          nome_completo: userData.name || userData.full_name || '',
-          email: userData.email || '',
-          phone: userData.phone || ''
+          phone: prev.phone || perfil.phone || perfil.telefone || '',
         }));
-      } catch (e) {
-        console.error('Erro ao parsear utilizador:', e);
-      }
+      }).catch(() => {
+        // Os dados da sessao continuam disponiveis e o telefone pode ser preenchido.
+      });
     }
     window.scrollTo(0, 0);
+    return () => { ativo = false; };
   }, []);
 
   useEffect(() => {
@@ -385,20 +398,51 @@ const CheckoutCarro = () => {
   };
 
   const handleOtpChange = (index, value) => {
-    const val = value.replace(/\D/g, '');
-    if (!val) {
-      const newValues = [...otpValues];
-      newValues[index] = '';
-      setOtpValues(newValues);
+    const apenasDigitos = value.replace(/\D/g, '');
+    if (!apenasDigitos) {
+      const next = [...otpValues];
+      next[index] = '';
+      setOtpValues(next);
       return;
     }
-    const newValues = [...otpValues];
-    newValues[index] = val[val.length - 1];
-    setOtpValues(newValues);
 
-    if (index < 5 && val) {
+    if (apenasDigitos.length > 1) {
+      const next = [...otpValues];
+      const restante = apenasDigitos.slice(0, 6 - index).split('');
+      restante.forEach((d, i) => {
+        next[index + i] = d;
+      });
+      setOtpValues(next);
+
+      const ultimo = Math.min(index + restante.length, 5);
+      inputRefs.current[ultimo]?.focus();
+      return;
+    }
+
+    const next = [...otpValues];
+    next[index] = apenasDigitos;
+    setOtpValues(next);
+
+    if (index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+  };
+
+  const handleOtpPaste = (e, index) => {
+    e.preventDefault();
+    const colado = e.clipboardData.getData('text');
+    if (colado.replace(/\D/g, '').length >= 6) index = 0;
+    const apenasDigitos = colado.replace(/\D/g, '').slice(0, 6 - index);
+    if (!apenasDigitos) return;
+
+    const next = [...otpValues];
+    apenasDigitos.split('').forEach((d, i) => {
+      next[index + i] = d;
+    });
+    setOtpValues(next);
+
+    const ultimo = Math.min(index + apenasDigitos.length, 5);
+    inputRefs.current[ultimo]?.focus();
   };
 
   const handleOtpKeyDown = (index, e) => {
@@ -458,7 +502,7 @@ const CheckoutCarro = () => {
         observacoes: condutor.observacoes
       },
       participantesAdicionais: [],
-      usuario: JSON.parse(localStorage.getItem('user') || 'null') || { email: condutor.email, nome: condutor.nome_completo }
+      usuario: obterUtilizadorCheckout() || { email: condutor.email, nome: condutor.nome_completo }
     };
 
     sessionStorage.setItem('reservaCarroPendente', JSON.stringify(dadosReserva));
@@ -597,7 +641,11 @@ const CheckoutCarro = () => {
                   key={idx}
                   ref={(el) => (inputRefs.current[idx] = el)}
                   type="text"
-                  maxLength={1}
+                  inputMode="numeric"
+                  autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+                  maxLength={6}
+                  onPaste={(e) => handleOtpPaste(e, idx)}
+                  onFocus={(e) => e.target.select()}
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}

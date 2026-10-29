@@ -1,5 +1,12 @@
 export default {
+
+
   translation: {
+    comprovativo_descarregar: "Descarregar comprovativo (PDF)",
+    comprovativo_erro_download: "N\u00e3o foi poss\u00edvel descarregar o comprovativo. Tente novamente.",
+    experiencia_erro_bloquear_vagas: "N\u00e3o foi poss\u00edvel reservar as vagas. Tente novamente.",
+    experiencia_resposta_bloqueio_invalida: "O servidor de disponibilidade devolveu uma resposta inv\u00e1lida. Tente novamente.",
+
 
     sidebar_validar_reservas: "Validar reservas",
     qr_sessao_anfitriao: "Inicie sess\u00e3o novamente como anfitri\u00e3o para validar reservas.",

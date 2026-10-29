@@ -34,6 +34,17 @@ function validarCobrancaCheckout(array $intent, string $clientSecret, int $centi
     }
 }
 
+function comprovativoCheckout(string $category, string $codigo): ?string {
+    try {
+        $settings = require __DIR__ . '/auth-secrets.local.php';
+        require_once __DIR__ . '/send_email.php';
+        return urlComprovativoReserva(['tipo'=>strtolower($category), 'codigo_reserva'=>$codigo], (string)($settings['jwt_secret'] ?? ''));
+    } catch (Throwable $e) {
+        error_log('Checkout: ligacao do comprovativo indisponivel.');
+        return null;
+    }
+}
+
 function pagamentoCheckoutStripe(array $input): bool {
     $ref = $input['stripe_id'] ?? '';
     if ($ref === '' || $ref === null) throw new Exception('Pagamento Stripe obrigatorio para confirmar a reserva.');
@@ -373,6 +384,22 @@ try {
         if (!$input) throw new Exception("Dados inválidos");
 
         // Nunca confiar no texto status_pagamento enviado pelo navegador.
+        // Havendo sessao, a reserva pertence a conta autenticada.
+        $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+        if ($authorization !== '') {
+            require_once __DIR__ . '/reserva-validacao.php';
+            $contaId = utilizadorReservaQR($conn, 'host');
+            $stmtConta = $conn->prepare('SELECT id, nome, email, phone, google_id FROM usuarios WHERE id=:id LIMIT 1');
+            $stmtConta->execute([':id' => $contaId]);
+            $contaCheckout = $stmtConta->fetch();
+            if (!$contaCheckout) throw new Exception('Utilizador da sessao nao encontrado.');
+            $input['usuario'] = [
+                'email' => $contaCheckout['email'],
+                'nome_completo' => $contaCheckout['nome'],
+                'phone' => $contaCheckout['phone'],
+                'google_id' => $contaCheckout['google_id'],
+            ];
+        }
         // O intent antigo continua a funcionar; verificamos a cobranca aqui.
         $stripePago = pagamentoCheckoutStripe($input);
         $estadoReserva = 'confirmada';
@@ -422,6 +449,7 @@ try {
                             'data' => [
                                 'reserva_id'       => (int)$existente['id'],
                                 'codigo_reserva'   => $existente['codigo_reserva'],
+                                'comprovativo_url' => comprovativoCheckout($categoryIdem, $existente['codigo_reserva']),
                                 'status'           => $existente['status'],
                                 'pagamento_status' => $existente['pagamento_status'],
                                 'category'         => $categoryIdem,
@@ -649,6 +677,7 @@ try {
                 'data'    => [
                     'reserva_id'       => $reservaId,
                     'codigo_reserva'   => $codigoReserva,
+                    'comprovativo_url' => comprovativoCheckout($category, $codigoReserva),
                     'usuario_id'       => $usuario_id,
                     'status'           => $estadoReserva,
                     'pagamento_status' => $estadoPagamento,
@@ -816,6 +845,7 @@ try {
                         'data' => [
                             'reserva_id'     => (int)$existente['id'],
                             'codigo_reserva' => $existente['codigo_reserva'],
+                            'comprovativo_url' => comprovativoCheckout($category ?? 'Experiencia', $existente['codigo_reserva']),
                             'status' => $existente['status'],
                             'pagamento_status' => $existente['pagamento_status'],
                             'category'       => $category ?? 'Experiencia',

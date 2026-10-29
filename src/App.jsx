@@ -314,6 +314,7 @@ function App() {
 
           {/* ROTAS DE GESTÃO */}
           <Route path="/gest/*" element={<GestaoRouter />} />
+          <Route path="/minhas-reservas" element={<Navigate to="/gest/minhas-reservas" replace />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

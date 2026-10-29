@@ -47,6 +47,17 @@ guardado na base. O checkout verifica o Stripe antes de gravar «pago» e «conf
 o envio do email não altera o pagamento ou as regras de validação QR.
 O intent antigo mantém-se no servidor, sem endpoints adicionais de integração Stripe.
 
+Os botoes da confirmacao e da gestao descarregam este mesmo PDF atraves de
+`comprovativo-reserva.php`. Publicar tambem esse endpoint, `checkout_api.php`
+e o frontend atualizado. Os links do email continuam assinados; os pedidos
+da gestao verificam a sessao e permitem apenas o cliente ou dono do anuncio.
+O checkout devolve uma ligacao assinada para a confirmacao, incluindo compras sem sessao.
+
+Os icones do email usam URLs publicas em `https://morabezastay.cv/images/email/`.
+Publicar tambem `public/images/email/` no site antes de enviar novos emails.
+O logotipo e o mesmo da Navbar, hospedado no Cloudinary. Nao sao embutidos
+anexos MIME de icones; apenas o PDF e anexado. As imagens embutidas no PDF mantem-se.
+
 O PDF inclui um resumo textual e vai em anexo. O botão descarrega um PDF através
 de ligação assinada válida por sete dias. Não é uma fatura fiscal. A assinatura
 protege o código/tipo/prazo, e o endpoint não aceita redirecionamentos externos.

@@ -15,8 +15,9 @@ checkEmail(emailReservaEstaPaga(['pagamento_status' => 'pago']), 'Database payme
 foreach ($fixtures as $d) {
     $body = renderizarConfirmacaoReserva($d);
     checkEmail(strpos($body, '{{') === false, 'Unresolved template tokens');
-    checkEmail(strpos($body, 'cid:morabeza-payment') !== false, 'Payment icon must be an embedded image');
-    checkEmail(strpos($body, 'cid:morabeza-logo') !== false, 'Logo must be an embedded image');
+    checkEmail(strpos($body, 'https://morabezastay.cv/images/email/payment.png') !== false, 'Payment icon must use a public URL');
+    checkEmail(strpos($body, 'logo_morabeza_r1s2ne.png') !== false, 'Use the actual site logo');
+    checkEmail(strpos($body, 'cid:') === false, 'Email must not require image attachments');
     checkEmail(preg_match('/>\s*\?\s*(?:&nbsp;|<)/', $body) === 0, 'Broken icon glyph');
     checkEmail(strpos($body, 'text=' . rawurlencode($d['codigo_reserva'])) !== false, 'QR must encode booking code');
     checkEmail(strpos($body, 'https://morabezastay.cv/gest/reserva/123/' . $d['tipo']) !== false, 'Incorrect booking link');

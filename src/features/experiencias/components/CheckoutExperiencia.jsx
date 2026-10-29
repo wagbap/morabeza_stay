@@ -9,40 +9,15 @@ import {
 import DataModal from './DataModalExperiencia';
 import HorarioModal from './HorarioModalExperiencia';
 import { useToast } from '../../../Toast';
+import { obterUtilizadorCheckout } from '../../../utils/utilizadorCheckout';
+import { reservarVagasExperiencia } from '../../../services/retencaoExperiencia';
 
 const API_BASE = 'https://welovepalop.com';
 
 // ============================================================
 // HELPER: obter utilizador do JWT
 // ============================================================
-function obterUsuarioJWT() {
-  try {
-    const token = localStorage.getItem('token')
-      || localStorage.getItem('morabeza_token')
-      || localStorage.getItem('access_token')
-      || localStorage.getItem('jwt');
-    if (token) {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const parsed = JSON.parse(decodeURIComponent(
-        atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
-      ));
-      const user = parsed?.data || parsed?.user || parsed?.usuario || parsed;
-      const id = user?.id || user?.userId || user?.user_id || user?.usuario_id || parsed?.sub;
-      if (id) return {
-        id: Number(id),
-        nome: user.nome || user.name || 'Utilizador',
-        email: user.email || parsed.email || ''
-      };
-    }
-    const savedUser = localStorage.getItem('user') || localStorage.getItem('morabeza_user');
-    if (savedUser) {
-      const u = JSON.parse(savedUser);
-      if (u?.id) return u;
-    }
-    return null;
-  } catch { return null; }
-}
+const obterUsuarioJWT = obterUtilizadorCheckout;
 
 // ============================================================
 // PARTICIPANTE PRINCIPAL
@@ -439,7 +414,7 @@ const CheckoutExperiencia = () => {
   const [sessoes, setSessoes] = useState([]);
 
   // 🔥 REQ 131: Estado da retenção
-  const [usuarioLogado, setUsuarioLogado] = useState(null);
+  const [usuarioLogado] = useState(obterUsuarioJWT);
   const [tokenRetencao, setTokenRetencao] = useState(null);
   const [segundosRestantes, setSegundosRestantes] = useState(900);
   const [retencaoAtiva, setRetencaoAtiva] = useState(false);
@@ -455,12 +430,12 @@ const CheckoutExperiencia = () => {
     dataISO: reservaData?.dataISO || null,
     periodo: periodoSelecionado || reservaData?.periodo || t('manha', 'Manhã'),
     horario: horarioSelecionado || reservaData?.horario || '08:00',
-    duracao: reservaData?.duracao || '15 min',
+    duracao: reservaData?.duracao || '',
     quantidadeJetSkis: reservaData?.quantidadeJetSkis || 1,
     participantes: reservaData?.participantes || 1,
     precoBase: reservaData?.precoTotal || 0,
     maxPessoas: reservaData?.maxPessoas || 15,
-    precoPorPessoa: reservaData?.precoPorPessoa || 35,
+    precoPorPessoa: Number(reservaData?.precoPorPessoa ?? 0),
     sessaoId: reservaData?.sessaoId || null,
     vagasDisponiveis: reservaData?.vagasDisponiveis || 0,
     modelo: reservaData?.modelo || 'por_pessoa'
@@ -476,12 +451,6 @@ const CheckoutExperiencia = () => {
 
   const [participantes, setParticipantes] = useState([]);
 
-  // 🔥 Obter utilizador logado
-  useEffect(() => {
-    const user = obterUsuarioJWT();
-    if (user) setUsuarioLogado(user);
-  }, []);
-
   const totalPessoas = reserva.participantes || (participantes.length + 1);
   const precoTotal = reserva.precoPorPessoa * totalPessoas;
 
@@ -489,61 +458,46 @@ const CheckoutExperiencia = () => {
   // 🔥 REQ 131: BLOQUEAR VAGAS AO ENTRAR NO CHECKOUT
   // ============================================================
   useEffect(() => {
+    let ativo = true;
     const bloquearVagas = async () => {
-      if (!reserva.sessaoId || !reserva.id) {
-        console.warn('⚠️ Sem sessaoId — não é possível bloquear vagas');
-        return;
-      }
-
+      if (!reserva.sessaoId || !reserva.id) return;
       setBloqueandoVagas(true);
+      setErroRetencao(null);
       try {
-        console.log('🔒 A bloquear vagas:', {
+        const data = await reservarVagasExperiencia({
           sessao_id: reserva.sessaoId,
-          quantidade: totalPessoas
+          experiencia_id: reserva.id,
+          quantidade: totalPessoas,
+          usuario_id: usuarioLogado?.id || null,
+          modelo: reserva.modelo || 'por_pessoa',
+          dados_reserva: { data: reserva.dataISO, horario: reserva.horario, periodo: reserva.periodo },
         });
-
-        const res = await fetch(`${API_BASE}/api/reservar_temporariamente.php`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessao_id: reserva.sessaoId,
-            experiencia_id: reserva.id,
-            quantidade: totalPessoas,
-            usuario_id: usuarioLogado?.id || null,
-            modelo: reserva.modelo || 'por_pessoa',
-            dados_reserva: {
-              data: reserva.dataISO,
-              horario: reserva.horario,
-              periodo: reserva.periodo
-            }
-          })
-        });
-
-        const data = await res.json();
-        console.log('📥 Resposta bloqueio:', data);
-
+        if (!ativo) return;
         if (data.success) {
           setTokenRetencao(data.token);
-          setSegundosRestantes(data.segundos_restantes || 900);
-          setRetencaoAtiva(true);
+          const segundos = Number(data.segundos_restantes);
+          setSegundosRestantes(Number.isFinite(segundos) ? Math.max(0, segundos) : 900);
+          setRetencaoAtiva(!Number.isFinite(segundos) || segundos > 0);
           setErroRetencao(null);
-          console.log('✅ Vagas bloqueadas por 15 min — token:', data.token);
         } else {
-          setErroRetencao(data.error || 'Não foi possível bloquear as vagas.');
-          showToast(data.error || 'Não foi possível bloquear as vagas.', 'error');
+          const mensagem = data.error || t('experiencia_erro_bloquear_vagas');
+          setErroRetencao(mensagem);
+          showToast(mensagem, 'error');
         }
       } catch (err) {
-        console.error('❌ Erro ao bloquear vagas:', err);
-        setErroRetencao('Erro de conexão. Tente novamente.');
-        showToast('Erro ao bloquear vagas', 'error');
+        if (!ativo) return;
+        const mensagem = t(err.code === 'INVALID_HOLD_RESPONSE'
+          ? 'experiencia_resposta_bloqueio_invalida' : 'experiencia_erro_bloquear_vagas');
+        setErroRetencao(mensagem);
+        showToast(mensagem, 'error');
       } finally {
-        setBloqueandoVagas(false);
+        if (ativo) setBloqueandoVagas(false);
       }
     };
-
     bloquearVagas();
+    return () => { ativo = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reserva.sessaoId, reserva.horario]);
+  }, [reserva.sessaoId, reserva.id, reserva.horario, reserva.dataISO, reserva.periodo, reserva.modelo, totalPessoas, usuarioLogado?.id]);
 
   // ============================================================
   // 🔥 REQ 131: TIMER REGRESSIVO
@@ -712,22 +666,15 @@ const CheckoutExperiencia = () => {
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        const email = userData.email;
-        const googleId = userData.sub || userData.google_id || null;
-        if (email) buscarDadosUsuario(email, googleId);
-        setParticipantePrincipal(prev => ({
-          ...prev,
-          nome_completo: userData.name || userData.nome || prev.nome_completo,
-          email: email || prev.email,
-          phone: userData.phone || prev.phone
-        }));
-      } catch (e) {
-        console.error('Erro ao parsear usuário:', e);
-      }
+    const userData = obterUtilizadorCheckout();
+    if (userData) {
+      if (userData.email) buscarDadosUsuario(userData.email, userData.google_id);
+      setParticipantePrincipal(prev => ({
+        ...prev,
+        nome_completo: userData.nome || prev.nome_completo,
+        email: userData.email || prev.email,
+        phone: userData.phone || prev.phone,
+      }));
     }
     window.scrollTo(0, 0);
   }, []);
@@ -922,14 +869,51 @@ const CheckoutExperiencia = () => {
   };
 
   const handleOtpChange = (index, value) => {
-    const val = value.replace(/\D/g, '');
-    if (!val) {
-      const nv = [...otpValues]; nv[index] = ''; setOtpValues(nv); return;
+    const apenasDigitos = value.replace(/\D/g, '');
+    if (!apenasDigitos) {
+      const next = [...otpValues];
+      next[index] = '';
+      setOtpValues(next);
+      return;
     }
-    const nv = [...otpValues];
-    nv[index] = val[val.length - 1];
-    setOtpValues(nv);
-    if (index < 5 && val) inputRefs.current[index + 1]?.focus();
+
+    if (apenasDigitos.length > 1) {
+      const next = [...otpValues];
+      const restante = apenasDigitos.slice(0, 6 - index).split('');
+      restante.forEach((d, i) => {
+        next[index + i] = d;
+      });
+      setOtpValues(next);
+
+      const ultimo = Math.min(index + restante.length, 5);
+      inputRefs.current[ultimo]?.focus();
+      return;
+    }
+
+    const next = [...otpValues];
+    next[index] = apenasDigitos;
+    setOtpValues(next);
+
+    if (index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e, index) => {
+    e.preventDefault();
+    const colado = e.clipboardData.getData('text');
+    if (colado.replace(/\D/g, '').length >= 6) index = 0;
+    const apenasDigitos = colado.replace(/\D/g, '').slice(0, 6 - index);
+    if (!apenasDigitos) return;
+
+    const next = [...otpValues];
+    apenasDigitos.split('').forEach((d, i) => {
+      next[index + i] = d;
+    });
+    setOtpValues(next);
+
+    const ultimo = Math.min(index + apenasDigitos.length, 5);
+    inputRefs.current[ultimo]?.focus();
   };
 
   const handleOtpKeyDown = (index, e) => {
@@ -1007,7 +991,7 @@ const CheckoutExperiencia = () => {
       reservaData: { ...reserva, participantes: totalPessoasFinal, precoTotal: precoTotalFinal, tipo: 'experiencia' },
       participantePrincipal,
       participantesAdicionais: participantes,
-      usuario: JSON.parse(localStorage.getItem('user') || 'null') || { email: participantePrincipal.email, nome: participantePrincipal.nome_completo }
+      usuario: obterUtilizadorCheckout() || { email: participantePrincipal.email, nome: participantePrincipal.nome_completo }
     };
 
     sessionStorage.setItem('reservaPendente', JSON.stringify(dadosReserva));
@@ -1038,7 +1022,7 @@ const CheckoutExperiencia = () => {
       return;
     }
 
-    handleEnviarOtp();
+    await handleEnviarOtp();
   };
 
   // ============================================================
@@ -1295,7 +1279,11 @@ const CheckoutExperiencia = () => {
                   key={idx}
                   ref={(el) => (inputRefs.current[idx] = el)}
                   type="text"
-                  maxLength={1}
+                  inputMode="numeric"
+                  autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+                  maxLength={6}
+                  onPaste={(e) => handleOtpPaste(e, idx)}
+                  onFocus={(e) => e.target.select()}
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}

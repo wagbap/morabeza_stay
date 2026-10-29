@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import DataModalAlojamento from './DataModalAlojamento';
 import { useToast } from '../../../Toast';
+import { obterUtilizadorCheckout } from '../../../utils/utilizadorCheckout';
 import ResumoReservaAlojamento from './ResumoReservaAlojamento';
 
 const API_BASE = 'https://welovepalop.com';
@@ -557,28 +558,8 @@ const CheckoutAlojamento = () => {
     showToast(t('hospede_adicionado', 'Hóspede adicionado'), 'success');
   };
 
-  const verificarUtilizadorLogado = () => {
-    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
-    if (!token) return null;
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-      return JSON.parse(jsonPayload).data || { logged: true };
-    } catch (e) {
-      return null;
-    }
-  };
-
   useEffect(() => {
-    localStorage.removeItem('user');
-
-    const utilizadorLogado = verificarUtilizadorLogado();
+    const utilizadorLogado = obterUtilizadorCheckout();
 
     if (utilizadorLogado) {
       const email = utilizadorLogado.email || '';

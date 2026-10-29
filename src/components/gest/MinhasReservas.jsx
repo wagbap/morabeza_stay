@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { descarregarComprovativo } from '../../services/comprovativoReserva';
 import usePaginacao from '../../hooks/usePaginacao';
 import PaginacaoLista from './PaginacaoLista';
 import HeaderGestao from './HeaderGestao';
@@ -6,13 +8,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Loader2, RefreshCw, AlertCircle, Eye, Receipt, DollarSign, X, 
-  Check, PauseCircle, Home, Car, Compass, Inbox
+  Check, PauseCircle, Home, Car, Compass, Inbox, UserRound, CircleCheck, Clock, CircleX
 } from 'lucide-react';
 import ReembolsoModal from './ReembolsoModal';
 
 const API_BASE = 'https://welovepalop.com';
 
 export default function Reservas() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Todas');
   const [reservas, setReservas] = useState([]);
@@ -239,12 +242,10 @@ export default function Reservas() {
     navigate(`/gest/reserva/${reservaId}/${tipo}`);
   };
 
-  const baixarRecibo = (reserva) => {
-    const usuarioId = obterUsuarioId();
-    window.open(
-      `${API_BASE}/api/recibo.php?reserva_id=${reserva.id}&tipo=${reserva.tipo}&usuario_id=${usuarioId}`,
-      '_blank'
-    );
+  const baixarRecibo = async (reserva) => {
+    try {
+      await descarregarComprovativo({ tipo: reserva.tipo, id: reserva.id, codigo: reserva.codigo_reserva });
+    } catch { showToast(t('comprovativo_erro_download'), 'error'); }
   };
 
   const abrirReembolso = (reserva) => {
@@ -285,18 +286,18 @@ export default function Reservas() {
   const getStatusBadge = (status) => {
     const s = String(status).toLowerCase();
     if (s === 'confirmada' || s === 'confirmado' || s === 'approved') {
-      return <span className="bg-[#e6f4ea] text-[#137333] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">✅ Confirmada</span>;
+      return <span className="bg-[#e6f4ea] text-[#137333] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><CircleCheck aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /> Confirmada</span>;
     }
     if (s === 'pendente' || s === 'pending') {
-      return <span className="bg-[#fef3c7] text-[#b45309] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">⏳ Pendente</span>;
+      return <span className="bg-[#fef3c7] text-[#b45309] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><Clock aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /> Pendente</span>;
     }
     if (s === 'concluída' || s === 'concluida') {
-      return <span className="bg-[#e0f2f1] text-[#0f766e] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">✓ Concluída</span>;
+      return <span className="bg-[#e0f2f1] text-[#0f766e] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><CircleCheck aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /> Concluída</span>;
     }
     if (s === 'cancelada' || s === 'cancelled') {
-      return <span className="bg-[#fee2e2] text-[#b91c1c] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">✗ Cancelada</span>;
+      return <span className="bg-[#fee2e2] text-[#b91c1c] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><CircleX aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /> Cancelada</span>;
     }
-    return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">{status}</span>;
+    return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap">{status}</span>;
   };
 
   const formatarPeriodo = (reserva) => {
@@ -408,7 +409,7 @@ export default function Reservas() {
                           <div className="min-w-0 flex flex-col justify-center">
                             <span className="text-[14px] font-bold text-[#0f172a] break-words">{reserva.item_nome || reserva.item}</span>
                             <span className="text-[13px] text-[#64748b] mt-0.5 flex items-center gap-1">
-                              <span>👤</span> {getNomeContraparte(reserva)}
+                              <UserRound aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /> {getNomeContraparte(reserva)}
                             </span>
                           </div>
                         </div>
@@ -455,7 +456,7 @@ export default function Reservas() {
                               <button 
                                 onClick={() => baixarRecibo(reserva)}
                                 className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition"
-                                title="Baixar recibo"
+                                title={t('comprovativo_descarregar')}
                               >
                                 <Receipt size={14} />
                               </button>
@@ -513,7 +514,7 @@ export default function Reservas() {
                       <div className="flex flex-col">
                         <span className="text-[14px] font-bold text-[#0f172a] break-words">{reserva.item_nome || reserva.item}</span>
                         <span className="text-[12px] text-[#64748b] mt-0.5 flex items-center gap-1">
-                          <span>👤</span> {getNomeContraparte(reserva)}
+                          <UserRound aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /> {getNomeContraparte(reserva)}
                         </span>
                       </div>
                     </div>

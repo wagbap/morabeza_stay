@@ -1,3 +1,4 @@
+import { descarregarComprovativo } from '../../services/comprovativoReserva';
 import { useTranslation } from 'react-i18next';
 import HeaderGestao from './HeaderGestao';
 // pages/DetalhesReservaPage.jsx
@@ -7,7 +8,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, User, Phone, Mail, Download, Share2,
   CheckCircle, XCircle, Clock, AlertCircle, ChevronRight, Home,
-  Receipt, DollarSign, Loader2, RefreshCw
+  Receipt, DollarSign, Loader2, RefreshCw, CalendarCheck, List, History, QrCode
 } from 'lucide-react';
 
 const API_URL = 'https://welovepalop.com';
@@ -143,12 +144,10 @@ export default function DetalhesReservaPage() {
     }
   };
 
-  const baixarRecibo = () => {
-    const usuarioId = obterUsuarioId();
-    window.open(
-      `${API_URL}/api/recibo.php?reserva_id=${id}&tipo=${tipo}&usuario_id=${usuarioId}`,
-      '_blank'
-    );
+  const baixarRecibo = async () => {
+    try {
+      await descarregarComprovativo({ tipo, id, codigo: detalhes?.codigo_reserva });
+    } catch { window.alert(t('comprovativo_erro_download')); }
   };
 
   const getStatusConfig = (status) => {
@@ -279,7 +278,7 @@ export default function DetalhesReservaPage() {
 
           {/* Detalhes Específicos */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-            <h4 className="font-bold text-gray-900 mb-4">📋 Detalhes da Reserva</h4>
+            <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="text-blue-600"><CalendarCheck className="h-5 w-5" /></span>Detalhes da Reserva</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {detalhes.especifico && Object.entries(detalhes.especifico).map(([key, value]) => {
                 if (!value) return null;
@@ -312,7 +311,7 @@ export default function DetalhesReservaPage() {
                 className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
               >
                 <Download className="w-3 h-3" />
-                Baixar Recibo
+                {t('comprovativo_descarregar')}
               </button>
             </div>
 
@@ -401,7 +400,7 @@ export default function DetalhesReservaPage() {
           {/* Histórico */}
           {detalhes.historico && detalhes.historico.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-              <h4 className="font-bold text-gray-900 mb-4">📋 Histórico</h4>
+              <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="text-blue-600"><History className="h-5 w-5" /></span>{t('sidebar_historico', 'Histórico')}</h4>
               <div className="space-y-4">
                 {detalhes.historico.map((item, index) => (
                   <div key={index} className="flex gap-4">
@@ -429,7 +428,7 @@ export default function DetalhesReservaPage() {
 
           {/* QR Code */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 text-center">
-            <h4 className="font-bold text-gray-900 mb-3">📱 QR Code</h4>
+            <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><span className="text-blue-600"><QrCode className="h-5 w-5" /></span>QR Code</h4>
             <div className="bg-white p-3 rounded-lg border border-gray-200 inline-block">
               <img src={detalhes.qr_code} alt="QR Code" className="h-44 w-44 max-w-full object-contain sm:h-48 sm:w-48" />
             </div>
@@ -442,7 +441,7 @@ export default function DetalhesReservaPage() {
           {/* Anfitrião */}
           {detalhes.proprietario && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-              <h4 className="font-bold text-gray-900 mb-3">👤 Anfitrião</h4>
+              <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><span className="text-blue-600"><User className="h-5 w-5" /></span>{t('anfitriao', 'Anfitrião')}</h4>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-gray-500" />
@@ -466,20 +465,17 @@ export default function DetalhesReservaPage() {
 
           {/* Ações */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-            <h4 className="font-bold text-gray-900 mb-3">⚡ Ações</h4>
+            <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><span className="text-blue-600"><CalendarCheck className="h-5 w-5" /></span>{t('acoes', 'Ações')}</h4>
             <div className="space-y-2">
               <button onClick={baixarRecibo} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-                <Receipt className="w-4 h-4" /> Baixar Recibo
+                <Receipt className="w-4 h-4" /> {t('comprovativo_descarregar')}
               </button>
-              <button onClick={() => window.print()} className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
-                🖨️ Imprimir
-              </button>
-              <Link to="/gest/minhas-reservas" className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors block text-center">
-                📋 Ver Todas
+              <Link to="/gest/minhas-reservas" className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
+                <List className="h-4 w-4" /> Ver Todas
               </Link>
               {detalhes.status !== 'Cancelada' && detalhes.status !== 'Concluída' && (
                 <button onClick={handleCancelar} disabled={canceling} className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50">
-                  {canceling ? 'Cancelando...' : '❌ Cancelar Reserva'}
+                  <XCircle className="inline-block h-4 w-4 mr-2" />{canceling ? 'Cancelando...' : 'Cancelar Reserva'}
                 </button>
               )}
             </div>

@@ -30,9 +30,13 @@ function emailReservaAssets(): array {
 
 
 function emailReservaImg(string $name, int $size = 24, bool $preview = false, ?int $height = null): string {
+    if ($name === 'logo' || $name === 'sun') {
+        $width = $name === 'logo' ? 260 : 120;
+        return '<img src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" width="' . $width . '" alt="Morabeza Stay" style="display:inline-block;vertical-align:middle;border:0;width:' . $width . 'px;max-width:100%;height:auto;">';
+    }
     $assets = emailReservaAssets();
     if (!isset($assets[$name])) return '';
-    $src = $preview ? 'data:image/png;base64,' . $assets[$name] : 'cid:morabeza-' . $name;
+    $src = $preview ? 'data:image/png;base64,' . $assets[$name] : 'https://morabezastay.cv/images/email/' . rawurlencode($name) . '.png';
     return '<img src="' . $src . '" width="' . $size . '" height="' . ($height ?? $size) . '" alt="" style="display:inline-block;vertical-align:middle;border:0;width:' . $size . 'px;height:' . ($height ?? $size) . 'px;">';
 }
 
@@ -2343,7 +2347,7 @@ try {
     require_once __DIR__ . '/mail/Exception.php';
     require_once __DIR__ . '/mail/PHPMailer.php';
     require_once __DIR__ . '/mail/SMTP.php';
-    $makeMailer = static function () use ($settings, $body) {
+    $makeMailer = static function () use ($settings) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
@@ -2356,11 +2360,7 @@ try {
         $mail->CharSet = 'UTF-8';
         $mail->setFrom($settings['smtp_user'], 'Morabeza Stay');
         $mail->isHTML(true);
-        foreach (emailReservaAssets() as $name => $base64) {
-            // Imagens CID sem referencia no HTML aparecem como anexos no Gmail.
-            if (strpos($body, 'cid:morabeza-' . $name . '"') === false) continue;
-            $mail->addStringEmbeddedImage(base64_decode($base64), 'morabeza-' . $name, $name . '.png', 'base64', 'image/png');
-        }
+        // Icones e logotipo usam URLs publicas, sem anexos MIME de imagens.
         return $mail;
     };
     $subject = (in_array(strtolower($d['status']), ['confirmada', 'confirmado', 'approved'], true) ? 'Reserva confirmada' : 'Reserva recebida') . ' · ' . $codigo;

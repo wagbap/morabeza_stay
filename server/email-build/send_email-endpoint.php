@@ -37,7 +37,7 @@ try {
     require_once __DIR__ . '/mail/Exception.php';
     require_once __DIR__ . '/mail/PHPMailer.php';
     require_once __DIR__ . '/mail/SMTP.php';
-    $makeMailer = static function () use ($settings, $body) {
+    $makeMailer = static function () use ($settings) {
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         $mail->isSMTP();
         $mail->Host = 'smtp.gmail.com';
@@ -50,11 +50,7 @@ try {
         $mail->CharSet = 'UTF-8';
         $mail->setFrom($settings['smtp_user'], 'Morabeza Stay');
         $mail->isHTML(true);
-        foreach (emailReservaAssets() as $name => $base64) {
-            // Imagens CID sem referencia no HTML aparecem como anexos no Gmail.
-            if (strpos($body, 'cid:morabeza-' . $name . '"') === false) continue;
-            $mail->addStringEmbeddedImage(base64_decode($base64), 'morabeza-' . $name, $name . '.png', 'base64', 'image/png');
-        }
+        // Icones e logotipo usam URLs publicas, sem anexos MIME de imagens.
         return $mail;
     };
     $subject = (in_array(strtolower($d['status']), ['confirmada', 'confirmado', 'approved'], true) ? 'Reserva confirmada' : 'Reserva recebida') . ' · ' . $codigo;

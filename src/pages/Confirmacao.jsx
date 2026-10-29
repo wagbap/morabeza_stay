@@ -1,10 +1,11 @@
 // Confirmacao.jsx - Com suporte para Carros
 import React, { useEffect, useState } from 'react';
+import { descarregarComprovativo } from '../services/comprovativoReserva';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Check, Calendar, Clock, MapPin, Users, 
-  Mail, Camera, ArrowRight, Printer, List, 
+  Mail, Camera, ArrowRight, Download, List, 
   ShieldCheck, Phone, HelpCircle, Copy, CheckCircle
 } from 'lucide-react';
 
@@ -74,7 +75,7 @@ const Confirmacao = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { reservaId, codigoReserva, reservaData, metodoPagamento, tipo: tipoState, status } = location.state || {};
+  const { reservaId, codigoReserva, reservaData, metodoPagamento, tipo: tipoState, status, comprovativoUrl } = location.state || {};
   
   const [userEmail, setUserEmail] = useState('');
   const [tipo, setTipo] = useState(tipoState || 'experiencia');
@@ -123,8 +124,10 @@ const Confirmacao = () => {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownload = async () => {
+    try {
+      await descarregarComprovativo({ tipo, codigo: codigoReserva, id: reservaId, url: comprovativoUrl });
+    } catch { window.alert(t('comprovativo_erro_download')); }
   };
 
   const getMetodoPagamentoLabel = () => {
@@ -332,16 +335,16 @@ const Confirmacao = () => {
             {/* AÇÕES FINAIS */}
             <div className="flex flex-wrap gap-3 pt-2">
               <button 
-                onClick={() => navigate('/minhas-reservas')}
+                onClick={() => navigate('/gest/minhas-reservas')}
                 className="h-[44px] px-5 border border-slate-200 rounded-lg text-sm font-bold text-blue-900 flex items-center gap-2 hover:bg-slate-50 transition"
               >
                 <List size={16}/> {t('ver_minhas_reservas')}
               </button>
               <button 
-                onClick={handlePrint}
+                onClick={handleDownload}
                 className="h-[44px] px-5 border border-slate-200 rounded-lg text-sm font-bold text-blue-900 flex items-center gap-2 hover:bg-slate-50 transition"
               >
-                <Printer size={16}/> {t('imprimir')}
+                <Download size={16}/> {t('comprovativo_descarregar')}
               </button>
               <button 
                 onClick={() => navigate('/')}

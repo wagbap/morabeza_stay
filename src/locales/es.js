@@ -1,5 +1,12 @@
 export default {
+
+
   translation: {
+    comprovativo_descarregar: "Download confirmation (PDF)",
+    comprovativo_erro_download: "Unable to download the confirmation. Please try again.",
+    experiencia_erro_bloquear_vagas: "Unable to reserve the spots. Please try again.",
+    experiencia_resposta_bloqueio_invalida: "The availability server returned an invalid response. Please try again.",
+
 
     sidebar_validar_reservas: "Validate bookings",
     qr_sessao_anfitriao: "Sign in again as a host to validate bookings.",

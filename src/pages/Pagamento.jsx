@@ -9,6 +9,7 @@ import { useToast } from '../Toast';
 import FormularioPagamentoStripe from './FormularioPagamentoStripe';
 import api from '../api/api';
 import { obterTokenValidacao } from '../utils/tokenValidacaoReserva';
+import { obterUtilizadorCheckout } from '../utils/utilizadorCheckout';
 
 const ResumoReservaExperiencia = React.lazy(() => import('../features/experiencias/components/ResumoReservaExperiencia'));
 const ResumoReservaAlojamento = React.lazy(() => import('../features/alojamento/components/ResumoReservaAlojamento'));
@@ -196,23 +197,29 @@ const PagamentoContent = () => {
     if (!cache) throw new Error(t('erro_sessao_expirada'));
 
     const dados = JSON.parse(cache);
-    const { reservaData: rD, participantePrincipal, participantesAdicionais, usuario } = dados;
+    const { reservaData: rD, participantePrincipal, participantesAdicionais } = dados;
 
     if (!participantePrincipal) {
       throw new Error(t('erro_participante_nao_encontrado'));
     }
 
     const fin = rD?.financeiro || {};
+    const conta = obterUtilizadorCheckout();
+    const titular = conta || {
+      email: participantePrincipal.email,
+      nome: participantePrincipal.nome_completo,
+      phone: participantePrincipal.phone,
+    };
     let payload;
 
     if (tipo === 'alojamento') {
       payload = {
         category: 'Alojamento',
         usuario: {
-          email: participantePrincipal.email || '',
-          nome_completo: participantePrincipal.nome_completo || '',
-          phone: participantePrincipal.phone || '',
-          google_id: usuario?.google_id || null,
+          email: titular.email || '',
+          nome_completo: titular.nome || '',
+          phone: titular.phone || participantePrincipal.phone || '',
+          google_id: conta?.google_id || null,
         },
         reserva: {
           alojamento_id: rD?.id,
@@ -245,10 +252,10 @@ const PagamentoContent = () => {
       payload = {
         category: 'Carro',
         usuario: {
-          email: participantePrincipal.email || '',
-          nome_completo: participantePrincipal.nome_completo || '',
-          phone: participantePrincipal.phone || '',
-          google_id: usuario?.google_id || null,
+          email: titular.email || '',
+          nome_completo: titular.nome || '',
+          phone: titular.phone || participantePrincipal.phone || '',
+          google_id: conta?.google_id || null,
         },
         reserva: {
           id: rD?.id,
@@ -273,10 +280,10 @@ const PagamentoContent = () => {
       payload = {
         category: 'Experiencia',
         usuario: {
-          email: participantePrincipal.email || '',
-          nome_completo: participantePrincipal.nome_completo || '',
-          phone: participantePrincipal.phone || '',
-          google_id: usuario?.google_id || null,
+          email: titular.email || '',
+          nome_completo: titular.nome || '',
+          phone: titular.phone || participantePrincipal.phone || '',
+          google_id: conta?.google_id || null,
         },
         reserva: {
           experiencia_id: rD?.id,
@@ -294,9 +301,10 @@ const PagamentoContent = () => {
     }
 
     payload.stripe_client_secret = dadosTransacao.client_secret;
+    const tokenSessao = conta ? obterTokenValidacao(localStorage, 'host', true) : null;
     const response = await fetchComTimeout(`${API_BASE}/api/checkout_api.php`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(tokenSessao ? { Authorization: `Bearer ${tokenSessao}` } : {}) },
       body: JSON.stringify(payload),
     }, 8000);
 
@@ -384,6 +392,7 @@ const PagamentoContent = () => {
           state: {
             reservaId: saveResult.data?.reserva_id,
             codigoReserva: saveResult.data?.codigo_reserva,
+            comprovativoUrl: saveResult.data?.comprovativo_url,
             reservaData: reserva,
             metodoPagamento: 'cartao',
             tipo,

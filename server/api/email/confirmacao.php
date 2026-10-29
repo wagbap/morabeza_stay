@@ -3,9 +3,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/emailAssets.php';
 
 function emailReservaImg(string $name, int $size = 24, bool $preview = false, ?int $height = null): string {
+    if ($name === 'logo' || $name === 'sun') {
+        $width = $name === 'logo' ? 260 : 120;
+        return '<img src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" width="' . $width . '" alt="Morabeza Stay" style="display:inline-block;vertical-align:middle;border:0;width:' . $width . 'px;max-width:100%;height:auto;">';
+    }
     $assets = emailReservaAssets();
     if (!isset($assets[$name])) return '';
-    $src = $preview ? 'data:image/png;base64,' . $assets[$name] : 'cid:morabeza-' . $name;
+    $src = $preview ? 'data:image/png;base64,' . $assets[$name] : 'https://morabezastay.cv/images/email/' . rawurlencode($name) . '.png';
     return '<img src="' . $src . '" width="' . $size . '" height="' . ($height ?? $size) . '" alt="" style="display:inline-block;vertical-align:middle;border:0;width:' . $size . 'px;height:' . ($height ?? $size) . 'px;">';
 }
 
