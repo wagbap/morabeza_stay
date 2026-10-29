@@ -1,8 +1,13 @@
+import { useTranslation } from 'react-i18next';
+import usePaginacao from '../../hooks/usePaginacao';
+import PaginacaoLista from './PaginacaoLista';
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/Historico.jsx
 import React, { useState, useEffect } from 'react';
 import { Loader2, Home, Car, Compass, Award, Filter } from 'lucide-react';
 
 export default function Historico() {
+  const { t } = useTranslation();
   const [pagamentos, setPagamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userRoles, setUserRoles] = useState({
@@ -152,6 +157,8 @@ export default function Historico() {
 
   const hasAnyRole = userRoles.anfitrion || userRoles.guia || userRoles.proprietarioVeiculos;
 
+  const paginacao = usePaginacao(pagamentosFiltrados, filtroTipo);
+
   if (loading) {
     return (
       <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0 flex justify-center items-center h-96">
@@ -180,7 +187,7 @@ export default function Historico() {
 
   return (
     <div className="max-w-7xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
-      <h1 className="text-[24px] font-bold mb-6">Histórico de Pagamentos</h1>
+      <HeaderGestao secao="historico" className="mb-6" />
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
@@ -254,7 +261,7 @@ export default function Historico() {
         )}
       </div>
       
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div data-lista-paginada className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {pagamentosFiltrados.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -266,7 +273,8 @@ export default function Historico() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[800px] text-left">
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
@@ -279,10 +287,10 @@ export default function Historico() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {pagamentosFiltrados.map((pag, i) => (
-                  <tr key={i} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-5 text-[13px] font-bold">{pag.data}</td>
-                    <td className="px-6 py-5">
+                {paginacao.items.map((pag, i) => (
+                  <tr key={i} className="even:bg-slate-50/30 hover:bg-blue-50/40 transition-colors">
+                    <td className="px-5 py-4 whitespace-nowrap text-[13px] font-medium tabular-nums">{pag.data}</td>
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
                         {getTipoIcone(pag.tipo)}
                         <div className="flex flex-col">
@@ -291,10 +299,10 @@ export default function Historico() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-[13px] font-bold text-[#2563eb]">{pag.id}</td>
-                    <td className="px-6 py-5 text-[14px] font-bold">{pag.bruto.toLocaleString()} CVE</td>
-                    <td className="px-6 py-5 text-[14px] font-bold text-green-600">{pag.liquido.toLocaleString()} CVE</td>
-                    <td className="px-6 py-5">
+                    <td className="px-5 py-4 text-[13px] font-bold text-[#2563eb]">{pag.id}</td>
+                    <td className="px-5 py-4 whitespace-nowrap text-[14px] font-semibold tabular-nums">{pag.bruto.toLocaleString()} CVE</td>
+                    <td className="px-5 py-4 whitespace-nowrap text-[14px] font-semibold tabular-nums text-green-600">{pag.liquido.toLocaleString()} CVE</td>
+                    <td className="px-5 py-4">
                       <span className={`px-3 py-1 rounded-md text-[11px] font-bold ${
                         pag.status === 'Pago' 
                           ? 'bg-green-100 text-green-700' 
@@ -308,6 +316,22 @@ export default function Historico() {
               </tbody>
             </table>
           </div>
+          <div className="divide-y divide-slate-100 md:hidden">
+            {paginacao.items.map((pag, index) => <article key={`${pag.id}-${index}`} className="space-y-3 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium tabular-nums text-slate-500">{pag.data}</span>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${pag.status === 'Pago' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{pag.status}</span>
+              </div>
+              <div className="flex items-start gap-2"><span className="mt-0.5 shrink-0">{getTipoIcone(pag.tipo)}</span><div className="min-w-0"><h3 className="text-sm font-bold text-slate-900">{pag.desc}</h3><p className="mt-1 text-xs text-slate-500">{pag.periodo}</p></div></div>
+              <p className="break-all text-xs font-medium text-blue-600">{pag.id}</p>
+              <dl className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
+                <div><dt className="text-xs text-slate-500">{t('lista_bruto')}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-slate-800">{pag.bruto.toLocaleString()} CVE</dd></div>
+                <div><dt className="text-xs text-slate-500">{t('lista_liquido')}</dt><dd className="mt-1 text-sm font-semibold tabular-nums text-green-600">{pag.liquido.toLocaleString()} CVE</dd></div>
+              </dl>
+            </article>)}
+          </div>
+          <PaginacaoLista {...paginacao} />
+          </>
         )}
       </div>
       

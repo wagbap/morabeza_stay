@@ -1,8 +1,52 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/Mensagens.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Search, X, ChevronLeft, Loader2, Home, Car, Compass } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const API_BASE = 'https://welovepalop.com/api/mensagens';
+
+// Relative profile paths belong to the API host, never the current /gest route.
+function normalizarFotoPerfil(valor) {
+  if (typeof valor !== 'string') return null;
+  const caminho = valor.trim();
+  if (!caminho || /^(null|undefined|false)$/i.test(caminho)) return null;
+  try {
+    const url = new URL(caminho.replace(/\\/g, '/'), 'https://welovepalop.com/');
+    return ['https:', 'http:'].includes(url.protocol) ? url.href : null;
+  } catch { return null; }
+}
+
+function AvatarFotoMensagem({ src, nome, className }) {
+  const [carregada, setCarregada] = useState(false);
+  const [falhou, setFalhou] = useState(false);
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  const iniciais = (Array.from(partes[0] || '')[0] || '') +
+    (partes.length > 1 ? Array.from(partes.at(-1))[0] : '');
+
+  return (
+    <span role="img" aria-label={nome} className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-blue-600 font-semibold text-white ${className}`}>
+      <span aria-hidden="true">{iniciais.toLocaleUpperCase()}</span>
+      {src && !falhou && <img
+        src={src} alt="" aria-hidden="true" decoding="async"
+        referrerPolicy="no-referrer"
+        className={`absolute inset-0 h-full w-full object-cover ${carregada ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={() => setCarregada(true)}
+        onError={() => setFalhou(true)}
+      />}
+    </span>
+  );
+}
+
+function AvatarMensagem({ contacto, className }) {
+  const { t } = useTranslation();
+  const nome = typeof contacto.nome === 'string' && contacto.nome.trim()
+    ? contacto.nome : t('mensagens_utilizador', 'Utilizador');
+  const src = [contacto.foto, contacto.foto_perfil, contacto.picture, contacto.avatar]
+    .map(normalizarFotoPerfil).find(Boolean) || null;
+  // Remount image state when the profile URL or contact changes.
+  return <AvatarFotoMensagem key={`${contacto.id}:${src}`} src={src} nome={nome} className={className} />;
+}
 
 function obterUsuario() {
   try {
@@ -251,8 +295,8 @@ export default function Mensagens({ onClose }) {
       {/* ============ PAINEL ESQUERDO — Lista de contactos ============ */}
       <div className={`w-full md:w-[340px] flex-shrink-0 flex flex-col border-r border-gray-100 ${isChatOpenMobile ? 'hidden md:flex' : 'flex'}`}>
         
-        <div className="flex items-center justify-between p-4 border-b border-gray-100 h-[64px]">
-          <h2 className="text-lg font-bold">Mensagens</h2>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 gap-3">
+          <HeaderGestao secao="mensagens" className="mb-0" />
           {onClose && (
             <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-500">
               <X size={18} />
@@ -298,11 +342,7 @@ export default function Mensagens({ onClose }) {
                 >
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
-                    <img 
-                      src={contacto.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(contacto.nome || 'U')}&background=0D8ABC&color=fff`} 
-                      alt={contacto.nome} 
-                      className="w-12 h-12 rounded-full object-cover border border-gray-200"
-                    />
+                    <AvatarMensagem contacto={contacto} className="w-12 h-12 text-base" />
                     {/* 🔴 Badge vermelha */}
                     {naoLidas > 0 && (
                       <span className="absolute -bottom-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 border-2 border-white shadow-md">
@@ -358,11 +398,7 @@ export default function Mensagens({ onClose }) {
                 >
                   <ChevronLeft size={20} />
                 </button>
-                <img 
-                  src={activeContact.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeContact.nome || 'U')}&background=0D8ABC&color=fff`} 
-                  alt={activeContact.nome} 
-                  className="w-10 h-10 rounded-full object-cover"
-                />
+                <AvatarMensagem contacto={activeContact} className="w-10 h-10 text-sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-gray-900 truncate">{activeContact.nome}</p>
                   <p className="text-[11px] text-gray-500">{activeContact.online ? 'Online' : 'Offline'}</p>

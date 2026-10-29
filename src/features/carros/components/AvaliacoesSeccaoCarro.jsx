@@ -1,3 +1,4 @@
+import CampoDataMorabeza from '../../../components/Calendario/CampoDataMorabeza';
 // AvaliacoesSeccaoCarro.jsx - Padrão igual ao AvaliacoesSeccaoAlojamento
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -314,8 +315,7 @@ const AvaliacoesSeccaoCarro = ({ carroId, usuarioLogado, onOpenLoginModal, isEmb
 
             <div className="mb-5">
               <label className="block text-sm font-bold text-slate-700 mb-2">{t('data_aluguer')}</label>
-              <input
-                type="date"
+              <CampoDataMorabeza
                 name="data_aluguer"
                 value={formData.data_aluguer}
                 onChange={handleInputChange}

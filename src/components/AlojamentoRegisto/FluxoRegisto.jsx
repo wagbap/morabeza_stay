@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
 import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/AlojamentoRegisto/FluxoRegisto.jsx
@@ -58,6 +60,7 @@ const RASCUNHO_KEY = 'morabeza_rascunho_alojamento';
 
 // ==================== COMPONENTE PRINCIPAL ====================
 const FluxoRegistoContent = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
@@ -600,6 +603,11 @@ const FluxoRegistoContent = () => {
   // ==================== ENVIAR PARA ANÁLISE (API) ====================
   const handleEnviarParaAnalise = async () => {
     if (isSubmitting) return;
+    if (!temFotoAnuncio(fotos)) {
+      showToast(t('anuncio_foto_obrigatoria'), 'error');
+      setFase(5);
+      return;
+    }
 
     // Validações mínimas para enviar para análise
     if (!informacoesBasicas.titulo?.trim()) {
@@ -733,7 +741,7 @@ const FluxoRegistoContent = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => <EtapasRegisto dominio="alojamento" fase={fase} onBack={handleBack} onNext={({ 1: handleSaveInformacoes, 2: handleSaveLocalizacao, 3: handleSaveComodidades, 4: handleSaveRegras })[fase]} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="alojamento" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={({ 1: handleSaveInformacoes, 2: handleSaveLocalizacao, 3: handleSaveComodidades, 4: handleSaveRegras })[fase]} />;
 
   // ==================== FASES ====================
   const renderFaseInformacoes = () => (

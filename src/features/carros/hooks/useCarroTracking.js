@@ -86,7 +86,6 @@ const useCarroTracking = (carroId, usuarioId = null) => {
   }, [registrarEvento]);
   
   useEffect(() => {
-    console.log(`🔄 useEffect do tracking executado, carroId: ${carroId}`);
     if (carroId) {
       registrarVisualizacao();
       iniciarHeartbeat();

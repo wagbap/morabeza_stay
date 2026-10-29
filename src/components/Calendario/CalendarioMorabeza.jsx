@@ -64,12 +64,14 @@ const CalendarioMorabeza = ({
   datasReservadas = [],
   totalQuartos = 0,
   permitirCheckoutEmBloqueado = true,
+  dayClassName: dayClassNameExterna,
+  containerClassName = '',
   ...rest
 }) => {
   const hojeMeiaNoite = new Date();
   hojeMeiaNoite.setHours(0, 0, 0, 0);
 
-  const minDateEfetiva = minDate ?? hojeMeiaNoite;
+  const minDateEfetiva = minDate === undefined ? hojeMeiaNoite : minDate;
 
   // ------------------------------------------------------------
   // Datas bloqueadas efetivas
@@ -149,7 +151,7 @@ const CalendarioMorabeza = ({
     if (!date) return '';
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
-    if (d < hojeMeiaNoite) return 'morabeza-dia-passado';
+    if (minDateEfetiva && d.getTime() < new Date(minDateEfetiva).setHours(0, 0, 0, 0)) return 'morabeza-dia-passado';
 
     const iso = paraISO(d);
     if (datasBloqueadasEfetivas.includes(iso)) {
@@ -205,7 +207,7 @@ const CalendarioMorabeza = ({
   };
 
   return (
-    <div className="morabeza-calendar-wrapper">
+    <div className={`morabeza-calendar-wrapper ${containerClassName}`}>
       <DatePicker
         {...rest}
         inline={inline}
@@ -220,7 +222,7 @@ const CalendarioMorabeza = ({
         maxDate={maxDate}
         monthsShown={monthsShown}
         dateFormat={dateFormat || 'dd/MM/yyyy'}
-        dayClassName={dayClassName}
+        dayClassName={(date) => [dayClassName(date), dayClassNameExterna?.(date)].filter(Boolean).join(' ')}
         calendarClassName="morabeza-calendar-inline morabeza-calendar-compact"
         formatWeekDay={formatarDiaSemana}
         renderCustomHeader={({

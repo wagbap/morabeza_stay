@@ -1,3 +1,5 @@
+import { obterUtilizadorRegisto } from '../../utils/registoSession';
+import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
 import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/CarroRegisto/FluxoRegisto.jsx
@@ -60,37 +62,8 @@ const FluxoRegisto = () => {
 
   // ==================== OBTER ID DO UTILIZADOR (JWT) ====================
   useEffect(() => {
-    try {
-      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
-      if (token) {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const parsed = JSON.parse(jsonPayload);
-        const userData = parsed.data || parsed;
-        if (userData?.id) {
-          setUsuarioId(userData.id);
-          return;
-        }
-      }
-
-      // Fallback para as chaves tradicionais no LocalStorage
-      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
-      for (const chave of chaves) {
-        const savedUser = localStorage.getItem(chave);
-        if (savedUser) {
-          const user = JSON.parse(savedUser);
-          if (user?.id) {
-            setUsuarioId(user.id);
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Erro ao obter ID do utilizador:', e);
-    }
+    const user = obterUtilizadorRegisto(localStorage);
+    setUsuarioId(user?.id ?? null);
   }, []);
 
   // ==================== GUARDAR RASCUNHO ====================
@@ -226,6 +199,11 @@ const FluxoRegisto = () => {
   // ==================== FINALIZAR ====================
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+    if (!temFotoAnuncio(imagens)) {
+      showToast(t('anuncio_foto_obrigatoria'), 'error');
+      setFase(5);
+      return;
+    }
 
     if (!usuarioId) {
       showToast('Utilizador não autenticado. Faça login novamente.', 'error');
@@ -266,7 +244,7 @@ const FluxoRegisto = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onBack={handleBack} onNext={handleNext} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={handleNext} />;
 
   const temRascunho = !!localStorage.getItem(RASCUNHO_KEY);
 

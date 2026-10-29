@@ -14,9 +14,7 @@ body {
 }
 
 /* Garantir que o navbar não tenha margens */
-nav {
-  margin-bottom: 0;
-}
+/* Spacing belongs to each navigation component, including breadcrumbs. */
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
@@ -99,5 +97,64 @@ nav {
 @media (max-width: 768px) {
   body {
     overflow-x: hidden;
+  }
+}
+
+/* Shared mobile/Safari baseline. Keep pinch zoom available for accessibility. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+#root {
+  min-width: 0;
+  min-height: 100vh;
+}
+
+/* Dynamic browser chrome must not cover the bottom of full-screen layouts. */
+@supports (height: 100dvh) {
+  #root, .min-h-screen { min-height: 100dvh; }
+  .h-screen { height: 100dvh; }
+  .max-h-screen { max-height: 100dvh; }
+}
+
+@media (hover: none) and (pointer: coarse), (max-width: 767px) {
+  /* Override tiny Tailwind/inline text sizes only on editable controls.
+     Checkboxes, sliders, upload buttons and payment-provider iframes keep
+     their native layout. No viewport zoom limits or focus/blur scale hacks. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+  textarea,
+  select,
+  [contenteditable="true"],
+  [contenteditable="plaintext-only"] {
+    font-size: max(16px, 1rem) !important;
+    line-height: 1.5;
+    min-width: 0;
+    max-width: 100%;
+    scroll-margin-block: 5rem;
+  }
+
+  input[type="date"], input[type="datetime-local"], input[type="time"] {
+    min-height: 44px;
+    min-inline-size: 0;
+  }
+
+  /* Safari's date editor otherwise has an intrinsic width wider than cards. */
+  input::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: start;
+  }
+
+  form, fieldset {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  dialog {
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
   }
 }

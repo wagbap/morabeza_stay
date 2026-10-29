@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // components/prestador/DadosRecebimento.jsx
 import React, { useState, useEffect } from 'react';
 import {
@@ -181,12 +182,7 @@ export default function DadosRecebimento() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#003580] flex items-center gap-2">
-          <Wallet size={24} /> Dados de recebimento
-        </h1>
-        <p className="text-gray-600 mt-1 text-sm">
-          Onde queres receber os pagamentos das tuas reservas.
-        </p>
+        <HeaderGestao secao="recebimento" className="mb-0" />
       </div>
 
       {msg.texto && (

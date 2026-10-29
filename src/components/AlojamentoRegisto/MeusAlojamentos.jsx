@@ -1,6 +1,12 @@
+import PaginacaoAnuncios from '../PaginacaoAnuncios';
+import { useToast } from '../../Toast';
+import ConfirmarExclusao from '../ConfirmarExclusao';
+import { useTranslation } from 'react-i18next';
+import api from '../../api/api';
+import { chaveErroExclusao } from '../../utils/erroExclusao';
 // src/components/AlojamentoRegisto/MeusAlojamentos.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Home, Edit, Trash2, Eye, MapPin,
@@ -29,10 +35,18 @@ const obterUserIdDoToken = () => {
 
 const MeusAlojamentos = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { showToast } = useToast();
+  const [exclusao, setExclusao] = useState(null);
+  const [aApagar, setAApagar] = useState(false);
+  const [erroExclusao, setErroExclusao] = useState(null);
+  const pedidoExclusaoRef = useRef(false);
   const [proprietarioId, setProprietarioId] = useState(null);
   const [alojamentos, setAlojamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 9;
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
 
@@ -101,28 +115,32 @@ const MeusAlojamentos = () => {
     navigate(`/alojamento/${identificador}`);
   };
 
-  const handleExcluir = async (id, titulo) => {
-    if (!window.confirm(`Tem certeza que deseja excluir "${titulo}"?`)) return;
-
+  const handleExcluir = (id, titulo) => {
+    if (pedidoExclusaoRef.current) return;
+    setErroExclusao(null);
+    setExclusao({ id, titulo });
+  };
+  const confirmarExclusao = async () => {
+    if (!exclusao || pedidoExclusaoRef.current) return;
+    pedidoExclusaoRef.current = true;
+    setAApagar(true);
+    setErroExclusao(null);
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
-      const response = await fetch(`${API_URL}/api/alojamento/excluir.php?id=${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
+      const { data } = await api.delete('/alojamento/excluir.php', {
+        params: { id: exclusao.id }, timeout: 15000,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      const data = await response.json();
-
-      if (data.success) {
-        setAlojamentos(prev => prev.filter(a => a.id !== id));
-        alert('Alojamento excluído com sucesso!');
-      } else {
-        alert(data.message || 'Erro ao excluir');
-      }
+      if (data?.success === true) {
+        setAlojamentos(prev => prev.filter(item => String(item.id) !== String(exclusao.id)));
+        setExclusao(null);
+        showToast(t('exclusao_sucesso'), 'success');
+      } else setErroExclusao(chaveErroExclusao(data));
     } catch (err) {
-      alert('Erro ao excluir: ' + err.message);
+      setErroExclusao(chaveErroExclusao(err.response?.data, err.response?.status));
+    } finally {
+      pedidoExclusaoRef.current = false;
+      setAApagar(false);
     }
   };
 
@@ -154,6 +172,9 @@ const MeusAlojamentos = () => {
     const matchStatus = filtroStatus === 'todos' || a.status === filtroStatus;
     return matchSearch && matchStatus;
   });
+  const paginaAtual = Math.min(pagina, Math.max(1, Math.ceil(alojamentosFiltrados.length / porPagina)));
+  const itensPagina = alojamentosFiltrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+
 
   // ---------- Estados de carregamento / erro ----------
   if (loading) {
@@ -183,6 +204,8 @@ const MeusAlojamentos = () => {
   // ---------- Renderização principal ----------
   return (
     <div className="min-h-screen bg-gray-50">
+      <ConfirmarExclusao aberto={!!exclusao} nome={exclusao?.titulo} loading={aApagar} erro={erroExclusao}
+        onClose={() => { if (!pedidoExclusaoRef.current) setExclusao(null); }} onConfirm={confirmarExclusao} />
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -258,7 +281,7 @@ const MeusAlojamentos = () => {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setPagina(1); setSearchTerm(e.target.value); }}
               placeholder="Buscar por título ou localização..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
             />
@@ -267,7 +290,7 @@ const MeusAlojamentos = () => {
             {['todos', 'aprovado', 'pendente', 'inativo'].map(status => (
               <button
                 key={status}
-                onClick={() => setFiltroStatus(status)}
+                onClick={() => { setPagina(1); setFiltroStatus(status); }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   filtroStatus === status
                     ? 'bg-[#006ce4] text-white'
@@ -303,7 +326,7 @@ const MeusAlojamentos = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {alojamentosFiltrados.map(alojamento => (
+            {itensPagina.map(alojamento => (
               <div key={alojamento.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative h-48 bg-gray-100">
                   {alojamento.imagem_url ? (
@@ -359,6 +382,7 @@ const MeusAlojamentos = () => {
             ))}
           </div>
         )}
+        <PaginacaoAnuncios total={alojamentosFiltrados.length} pagina={paginaAtual} porPagina={porPagina} onChange={setPagina} />
       </div>
     </div>
   );

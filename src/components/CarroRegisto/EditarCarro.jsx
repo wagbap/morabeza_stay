@@ -1,3 +1,4 @@
+import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
 import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/CarroRegisto/EditarCarro.jsx
@@ -121,6 +122,11 @@ const EditarCarro = () => {
 
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+    if (!temFotoAnuncio(imagens)) {
+      showToast(t('anuncio_foto_obrigatoria'), 'error');
+      setFase(5);
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -153,7 +159,7 @@ const EditarCarro = () => {
     }
   };
 
-  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onBack={handleBack} onNext={handleNext} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={handleNext} />;
 
   if (loading) {
     return (

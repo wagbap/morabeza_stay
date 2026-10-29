@@ -5,7 +5,7 @@ import { Home, Car, Compass, Heart, User, LogOut, LayoutDashboard, Calendar } fr
 import { useTranslation } from 'react-i18next';
 import { useFavoritos } from '../hooks/useFavoritos';
 
-const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
+const UserDropdown = ({ user, userRoles, onLogout, isOpen, setIsOpen }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { totalFavoritos: totalFromHook, recarregar } = useFavoritos();
@@ -82,41 +82,10 @@ const UserDropdown = ({ user, onLogout, isOpen, setIsOpen }) => {
 
   const usuarioAtual = sessionUser || obterDadosSessao();
 
-  // Estados das roles
-  const [canManageAlojamento, setCanManageAlojamento] = useState(false);
-  const [canManageCarros, setCanManageCarros] = useState(false);
-  const [canManageExperiencias, setCanManageExperiencias] = useState(false);
-  const [canAccessDashboard, setCanAccessDashboard] = useState(false);
-
-  // Buscar roles do utilizador de forma segura
-  useEffect(() => {
-    const fetchUserRoles = async () => {
-      const userId = usuarioAtual?.id;
-      if (!userId) return;
-      
-      try {
-        const response = await fetch(`https://welovepalop.com/api/usuarios/listar_roles.php?usuario_id=${userId}`);
-        const data = await response.json();
-        
-        if (data.success && data.roles) {
-          const isAnfitrionApproved = data.roles.some(r => r.name === 'anfitrion' && r.status === 'approved');
-          const isGuiaApproved = data.roles.some(r => r.name === 'guia_experiencias' && r.status === 'approved');
-          const isProprietarioVeiculosApproved = data.roles.some(r => r.name === 'proprietario_veiculos' && r.status === 'approved');
-          
-          const hasAnyRole = isAnfitrionApproved || isGuiaApproved || isProprietarioVeiculosApproved;
-          
-          setCanManageAlojamento(isAnfitrionApproved);
-          setCanManageCarros(isProprietarioVeiculosApproved);
-          setCanManageExperiencias(isGuiaApproved);
-          setCanAccessDashboard(hasAnyRole);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar roles do usuário:', error);
-      }
-    };
-
-    fetchUserRoles();
-  }, [usuarioAtual?.id]);
+  const canManageAlojamento = !!userRoles?.anfitrion;
+  const canManageCarros = !!userRoles?.proprietarioVeiculos;
+  const canManageExperiencias = !!userRoles?.guia;
+  const canAccessDashboard = canManageAlojamento || canManageCarros || canManageExperiencias;
 
   useEffect(() => {
     setTotalFavoritos(totalFromHook);

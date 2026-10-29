@@ -1,6 +1,7 @@
+import api from '../api/api';
 // src/services/experienciaApiService.js
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://welovepalop.com/api';
+const API_BASE_URL = api.defaults.baseURL.replace(/\/$/, '');
 
 async function apiRequest(endpoint, method, data = null) {
     const options = {
@@ -161,7 +162,7 @@ export async function salvarFluxoExperiencia(dados, experienciaId = null) {
         return {
             success: true,
             message: isEdicao ? 'Experiência atualizada com sucesso!' : 'Experiência registada com sucesso!',
-            data: { experiencia_id: result.data?.experiencia_id || experienciaId }
+            data: { experiencia_id: result.data?.experiencia_id || result.data?.id || result.experiencia_id || result.id || experienciaId }
         };
     }
     

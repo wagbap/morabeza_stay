@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
 import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/AlojamentoRegisto/EditarAlojamento.jsx
@@ -169,6 +171,7 @@ const carregarComodidadesPorAlojamento = async (alojamentoId) => {
 
 // ==================== COMPONENTE PRINCIPAL ====================
 const EditarAlojamentoContent = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { id } = useParams();
   const { showToast } = useToast();
@@ -467,6 +470,11 @@ const EditarAlojamentoContent = () => {
   // ==================== FINALIZAR ====================
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+    if (!temFotoAnuncio(fotos)) {
+      showToast(t('anuncio_foto_obrigatoria'), 'error');
+      setFase(5);
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -587,7 +595,7 @@ const EditarAlojamentoContent = () => {
     else navigate('/alojamento-registro/meus');
   };
 
-  const renderProgressBar = () => <EtapasRegisto dominio="alojamento" fase={fase} onBack={handleBack} onNext={({ 1: handleSaveInformacoes, 2: handleSaveLocalizacao, 3: handleSaveComodidades, 4: handleSaveRegras })[fase]} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="alojamento" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={({ 1: handleSaveInformacoes, 2: handleSaveLocalizacao, 3: handleSaveComodidades, 4: handleSaveRegras })[fase]} />;
 
   if (isLoading) {
     return (

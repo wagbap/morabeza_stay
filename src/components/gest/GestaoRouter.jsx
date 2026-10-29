@@ -24,6 +24,7 @@ import LevantamentoCaucaoCondicoes from './LevantamentoCaucaoCondicoes';
 import MinhasExperiencias from './MinhasExperiencias';
 
 // 🔥 Lazy para páginas mais pesadas
+const ValidarReserva = lazy(() => import('../ValidarReserva'));
 const ConfigurarSessoes = lazy(() => import('./ConfigurarSessoes'));
 const ConfigurarBloqueios = lazy(() => import('./ConfigurarBloqueios'));
 const PoliticasReserva = lazy(() => import('./PoliticasReserva'));
@@ -88,7 +89,7 @@ const LayoutGestao = ({ children }) => {
       
       <Navbar />
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         
         {sidebarOpen && (
@@ -98,7 +99,7 @@ const LayoutGestao = ({ children }) => {
           />
         )}
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           
           <div className="lg:hidden flex items-center justify-between bg-white px-4 py-3 border-b border-gray-100 shadow-sm z-20">
             <span className="font-bold text-[#0f172a] text-[15px]">Menu do Anfitrião</span>
@@ -127,6 +128,7 @@ const GestaoRouter = () => {
     <Routes>
       <Route path="dashboard" element={<LayoutGestao><Dashboard /></LayoutGestao>} />
       <Route path="calendario" element={<LayoutGestao><Calendario /></LayoutGestao>} />
+      <Route path="validar-reservas" element={<LayoutGestao><ValidarReserva contexto="host" /></LayoutGestao>} />
       <Route path="reservas" element={<LayoutGestao><Reservas /></LayoutGestao>} />
       <Route path="mensagens" element={<LayoutGestao><Mensagens /></LayoutGestao>} />
       <Route path="financeiro" element={<LayoutGestao><Financeiro /></LayoutGestao>} />

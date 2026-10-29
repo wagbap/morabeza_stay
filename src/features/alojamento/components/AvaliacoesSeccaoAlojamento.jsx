@@ -1,3 +1,4 @@
+import CampoDataMorabeza from '../../../components/Calendario/CampoDataMorabeza';
 // AvaliacoesSeccaoAlojamento.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -322,8 +323,7 @@ const AvaliacoesSeccaoAlojamento = ({ alojamentoId, usuarioLogado, onOpenLoginMo
 
             <div className="mb-5">
               <label className="block text-sm font-bold text-slate-700 mb-2">{t('data_estadia')}</label>
-              <input
-                type="date"
+              <CampoDataMorabeza
                 name="data_estadia"
                 value={formData.data_estadia}
                 onChange={handleInputChange}

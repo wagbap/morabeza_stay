@@ -1,20 +1,69 @@
+import FotoAnuncioAdmin from './FotoAnuncioAdmin';
 // components/admin/PropriedadesAdmin.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import api from '../../api/api';
 import {
-  MapPin, Eye, Check, X, Loader2, Search,
-  AlertCircle, Home, Building, Hotel, Trash2,
-  User, Mail, Calendar, DollarSign, Users,
-  Car, Compass, Clock, Fuel, Settings, Star,
-  Phone, Bed, Bath, Wifi, Coffee, Tv, Snowflake, Utensils,
-  FileText,
+  MapPin, Eye, Check, X, Loader2, Search, AlertCircle, Home,
+  Building, Hotel, User, Mail, Users, Car, Compass, Clock, Star, FileText,
 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://welovepalop.com/api';
 
 const PropriedadesAdmin = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const [aGravarDestaque, setAGravarDestaque] = useState(null);
+  const [avisoDestaque, setAvisoDestaque] = useState(null);
+  const gravacaoRef = useRef(false);
+  const emDestaque = item => item.destaque === true || Number(item.destaque) === 1;
 
+  const alternarDestaque = async item => {
+    if (gravacaoRef.current) return;
+    const categoria = activeTab;
+    const ativo = emDestaque(item);
+    gravacaoRef.current = true;
+    setAGravarDestaque(`${categoria}:${item.id}`);
+    setAvisoDestaque(null);
+    try {
+      const admin = JSON.parse(localStorage.getItem('morabeza_admin') || '{}');
+      const token = admin.token || localStorage.getItem('admin_token');
+      if (typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token)) {
+        setAvisoDestaque({ erro: true, key: 'admin_destaque_sessao' });
+        return;
+      }
+      const { data } = await api.post('/admin/alternar_destaque.php', {
+        categoria, id: item.id, destaque: ativo ? 0 : 1,
+      }, { timeout: 15000, headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+      if (data?.success !== true) {
+        const error = new Error('Save failed');
+        error.response = { data };
+        throw error;
+      }
+      const atualizar = categoria === 'alojamentos' ? setAlojamentos : categoria === 'carros' ? setCarros : setExperiencias;
+      atualizar(items => items.map(current => String(current.id) === String(item.id)
+        ? { ...current, destaque: data.data?.destaque ?? (ativo ? 0 : 1), ordem_destaque: data.data?.ordem_destaque ?? current.ordem_destaque }
+        : current));
+      setAvisoDestaque({ erro: false, key: ativo ? 'admin_destaque_removido' : 'admin_destaque_guardado' });
+    } catch (err) {
+      const codes = {
+        AUTH_REQUIRED: 'admin_destaque_sessao',
+        AUTH_SCHEMA_MISSING: 'admin_destaque_tabelas_auth',
+        FEATURE_SCHEMA_MISSING: 'admin_destaque_colunas',
+        CONFIG_MISSING: 'admin_destaque_config',
+        CONFIG_ERROR: 'admin_destaque_config',
+      };
+      const key = codes[err.response?.data?.code] ||
+        ([401, 403].includes(err.response?.status) ? 'admin_destaque_sessao' :
+          err.response?.status === 404 ? 'admin_destaque_api_ausente' : 'admin_destaque_erro');
+      setAvisoDestaque({ erro: true, key });
+    } finally {
+      gravacaoRef.current = false;
+      setAGravarDestaque(null);
+    }
+  };
+
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 9;
   const [activeTab, setActiveTab] = useState('alojamentos');
   const [alojamentos, setAlojamentos] = useState([]);
   const [experiencias, setExperiencias] = useState([]);
@@ -26,8 +75,7 @@ const PropriedadesAdmin = () => {
 
   const carregarStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/admin_all_content.php?action=dashboard`);
-      const data = await response.json();
+      const { data } = await api.get('/admin/admin_all_content.php', { params: { action: 'dashboard' } });
       if (data.status === 'success') {
         setStats(data.data);
       }
@@ -36,14 +84,12 @@ const PropriedadesAdmin = () => {
     }
   };
 
-  const carregarConteudo = async () => {
+  const carregarConteudo = useCallback(async (signal) => {
     setLoading(true);
     try {
-      const url = `${API_URL}/admin/admin_all_content.php?action=${activeTab}&status=${filterStatus}&search=${encodeURIComponent(search)}`;
-      const response = await fetch(url);
-      const data = await response.json();
+      const { data } = await api.get('/admin/admin_all_content.php', { params: { action: activeTab, status: filterStatus, search }, signal });
 
-      if (data.status === 'success') {
+      if (!signal.aborted && data.status === 'success') {
         if (activeTab === 'alojamentos') setAlojamentos(data.data);
         if (activeTab === 'experiencias') setExperiencias(data.data);
         if (activeTab === 'carros') setCarros(data.data);
@@ -51,16 +97,18 @@ const PropriedadesAdmin = () => {
     } catch (err) {
       console.error('Erro:', err);
     }
-    setLoading(false);
-  };
+    if (!signal.aborted) setLoading(false);
+  }, [activeTab, filterStatus, search]);
 
   useEffect(() => {
     carregarStats();
   }, []);
 
   useEffect(() => {
-    carregarConteudo();
-  }, [activeTab, filterStatus, search]);
+    const controller = new AbortController();
+    void carregarConteudo(controller.signal);
+    return () => controller.abort();
+  }, [carregarConteudo]);
 
   const StatusBadge = ({ status }) => {
     const config = {
@@ -99,6 +147,10 @@ const PropriedadesAdmin = () => {
   };
 
   const currentItems = getCurrentItems();
+  const totalPaginas = Math.max(1, Math.ceil(currentItems.length / porPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const inicio = (paginaAtual - 1) * porPagina;
+  const itensPagina = currentItems.slice(inicio, inicio + porPagina);
 
   const totalPendentes = currentItems.filter((i) => {
     const st = (i.status || i.estado || '').toLowerCase();
@@ -131,7 +183,7 @@ const PropriedadesAdmin = () => {
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200">
         <button
-          onClick={() => setActiveTab('alojamentos')}
+          onClick={() => { setPagina(1); setActiveTab('alojamentos'); }}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all rounded-t-lg ${
             activeTab === 'alojamentos' ? 'bg-[#003580] text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
           }`}
@@ -144,7 +196,7 @@ const PropriedadesAdmin = () => {
           )}
         </button>
         <button
-          onClick={() => setActiveTab('experiencias')}
+          onClick={() => { setPagina(1); setActiveTab('experiencias'); }}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all rounded-t-lg ${
             activeTab === 'experiencias' ? 'bg-[#003580] text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
           }`}
@@ -157,7 +209,7 @@ const PropriedadesAdmin = () => {
           )}
         </button>
         <button
-          onClick={() => setActiveTab('carros')}
+          onClick={() => { setPagina(1); setActiveTab('carros'); }}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all rounded-t-lg ${
             activeTab === 'carros' ? 'bg-[#003580] text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
           }`}
@@ -177,7 +229,7 @@ const PropriedadesAdmin = () => {
           {['todos', 'pendente', 'aprovado', 'rejeitado'].map((status) => (
             <button
               key={status}
-              onClick={() => setFilterStatus(status)}
+              onClick={() => { setPagina(1); setFilterStatus(status); }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                 filterStatus === status
                   ? status === 'pendente'
@@ -200,11 +252,13 @@ const PropriedadesAdmin = () => {
             type="text"
             placeholder="Procurar por título ou localização..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setPagina(1); setSearch(e.target.value); }}
             className="w-full pl-10 pr-4 py-2 bg-white rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#003580]/20"
           />
         </div>
       </div>
+
+      {avisoDestaque && <p role={avisoDestaque.erro ? 'alert' : 'status'} className={`rounded-xl border p-3 text-sm ${avisoDestaque.erro ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-green-200 bg-green-50 text-green-800'}`}>{t(avisoDestaque.key)}</p>}
 
       {/* Lista de Conteúdo */}
       {loading ? (
@@ -223,15 +277,18 @@ const PropriedadesAdmin = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {currentItems.map((item) => (
+          {itensPagina.map((item) => (
             <div key={item.id} className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition">
               {/* Imagem */}
               <div className="h-48 overflow-hidden relative">
-                <img
-                  src={item.imagem_url || item.imagem_principal || 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=500'}
-                  alt={item.titulo}
-                  className="w-full h-full object-cover hover:scale-105 transition duration-300"
-                />
+                <FotoAnuncioAdmin key={`${activeTab}:${item.id}`} item={item} categoria={activeTab} />
+                <button type="button" onClick={() => alternarDestaque(item)} disabled={aGravarDestaque !== null}
+                  aria-pressed={emDestaque(item)}
+                  aria-label={t(emDestaque(item) ? 'admin_destaque_retirar' : 'admin_destaque_aplicar', { nome: item.titulo })}
+                  title={t(emDestaque(item) ? 'admin_destaque_retirar' : 'admin_destaque_aplicar', { nome: item.titulo })}
+                  className={`absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full shadow-md transition hover:scale-105 disabled:cursor-wait disabled:opacity-60 ${emDestaque(item) ? 'bg-amber-100 text-amber-600' : 'bg-white/95 text-slate-500 hover:text-amber-500'}`}>
+                  {aGravarDestaque === `${activeTab}:${item.id}` ? <Loader2 size={21} className="animate-spin" /> : <Star size={22} fill={emDestaque(item) ? 'currentColor' : 'none'} />}
+                </button>
                 <div className="absolute top-3 right-3">
                   <StatusBadge status={item.status || item.estado} />
                 </div>
@@ -289,6 +346,14 @@ const PropriedadesAdmin = () => {
           ))}
         </div>
       )}
+      {!loading && currentItems.length > 0 && <nav aria-label={t('admin_paginacao')} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4">
+        <p role="status" className="text-sm text-gray-500">{t('admin_pagina_resumo', { inicio: inicio + 1, fim: Math.min(inicio + porPagina, currentItems.length), total: currentItems.length })}</p>
+        <div className="flex items-center gap-3">
+          <button type="button" disabled={paginaAtual === 1} onClick={() => setPagina(paginaAtual - 1)} className="min-h-11 rounded-lg border border-gray-200 px-3 text-sm text-blue-700 disabled:opacity-40">{t('admin_pagina_anterior')}</button>
+          <span className="text-sm text-gray-600">{t('admin_pagina_numero', { pagina: paginaAtual, total: totalPaginas })}</span>
+          <button type="button" disabled={paginaAtual === totalPaginas} onClick={() => setPagina(paginaAtual + 1)} className="min-h-11 rounded-lg border border-gray-200 px-3 text-sm text-blue-700 disabled:opacity-40">{t('admin_pagina_seguinte')}</button>
+        </div>
+      </nav>}
     </div>
   );
 };

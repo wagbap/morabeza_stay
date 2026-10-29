@@ -1,5 +1,6 @@
 // src/components/gest/ModalStock.jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Bed, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 
 export default function ModalStock({
@@ -7,10 +8,17 @@ export default function ModalStock({
   onClose,
   stocks = [],
   carregando = false,
+  erro = false,
+  onTentarNovamente,
   mesLabel = '',
   tipoAtivoId = null,
   onEscolherTipo = null,
 }) {
+  const { t } = useTranslation();
+  const tituloId = useId();
+  const fecharRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const quantidade = (valor) => {
     const numero = Number(valor);
     return Number.isFinite(numero) ? numero : 0;
@@ -18,14 +26,28 @@ export default function ModalStock({
 
   useEffect(() => {
     if (!isOpen) return;
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    const anterior = document.activeElement;
+    const overflowAnterior = document.body.style.overflow;
+    fecharRef.current?.focus();
+    const handler = (e) => {
+      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key === 'Tab') {
+        const dialog = fecharRef.current?.closest('[role="dialog"]');
+        const botoes = dialog?.querySelectorAll('button:not(:disabled)');
+        if (!botoes?.length) return;
+        const primeiro = botoes[0], ultimo = botoes[botoes.length - 1];
+        if (e.shiftKey && document.activeElement === primeiro) { e.preventDefault(); ultimo.focus(); }
+        else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primeiro.focus(); }
+      }
+    };
     window.addEventListener('keydown', handler);
     document.body.style.overflow = 'hidden';
     return () => {
       window.removeEventListener('keydown', handler);
-      document.body.style.overflow = '';
+      document.body.style.overflow = overflowAnterior;
+      anterior?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -45,7 +67,8 @@ export default function ModalStock({
       onClick={onClose}
     >
       <div
-        className="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 zoom-in-95 duration-300 max-h-[92vh] flex flex-col"
+        className="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-8 zoom-in-95 duration-300 max-h-[92dvh] flex flex-col"
+        role="dialog" aria-modal="true" aria-labelledby={tituloId} aria-busy={carregando}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header azul bold */}
@@ -61,10 +84,10 @@ export default function ModalStock({
           <div className="relative flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center shadow-lg">
-                <Bed size={22} className="text-white" />
+                <Bed size={22} />
               </div>
               <div>
-                <h3 className="text-lg font-black leading-tight">Stock de Quartos</h3>
+                <h3 id={tituloId} className="text-lg font-black leading-tight">{t('calendario_stock_titulo')}</h3>
                 <p className="text-[11px] text-blue-100 font-semibold flex items-center gap-1.5 mt-0.5">
                   <CalendarIcon size={11} />
                   {mesLabel}
@@ -72,44 +95,51 @@ export default function ModalStock({
               </div>
             </div>
             <button
+              ref={fecharRef}
+              type="button"
               onClick={onClose}
               className="p-2 rounded-xl hover:bg-white/15 transition shrink-0"
-              aria-label="Fechar"
+              aria-label={t('calendario_fechar')}
             >
-              <X size={18} className="text-white" />
+              <X size={18} />
             </button>
           </div>
 
           {/* Big stats totais */}
-          {!carregando && stocks.length > 0 && (
+          {!carregando && !erro && stocks.length > 0 && (
             <div className="relative grid grid-cols-3 gap-2 mt-4">
               <div className="bg-white/10 backdrop-blur rounded-xl px-3 py-2.5 border border-white/20">
                 <div className="text-2xl font-black leading-none tabular-nums">{totalGeral.disponivel}</div>
-                <div className="text-[9px] uppercase tracking-wider font-bold text-blue-100 mt-1">Livres</div>
+                <div className="text-[9px] uppercase tracking-wider font-bold text-blue-100 mt-1">{t('calendario_livres')}</div>
               </div>
               <div className="bg-white/10 backdrop-blur rounded-xl px-3 py-2.5 border border-white/20">
                 <div className="text-2xl font-black leading-none tabular-nums">{totalGeral.reservado}</div>
-                <div className="text-[9px] uppercase tracking-wider font-bold text-blue-100 mt-1">Reserv.</div>
+                <div className="text-[9px] uppercase tracking-wider font-bold text-blue-100 mt-1">{t('calendario_reservado')}</div>
               </div>
               <div className="bg-white/10 backdrop-blur rounded-xl px-3 py-2.5 border border-white/20">
                 <div className="text-2xl font-black leading-none tabular-nums">{totalGeral.bloqueado}</div>
-                <div className="text-[9px] uppercase tracking-wider font-bold text-blue-100 mt-1">Bloq.</div>
+                <div className="text-[9px] uppercase tracking-wider font-bold text-blue-100 mt-1">{t('calendario_bloqueado')}</div>
               </div>
             </div>
           )}
         </div>
 
         {/* Body scrollável */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-3">
           {carregando ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
-              <Loader2 size={28} className="animate-spin text-blue-600" />
-              <span className="text-sm font-semibold">A calcular stock...</span>
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-blue-600">
+              <Loader2 size={28} className="animate-spin" />
+              <span className="text-sm font-semibold">{t('calendario_stock_carregar')}</span>
+            </div>
+          ) : erro ? (
+            <div role="alert" className="py-8 text-center text-sm text-slate-600">
+              <p>{t('calendario_stock_erro')}</p>
+              <button type="button" onClick={onTentarNovamente} className="mt-4 min-h-11 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white">{t('calendario_tentar_novamente')}</button>
             </div>
           ) : stocks.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <Bed size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-semibold">Sem stock configurado.</p>
+              <p className="text-sm font-semibold">{t('calendario_stock_vazio')}</p>
             </div>
           ) : (
             stocks.map((s) => {
@@ -120,12 +150,13 @@ export default function ModalStock({
               const pctD = total > 0 ? (disp / total) * 100 : 0;
               const pctR = total > 0 ? (res / total) * 100 : 0;
               const pctB = total > 0 ? (bloq / total) * 100 : 0;
-              const isAtivo = Number(s.tipo_quarto_id) === Number(tipoAtivoId);
+              const isAtivo = tipoAtivoId != null && Number(s.tipo_quarto_id) === Number(tipoAtivoId);
 
               return (
                 <button
                   key={s.tipo_quarto_id}
                   type="button"
+                  aria-pressed={isAtivo}
                   onClick={() => onEscolherTipo && onEscolherTipo(s.tipo_quarto_id)}
                   className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${
                     isAtivo
@@ -150,12 +181,12 @@ export default function ModalStock({
                           {s.nome}
                           {isAtivo && (
                             <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-blue-600 text-white font-black">
-                              Ativo
+                              {t('calendario_ativo')}
                             </span>
                           )}
                         </p>
                         <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mt-0.5">
-                          {total} quarto{total !== 1 ? 's' : ''}
+                          {t('calendario_stock_quantidade', { count: total })}
                         </p>
                       </div>
                     </div>
@@ -168,7 +199,7 @@ export default function ModalStock({
                         {disp}
                       </div>
                       <div className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mt-0.5">
-                        livres
+                        {t('calendario_livres')}
                       </div>
                     </div>
                   </div>
@@ -201,21 +232,21 @@ export default function ModalStock({
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                       <span className="text-[10px] font-bold text-emerald-700 tabular-nums">{disp}</span>
                       <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-600/70">
-                        Livres
+                        {t('calendario_livres')}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-50">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                       <span className="text-[10px] font-bold text-blue-700 tabular-nums">{res}</span>
                       <span className="text-[9px] uppercase tracking-wider font-bold text-blue-600/70">
-                        Reserv.
+                        {t('calendario_reservado')}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-red-50">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                       <span className="text-[10px] font-bold text-red-700 tabular-nums">{bloq}</span>
                       <span className="text-[9px] uppercase tracking-wider font-bold text-red-600/70">
-                        Bloq.
+                        {t('calendario_bloqueado')}
                       </span>
                     </div>
                   </div>
@@ -231,7 +262,7 @@ export default function ModalStock({
             onClick={onClose}
             className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white text-sm font-black rounded-xl transition shadow-md shadow-blue-600/20"
           >
-            Fechar
+            {t('calendario_fechar')}
           </button>
         </div>
       </div>

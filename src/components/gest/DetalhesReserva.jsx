@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next';
+import HeaderGestao from './HeaderGestao';
 // pages/DetalhesReservaPage.jsx
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
+import {
   ArrowLeft, Calendar, User, Phone, Mail, Download, Share2,
   CheckCircle, XCircle, Clock, AlertCircle, ChevronRight, Home,
   Receipt, DollarSign, Loader2, RefreshCw
@@ -11,6 +13,7 @@ import {
 const API_URL = 'https://welovepalop.com';
 
 export default function DetalhesReservaPage() {
+  const { t } = useTranslation();
   const { id, tipo } = useParams();
   const navigate = useNavigate();
   const [detalhes, setDetalhes] = useState(null);
@@ -64,12 +67,12 @@ export default function DetalhesReservaPage() {
         setLoading(false);
         return;
       }
-      
+
       const response = await fetch(
         `${API_URL}/api/dashboard/detalhes_reserva.php?reserva_id=${id}&usuario_id=${usuarioId}&tipo=${tipo}`
       );
       const data = await response.json();
-      
+
       if (data.success) {
         setDetalhes(data.data);
         // Buscar reembolsos em paralelo
@@ -113,7 +116,7 @@ export default function DetalhesReservaPage() {
         alert('Usuário não autenticado');
         return;
       }
-      
+
       const response = await fetch(`${API_URL}/api/dashboard/minhas_reservas.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,9 +126,9 @@ export default function DetalhesReservaPage() {
           usuario_id: usuarioId
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         alert('Reserva cancelada com sucesso!');
         navigate('/gest/minhas-reservas');
@@ -155,15 +158,10 @@ export default function DetalhesReservaPage() {
       'Cancelada': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: <XCircle className="w-5 h-5 text-red-500" />, label: 'Cancelada' },
       'Concluída': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', icon: <CheckCircle className="w-5 h-5 text-teal-500" />, label: 'Concluída' }
     };
-    const statusKey = Object.keys(statusMap).find(key => 
+    const statusKey = Object.keys(statusMap).find(key =>
       key.toLowerCase() === status?.toLowerCase()
     );
     return statusMap[statusKey] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: <AlertCircle className="w-5 h-5 text-gray-500" />, label: status };
-  };
-
-  const getTipoIcon = (tipo) => {
-    const tipos = { 'alojamento': '🏠', 'carro': '🚗', 'experiencia': '🏄' };
-    return tipos[tipo] || '📦';
   };
 
   const downloadQRCode = () => {
@@ -188,7 +186,7 @@ export default function DetalhesReservaPage() {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="mx-auto grid w-full min-w-0 max-w-7xl gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="bg-white rounded-xl shadow-sm p-8 text-center">
           <Loader2 className="w-8 h-8 text-blue-600 mx-auto animate-spin" />
           <p className="text-gray-500 mt-4">Carregando detalhes da reserva...</p>
@@ -199,7 +197,7 @@ export default function DetalhesReservaPage() {
 
   if (error || !detalhes) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="mx-auto grid w-full min-w-0 max-w-7xl gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="bg-white rounded-xl shadow-sm p-8 text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-gray-900 mb-2">Erro ao carregar</h3>
@@ -219,75 +217,55 @@ export default function DetalhesReservaPage() {
   const temReembolso = reembolsos && reembolsos.length > 0;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      
-      {/* Navegação */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-        <Link to="/gest" className="hover:text-blue-600 flex items-center gap-1">
-          <Home className="w-4 h-4" /> Dashboard
-        </Link>
-        <ChevronRight className="w-4 h-4" />
-        <Link to="/gest/minhas-reservas" className="hover:text-blue-600">Minhas Reservas</Link>
-        <ChevronRight className="w-4 h-4" />
-        <span className="text-gray-900 font-medium">{detalhes.codigo_reserva}</span>
-      </div>
+    <div className="mx-auto grid w-full min-w-0 max-w-7xl gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
 
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/gest/minhas-reservas')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">{getTipoIcon(detalhes.tipo)}</span>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{detalhes.item_nome}</h1>
-                  <p className="text-sm text-gray-500">Código: {detalhes.codigo_reserva}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={shareReserva} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Compartilhar">
-              <Share2 className="w-5 h-5 text-gray-600" />
-            </button>
-            <button onClick={downloadQRCode} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Baixar QR Code">
-              <Download className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
+      <nav aria-label={t('detalhes_navegacao')} className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-slate-500 sm:text-sm">
+        <Link to="/gest" className="flex shrink-0 items-center gap-1 hover:text-blue-600"><Home className="h-3.5 w-3.5" />{t('sidebar_dashboard')}</Link>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        <Link to="/gest/minhas-reservas" className="shrink-0 hover:text-blue-600">{t('sidebar_minhas_reservas')}</Link>
+        <ChevronRight className="hidden h-3.5 w-3.5 shrink-0 sm:block" />
+        <span className="hidden min-w-0 truncate font-medium text-slate-700 sm:block" title={detalhes.codigo_reserva}>{detalhes.codigo_reserva}</span>
+      </nav>
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:flex sm:items-start sm:gap-6 sm:p-6">
+        <div className="flex min-w-0 flex-1 items-start gap-2 sm:gap-4">
+          <button type="button" onClick={() => navigate('/gest/minhas-reservas')} aria-label={t('detalhes_voltar')} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-50"><ArrowLeft className="h-5 w-5" /></button>
+          <HeaderGestao secao="detalhes" titulo={detalhes.item_nome} descricao={<span className="block break-all font-mono text-xs leading-relaxed text-slate-500">{detalhes.codigo_reserva}</span>} className="mb-0 min-w-0 flex-1" />
+        </div>
+        <div className="mt-3 flex shrink-0 justify-end gap-2 border-t border-slate-100 pt-3 sm:mt-0 sm:border-0 sm:pt-0">
+          <button type="button" onClick={shareReserva} aria-label={t('detalhes_partilhar')} title={t('detalhes_partilhar')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"><Share2 className="h-4 w-4" /></button>
+          <button type="button" onClick={downloadQRCode} disabled={!detalhes.qr_code} aria-label={t('detalhes_qr')} title={t('detalhes_qr')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:opacity-30"><Download className="h-4 w-4" /></button>
         </div>
       </div>
 
       {/* Status */}
-      <div className={`${statusConfig.bg} border ${statusConfig.border} rounded-xl p-4 mb-6 flex flex-wrap items-center gap-4`}>
+      <div className={`${statusConfig.bg} border ${statusConfig.border} rounded-xl p-5 sm:p-6 grid grid-cols-1 items-center gap-3 sm:grid-cols-[auto_1fr_auto] sm:gap-4`}>
         <div className="flex items-center gap-2">
           {statusConfig.icon}
           <span className={`font-semibold ${statusConfig.text}`}>Status: {statusConfig.label}</span>
         </div>
         <span className="text-sm text-gray-500">Criado em {detalhes.data_criacao}</span>
-        <div className="ml-auto text-right">
+        <div className="flex items-center justify-between gap-3 border-t border-current/10 pt-3 sm:block sm:border-0 sm:pt-0 sm:text-right">
           <span className="text-sm text-gray-500">Valor Total</span>
-          <p className="text-xl font-bold text-blue-600">{valorTotal.toLocaleString('pt-PT')} CVE</p>
+          <p className="whitespace-nowrap text-xl font-bold tabular-nums text-blue-600">{valorTotal.toLocaleString('pt-PT')} CVE</p>
         </div>
       </div>
 
       {/* Grid Principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:gap-8">
+
         {/* Coluna Esquerda */}
-        <div className="lg:col-span-2 space-y-6">
-          
+        <div className="min-w-0 space-y-6 lg:col-span-2 lg:space-y-8">
+
           {/* Item */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
             <div className="flex items-start gap-4">
-              <img 
+              <img
                 src={detalhes.item_imagem || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=100&h=100&fit=crop'}
                 alt={detalhes.item_nome}
-                className="w-20 h-20 rounded-lg object-cover border border-gray-200"
+                className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-lg object-cover border border-gray-200"
               />
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <h4 className="font-bold text-gray-900">{detalhes.item_nome}</h4>
                 {detalhes.item_descricao && <p className="text-gray-600 text-sm mt-1">{detalhes.item_descricao}</p>}
                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
@@ -300,7 +278,7 @@ export default function DetalhesReservaPage() {
           </div>
 
           {/* Detalhes Específicos */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
             <h4 className="font-bold text-gray-900 mb-4">📋 Detalhes da Reserva</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {detalhes.especifico && Object.entries(detalhes.especifico).map(([key, value]) => {
@@ -323,7 +301,7 @@ export default function DetalhesReservaPage() {
           </div>
 
           {/* ⭐ RECIBO ⭐ */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-bold text-gray-900 flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-blue-600" />
@@ -339,21 +317,21 @@ export default function DetalhesReservaPage() {
             </div>
 
             <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+              <div className="flex flex-wrap justify-between items-center gap-2 p-3 bg-slate-50 rounded-lg">
                 <span className="text-sm text-slate-600">Valor Total</span>
-                <span className="font-bold text-slate-900">{valorTotal.toLocaleString('pt-PT')} CVE</span>
+                <span className="whitespace-nowrap font-bold tabular-nums text-slate-900">{valorTotal.toLocaleString('pt-PT')} CVE</span>
               </div>
-              <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+              <div className="flex flex-wrap justify-between items-center gap-2 p-3 bg-green-50 rounded-lg">
                 <span className="text-sm text-green-700">Valor Pago</span>
-                <span className="font-bold text-green-700">{valorPago.toLocaleString('pt-PT')} CVE</span>
+                <span className="whitespace-nowrap font-bold tabular-nums text-green-700">{valorPago.toLocaleString('pt-PT')} CVE</span>
               </div>
               {valorPendente > 0 && (
-                <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                <div className="flex flex-wrap justify-between items-center gap-2 p-3 bg-orange-50 rounded-lg">
                   <span className="text-sm text-orange-700">Valor Pendente</span>
-                  <span className="font-bold text-orange-700">{valorPendente.toLocaleString('pt-PT')} CVE</span>
+                  <span className="whitespace-nowrap font-bold tabular-nums text-orange-700">{valorPendente.toLocaleString('pt-PT')} CVE</span>
                 </div>
               )}
-              <div className="flex justify-between items-center p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <div className="flex flex-wrap justify-between items-center gap-2 p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
                 <span className="text-sm font-bold text-blue-700">Total Pago</span>
                 <span className="text-lg font-black text-blue-700">{valorPago.toLocaleString('pt-PT')} CVE</span>
               </div>
@@ -422,7 +400,7 @@ export default function DetalhesReservaPage() {
 
           {/* Histórico */}
           {detalhes.historico && detalhes.historico.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <h4 className="font-bold text-gray-900 mb-4">📋 Histórico</h4>
               <div className="space-y-4">
                 {detalhes.historico.map((item, index) => (
@@ -431,7 +409,7 @@ export default function DetalhesReservaPage() {
                       <div className="w-3 h-3 rounded-full border-2 border-white shadow" style={{ backgroundColor: item.cor || '#3b82f6' }}></div>
                       {index < detalhes.historico.length - 1 && <div className="w-0.5 h-8 bg-gray-300"></div>}
                     </div>
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center justify-between">
                         <span className="font-medium text-gray-900">{item.status}</span>
                         <span className="text-sm text-gray-500">{item.data}</span>
@@ -447,23 +425,23 @@ export default function DetalhesReservaPage() {
         </div>
 
         {/* Coluna Direita */}
-        <div className="space-y-6">
-          
+        <div className="min-w-0 space-y-6 lg:space-y-8">
+
           {/* QR Code */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 text-center">
             <h4 className="font-bold text-gray-900 mb-3">📱 QR Code</h4>
             <div className="bg-white p-3 rounded-lg border border-gray-200 inline-block">
-              <img src={detalhes.qr_code} alt="QR Code" className="w-40 h-40 object-contain" />
+              <img src={detalhes.qr_code} alt="QR Code" className="h-44 w-44 max-w-full object-contain sm:h-48 sm:w-48" />
             </div>
-            <p className="text-sm text-gray-500 mt-3">Apresente no check-in</p>
-            <button onClick={downloadQRCode} className="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              Baixar QR Code
+            <p className="text-sm text-gray-500 mt-3">{t('qr_apresentar_checkin')}</p>
+            <button onClick={downloadQRCode} disabled={!detalhes.qr_code} className="mt-3 min-h-11 w-full disabled:opacity-40 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+              {t('qr_descarregar')}
             </button>
           </div>
 
           {/* Anfitrião */}
           {detalhes.proprietario && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <h4 className="font-bold text-gray-900 mb-3">👤 Anfitrião</h4>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
@@ -487,7 +465,7 @@ export default function DetalhesReservaPage() {
           )}
 
           {/* Ações */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
             <h4 className="font-bold text-gray-900 mb-3">⚡ Ações</h4>
             <div className="space-y-2">
               <button onClick={baixarRecibo} className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">

@@ -1,3 +1,5 @@
+import CampoDataMorabeza from '../Calendario/CampoDataMorabeza';
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/ConfigurarSessoes.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -232,8 +234,7 @@ const ModalSessao = memo(function ModalSessao({
           {/* DATA */}
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1.5">Data *</label>
-            <input
-              type="date"
+            <CampoDataMorabeza
               value={form.data}
               min={new Date().toISOString().split('T')[0]}
               onChange={(e) => setForm(prev => ({ ...prev, data: e.target.value }))}
@@ -679,9 +680,7 @@ export default function ConfigurarSessoes() {
             >
               <ArrowLeft size={16} className="text-slate-600" />
             </button>
-            <h1 className="text-2xl font-bold text-slate-900">Configurar Sessões</h1>
-          </div>
-          <p className="text-sm text-slate-500 ml-12">
+            <HeaderGestao secao="sessoes" className="mb-0" descricao={<>
             {loadingExp ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 size={12} className="animate-spin" /> A carregar experiência...
@@ -694,7 +693,8 @@ export default function ConfigurarSessoes() {
             ) : (
               'Experiência não encontrada'
             )}
-          </p>
+           </>} />
+          </div>
         </div>
 
         {/* AÇÕES */}
@@ -745,8 +745,7 @@ export default function ConfigurarSessoes() {
       <div className="flex flex-wrap gap-3 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
         <div className="flex-1 min-w-[200px]">
           <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Data</label>
-          <input
-            type="date"
+          <CampoDataMorabeza
             value={filtroData}
             onChange={(e) => setFiltroData(e.target.value)}
             className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"

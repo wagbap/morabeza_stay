@@ -1,3 +1,4 @@
+import CampoDataMorabeza from '../Calendario/CampoDataMorabeza';
 // src/components/gest/ModalTransferir.jsx
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { X, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
@@ -113,8 +114,7 @@ const ModalTransferir = memo(function ModalTransferir({
             <label className="text-xs font-bold text-slate-700 block mb-1.5">
               Data de origem
             </label>
-            <input
-              type="date"
+            <CampoDataMorabeza
               value={de}
               onChange={(e) => setDe(e.target.value)}
               className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900"
@@ -124,8 +124,7 @@ const ModalTransferir = memo(function ModalTransferir({
             <label className="text-xs font-bold text-slate-700 block mb-1.5">
               Data de destino
             </label>
-            <input
-              type="date"
+            <CampoDataMorabeza
               value={para}
               onChange={(e) => setPara(e.target.value)}
               className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900"

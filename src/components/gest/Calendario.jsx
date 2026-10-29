@@ -1,3 +1,5 @@
+import { requestApiJson } from '../../services/apiJson';
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/Calendario.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -6,8 +8,20 @@ import {
 } from 'lucide-react';
 import LegendaCoresTooltip from './LegendaCoresTooltip';
 import ModalStock from './ModalStock';
+import { useTranslation } from 'react-i18next';
+import { fetchJsonBlindado } from './calendarioApi';
 
 const API_BASE = 'https://welovepalop.com';
+
+  const obterAlojamentoId = (item) => {
+    if (!item) return null;
+    const id = item.alojamento_id
+            ?? item.id_alojamento
+            ?? item.alojamentoId
+            ?? item.id;
+    return id != null ? Number(id) : null;
+  };
+
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(() => {
@@ -20,7 +34,6 @@ function useIsMobile(breakpoint = 768) {
     const handler = (e) => setIsMobile(e.matches);
     if (mq.addEventListener) mq.addEventListener('change', handler);
     else mq.addListener(handler);
-    setIsMobile(mq.matches);
     return () => {
       if (mq.removeEventListener) mq.removeEventListener('change', handler);
       else mq.removeListener(handler);
@@ -30,24 +43,6 @@ function useIsMobile(breakpoint = 768) {
   return isMobile;
 }
 
-async function fetchJsonBlindado(url, options = {}) {
-  const res = await fetch(url, options);
-  const texto = await res.text();
-  const inicio = texto.indexOf('{');
-  const fim = texto.lastIndexOf('}');
-  if (inicio === -1 || fim === -1) {
-    console.error('[fetchJsonBlindado] Resposta sem JSON:', url, '→', texto);
-    return { ok: false, status: res.status, data: null, texto };
-  }
-  let data;
-  try {
-    data = JSON.parse(texto.substring(inicio, fim + 1));
-  } catch (e) {
-    console.error('[fetchJsonBlindado] JSON inválido:', url, '→', texto);
-    return { ok: false, status: res.status, data: null, texto };
-  }
-  return { ok: res.ok, status: res.status, data, texto };
-}
 
 function LegendaCoresModal({ isOpen, onClose, temQuartos }) {
   useEffect(() => {
@@ -143,15 +138,15 @@ function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeD
   const textareaRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
       setMotivo('');
       setErro('');
-      setTimeout(() => textareaRef.current?.focus(), 250);
-    }
-    if (!isOpen) return;
+      textareaRef.current?.focus();
+    }, 250);
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    return () => { clearTimeout(timer); window.removeEventListener('keydown', handler); };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -269,6 +264,14 @@ function ModalMotivoBloqueio({ isOpen, onClose, onConfirm, aGuardar, quantidadeD
 export default function Calendario() {
   const isMobile = useIsMobile(768);
 
+  const { t } = useTranslation();
+  const [erroCalendario, setErroCalendario] = useState(false);
+  const [carregandoCalendario, setCarregandoCalendario] = useState(false);
+  const [erroStock, setErroStock] = useState(false);
+  const [quartosCarregadosId, setQuartosCarregadosId] = useState(null);
+  const itemsRequestRef = useRef(0);
+  const bloqueiosRequestRef = useRef(0);
+  const quartosRequestRef = useRef(0);
   const [activeTab, setActiveTab] = useState('alojamentos');
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -303,6 +306,7 @@ export default function Calendario() {
   const [carregandoQuartos, setCarregandoQuartos] = useState(false);
   const [quartoAtivo, setQuartoAtivo] = useState(null);
   const disponibilidadeRequestRef = useRef(0);
+  const disponibilidadeAbortRef = useRef(null);
   const stockRequestRef = useRef(0);
 
   const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -311,14 +315,6 @@ export default function Calendario() {
 
   const isAlojamento = activeTab === 'alojamentos';
 
-  const obterAlojamentoId = (item) => {
-    if (!item) return null;
-    const id = item.alojamento_id
-            ?? item.id_alojamento
-            ?? item.alojamentoId
-            ?? item.id;
-    return id != null ? Number(id) : null;
-  };
 
   const temQuartos = Array.isArray(tiposQuarto) && tiposQuarto.length > 0;
   const modelo = String(selectedItem?.modelo_venda || '').toLowerCase();
@@ -395,7 +391,7 @@ export default function Calendario() {
           if (isGuia) tabs.push('experiencias');
           if (tabs.length > 0) {
             setTabsPermitidas(tabs);
-            if (!tabs.includes(activeTab)) setActiveTab(tabs[0]);
+            setActiveTab((atual) => tabs.includes(atual) ? atual : tabs[0]);
           }
         }
       } catch (error) {
@@ -405,9 +401,10 @@ export default function Calendario() {
     fetchUserRoles();
   }, []);
 
-  useEffect(() => { fetchItems(); }, [activeTab]);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
+    const requestId = ++itemsRequestRef.current;
+    setSelectedItem(null);
+    setItems([]);
     setLoading(true);
     try {
       const userId = obterUserId();
@@ -422,6 +419,7 @@ export default function Calendario() {
       }
       const response = await fetch(url);
       const data = await response.json();
+      if (requestId !== itemsRequestRef.current) return;
       let itemsList = [];
       if (data.success && data.data) {
         itemsList = Array.isArray(data.data) ? data.data : [data.data];
@@ -429,24 +427,39 @@ export default function Calendario() {
       setItems(itemsList);
       setSelectedItem(itemsList.length > 0 ? itemsList[0] : null);
     } catch (error) {
+      if (requestId !== itemsRequestRef.current) return;
       console.error('Erro ao buscar itens:', error);
       setItems([]);
     } finally {
-      setLoading(false);
+      if (requestId === itemsRequestRef.current) setLoading(false);
     }
-  };
+  }, [activeTab]);
 
-  const fetchDisponibilidade = async () => {
+  useEffect(() => {
+    fetchItems();
+    const requests = itemsRequestRef;
+    return () => { requests.current++; };
+  }, [fetchItems]);
+
+  const fetchDisponibilidade = useCallback(async () => {
     if (!selectedItem) return;
+    disponibilidadeAbortRef.current?.abort();
+    const controller = new AbortController();
+    disponibilidadeAbortRef.current = controller;
     const requestId = ++disponibilidadeRequestRef.current;
+    setCarregandoCalendario(true);
+    setErroCalendario(false);
     try {
       const ano = selectedYear;
       const mes = selectedMonth;
       const ultimoDia = new Date(ano, mes + 1, 0).getDate();
       const disponibilidadeMap = {};
       const pedidos = [];
+      const agora = new Date();
+      const hoje = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
       for (let dia = 1; dia <= ultimoDia; dia++) {
         const dataStr = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+        if (dataStr < hoje) continue;
         let url = '';
         if (activeTab === 'alojamentos') {
           url = `${API_BASE}/api/disponibilidade/alojamento.php?alojamento_id=${obterAlojamentoId(selectedItem)}&data_checkin=${dataStr}&data_checkout=${dataStr}`;
@@ -457,40 +470,50 @@ export default function Calendario() {
         }
         pedidos.push(async () => {
           try {
-            const response = await fetch(url);
-            const result = await response.json();
-            disponibilidadeMap[dia] = result.success && result.data
-              ? result.data.disponivel
-              : true;
+            if (controller.signal.aborted) return;
+            const result = await requestApiJson(url, { signal: controller.signal, retries: 2 });
+            const disponivel = result?.data?.disponivel;
+            // A valid unavailable day is data, not a loading error.
+            disponibilidadeMap[dia] = result?.success !== false && !result?.error && (disponivel === true || disponivel === 1 || disponivel === '1')
+              ? true : disponivel === false || disponivel === 0 || disponivel === '0' ? false : null;
           } catch {
-            disponibilidadeMap[dia] = true;
+            disponibilidadeMap[dia] = null;
           }
         });
       }
       // Limita a concorrência para acelerar a carga sem disparar 28–31 pedidos
       // de uma só vez contra a API.
-      for (let i = 0; i < pedidos.length; i += 6) {
-        await Promise.all(pedidos.slice(i, i + 6).map((pedido) => pedido()));
-        if (requestId !== disponibilidadeRequestRef.current) return;
+      for (let i = 0; i < pedidos.length; i += 3) {
+        await Promise.all(pedidos.slice(i, i + 3).map((pedido) => pedido()));
+        if (controller.signal.aborted || requestId !== disponibilidadeRequestRef.current) return;
       }
-      if (requestId !== disponibilidadeRequestRef.current) return;
+      if (controller.signal.aborted || requestId !== disponibilidadeRequestRef.current) return;
       setDisponibilidade(disponibilidadeMap);
-    } catch (error) {
-      console.error('Erro ao buscar disponibilidade:', error);
+      setErroCalendario(Object.values(disponibilidadeMap).some(valor => valor === null));
+    } catch {
+      if (!controller.signal.aborted && requestId === disponibilidadeRequestRef.current) setErroCalendario(true);
+    } finally {
+      if (!controller.signal.aborted && requestId === disponibilidadeRequestRef.current) setCarregandoCalendario(false);
     }
-  };
+  }, [selectedItem, selectedYear, selectedMonth, activeTab]);
 
   const fetchTiposQuarto = useCallback(async (item = null) => {
     const alvo = item || selectedItem;
     if (!alvo) { setTiposQuarto([]); return; }
     const alojamentoId = obterAlojamentoId(alvo);
     if (!alojamentoId) { setTiposQuarto([]); return; }
+    const requestId = ++quartosRequestRef.current;
+    setErroCalendario(false);
+    setQuartosCarregadosId(null);
+    setTiposQuarto([]);
+    setQuartoAtivo(null);
     setCarregandoQuartos(true);
     try {
-      const url = `${API_BASE}/api/get_tipos_quarto.php?alojamento_id=${alojamentoId}&t=${Date.now()}`;
-      const { ok, data, texto } = await fetchJsonBlindado(url);
+      const url = `${API_BASE}/api/get_tipos_quarto.php?alojamento_id=${alojamentoId}`;
+      const { ok, data } = await fetchJsonBlindado(url);
+      if (requestId !== quartosRequestRef.current) return;
       if (!ok || !data?.success) {
-        console.error('[fetchTiposQuarto] resposta:', texto);
+        setErroCalendario(true);
         setTiposQuarto([]);
         return;
       }
@@ -508,16 +531,23 @@ export default function Calendario() {
         })
         .filter(tq => tq.tipo_quarto_id !== null);
       setTiposQuarto(normalizada);
-    } catch (e) {
-      console.error('Erro ao buscar tipos de quarto:', e);
+      setQuartosCarregadosId(alojamentoId);
+    } catch {
+      if (requestId !== quartosRequestRef.current) return;
+      setErroCalendario(true);
       setTiposQuarto([]);
     } finally {
-      setCarregandoQuartos(false);
+      if (requestId === quartosRequestRef.current) setCarregandoQuartos(false);
     }
   }, [selectedItem]);
 
   const fetchBloqueiosManuais = useCallback(async () => {
     if (!selectedItem || !isAlojamento) return;
+    const requestId = ++bloqueiosRequestRef.current;
+    setCarregandoCalendario(true);
+    setErroCalendario(false);
+    setBloqueiosPorData({});
+    setDiasReservados(new Set());
     try {
       const alojamentoId = obterAlojamentoId(selectedItem);
       const params = new URLSearchParams({
@@ -530,9 +560,10 @@ export default function Calendario() {
         params.set('tipo_quarto_id', String(quartoAtivo.tipo_quarto_id));
       }
       const url = `${API_BASE}/api/alojamento_bloqueios.php?${params.toString()}`;
-      const { ok, data, texto } = await fetchJsonBlindado(url);
+      const { ok, data } = await fetchJsonBlindado(url);
+      if (requestId !== bloqueiosRequestRef.current) return;
       if (!ok || !data?.success) {
-        console.error('[fetchBloqueiosManuais] resposta:', texto);
+        setErroCalendario(true);
         return;
       }
 
@@ -550,40 +581,55 @@ export default function Calendario() {
       });
       setBloqueiosPorData(porData);
       setDiasReservados(new Set(data.dias_reservados || []));
-    } catch (e) {
-      console.error('Erro ao buscar bloqueios:', e);
+    } catch {
+      if (requestId === bloqueiosRequestRef.current) setErroCalendario(true);
+    } finally {
+      if (requestId === bloqueiosRequestRef.current) setCarregandoCalendario(false);
     }
   }, [selectedItem, selectedYear, selectedMonth, isAlojamento, tiposQuarto, isPorQuarto, quartoAtivo?.tipo_quarto_id]);
 
   useEffect(() => {
     if (!selectedItem || !isAlojamento) { setTiposQuarto([]); return; }
     fetchTiposQuarto(selectedItem);
+    const requests = quartosRequestRef;
+    return () => { requests.current++; };
   }, [selectedItem, isAlojamento, fetchTiposQuarto]);
 
   useEffect(() => {
-    if (selectedItem) {
-      fetchDisponibilidade();
-      if (isAlojamento) fetchBloqueiosManuais();
-    }
-  }, [selectedItem, selectedMonth, selectedYear, activeTab, tiposQuarto, fetchBloqueiosManuais]);
+    setDisponibilidade({});
+    if (selectedItem && !isAlojamento) fetchDisponibilidade();
+    const requests = disponibilidadeRequestRef;
+    const abort = disponibilidadeAbortRef;
+    return () => { requests.current++; abort.current?.abort(); };
+  }, [selectedItem, isAlojamento, fetchDisponibilidade]);
 
   useEffect(() => {
-    if (!selectedItem || !Array.isArray(tiposQuarto) || tiposQuarto.length === 0) {
-      setQuartoAtivo(null);
-      return;
-    }
-    const aindaExiste = quartoAtivo && tiposQuarto.some(
-      tq => String(tq.tipo_quarto_id) === String(quartoAtivo.tipo_quarto_id)
-    );
-    if (!aindaExiste) {
+    setBloqueiosPorData({});
+    setDiasReservados(new Set());
+    if (selectedItem && isAlojamento && quartosCarregadosId === obterAlojamentoId(selectedItem)
+      && (!isPorQuarto || quartoAtivo?.tipo_quarto_id)) fetchBloqueiosManuais();
+    const requests = bloqueiosRequestRef;
+    return () => { requests.current++; };
+  }, [fetchBloqueiosManuais, quartosCarregadosId, selectedItem, isAlojamento, isPorQuarto, quartoAtivo?.tipo_quarto_id]);
+
+  useEffect(() => {
+    setModalStockAberto(false);
+    setStocksDados([]);
+    const requests = stockRequestRef;
+    return () => { requests.current++; };
+  }, [selectedItem, activeTab, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    setQuartoAtivo((atual) => {
+      if (!selectedItem || tiposQuarto.length === 0) return null;
+      if (atual && tiposQuarto.some(tq => Number(tq.tipo_quarto_id) === atual.tipo_quarto_id)) return atual;
       const primeiro = tiposQuarto[0];
-      setQuartoAtivo({
+      return {
         tipo_quarto_id: Number(primeiro.tipo_quarto_id),
-        alojamento_quarto_id: Number(primeiro.alojamento_quarto_id),
-        nome: primeiro.nome,
-      });
-    }
-  }, [tiposQuarto, selectedItem?.id]);
+        alojamento_quarto_id: Number(primeiro.alojamento_quarto_id), nome: primeiro.nome,
+      };
+    });
+  }, [tiposQuarto, selectedItem]);
 
   useEffect(() => {
     setSelecionados(new Set());
@@ -598,6 +644,7 @@ export default function Calendario() {
     setModalStockAberto(true);
     setCarregandoStock(true);
     setStocksDados([]);
+    setErroStock(false);
     try {
       const alojamentoId = obterAlojamentoId(selectedItem);
       if (!alojamentoId) throw new Error('Alojamento inválido');
@@ -620,11 +667,10 @@ export default function Calendario() {
         });
         if (requestId === stockRequestRef.current) setStocksDados(normalizados);
       } else {
-        if (requestId === stockRequestRef.current) setStocksDados([]);
+        if (requestId === stockRequestRef.current) setErroStock(true);
       }
-    } catch (e) {
-      console.error('Erro ao carregar stock:', e);
-      if (requestId === stockRequestRef.current) setStocksDados([]);
+    } catch {
+      if (requestId === stockRequestRef.current) setErroStock(true);
     } finally {
       if (requestId === stockRequestRef.current) setCarregandoStock(false);
     }
@@ -632,6 +678,7 @@ export default function Calendario() {
 
   const getEstadoDiaAtual = (dataStr) => {
     if (!dataStr) return 'fora';
+    if (erroCalendario || carregandoCalendario || carregandoQuartos || quartosCarregadosId !== obterAlojamentoId(selectedItem)) return 'fora';
     if (isDataPassada(dataStr)) return 'passado';
     if (diasReservados.has(dataStr)) return 'reservado';
     const info = bloqueiosPorData[dataStr];
@@ -750,7 +797,7 @@ export default function Calendario() {
   const podeSelecionar = (dataStr) => {
     if (!isAlojamento || !dataStr) return false;
     const estado = getEstadoDiaAtual(dataStr);
-    if (estado === 'passado' || estado === 'reservado') return false;
+    if (aGuardar || estado === 'fora' || estado === 'passado' || estado === 'reservado') return false;
     return true;
   };
 
@@ -783,10 +830,7 @@ export default function Calendario() {
     setSelecionados(novaSelecao);
   };
 
-  const handleMouseUp = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-  };
+  const handleMouseUp = useCallback(() => { setIsDragging(false); }, []);
 
   useEffect(() => {
     window.addEventListener('mouseup', handleMouseUp);
@@ -795,10 +839,10 @@ export default function Calendario() {
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('touchend', handleMouseUp);
     };
-  }, [isDragging]);
+  }, [handleMouseUp]);
 
   const executarAcao = async (motivoFinal = null) => {
-    if (!selectedItem || selecionados.size === 0 || !isAlojamento) return;
+    if (!selectedItem || selecionados.size === 0 || !isAlojamento || aGuardar || erroCalendario || carregandoCalendario || carregandoQuartos) return;
 
     const quartoFisicoId = isPorQuarto
       ? Number(quartoAtivo?.alojamento_quarto_id)
@@ -824,29 +868,12 @@ export default function Calendario() {
         motivo: modoSelecao === 'bloquear' ? (motivoFinal || 'Bloqueio manual') : 'Desbloqueio manual',
       };
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const { ok, data } = await fetchJsonBlindado(endpoint, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-
-      const texto = await res.text();
-      if (!res.ok) {
-        mostrarToast('erro', `Erro do servidor (${res.status}).`);
-        return;
-      }
-
-      const inicio = texto.indexOf('{');
-      const fim = texto.lastIndexOf('}');
-      if (inicio === -1 || fim === -1) {
-        mostrarToast('erro', 'Resposta inválida do servidor.');
-        return;
-      }
-      let data;
-      try {
-        data = JSON.parse(texto.substring(inicio, fim + 1));
-      } catch (e) {
-        mostrarToast('erro', 'Erro ao processar resposta.');
+      if (!ok) {
+        mostrarToast('erro', t('calendario_erro_carregar'));
         return;
       }
 
@@ -861,7 +888,7 @@ export default function Calendario() {
       } else {
         mostrarToast('erro', data.error || 'Erro ao aplicar ação.');
       }
-    } catch (e) {
+    } catch {
       mostrarToast('erro', 'Erro de rede.');
     } finally {
       setAGuardar(false);
@@ -869,7 +896,7 @@ export default function Calendario() {
   };
 
   const aplicarAcao = () => {
-    if (!selectedItem || selecionados.size === 0 || !isAlojamento) return;
+    if (!selectedItem || selecionados.size === 0 || !isAlojamento || aGuardar || erroCalendario || carregandoCalendario || carregandoQuartos) return;
     if (modoSelecao === 'bloquear') setMotivoModalAberto(true);
     else executarAcao();
   };
@@ -907,6 +934,18 @@ export default function Calendario() {
     );
   };
 
+  const renderEstadoCarregamento = () => selectedItem && (
+    erroCalendario ? <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+      <p>{t('calendario_erro_carregar')}</p>
+      <button type="button" className="mt-2 min-h-11 font-semibold underline" onClick={() => {
+        if (!isAlojamento) fetchDisponibilidade();
+        else if (quartosCarregadosId !== obterAlojamentoId(selectedItem)) fetchTiposQuarto(selectedItem);
+        else fetchBloqueiosManuais();
+      }}>{t('calendario_tentar_novamente')}</button>
+    </div> : (carregandoCalendario || (isAlojamento && (carregandoQuartos || quartosCarregadosId !== obterAlojamentoId(selectedItem)))) &&
+      <p role="status" className="mb-4 text-sm text-slate-600">{t('calendario_a_carregar')}</p>
+  );
+
   const jaEstouNoMesAtual =
     selectedMonth === new Date().getMonth() &&
     selectedYear === new Date().getFullYear();
@@ -914,7 +953,7 @@ export default function Calendario() {
   if (isMobile) {
     return (
       <div className="max-w-6xl w-full text-[#0f172a] px-3 sm:px-4 py-4 sm:py-6 md:px-0">
-        <h1 className="text-lg sm:text-[22px] font-bold mb-4 sm:mb-6">Calendário de Disponibilidade</h1>
+        <HeaderGestao secao="calendario" className="mb-6" />
 
         <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 border-b border-gray-200 overflow-x-auto no-scrollbar">
           {tabsPermitidas.map((tab) => (
@@ -1103,7 +1142,8 @@ export default function Calendario() {
           </div>
         )}
 
-        {loading && (
+        {renderEstadoCarregamento()}
+      {loading && (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900 mx-auto"></div>
             <p className="text-slate-500 mt-2 text-sm">Carregando calendário...</p>
@@ -1220,6 +1260,8 @@ export default function Calendario() {
           onClose={() => setModalStockAberto(false)}
           stocks={stocksDados}
           carregando={carregandoStock}
+          erro={erroStock}
+          onTentarNovamente={abrirModalStock}
           mesLabel={`${meses[selectedMonth]} ${selectedYear}`}
           tipoAtivoId={quartoAtivo?.tipo_quarto_id}
           onEscolherTipo={(tipoId) => {
@@ -1240,7 +1282,7 @@ export default function Calendario() {
 
   return (
     <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
-      <h1 className="text-[22px] font-bold mb-6">Calendário de Disponibilidade</h1>
+      <HeaderGestao secao="calendario" className="mb-6" />
 
       <div className="flex gap-2 mb-6 border-b border-gray-200">
         {tabsPermitidas.map((tab) => (
@@ -1425,6 +1467,7 @@ export default function Calendario() {
         </div>
       )}
 
+      {renderEstadoCarregamento()}
       {loading && (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900 mx-auto"></div>
@@ -1526,6 +1569,8 @@ export default function Calendario() {
         onClose={() => setModalStockAberto(false)}
         stocks={stocksDados}
         carregando={carregandoStock}
+          erro={erroStock}
+          onTentarNovamente={abrirModalStock}
         mesLabel={`${meses[selectedMonth]} ${selectedYear}`}
         tipoAtivoId={quartoAtivo?.tipo_quarto_id}
         onEscolherTipo={(tipoId) => {

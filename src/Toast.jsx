@@ -15,7 +15,7 @@ export const ToastProvider = ({ children }) => {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white bg-gray-900 border border-gray-800">
+        <div style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))', right: 'calc(1rem + env(safe-area-inset-right, 0px))', maxWidth: 'calc(100vw - 2rem)' }} className="fixed z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white bg-gray-900 border border-gray-800">
           {toast.type === 'success' && <CheckCircle size={20} className="text-green-400 shrink-0" />}
           {toast.type === 'error' && <AlertCircle size={20} className="text-red-400 shrink-0" />}
           {toast.type === 'info' && <Info size={20} className="text-blue-400 shrink-0" />}

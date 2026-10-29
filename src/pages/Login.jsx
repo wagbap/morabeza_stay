@@ -31,7 +31,13 @@ export default function Login() {
 
   const BACKEND_URL = 'https://welovepalop.com/api/auth_google.php';
 
-  const salvarSessao = (user) => {
+  const salvarSessao = (user, token = null, validationToken = null) => {
+    if (typeof validationToken === 'string' && validationToken.trim()) localStorage.setItem('reserva_validation_token', validationToken);
+    else localStorage.removeItem('reserva_validation_token');
+    if (typeof token === 'string' && token.trim()) {
+      localStorage.setItem('token', token);
+      localStorage.setItem('morabeza_token', token);
+    }
     const userForStorage = {
       id: user.id,
       sub: user.id,
@@ -120,7 +126,7 @@ export default function Login() {
       });
 
       if (res.data.status === 'success') {
-        salvarSessao(res.data.user);
+        salvarSessao(res.data.user, res.data.token, res.data.validation_token);
       } else {
         setErrorMessage(res.data.message || 'Erro ao fazer login.');
       }
@@ -189,7 +195,16 @@ export default function Login() {
       });
 
       if (res.data.status === 'success') {
-        salvarSessao(res.data.user);
+        // Obtain the validation credential through verified password login,
+        // rather than treating the registration request's user_id as identity.
+        const login = await axios.post(BACKEND_URL, {
+          action: 'login_with_password', email: email.trim(), senha,
+        });
+        if (login.data.status !== 'success') {
+          setErrorMessage(login.data.message || 'Erro ao criar conta.');
+          return;
+        }
+        salvarSessao(login.data.user, login.data.token, login.data.validation_token);
       } else {
         setErrorMessage(res.data.message || 'Erro ao criar conta.');
       }

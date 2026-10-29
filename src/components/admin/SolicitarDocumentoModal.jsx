@@ -1,3 +1,4 @@
+import CampoDataMorabeza from '../Calendario/CampoDataMorabeza';
 // components/admin/SolicitarDocumentoModal.jsx
 import React, { useState, useEffect } from 'react';
 import {
@@ -520,8 +521,7 @@ export default function SolicitarDocumentoModal({
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
                     Prazo de envio *
                   </label>
-                  <input
-                    type="date"
+                  <CampoDataMorabeza
                     value={prazo}
                     min={amanha}
                     onChange={(e) => setPrazo(e.target.value)}

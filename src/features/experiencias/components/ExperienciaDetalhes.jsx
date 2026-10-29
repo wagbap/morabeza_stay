@@ -3,8 +3,7 @@ import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../util
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
+import CalendarioMorabeza from '../../../components/Calendario/CalendarioMorabeza';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import {
@@ -622,7 +621,7 @@ const SidebarReservaExperiencia = ({
 
           {showCalendar && (
             <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl bg-white border border-slate-200 p-2">
-              <DatePicker
+              <CalendarioMorabeza
                 selected={dataPasseio ? new Date(dataPasseio + 'T00:00:00') : null}
                 onChange={(date) => {
                   if (!date) return;

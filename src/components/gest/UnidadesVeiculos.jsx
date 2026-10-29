@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/UnidadesVeiculos.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -420,7 +421,7 @@ export default function UnidadesVeiculos() {
   if (carros.length === 0) {
     return (
       <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
-        <h1 className="text-[24px] font-bold mb-6">Unidades dos Meus Veículos</h1>
+        <HeaderGestao secao="unidades" className="mb-6" />
         <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Car size={40} className="text-gray-400" />
@@ -434,7 +435,7 @@ export default function UnidadesVeiculos() {
 
   return (
     <div className="max-w-7xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
-      <h1 className="text-[24px] font-bold mb-6">Unidades dos Meus Veículos</h1>
+      <HeaderGestao secao="unidades" className="mb-6" />
 
       {/* LOV — Dropdown com search bar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">

@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // components/prestador/DocumentosSolicitados.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -25,7 +26,7 @@ const TIPOS_LABEL = {
 const TIPO_ANUNCIO = {
   alojamento:  { label: 'Alojamento',  base: '/alojamento-registro' },
   carro:       { label: 'Viatura',     base: '/carro-registo' },
-  experiencia: { label: 'Experiência', base: '/experiencia-registro' },
+  experiencia: { label: 'Experiência', base: '/experiencia-registo' },
 };
 
 export default function DocumentosSolicitados() {
@@ -333,12 +334,7 @@ export default function DocumentosSolicitados() {
         </button>
 
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-[#003580]">
-            Pendências dos meus anúncios
-          </h1>
-          <p className="text-gray-600 mt-1 text-sm">
-            Correções pedidas e documentos solicitados pela administração.
-          </p>
+          <HeaderGestao secao="documentos" className="mb-0" />
         </div>
 
         {totalPendencias > 0 && (

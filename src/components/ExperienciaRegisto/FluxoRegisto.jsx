@@ -1,3 +1,5 @@
+import { obterUtilizadorRegisto } from '../../utils/registoSession';
+import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
 import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/ExperienciaRegisto/FluxoRegisto.jsx
@@ -69,37 +71,8 @@ const FluxoRegisto = () => {
 
   // ==================== OBTER ID DO UTILIZADOR (JWT) ====================
   useEffect(() => {
-    try {
-      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
-      if (token) {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const parsed = JSON.parse(jsonPayload);
-        const userData = parsed.data || parsed;
-        if (userData?.id) {
-          setUsuarioId(userData.id);
-          return;
-        }
-      }
-
-      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
-      for (const chave of chaves) {
-        const raw = localStorage.getItem(chave);
-        if (raw) {
-          const user = JSON.parse(raw);
-          const uid = user?.id || user?.sub || user?.user_id;
-          if (uid) {
-            setUsuarioId(uid);
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Erro ao obter ID do utilizador:', e);
-    }
+    const user = obterUtilizadorRegisto(localStorage);
+    setUsuarioId(user?.id ?? null);
   }, []);
 
   // ==================== GUARDAR RASCUNHO ====================
@@ -244,6 +217,11 @@ const FluxoRegisto = () => {
   // ==================== FINALIZAR ====================
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+    if (!temFotoAnuncio(imagens)) {
+      showToast(t('anuncio_foto_obrigatoria'), 'error');
+      setFase(7);
+      return;
+    }
 
     if (!usuarioId) {
       showToast('Utilizador não autenticado. Faça login novamente.', 'error');
@@ -275,7 +253,10 @@ const FluxoRegisto = () => {
       if (result.success) {
         localStorage.removeItem(RASCUNHO_KEY);
         showToast(result.message || 'Experiência registada com sucesso!', 'success');
-        navigate('/experiencia-registo/meus');
+        const novoId = Number(result.data?.experiencia_id);
+        navigate(Number.isInteger(novoId) && novoId > 0
+          ? `/gest/experiencia/${novoId}/sessoes`
+          : '/gest/minhas-experiencias');
       } else {
         showToast(result.message || 'Erro ao registar experiência', 'error');
       }
@@ -288,7 +269,7 @@ const FluxoRegisto = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onBack={handleBack} onNext={handleNext} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={handleNext} />;
 
   const temRascunho = !!localStorage.getItem(RASCUNHO_KEY);
 

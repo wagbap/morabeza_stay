@@ -1,3 +1,6 @@
+import FuncoesPerfil from './FuncoesPerfil';
+import { ROLES_UPDATED_EVENT } from '../../utils/managementSession';
+import HeaderGestao from './HeaderGestao';
 // components/Configuracoes.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -60,6 +63,17 @@ export default function Configuracoes() {
 
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const inputFotoRef = useRef(null);
+  const conteudoPerfilRef = useRef(null);
+  const primeiraSeccaoRef = useRef(true);
+
+  useEffect(() => {
+    if (primeiraSeccaoRef.current) { primeiraSeccaoRef.current = false; return; }
+    if (!window.matchMedia('(max-width: 1023px)').matches) return;
+    const frame = requestAnimationFrame(() => conteudoPerfilRef.current?.scrollIntoView({
+      block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    }));
+    return () => cancelAnimationFrame(frame);
+  }, [activeMenu]);
 
   const [dadosRecebimento, setDadosRecebimento] = useState(null);
   const [loadingReceb, setLoadingReceb] = useState(false);
@@ -224,14 +238,15 @@ export default function Configuracoes() {
     }
   };
 
-  const fetchUserRoles = async () => {
+  const fetchUserRoles = async (notificar = false) => {
     try {
       const response = await fetch(
         `${API_URL}/usuarios/listar_roles.php?usuario_id=${usuarioLogado.id}`
       );
       const data = await response.json();
 
-      if (data.success) {
+      if (data.success && Array.isArray(data.roles)) {
+        if (notificar) window.dispatchEvent(new CustomEvent(ROLES_UPDATED_EVENT, { detail: { usuarioId: usuarioLogado.id, roles: data.roles } }));
         setUserRoles(data.roles);
         const approvedRoleNames = data.roles
           .filter((r) => r.status === 'approved')
@@ -454,7 +469,7 @@ export default function Configuracoes() {
         setMessage({ type: 'success', text: data.message || 'Serviço ativado com sucesso!' });
         setServicoSelecionado(null);
         setAceitouCondicoes(false);
-        await fetchUserRoles();
+        await fetchUserRoles(true);
       } else {
         setMessage({ type: 'error', text: data.message || 'Erro ao ativar serviço.' });
       }
@@ -487,7 +502,7 @@ export default function Configuracoes() {
       const data = await response.json();
       if (data.success) {
         setMessage({ type: 'success', text: 'Função removida da sua conta com sucesso.' });
-        await fetchUserRoles();
+        await fetchUserRoles(true);
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       } else {
         setMessage({ type: 'error', text: data.message || 'Erro ao remover função.' });
@@ -757,7 +772,7 @@ export default function Configuracoes() {
               <button
                 key={item.id}
                 onClick={() => setActiveMenu(item.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-[14px] font-medium transition-all whitespace-nowrap lg:whitespace-normal w-full
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-[14px] font-medium transition-all whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink w-auto lg:w-full
                   ${
                     activeMenu === item.id
                       ? 'bg-[#eff6ff] text-[#2563eb] shadow-sm'
@@ -773,13 +788,12 @@ export default function Configuracoes() {
           </nav>
         </aside>
 
-        <main className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <main ref={conteudoPerfilRef} className="min-w-0 scroll-mt-4 flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           {activeMenu === 'Dados pessoais' && (
             <>
               <div className="p-6 md:p-8 flex justify-between items-start border-b border-gray-50">
                 <div>
-                  <h1 className="text-[24px] font-bold mb-1">Dados pessoais</h1>
-                  <p className="text-[14px] text-[#64748b]">Atualize a sua informação pessoal.</p>
+                  <HeaderGestao secao="pessoais" className="mb-0" />
                 </div>
                 <div className="relative group cursor-pointer">
                   <input
@@ -949,10 +963,7 @@ export default function Configuracoes() {
           {activeMenu === 'Segurança' && (
             <div className="p-6 md:p-8">
               <div className="mb-6">
-                <h1 className="text-[24px] font-bold mb-1">Definições de segurança</h1>
-                <p className="text-[14px] text-[#64748b]">
-                  Gerencie a sua palavra-passe e segurança da conta.
-                </p>
+                <HeaderGestao secao="seguranca" className="mb-0" />
               </div>
 
               {message.text && (
@@ -1118,11 +1129,7 @@ export default function Configuracoes() {
           {activeMenu === 'Contacto comercial' && (
             <div className="p-6 md:p-8">
               <div className="mb-6">
-                <h1 className="text-[24px] font-bold mb-1">Contacto comercial</h1>
-                <p className="text-[14px] text-[#64748b]">
-                  Estes dados podem aparecer <strong>publicamente</strong> nos teus anúncios.
-                  Não uses os teus dados de login.
-                </p>
+                <HeaderGestao secao="contacto" className="mb-0" />
               </div>
 
               {message.text && (
@@ -1342,10 +1349,7 @@ export default function Configuracoes() {
           {activeMenu === 'Recebimento' && (
             <div className="p-6 md:p-8">
               <div className="mb-6">
-                <h1 className="text-[24px] font-bold mb-1">Dados de recebimento</h1>
-                <p className="text-[14px] text-[#64748b]">
-                  Onde queres receber os pagamentos das tuas reservas.
-                </p>
+                <HeaderGestao secao="recebimento" className="mb-0" />
               </div>
 
               {message.text && (
@@ -1559,204 +1563,23 @@ export default function Configuracoes() {
             </div>
           )}
 
-          {activeMenu === 'Solicitar Funções' && (
-            <div className="p-6 md:p-8">
-              <div className="mb-6">
-                <h1 className="text-[24px] font-bold mb-1">Solicitar Funções</h1>
-                <p className="text-[14px] text-[#64748b]">
-                  Escolhe o que queres oferecer na Morabeza Stay. A ativação é imediata — sem
-                  documentos e sem espera. Cada anúncio é analisado depois de o criares.
-                </p>
-              </div>
-
-              {message.text && (
-                <div
-                  className={`mb-6 p-3 rounded-lg ${
-                    message.type === 'success'
-                      ? 'bg-green-50 text-green-700'
-                      : 'bg-red-50 text-red-700'
-                  }`}
-                >
-                  {message.text}
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {[
-                  {
-                    name: 'anfitrion',
-                    label: 'Proprietário de Alojamentos',
-                    desc: 'Alugue propriedades e gerencie alojamentos.',
-                    icon: <Home className="text-blue-600" />,
-                    bg: 'bg-blue-100',
-                    nextUrl: '/alojamento-registro/fluxo',
-                  },
-                  {
-                    name: 'guia_experiencias',
-                    label: 'Guia de Experiências',
-                    desc: 'Crie e gerencie experiências turísticas.',
-                    icon: <Compass className="text-purple-600" />,
-                    bg: 'bg-purple-100',
-                    nextUrl: '/experiencia-registro/fluxo',
-                  },
-                  {
-                    name: 'proprietario_veiculos',
-                    label: 'Proprietário de Veículos',
-                    desc: 'Alugue carros e gerencie a sua frota.',
-                    icon: <Car className="text-green-600" />,
-                    bg: 'bg-green-100',
-                    nextUrl: '/carro-registro/fluxo',
-                  },
-                ].map((role) => {
-                  const rData = userRoles.find((r) => r.name === role.name);
-                  const isAtivo = rData?.status === 'approved';
-                  const isSelecionado = servicoSelecionado === role.name;
-
-                  return (
-                    <div
-                      key={role.name}
-                      className={`p-5 border rounded-2xl bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                        isSelecionado ? 'border-[#2563eb] ring-2 ring-blue-100' : 'border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`p-3 ${role.bg} rounded-xl`}>{role.icon}</div>
-                        <div>
-                          <h3 className="font-bold text-gray-950 text-base">{role.label}</h3>
-                          <p className="text-sm text-gray-500">{role.desc}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        {isAtivo ? (
-                          <div className="flex items-center gap-3">
-                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-xl text-xs font-bold flex items-center gap-1">
-                              <ShieldCheck size={14} /> Ativo
-                            </span>
-                            <button
-                              onClick={() => handleRemoveRole(role.name)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                              title="Remover função"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setServicoSelecionado(isSelecionado ? null : role.name);
-                              setAceitouCondicoes(false);
-                              setMessage({ type: '', text: '' });
-                            }}
-                            className={`px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-1.5 shadow-sm ${
-                              isSelecionado
-                                ? 'bg-gray-200 text-gray-700'
-                                : 'bg-blue-900 hover:bg-blue-950 text-white'
-                            }`}
-                          >
-                            {isSelecionado ? 'Cancelar' : 'Ativar serviço'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {servicoSelecionado && (
-                <div className="mt-6 p-6 bg-blue-50/60 border border-blue-100 rounded-2xl space-y-4">
-                  <h3 className="font-semibold text-blue-900 flex items-center gap-2">
-                    <Shield size={18} /> Condições da Morabeza Stay
-                  </h3>
-
-                  <ul className="text-sm text-blue-900/90 space-y-1.5 list-disc pl-5">
-                    <li>
-                      A comissão da Morabeza Stay é de <strong>10%</strong> sobre cada reserva
-                      confirmada.
-                    </li>
-                    <li>O anúncio será analisado antes de ser publicado.</li>
-                    <li>
-                      Documentos podem ser solicitados <strong>apenas</strong> após a análise de um
-                      anúncio específico.
-                    </li>
-                    <li>Podes pausar ou remover este serviço em qualquer momento.</li>
-                  </ul>
-
-                  <label className="flex items-start gap-3 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={aceitouCondicoes}
-                      onChange={(e) => setAceitouCondicoes(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 accent-blue-900"
-                    />
-                    <span className="text-sm text-blue-900">
-                      Li e aceito as condições da Morabeza Stay.
-                    </span>
-                  </label>
-
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button
-                      onClick={() => handleAtivarServico(servicoSelecionado)}
-                      disabled={loadingRoles || !aceitouCondicoes}
-                      className="flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-950 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                    >
-                      {loadingRoles ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin" /> A ativar...
-                        </>
-                      ) : (
-                        <>
-                          Confirmar ativação <ArrowRight size={16} />
-                        </>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setServicoSelecionado(null);
-                        setAceitouCondicoes(false);
-                      }}
-                      className="px-5 py-2.5 rounded-xl text-sm font-medium border border-blue-200 text-blue-900 hover:bg-blue-100/50 transition"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-
-                  <p className="text-xs text-blue-800/70 pt-1">
-                    Sem documentos. Sem aprovação administrativa. Ativação imediata.
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                  <Shield className="w-4 h-4" /> Como funciona
-                </h3>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>
-                    • <strong>Cliente:</strong> função base da conta — sempre ativa.
-                  </li>
-                  <li>
-                    • <strong>Anfitrião, Guia e Proprietário:</strong> ativas o serviço com um
-                    clique e crias o anúncio de seguida.
-                  </li>
-                  <li>
-                    • A análise e pedido de documentos acontecem <strong>por anúncio</strong>,
-                    depois de o enviares para revisão.
-                  </li>
-                </ul>
-              </div>
-            </div>
+          {activeMenu === 'Solicitar Fun\u00e7\u00f5es' && (
+            <FuncoesPerfil
+              roles={userRoles} selecionado={servicoSelecionado} aceite={aceitouCondicoes}
+              loading={loadingRoles} message={message}
+              onSelecionar={name => {
+                setServicoSelecionado(name);
+                setAceitouCondicoes(false);
+                setMessage({ type: '', text: '' });
+              }}
+              onAceitar={setAceitouCondicoes} onAtivar={handleAtivarServico} onRemover={handleRemoveRole}
+            />
           )}
 
           {activeMenu === 'Privilégios' && (
             <div className="p-6 md:p-8">
               <div className="mb-6">
-                <h1 className="text-[24px] font-bold mb-1">Meus Serviços</h1>
-                <p className="text-[14px] text-[#64748b]">
-                  Gerencie os seus serviços comerciais ativos na plataforma.
-                </p>
+                <HeaderGestao secao="servicos" className="mb-0" />
               </div>
 
               <div className="space-y-4">
@@ -1800,13 +1623,13 @@ export default function Configuracoes() {
                       </p>
                       <div className="mt-3 flex gap-4 text-sm font-semibold">
                         <button
-                          onClick={() => (window.location.href = '/experiencia-registro/meus')}
+                          onClick={() => (window.location.href = '/experiencia-registo/meus')}
                           className="text-purple-600 hover:underline"
                         >
                           Ver minhas experiências →
                         </button>
                         <button
-                          onClick={() => (window.location.href = '/experiencia-registro/fluxo')}
+                          onClick={() => (window.location.href = '/experiencia-registo/fluxo')}
                           className="text-green-600 hover:underline"
                         >
                           + Criar experiência
@@ -1830,13 +1653,13 @@ export default function Configuracoes() {
                       </p>
                       <div className="mt-3 flex gap-4 text-sm font-semibold">
                         <button
-                          onClick={() => (window.location.href = '/carro-registro/meus')}
+                          onClick={() => (window.location.href = '/carro-registo/meus')}
                           className="text-green-600 hover:underline"
                         >
                           Ver meus veículos →
                         </button>
                         <button
-                          onClick={() => (window.location.href = '/carro-registro/fluxo')}
+                          onClick={() => (window.location.href = '/carro-registo/fluxo')}
                           className="text-green-600 hover:underline"
                         >
                           + Adicionar veículo

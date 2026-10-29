@@ -1,3 +1,4 @@
+import AvatarPerfil from '../AvatarPerfil';
 import React, { useState, useEffect } from 'react';
 import { 
   MailCheck, CheckCircle, XCircle, Clock, Search, 
@@ -275,11 +276,7 @@ const VerificacoesEmail = () => {
                   <tr key={usuario.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <img 
-                          src={usuario.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(usuario.nome)}&background=003580&color=fff`} 
-                          alt={usuario.nome}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
+                        <AvatarPerfil usuario={usuario} />
                         <div>
                           <div className="font-medium text-gray-900">{usuario.nome}</div>
                           <div className="text-xs text-gray-400 flex items-center gap-1">
@@ -360,11 +357,7 @@ const VerificacoesEmail = () => {
           <div className="bg-white rounded-2xl max-w-md w-full">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <img 
-                  src={selectedUser.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser.nome)}&background=003580&color=fff&size=80`} 
-                  alt={selectedUser.nome}
-                  className="w-16 h-16 rounded-full object-cover"
-                />
+                <AvatarPerfil usuario={selectedUser} className="h-16 w-16" />
                 <div>
                   <h3 className="text-lg font-bold text-gray-800">{selectedUser.nome}</h3>
                   <p className="text-sm text-gray-500 flex items-center gap-1">

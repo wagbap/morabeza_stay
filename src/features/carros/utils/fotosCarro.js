@@ -1,11 +1,12 @@
 export function extrairFotosCarro(carro) {
   const url = item => {
-    const raw = (typeof item === 'string' ? item : item?.caminho_url || item?.url || item?.imagem_url || item?.path || '').trim();
-    if (!raw) return null;
+    const value = typeof item === 'string' ? item : item?.caminho_url || item?.src || item?.url || item?.imagem_url || item?.foto_url || item?.caminho || item?.path;
+    if (typeof value !== 'string') return null;
+    const raw = value.trim().replace(/\\/g, '/');
+    if (!raw || /^(null|undefined)$/i.test(raw)) return null;
     if (/^(https?:|blob:|data:image\/)/i.test(raw)) return raw;
-    if (raw.startsWith('/') || raw.startsWith('uploads/') || raw.startsWith('api/')) {
-      return `https://welovepalop.com/${raw.replace(/^\/+/, '')}`;
-    }
+    if (raw.startsWith('//')) return `https:${raw}`;
+    if (raw.startsWith('/') || raw.startsWith('uploads/') || raw.startsWith('api/')) return `https://welovepalop.com/${raw.replace(/^\/+/, '')}`;
     return `https://welovepalop.com/uploads/carros/${raw}`;
   };
   const lista = value => {
@@ -15,9 +16,9 @@ export function extrairFotosCarro(carro) {
     }
     return [];
   };
-  const galeria = [...lista(carro?.imagens), ...lista(carro?.imagens_extra)]
-    .sort((a, b) => Number(Boolean(b?.principal && b.principal !== '0')) - Number(Boolean(a?.principal && a.principal !== '0')) || Number(a?.ordem || 0) - Number(b?.ordem || 0));
-  return [...new Set([
-    carro?.imagem_principal, carro?.imagem_capa, carro?.imagem_url, ...galeria,
-  ].map(url).filter(Boolean))];
+  const principal = item => item?.principal === true || item?.principal === 1 || item?.principal === '1';
+  const galeria = [...lista(carro?.imagens), ...lista(carro?.photos), ...lista(carro?.fotos), ...lista(carro?.galeria), ...lista(carro?.imagens_extra)]
+    .sort((a, b) => Number(principal(b)) - Number(principal(a)) || Number(a?.ordem || 0) - Number(b?.ordem || 0));
+  // Actual uploaded gallery photos precede a potentially stale list thumbnail.
+  return [...new Set([...galeria, carro?.imagem_principal, carro?.imagem_capa, carro?.imagem_url].map(url).filter(Boolean))];
 }

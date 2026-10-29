@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/MinhasExperiencias.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -157,13 +158,7 @@ export default function MinhasExperiencias() {
       {/* HEADER */}
       <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Compass className="text-blue-600" size={24} />
-            Minhas Experiências
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Gerir as suas experiências, horários e sessões
-          </p>
+          <HeaderGestao secao="experiencias" className="mb-0" />
         </div>
 
         <div className="flex items-center gap-2">

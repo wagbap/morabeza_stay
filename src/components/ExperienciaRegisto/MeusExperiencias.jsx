@@ -1,3 +1,5 @@
+import { obterUtilizadorRegisto } from '../../utils/registoSession';
+import PaginacaoAnuncios from '../PaginacaoAnuncios';
 // src/components/ExperienciaRegisto/MeusExperiencias.jsx
 
 import React, { useState, useEffect } from 'react';
@@ -17,6 +19,8 @@ const MeusExperiencias = () => {
   const [experiencias, setExperiencias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 9;
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [usuarioId, setUsuarioId] = useState(null);
@@ -24,34 +28,7 @@ const MeusExperiencias = () => {
   // ---------------------------------------------------------
   // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
   // ---------------------------------------------------------
-  const getLoggedUserId = () => {
-    try {
-      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
-      if (token) {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const parsed = JSON.parse(jsonPayload);
-        const userData = parsed.data || parsed;
-        if (userData?.id) return userData.id;
-      }
-
-      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
-      for (const chave of chaves) {
-        const raw = localStorage.getItem(chave);
-        if (raw) {
-          const user = JSON.parse(raw);
-          const uid = user?.id || user?.sub || user?.user_id;
-          if (uid) return uid;
-        }
-      }
-    } catch (e) {
-      console.error('[MeusExperiencias] Erro ao obter ID:', e);
-    }
-    return null;
-  };
+  const getLoggedUserId = () => obterUtilizadorRegisto(localStorage)?.id ?? null;
 
   const carregarExperiencias = async (uid) => {
     setError(null);
@@ -90,7 +67,10 @@ const MeusExperiencias = () => {
   }, []);
 
   const handleEditar = (id) => navigate(`/experiencia-registo/editar/${id}`);
-  const handleVer = (id) => navigate(`/experiencia-registo/detalhes/${id}`);
+  const handleVer = (item) => {
+    if (item.slug) navigate(`/experiencia/${encodeURIComponent(String(item.slug).trim())}`);
+    else navigate(`/experiencia-registo/detalhes/${item.id}`);
+  };
 
   const handleExcluir = async (id, titulo) => {
     if (!window.confirm(`Tem certeza que deseja excluir "${titulo}"?`)) return;
@@ -129,6 +109,9 @@ const MeusExperiencias = () => {
     const matchStatus = filtroStatus === 'todos' || e.status === filtroStatus;
     return matchSearch && matchStatus;
   });
+  const paginaAtual = Math.min(pagina, Math.max(1, Math.ceil(experienciasFiltradas.length / porPagina)));
+  const itensPagina = experienciasFiltradas.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+
 
   if (loading) {
     return (
@@ -236,7 +219,7 @@ const MeusExperiencias = () => {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setPagina(1); setSearchTerm(e.target.value); }}
               placeholder="Buscar por título ou localização..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
             />
@@ -245,7 +228,7 @@ const MeusExperiencias = () => {
             {['todos', 'aprovado', 'pendente', 'rejeitado'].map((status) => (
               <button
                 key={status}
-                onClick={() => setFiltroStatus(status)}
+                onClick={() => { setPagina(1); setFiltroStatus(status); }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   filtroStatus === status
                     ? 'bg-[#006ce4] text-white'
@@ -285,7 +268,7 @@ const MeusExperiencias = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {experienciasFiltradas.map((exp) => (
+            {itensPagina.map((exp) => (
               <div
                 key={exp.id}
                 className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
@@ -339,7 +322,7 @@ const MeusExperiencias = () => {
 
                   <div className="flex gap-3 pt-3 border-t border-gray-100">
                     <button
-                      onClick={() => handleVer(exp.id)}
+                      onClick={() => handleVer(exp)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
                       <Eye size={16} /> Ver
@@ -362,6 +345,7 @@ const MeusExperiencias = () => {
             ))}
           </div>
         )}
+        <PaginacaoAnuncios total={experienciasFiltradas.length} pagina={paginaAtual} porPagina={porPagina} onChange={setPagina} />
       </div>
     </div>
   );

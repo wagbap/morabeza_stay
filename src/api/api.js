@@ -1,7 +1,8 @@
+import { normalizarApiBaseUrl } from '../utils/apiBaseUrl';
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://welovepalop.com/api',
+  baseURL: normalizarApiBaseUrl(import.meta.env.VITE_API_URL),
   headers: {
     'Content-Type': 'application/json',
   }

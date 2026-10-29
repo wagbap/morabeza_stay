@@ -1,3 +1,4 @@
+import ResumoValorRegisto from '../ResumoValorRegisto';
 // src/components/ExperienciaRegisto/InformacoesBasicas.jsx
 // ESTE É O COMPONENTE CORRETO PARA EXPERIÊNCIA, NÃO PARA ALOJAMENTO!
 
@@ -79,6 +80,7 @@ const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg"
             />
           </div>
+          <ResumoValorRegisto valor={dados?.preco} unidade="pessoa" />
         </div>
         
         <div>
@@ -95,6 +97,7 @@ const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg"
             />
           </div>
+          <ResumoValorRegisto valor={dados?.preco_crianca} unidade="pessoa" />
           <p className="text-xs text-gray-400">3-12 anos</p>
         </div>
         
@@ -112,6 +115,7 @@ const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg"
             />
           </div>
+          <ResumoValorRegisto valor={dados?.preco_bebe} unidade="pessoa" />
           <p className="text-xs text-gray-400">0-2 anos</p>
         </div>
       </div>

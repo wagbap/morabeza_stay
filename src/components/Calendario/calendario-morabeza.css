@@ -191,3 +191,13 @@
     font-size: 20px;
   }
 }
+/* Date fields share the inline calendar design and escape clipped cards/modals. */
+.morabeza-date-field .react-datepicker-wrapper,
+.morabeza-date-field .react-datepicker__input-container {
+  width: 100%;
+  min-width: 0;
+}
+.morabeza-calendar-popper { z-index: 1100 !important; }
+@media (max-width: 767px) {
+  .morabeza-date-field input { font-size: 16px; }
+}

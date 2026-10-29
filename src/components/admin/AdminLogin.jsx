@@ -32,7 +32,7 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`https://welovepalop.com/api/admin/login.php`, {
+      const response = await fetch(`https://welovepalop.com/api/login.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

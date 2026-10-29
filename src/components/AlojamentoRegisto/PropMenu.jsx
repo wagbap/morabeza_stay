@@ -98,7 +98,7 @@ const PropMenu = ({
       </button>
       
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white text-gray-900 shadow-lg border border-gray-200 rounded-md z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white text-gray-900 shadow-lg border border-gray-200 rounded-md z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
           <div 
             onClick={handleEditName} 
             className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 text-sm transition-colors duration-150"

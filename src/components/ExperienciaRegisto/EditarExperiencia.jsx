@@ -1,3 +1,4 @@
+import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
 import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
 // src/components/ExperienciaRegisto/EditarExperiencia.jsx
@@ -151,6 +152,11 @@ const EditarExperiencia = () => {
 
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+    if (!temFotoAnuncio(imagens)) {
+      showToast(t('anuncio_foto_obrigatoria'), 'error');
+      setFase(7);
+      return;
+    }
 
     if (!usuarioId) {
       showToast('Utilizador não autenticado. Faça login novamente.', 'error');
@@ -188,7 +194,7 @@ const EditarExperiencia = () => {
     }
   };
 
-  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onBack={handleBack} onNext={handleNext} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={handleNext} />;
 
   if (loading) {
     return (

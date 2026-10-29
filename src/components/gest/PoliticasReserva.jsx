@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/PoliticasReserva.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -109,10 +110,9 @@ export default function PoliticasReserva() {
           <ArrowLeft size={16} className="text-slate-600" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Políticas de Reserva</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <HeaderGestao secao="politicas" className="mb-0" descricao={<>
             {experiencia?.titulo || 'Experiência'}
-          </p>
+           </>} />
         </div>
       </div>
 
@@ -122,7 +122,7 @@ export default function PoliticasReserva() {
         <div>
           <p className="text-sm font-bold text-blue-900">Como funcionam as políticas</p>
           <p className="text-xs text-blue-700 mt-1">
-            Estas regras definem quando o cliente pode cancelar ou reagendar a reserva, 
+            Estas regras definem quando o cliente pode cancelar ou reagendar a reserva,
             e quanto reembolso recebe. As regras são aplicadas automaticamente em todas as reservas.
           </p>
         </div>

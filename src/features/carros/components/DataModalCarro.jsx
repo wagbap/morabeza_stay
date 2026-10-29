@@ -1,3 +1,4 @@
+import CampoDataMorabeza from '../../../components/Calendario/CampoDataMorabeza';
 // DataModalCarro.jsx
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -65,8 +66,7 @@ const DataModalCarro = ({ onClose, onSelectData, carroTitulo, currentCheckIn, cu
               </label>
               <div className="relative">
                 <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="date"
+                <CampoDataMorabeza
                   value={checkIn}
                   onChange={(e) => setCheckIn(e.target.value)}
                   min={minDate}
@@ -81,8 +81,7 @@ const DataModalCarro = ({ onClose, onSelectData, carroTitulo, currentCheckIn, cu
               </label>
               <div className="relative">
                 <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="date"
+                <CampoDataMorabeza
                   value={checkOut}
                   onChange={(e) => setCheckOut(e.target.value)}
                   min={checkIn || minDate}

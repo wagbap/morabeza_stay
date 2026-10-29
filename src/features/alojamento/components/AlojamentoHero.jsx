@@ -20,12 +20,12 @@ const Hero = () => {
       <div className="relative z-10 text-center px-4">
         
         {/* TÍTULO: Letras grandes, brancas puras e com sombra forte */}
-        <h1 className="text-4xl md:text-6xl font-black mb-4 uppercase italic tracking-tighter drop-shadow-[0_8px_30px_rgb(0,0,0,0.8)]">
+        <h1 className="mb-4 text-4xl font-black leading-tight tracking-tight text-white drop-shadow-lg sm:text-5xl md:text-6xl">
           {t('welcome_alojamento')}
         </h1>
         
         {/* SUBTÍTULO: Branco nítido com fundo de leitura */}
-        <p className="text-xl md:text-3xl font-medium tracking-wide text-white drop-shadow-lg">
+        <p className="mx-auto max-w-4xl text-lg font-medium leading-relaxed text-white drop-shadow-md sm:text-xl md:text-3xl">
           {t('subtitle_alojamento')}
         </p>
 

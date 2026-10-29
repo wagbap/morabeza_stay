@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/Financeiro.jsx
 import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronDown, ArrowUpRight, Loader2, Home, Car, Compass, Award, TrendingUp, MousePointer } from 'lucide-react';
@@ -164,6 +165,7 @@ export default function Financeiro() {
   if (!hasAnyRole) {
     return (
       <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
+      <HeaderGestao secao="financeiro" />
         <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Award size={40} className="text-gray-400" />

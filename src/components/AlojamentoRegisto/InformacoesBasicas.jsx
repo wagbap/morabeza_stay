@@ -1,3 +1,4 @@
+import ResumoValorRegisto from '../ResumoValorRegisto';
 // src/components/AlojamentoRegisto/InformacoesBasicas.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -1282,6 +1283,7 @@ const InformacoesBasicas = ({
               CVE
             </span>
           </div>
+          <ResumoValorRegisto valor={dados?.preco_noite} unidade="noite" referencia={mostraQuartos} />
           {mostraQuartos && (
             <p className="text-xs text-gray-500 mt-1">
               Usado como sugestão inicial ao adicionar quartos (base × multiplicador do tipo).

@@ -1,6 +1,12 @@
+import { obterUtilizadorRegisto } from '../../utils/registoSession';
+import PaginacaoAnuncios from '../PaginacaoAnuncios';
+import { useToast } from '../../Toast';
+import ConfirmarExclusao from '../ConfirmarExclusao';
+import { useTranslation } from 'react-i18next';
+import { chaveErroExclusao } from '../../utils/erroExclusao';
 // src/components/CarroRegisto/MeusCarros.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Edit, Trash2, Eye, MapPin, Users, Calendar,
@@ -12,9 +18,17 @@ const API_URL = 'https://welovepalop.com';
 
 const MeusCarros = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { showToast } = useToast();
+  const [exclusao, setExclusao] = useState(null);
+  const [aApagar, setAApagar] = useState(false);
+  const [erroExclusao, setErroExclusao] = useState(null);
+  const pedidoExclusaoRef = useRef(false);
   const [carros, setCarros] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 9;
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [usuarioId, setUsuarioId] = useState(null);
@@ -22,34 +36,7 @@ const MeusCarros = () => {
   // ---------------------------------------------------------
   // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
   // ---------------------------------------------------------
-  const getLoggedUserId = () => {
-    try {
-      const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
-      if (token) {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const parsed = JSON.parse(jsonPayload);
-        const userData = parsed.data || parsed;
-        if (userData?.id) return userData.id;
-      }
-
-      const chaves = ['user', 'morabeza_user', 'morabeza_admin'];
-      for (const chave of chaves) {
-        const raw = localStorage.getItem(chave);
-        if (raw) {
-          const user = JSON.parse(raw);
-          const uid = user?.id || user?.sub || user?.user_id;
-          if (uid) return uid;
-        }
-      }
-    } catch (e) {
-      console.error('[MeusCarros] Erro ao obter ID:', e);
-    }
-    return null;
-  };
+  const getLoggedUserId = () => obterUtilizadorRegisto(localStorage)?.id ?? null;
 
   const carregarCarros = async (uid) => {
     setError(null);
@@ -88,21 +75,37 @@ const MeusCarros = () => {
   }, []);
 
   const handleEditar = (id) => navigate(`/carro-registo/editar/${id}`);
-  const handleVer = (id) => navigate(`/carro-registo/detalhes/${id}`);
+  const handleVer = (item) => {
+    if (item.slug) navigate(`/carros/${encodeURIComponent(String(item.slug).trim())}`);
+    else navigate(`/carro-registo/detalhes/${item.id}`);
+  };
 
-  const handleExcluir = async (id, titulo) => {
-    if (!window.confirm(`Tem certeza que deseja excluir "${titulo}"?`)) return;
-
+  const handleExcluir = (id, titulo) => {
+    if (pedidoExclusaoRef.current) return;
+    setErroExclusao(null);
+    setExclusao({ id, titulo });
+  };
+  const confirmarExclusao = async () => {
+    if (!exclusao || pedidoExclusaoRef.current) return;
+    pedidoExclusaoRef.current = true;
+    setAApagar(true);
+    setErroExclusao(null);
+    const mostrarErro = (data, status) => {
+      const key = chaveErroExclusao(data, status);
+      setErroExclusao(key === 'exclusao_sem_permissao' ? key : `carro_${key}`);
+    };
     try {
-      const result = await excluirCarro(id);
-      if (result.success) {
-        setCarros((prev) => prev.filter((c) => c.id !== id));
-        alert('Carro excluído com sucesso!');
-      } else {
-        alert(result.message || 'Erro ao excluir');
-      }
+      const result = await excluirCarro(exclusao.id);
+      if (result?.success === true) {
+        setCarros(prev => prev.filter(c => String(c.id) !== String(exclusao.id)));
+        setExclusao(null);
+        showToast(t('carro_exclusao_sucesso'), 'success');
+      } else mostrarErro(result);
     } catch (err) {
-      alert('Erro ao excluir: ' + err.message);
+      mostrarErro(err.response?.data || { message: err.message }, err.response?.status);
+    } finally {
+      pedidoExclusaoRef.current = false;
+      setAApagar(false);
     }
   };
 
@@ -128,6 +131,9 @@ const MeusCarros = () => {
     const matchStatus = filtroStatus === 'todos' || c.status === filtroStatus;
     return matchSearch && matchStatus;
   });
+  const paginaAtual = Math.min(pagina, Math.max(1, Math.ceil(carrosFiltrados.length / porPagina)));
+  const itensPagina = carrosFiltrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+
 
   if (loading) {
     return (
@@ -158,6 +164,9 @@ const MeusCarros = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ConfirmarExclusao aberto={!!exclusao} nome={exclusao?.titulo} loading={aApagar} erro={erroExclusao}
+        tituloKey="carro_exclusao_titulo" confirmarKey="carro_exclusao_titulo"
+        onClose={() => { if (!pedidoExclusaoRef.current) setExclusao(null); }} onConfirm={confirmarExclusao} />
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center flex-wrap gap-4">
@@ -233,7 +242,7 @@ const MeusCarros = () => {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setPagina(1); setSearchTerm(e.target.value); }}
               placeholder="Buscar por título, marca ou modelo..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
             />
@@ -242,7 +251,7 @@ const MeusCarros = () => {
             {['todos', 'disponivel', 'indisponivel', 'manutencao'].map((status) => (
               <button
                 key={status}
-                onClick={() => setFiltroStatus(status)}
+                onClick={() => { setPagina(1); setFiltroStatus(status); }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   filtroStatus === status
                     ? 'bg-[#006ce4] text-white'
@@ -282,7 +291,7 @@ const MeusCarros = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {carrosFiltrados.map((carro) => (
+            {itensPagina.map((carro) => (
               <div
                 key={carro.id}
                 className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
@@ -340,7 +349,7 @@ const MeusCarros = () => {
 
                   <div className="flex gap-3 pt-3 border-t border-gray-100">
                     <button
-                      onClick={() => handleVer(carro.id)}
+                      onClick={() => handleVer(carro)}
                       className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
                       <Eye size={16} /> Ver
@@ -363,6 +372,7 @@ const MeusCarros = () => {
             ))}
           </div>
         )}
+        <PaginacaoAnuncios total={carrosFiltrados.length} pagina={paginaAtual} porPagina={porPagina} onChange={setPagina} />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
+import SeletorIdioma from './SeletorIdioma';
 import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MapPin, Phone, Globe, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const Footer = () => {
@@ -11,7 +12,7 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto">
         
         {/* Layout idêntico de 5 Colunas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-8 mb-16 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 mb-16 items-start">
           
           {/* Coluna 1: Logo Completo + Slogan + Descrição */}
           <div className="flex flex-col items-start pr-4">
@@ -58,37 +59,11 @@ const Footer = () => {
 
             <ul className="space-y-3 text-xs text-gray-600 font-medium">
               <li><Link to="/sobre" className="hover:text-blue-600 transition-colors">{t('sobre_titulo', 'Sobre Nós')}</Link></li>
-              <li><Link to="/contactos" className="hover:text-blue-600 transition-colors">{t('footer_contacts', 'Contactos')}</Link></li>
               <li><Link to="/faq" className="hover:text-blue-600 transition-colors">{t('footer_faq', 'FAQ')}</Link></li>
               <li><Link to="/privacidade" className="hover:text-blue-600 transition-colors">{t('footer_privacy', 'Política de Privacidade')}</Link></li>
               <li><Link to="/termos" className="hover:text-blue-600 transition-colors">{t('footer_terms', 'Termos e Condições')}</Link></li>
               <li><Link to="/cancelamento" className="hover:text-blue-600 transition-colors">{t('footer_cancellation', 'Política de Cancelamento')}</Link></li>
             </ul>
-          </div>
-
-          {/* Coluna 4: CONTACTO */}
-          <div className="lg:border-l lg:border-gray-100 lg:pl-8 flex flex-col items-start">
-            <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 mb-2">
-              {t('footer_contact', 'CONTACTO')}
-            </h4>
-            <div className="w-6 h-0.5 bg-blue-600 mb-6"></div>
-
-            <div className="space-y-4 text-xs font-medium text-gray-600">
-              <div className="flex items-center gap-3">
-                <MapPin size={16} className="text-blue-500 flex-shrink-0" />
-                <span>{t('footer_address', 'Praia, Cabo Verde')}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Mail size={16} className="text-blue-500 flex-shrink-0" />
-                <a href="mailto:info@morabezastay.cv" className="hover:underline">
-                  info@morabezastay.cv
-                </a>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone size={16} className="text-emerald-500 flex-shrink-0" />
-                <span>+238 590 00 00</span>
-              </div>
-            </div>
           </div>
 
           {/* Coluna 5: SIGA-NOS */}
@@ -141,15 +116,11 @@ const Footer = () => {
                 <div className="w-3.5 h-3.5 rounded-full bg-amber-400 opacity-90"></div>
               </div>
               <span className="font-bold text-indigo-600 text-xs tracking-tight">stripe</span>
-              <span className="font-bold text-blue-700 text-xs italic">PayPal</span>
+              <span role="img" aria-label="PayPal" className="h-6 w-6 bg-blue-900" style={{ mask: 'url(/images/payments/paypal.svg) center / contain no-repeat', WebkitMask: 'url(/images/payments/paypal.svg) center / contain no-repeat' }} />
             </div>
           </div>
 
-          {/* Idioma */}
-          <div className="flex items-center gap-1.5 cursor-pointer hover:text-gray-900 transition-colors">
-            <Globe size={14} className="text-gray-400" />
-            <span>PT | EN</span>
-          </div>
+          <SeletorIdioma />
 
         </div>
       </div>

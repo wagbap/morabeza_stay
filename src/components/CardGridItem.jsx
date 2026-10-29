@@ -1,3 +1,4 @@
+import ConversaoPreco from './ConversaoPreco';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -111,7 +112,8 @@ const CardGridItem = ({ item }) => {
           </div>
 
           {/* Preço à direita */}
-          <div className="flex items-baseline gap-1 text-right">
+          <div className="text-right">
+            <div className="flex items-baseline gap-1">
             <span className="text-xl font-extrabold text-[#1a2b6d]">
               {preco.toLocaleString('pt-PT')} cve
             </span>
@@ -119,6 +121,8 @@ const CardGridItem = ({ item }) => {
             <span className="text-[10px] font-semibold text-gray-400 truncate">
               {periodoTexto}
             </span>
+            </div>
+            <ConversaoPreco valorCve={preco} valorUsd={item.preco_usd} />
           </div>
         </div>
       </div>

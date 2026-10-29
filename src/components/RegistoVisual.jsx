@@ -8,7 +8,7 @@ const steps = {
   experiencia: [['info', Info], ['local', MapPin], ['categoria', Tag], ['inclusoes', CheckCircle], ['requisitos', ShieldCheck], ['idiomas', Languages], ['fotos', Image], ['disponibilidade', CalendarDays]],
 };
 
-export const EtapasRegisto = ({ dominio, fase, onBack, onNext }) => {
+export const EtapasRegisto = ({ dominio, fase, onBack, onNext, onStepChange }) => {
   const { t } = useTranslation();
   const list = steps[dominio];
   return <div className="mb-6">
@@ -18,10 +18,15 @@ export const EtapasRegisto = ({ dominio, fase, onBack, onNext }) => {
     </div>
     <nav aria-label={t('crud_etapas')} className="overflow-x-auto pb-2">
       <ol className="flex min-w-full gap-2">
-        {list.map(([key, Icon], index) => <li key={key} aria-current={fase === index + 1 ? 'step' : undefined} className={`flex min-w-[64px] flex-1 flex-col items-center gap-2 text-center ${fase === index + 1 ? 'font-semibold text-blue-600' : 'text-slate-500'}`}>
+        {list.map(([key, Icon], index) => <li key={key} aria-current={fase === index + 1 ? 'step' : undefined} className={`min-w-[64px] flex-1 text-center ${fase === index + 1 ? 'font-semibold text-blue-600' : 'text-slate-500'}`}>
+          <button type="button" onClick={() => {
+            onStepChange(index + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }} aria-current={fase === index + 1 ? 'step' : undefined} className="flex min-h-16 w-full cursor-pointer flex-col items-center gap-2 rounded-lg pt-2 focus-visible:outline-2 focus-visible:outline-blue-600 hover:bg-blue-50">
           {React.createElement(Icon, { size: 22, strokeWidth: 1.8 })}
           <span className="text-[10px] leading-tight sm:text-xs">{t(`crud_etapa_${key}`)}</span>
           <span className={`mt-1 h-1 w-full rounded-full ${fase === index + 1 ? 'bg-blue-600' : 'bg-slate-200'}`} />
+          </button>
         </li>)}
       </ol>
     </nav>
@@ -42,7 +47,7 @@ export const TituloRegisto = ({ dominio, fase, editar = false }) => {
 const RegistoVisual = ({ children }) => <div className="registo-visual min-h-screen bg-[#f5f8fc] text-slate-800">
   {children}
   <style>{`
-    .registo-visual > header { min-height: 64px; height: auto; padding: 14px 20px; background: #064b9e; gap: 12px; }
+    .registo-visual > header { position: relative; z-index: 20; min-height: 64px; height: auto; padding: 14px 20px; background: #064b9e; gap: 12px; }
     .registo-visual > header > div { min-width: 0; }
     .registo-visual [data-registo-card] { border: 1px solid #eef2f7; border-radius: 24px; padding: 28px; background: white; box-shadow: 0 6px 24px #17345d08; }
     .registo-visual input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=hidden]),
@@ -51,10 +56,13 @@ const RegistoVisual = ({ children }) => <div className="registo-visual min-h-scr
     .registo-visual label { color: #172b4d; }
     .registo-visual [data-registo-card] > h1, .registo-visual [data-registo-card] > h2 { color: #0b183b; }
     .registo-visual .bg-gray-50 { background-color: #f5f8fc; }
-    @media(max-width: 639px) {
+    @media(max-width: 767px) {
+      /* Keep focused fields readable without triggering iPhone focus zoom. */
+      .registo-visual input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=hidden]),
+      .registo-visual textarea, .registo-visual select { font-size: 16px; }
       .registo-visual [data-registo-card] { padding: 20px 16px; border-radius: 20px; }
       .registo-visual > header { padding: 14px 16px; flex-wrap: wrap; }
-      .registo-visual > header > div:last-child { gap: 12px; max-width: 100%; }
+      .registo-visual > header > div:last-child { width: 100%; justify-content: space-between; gap: 12px; max-width: 100%; }
       .registo-visual .py-10 { padding-top: 20px; padding-bottom: 24px; }
       .registo-visual .py-8 { padding-top: 20px; padding-bottom: 24px; }
     }

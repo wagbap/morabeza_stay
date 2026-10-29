@@ -1,114 +1,18 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Home, Car, Palmtree, ArrowRight } from 'lucide-react';
+import React from 'react';
+import { ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/navigation';
-import CardAlojamentoItem from '../features/alojamento/components/CardAlojamentoItem';
-import CardCarro from '../features/carros/components/CardCarro';
-import CardExperienciaTab from '../features/experiencias/components/CardExperienciaTab';
 import { Link } from 'react-router-dom';
+import CardAlojamentoItem from '../features/alojamento/components/CardAlojamentoItem';
 
-const TabsComponent = ({ alojamentos, carros, experiencias, loading }) => {
+export default function TabsComponent({ alojamentos = [], loading }) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('alojamentos');
-
-  const tabs = [
-    { id: 'alojamentos', label: t('alojamentos'), icon: <Home size={14} />, data: alojamentos || [], link: '/alojamentos' },
-    { id: 'carros', label: t('carros'), icon: <Car size={14} />, data: carros || [], link: '/carros' },
-    { id: 'experiencias', label: t('experiencias'), icon: <Palmtree size={14} />, data: experiencias || [], link: '/experiencias' }
-  ];
-
-  const currentTab = tabs.find(t => t.id === activeTab);
-  const currentData = currentTab?.data || [];
-
-  const prevButtonId = `prev-${activeTab}`;
-  const nextButtonId = `next-${activeTab}`;
-
-  if (loading) return (
-    <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
-  );
-
-  return (
-    <div className="w-full max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-12 overflow-hidden">
-      
-      {/* 1. SELETOR DE TABS */}
-      <div className="flex justify-center mb-6">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-[10px] md:text-xs uppercase transition-all ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:bg-white/50'
-              }`}
-            >
-              {tab.icon}
-              <span className={activeTab === tab.id ? 'block' : 'hidden xs:block'}>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 2. TÍTULO E VER TODOS */}
-      <div className="flex justify-between items-center mb-4 px-1">
-        <h2 className="text-sm md:text-xl font-black text-[#1a2b6d]">
-          {t('em_destaque', { categoria: currentTab.label })}
-        </h2>
-        <Link 
-          to={currentTab.link} 
-          className="flex items-center gap-1 text-blue-700 font-bold text-[9px] md:text-xs hover:underline"
-        >
-          {t('ver_todos')} <ArrowRight size={12} />
-        </Link>
-      </div>
-
-      {/* 3. CONTAINER DO CARROSSEL */}
-      <div className="relative group px-2 md:px-0">
-        
-        {/* Setas - Visíveis apenas em desktop (md para cima) */}
-        <button 
-          className={`${prevButtonId} hidden md:flex absolute -left-5 top-1/2 -translate-y-1/2 z-40 w-10 h-10 bg-white rounded-full shadow-lg items-center justify-center text-gray-900 border border-gray-100 disabled:opacity-0 transition-opacity`}
-        >
-          <ChevronLeft size={18} strokeWidth={3} />
-        </button>
-
-        <button 
-          className={`${nextButtonId} hidden md:flex absolute -right-5 top-1/2 -translate-y-1/2 z-40 w-10 h-10 bg-white rounded-full shadow-lg items-center justify-center text-gray-900 border border-gray-100 disabled:opacity-0 transition-opacity`}
-        >
-          <ChevronRight size={18} strokeWidth={3} />
-        </button>
-
-        <Swiper
-          modules={[Navigation]}
-          spaceBetween={12}
-          slidesPerView={1.2}
-          // Ativa a navegação por setas apenas em telas médias e maiores (md: 768px+)
-          navigation={{
-            prevEl: `.${prevButtonId}`,
-            nextEl: `.${nextButtonId}`,
-          }}
-          breakpoints={{
-            480: { slidesPerView: 1.8, spaceBetween: 12 },
-            768: { slidesPerView: 2.5, spaceBetween: 15 },
-            1024: { slidesPerView: 4, spaceBetween: 20 }
-          }}
-          className="!overflow-visible" 
-        >
-          {currentData.map((item, index) => (
-            <SwiperSlide key={item.id || index} className="!h-auto pb-4">
-              {activeTab === 'alojamentos' && <CardAlojamentoItem {...item} />}
-              {activeTab === 'carros' && <CardCarro carro={item} />}
-              {activeTab === 'experiencias' && <CardExperienciaTab experiencia={item} />}
-            </SwiperSlide>
-          ))}
-        </Swiper>
-      </div>
+  return <section aria-labelledby="home-alojamentos">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <h2 id="home-alojamentos" className="text-2xl font-bold tracking-tight text-slate-900">{t('home_alojamentos_destaque')}</h2>
+      <Link to="/alojamentos" className="flex items-center gap-2 text-sm font-semibold text-blue-600">{t('ver_todos')}<ArrowRight size={19} /></Link>
     </div>
-  );
-};
-
-export default TabsComponent;
+    <div className="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {loading && !alojamentos.length ? Array.from({length: 3}, (_, i) => <div key={i} aria-busy="true" className="h-[480px] animate-pulse rounded-2xl bg-slate-100" />) : alojamentos.slice(0, 3).map(item => <CardAlojamentoItem key={item.id} {...item} />)}
+    </div>
+  </section>;
+}

@@ -1,11 +1,11 @@
+import { requestApiJson } from '../../../services/apiJson';
 import { extrairFotosCarro } from '../utils/fotosCarro';
 import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
 // src/features/carros/CarrosDetalhes.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
+import CalendarioMorabeza from '../../../components/Calendario/CalendarioMorabeza';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import {
@@ -464,7 +464,7 @@ const SidebarReservaCarro = ({
 
           {showCalendar && (
             <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl bg-white border border-slate-200 p-3 max-w-[90vw]">
-              <DatePicker
+              <CalendarioMorabeza
                 selected={startDate}
                 onChange={onChange}
                 startDate={startDate}
@@ -753,14 +753,17 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
 
   // Fetch do carro
   useEffect(() => {
+    const controller = new AbortController();
     const fetchCarro = async () => {
       if (!slug) { setError(t('slug_nao_fornecido') || 'Slug não fornecido'); setLoading(false); return; }
       setLoading(true); setError(null);
       try {
-        const response = await fetch(`${API_URL}/api/get_carro_detalhes.php?slug=${encodeURIComponent(slug)}&t=${Date.now()}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
+        const identificador = String(slug).trim();
+        const data = await requestApiJson('/get_carro_detalhes.php', {
+          params: /^\d+$/.test(identificador) ? { id: identificador } : { slug: identificador },
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
 
         if (data.success && data.data) {
           setCarro(data.data);
@@ -771,15 +774,22 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
             setImages([IMAGEM_INDISPONIVEL]);
           }
         } else {
-          throw new Error(data.error || 'Erro ao carregar dados');
+          const erroResposta = new Error('Invalid vehicle response');
+          erroResposta.notFound = /n[aã]o encontrado/i.test(data.error || data.message || '');
+          throw erroResposta;
         }
       } catch (err) {
-        setError(err.message || 'Erro ao carregar dados do veículo');
+        if (!controller.signal.aborted) {
+          setCarro(null);
+          setImages([]);
+          setError(t(err.response?.status === 404 || err.notFound ? 'carro_detalhes_indisponivel' : 'carro_detalhes_erro'));
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-    fetchCarro();
+    void fetchCarro();
+    return () => controller.abort();
   }, [slug, t]);
 
   // Verificação de disponibilidade + navegação para checkout
@@ -882,8 +892,8 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
         <div className="text-red-500 text-xl mb-4">⚠️</div>
         <h2 className="text-xl font-bold text-slate-800 mb-2">{t('erro_carregar_titulo') || 'Erro ao carregar'}</h2>
         <p className="text-slate-600 mb-4">{error || (t('carro_nao_encontrado') || 'Veículo não encontrado')}</p>
-        <button onClick={() => irPara(-1)} className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition">
-          {t('voltar') || 'Voltar'}
+        <button onClick={() => irPara('/carros')} className="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-950 transition">
+          {t('carro_detalhes_ver_outros')}
         </button>
       </div>
     );
@@ -1024,8 +1034,6 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .react-datepicker__day--in-range { background-color: #f1f5f9 !important; }
-        .react-datepicker__day--range-start, .react-datepicker__day--range-end { background-color: #2563eb !important; color: white !important; border-radius: 50% !important; }
       `}</style>
     </div>
   );

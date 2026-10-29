@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/Avaliacoes.jsx
 import React, { useState, useEffect } from 'react';
 import { Star, Loader2, Home, Car, Compass, Award } from 'lucide-react';
@@ -225,7 +226,7 @@ export default function Avaliacoes() {
   return (
     <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-[22px] font-bold">Avaliações dos Clientes</h1>
+        <HeaderGestao secao="avaliacoes" className="mb-0" />
         
         <div className="flex flex-wrap gap-2">
           {tiposDisponiveis.length > 1 && (

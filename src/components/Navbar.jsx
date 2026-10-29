@@ -1,3 +1,6 @@
+import { idiomas, idiomaAtual } from '../utils/idiomas';
+import useManagementSession from '../hooks/useManagementSession';
+import { SESSION_KEYS } from '../utils/managementSession';
 // src/components/Navbar.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -7,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const { user, userRoles } = useManagementSession();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   
@@ -15,27 +18,10 @@ const Navbar = () => {
   const location = useLocation();
   const langRef = useRef(null);
 
-  const paginasComHero = ['/', '/experiencias', '/alojamentos', '/carros', '/sobre'];
+  const paginasComHero = ['/', '/experiencias', '/alojamentos', '/carros', '/veiculos', '/sobre'];
   const isHeroPage = paginasComHero.includes(location.pathname);
 
-  // 🔑 Função segura para verificar se existe um token JWT válido
-  const verificarUtilizadorLogado = () => {
-    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
-    if (!token) return null;
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      return JSON.parse(jsonPayload).data || { logged: true };
-    } catch (e) {
-      return null;
-    }
-  };
-
   useEffect(() => {
-    setUser(verificarUtilizadorLogado());
 
     const handleClickOutside = (event) => {
       if (langRef.current && !langRef.current.contains(event.target)) {
@@ -49,24 +35,11 @@ const Navbar = () => {
     };
   }, []);
 
-  // Ouvir eventos de atualização do utilizador/token
-  useEffect(() => {
-    const atualizarUser = () => {
-      setUser(verificarUtilizadorLogado());
-    };
-
-    window.addEventListener('userUpdated', atualizarUser);
-    window.addEventListener('storage', atualizarUser);
-    return () => {
-      window.removeEventListener('userUpdated', atualizarUser);
-      window.removeEventListener('storage', atualizarUser);
-    };
-  }, []);
-
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('morabeza_token');
-    setUser(null);
+    for (const key of SESSION_KEYS) {
+      try { localStorage.removeItem(key); } catch { /* Continue logout. */ }
+    }
+    window.dispatchEvent(new Event('userUpdated'));
     setUserDropdownOpen(false);
     window.location.replace('/');
   };
@@ -84,15 +57,8 @@ const Navbar = () => {
     { name: t('menu_experiencias'), icon: <Palmtree size={18} />, path: '/experiencias' },
   ];
 
-  const languages = [
-    { code: 'pt', label: 'Português' },
-    { code: 'en', label: 'English' },
-    { code: 'fr', label: 'Français' },
-    { code: 'es', label: 'Español' },
-    { code: 'de', label: 'Deutsch' },
-    { code: 'ir', label: 'Italiano' },
-    { code: 'cv', label: 'Cabo-verdiano' },
-  ];
+  const languages = idiomas;
+  const currentLanguage = idiomaAtual(i18n.resolvedLanguage || i18n.language);
 
   const getNavbarClasses = () => {
     if (isHeroPage) {
@@ -130,16 +96,18 @@ const Navbar = () => {
           ))}
         </div>
 
-        <div className="flex items-center gap-4 min-w-[150px] justify-end">
+        <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-4">
           
-          <div className="relative hidden sm:block" ref={langRef}>
+          <div className="relative shrink-0" ref={langRef}>
             <button 
+              type="button" aria-label={t('idioma_seletor')} aria-expanded={langDropdownOpen}
               onClick={() => setLangDropdownOpen(!langDropdownOpen)}
               className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:opacity-100 opacity-80 transition-all ${
                 isHeroPage ? "text-white" : "text-gray-700"
               }`}
             >
-              {i18n.language.substring(0, 2)}
+              <img src={`/images/flags/${currentLanguage.flag}.svg`} alt="" className="h-4 w-6 rounded-sm object-cover" />
+              <span className="hidden sm:inline">{currentLanguage.code.toUpperCase()}</span>
               <ChevronDown size={12} className={`transition-transform ${langDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -153,7 +121,7 @@ const Navbar = () => {
                       i18n.language === lng.code ? "text-blue-600 bg-blue-50/50" : "text-gray-600"
                     }`}
                   >
-                    {lng.label}
+                    <span className="inline-flex items-center gap-2"><img src={`/images/flags/${lng.flag}.svg`} alt="" className="h-4 w-6 rounded-sm object-cover" />{lng.label}</span>
                   </button>
                 ))}
               </div>
@@ -174,7 +142,8 @@ const Navbar = () => {
             </Link>
           ) : (
             <UserDropdown 
-              user={user} 
+              user={user}
+              userRoles={userRoles}
               onLogout={handleLogout} 
               isOpen={userDropdownOpen} 
               setIsOpen={setUserDropdownOpen} 
@@ -217,7 +186,7 @@ const Navbar = () => {
           ))}
           
           <div className="pt-6 mt-6 border-t border-gray-100">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 px-4">Idioma</p>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 px-4">{t('idioma_seletor')}</p>
             <div className="grid grid-cols-2 gap-2 px-2">
               {languages.map((lng) => (
                 <button 
@@ -227,7 +196,7 @@ const Navbar = () => {
                     i18n.language === lng.code ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100"
                   }`}
                 >
-                  {lng.label}
+                  <span className="inline-flex items-center gap-2"><img src={`/images/flags/${lng.flag}.svg`} alt="" className="h-4 w-6 rounded-sm object-cover" />{lng.label}</span>
                 </button>
               ))}
             </div>

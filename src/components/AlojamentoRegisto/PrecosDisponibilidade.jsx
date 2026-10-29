@@ -1,3 +1,4 @@
+import CampoDataMorabeza from '../Calendario/CampoDataMorabeza';
 // src/components/AlojamentoRegisto/PrecosDisponibilidade.jsx
 import React, { useState } from 'react';
 import { 
@@ -274,15 +275,13 @@ const PrecosDisponibilidade = ({
                 className="px-3 py-2 border rounded-lg"
               />
               <div className="flex gap-2">
-                <input
-                  type="date"
+                <CampoDataMorabeza
                   value={novoPrecoSazonal.data_inicio}
                   onChange={(e) => setNovoPrecoSazonal({ ...novoPrecoSazonal, data_inicio: e.target.value })}
                   className="flex-1 px-3 py-2 border rounded-lg"
                 />
                 <span className="self-center">a</span>
-                <input
-                  type="date"
+                <CampoDataMorabeza
                   value={novoPrecoSazonal.data_fim}
                   onChange={(e) => setNovoPrecoSazonal({ ...novoPrecoSazonal, data_fim: e.target.value })}
                   className="flex-1 px-3 py-2 border rounded-lg"
@@ -371,15 +370,13 @@ const PrecosDisponibilidade = ({
         {mostrarFormBloqueio && !readOnly && (
           <div className="mb-4 p-4 bg-gray-50 rounded-lg">
             <div className="flex gap-3 mb-3">
-              <input
-                type="date"
+              <CampoDataMorabeza
                 value={novoBloqueio.data_inicio}
                 onChange={(e) => setNovoBloqueio({ ...novoBloqueio, data_inicio: e.target.value })}
                 className="flex-1 px-3 py-2 border rounded-lg"
               />
               <span className="self-center">a</span>
-              <input
-                type="date"
+              <CampoDataMorabeza
                 value={novoBloqueio.data_fim}
                 onChange={(e) => setNovoBloqueio({ ...novoBloqueio, data_fim: e.target.value })}
                 className="flex-1 px-3 py-2 border rounded-lg"

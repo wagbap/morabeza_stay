@@ -1,3 +1,6 @@
+import usePaginacao from '../../hooks/usePaginacao';
+import PaginacaoLista from './PaginacaoLista';
+import HeaderGestao from './HeaderGestao';
 // src/pages/Reservas.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -272,6 +275,7 @@ export default function Reservas() {
   };
 
   const filteredReservas = getFilteredReservas();
+  const paginacao = usePaginacao(filteredReservas, activeTab);
 
   const podeCancelar = (status) => {
     const s = String(status).toLowerCase();
@@ -281,18 +285,18 @@ export default function Reservas() {
   const getStatusBadge = (status) => {
     const s = String(status).toLowerCase();
     if (s === 'confirmada' || s === 'confirmado' || s === 'approved') {
-      return <span className="bg-[#e6f4ea] text-[#137333] px-3 py-1 rounded-md text-[12px] font-semibold inline-block">✅ Confirmada</span>;
+      return <span className="bg-[#e6f4ea] text-[#137333] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">✅ Confirmada</span>;
     }
     if (s === 'pendente' || s === 'pending') {
-      return <span className="bg-[#fef3c7] text-[#b45309] px-3 py-1 rounded-md text-[12px] font-semibold inline-block">⏳ Pendente</span>;
+      return <span className="bg-[#fef3c7] text-[#b45309] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">⏳ Pendente</span>;
     }
     if (s === 'concluída' || s === 'concluida') {
-      return <span className="bg-[#e0f2f1] text-[#0f766e] px-3 py-1 rounded-md text-[12px] font-semibold inline-block">✓ Concluída</span>;
+      return <span className="bg-[#e0f2f1] text-[#0f766e] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">✓ Concluída</span>;
     }
     if (s === 'cancelada' || s === 'cancelled') {
-      return <span className="bg-[#fee2e2] text-[#b91c1c] px-3 py-1 rounded-md text-[12px] font-semibold inline-block">✗ Cancelada</span>;
+      return <span className="bg-[#fee2e2] text-[#b91c1c] px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">✗ Cancelada</span>;
     }
-    return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-[12px] font-semibold inline-block">{status}</span>;
+    return <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-[12px] font-semibold inline-flex items-center whitespace-nowrap">{status}</span>;
   };
 
   const formatarPeriodo = (reserva) => {
@@ -344,23 +348,15 @@ export default function Reservas() {
       )}
 
       <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
-        <div className="bg-white rounded-xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
-          
-          <div className="px-5 pt-5 pb-3 border-b border-gray-100">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold text-[#0f172a]">Minhas Reservas</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Acompanhe as suas reservas e as reservas feitas nos seus anúncios</p>
-              </div>
-              <button
+        <HeaderGestao secao="minhas_reservas" className="mb-6" acoes={<button
+                type="button"
                 onClick={() => { fetchMinhasReservas(); fetchReservasRecebidas(); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 font-medium text-xs rounded-lg border border-gray-200 transition shadow-sm"
               >
                 <RefreshCw size={14} className={(loading || loadingRecebidas) ? 'animate-spin' : ''} /> Atualizar
-              </button>
-            </div>
-          </div>
+              </button>} />
 
+        <div data-lista-paginada className="bg-white rounded-xl border border-gray-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] overflow-hidden">
           <div className="border-b border-gray-100 px-5 pt-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
             <div className="flex gap-6 md:gap-8">
               {tabs.map((tab) => (
@@ -386,22 +382,22 @@ export default function Reservas() {
           </div>
 
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[760px] text-left">
               <thead>
                 <tr className="border-b border-gray-50 bg-gray-50/50">
-                  <th className="w-[25%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">
+                  <th className="w-[32%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">
                     {activeTab === 'Recebidas' ? 'Item / Cliente' : 'Item / Anfitrião'}
                   </th>
-                  <th className="w-[15%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Período</th>
-                  <th className="w-[10%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Valor</th>
-                  <th className="w-[12%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Status</th>
-                  <th className="w-[38%] text-center text-[12px] font-semibold text-[#64748b] px-6 py-4">Ações</th>
+                  <th className="w-[20%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Período</th>
+                  <th className="w-[15%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Valor</th>
+                  <th className="w-[15%] text-left text-[12px] font-semibold text-[#64748b] px-6 py-4">Status</th>
+                  <th className="w-[18%] text-center text-[12px] font-semibold text-[#64748b] px-6 py-4">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredReservas.length > 0 ? (
-                  filteredReservas.map((reserva, index) => (
-                    <tr key={`${reserva.tipo}-${reserva.id}-${index}`} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  paginacao.items.map((reserva, index) => (
+                    <tr key={`${reserva.tipo}-${reserva.id}-${index}`} className="border-b border-slate-100/70 even:bg-slate-50/30 hover:bg-blue-50/40 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-4">
                           <img 
@@ -409,8 +405,8 @@ export default function Reservas() {
                             alt={reserva.item_nome} 
                             className="w-[42px] h-[42px] rounded-lg object-cover border border-gray-200 flex-shrink-0" 
                           />
-                          <div className="flex flex-col justify-center">
-                            <span className="text-[14px] font-bold text-[#0f172a]">{reserva.item_nome || reserva.item}</span>
+                          <div className="min-w-0 flex flex-col justify-center">
+                            <span className="text-[14px] font-bold text-[#0f172a] break-words">{reserva.item_nome || reserva.item}</span>
                             <span className="text-[13px] text-[#64748b] mt-0.5 flex items-center gap-1">
                               <span>👤</span> {getNomeContraparte(reserva)}
                             </span>
@@ -418,7 +414,7 @@ export default function Reservas() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[14px] font-medium text-[#0f172a]">{formatarPeriodo(reserva)}</td>
-                      <td className="px-6 py-4 text-[14px] font-bold text-[#0f172a]">{reserva.valor} CVE</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-[14px] font-bold tabular-nums text-[#0f172a]">{reserva.valor} CVE</td>
                       <td className="px-6 py-4">{getStatusBadge(reserva.status)}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-1.5 flex-wrap">
@@ -505,7 +501,7 @@ export default function Reservas() {
 
           <div className="md:hidden flex flex-col">
             {filteredReservas.length > 0 ? (
-              filteredReservas.map((reserva, index) => (
+              paginacao.items.map((reserva, index) => (
                 <div key={`${reserva.tipo}-${reserva.id}-${index}`} className="p-5 border-b border-gray-100 flex flex-col gap-4 active:bg-gray-50">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -515,7 +511,7 @@ export default function Reservas() {
                         className="w-[48px] h-[48px] rounded-lg object-cover border border-gray-200 flex-shrink-0" 
                       />
                       <div className="flex flex-col">
-                        <span className="text-[14px] font-bold text-[#0f172a]">{reserva.item_nome || reserva.item}</span>
+                        <span className="text-[14px] font-bold text-[#0f172a] break-words">{reserva.item_nome || reserva.item}</span>
                         <span className="text-[12px] text-[#64748b] mt-0.5 flex items-center gap-1">
                           <span>👤</span> {getNomeContraparte(reserva)}
                         </span>
@@ -599,14 +595,7 @@ export default function Reservas() {
             )}
           </div>
 
-          <div className="px-5 py-5 md:px-6 border-t border-gray-100 flex justify-between items-center">
-            <button 
-              onClick={() => { fetchMinhasReservas(); fetchReservasRecebidas(); }}
-              className="text-[14px] text-[#2563eb] font-semibold hover:underline"
-            >
-              Atualizar reservas
-            </button>
-          </div>
+          <PaginacaoLista {...paginacao} />
 
         </div>
       </div>

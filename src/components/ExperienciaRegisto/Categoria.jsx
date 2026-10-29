@@ -1,50 +1,22 @@
-// src/components/ExperienciaRegisto/Categoria.jsx
-
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Mountain, Landmark, Utensils, Leaf, Sunset, Waves, Check } from 'lucide-react';
 
-const CATEGORIAS = [
-  { id: 'aventura', nome: '🏔️ Aventura', descricao: 'Experiências cheias de adrenalina', cor: 'bg-red-50 border-red-200 text-red-700' },
-  { id: 'cultural', nome: '🏛️ Cultural', descricao: 'Mergulhe na cultura local', cor: 'bg-blue-50 border-blue-200 text-blue-700' },
-  { id: 'gastronomia', nome: '🍽️ Gastronomia', descricao: 'Sabores autênticos de Cabo Verde', cor: 'bg-orange-50 border-orange-200 text-orange-700' },
-  { id: 'natureza', nome: '🌿 Natureza', descricao: 'Explore as maravilhas naturais', cor: 'bg-green-50 border-green-200 text-green-700' },
-  { id: 'relax', nome: '🌅 Relax', descricao: 'Momentos de paz e tranquilidade', cor: 'bg-purple-50 border-purple-200 text-purple-700' }
+const categorias = [
+  { id: 'aventura', icon: Mountain }, { id: 'cultural', icon: Landmark },
+  { id: 'gastronomia', icon: Utensils }, { id: 'natureza', icon: Leaf },
+  { id: 'relax', icon: Sunset }, { id: 'jetski', icon: Waves },
 ];
 
-const Categoria = ({ value, onChange, readOnly = false }) => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {CATEGORIAS.map(cat => (
-        <button
-          key={cat.id}
-          type="button"
-          onClick={() => !readOnly && onChange(cat.id)}
-          disabled={readOnly}
-          className={`flex items-center gap-4 p-4 rounded-lg border-2 transition-all text-left ${
-            value === cat.id
-              ? 'border-[#006ce4] bg-blue-50 shadow-md'
-              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-          } ${readOnly && 'cursor-default'}`}
-        >
-          <div className={`text-2xl ${value === cat.id ? 'scale-110' : ''} transition-transform`}>
-            {cat.nome.split(' ')[0]}
-          </div>
-          <div className="flex-1">
-            <h3 className={`font-semibold ${value === cat.id ? 'text-[#006ce4]' : 'text-gray-800'}`}>
-              {cat.nome}
-            </h3>
-            <p className="text-xs text-gray-500">{cat.descricao}</p>
-          </div>
-          {value === cat.id && (
-            <div className="w-6 h-6 bg-[#006ce4] rounded-full flex items-center justify-center">
-              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-          )}
-        </button>
-      ))}
-    </div>
-  );
-};
-
-export default Categoria;
+export default function Categoria({ value, onChange, readOnly = false }) {
+  const { t } = useTranslation();
+  return <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    {categorias.map(({ id, icon }) => <button key={id} type="button" disabled={readOnly}
+      aria-pressed={value === id} onClick={() => onChange(id)}
+      className={`flex items-center gap-4 rounded-lg border-2 p-4 text-left transition ${value === id ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'} disabled:cursor-default`}>
+      <span className="shrink-0 text-blue-600">{React.createElement(icon, { size: 26 })}</span>
+      <span className="min-w-0 flex-1"><span className="block font-semibold text-gray-900">{t(`experiencia_categoria_${id}`)}</span><span className="mt-1 block text-xs text-gray-500">{t(`experiencia_categoria_${id}_descricao`)}</span></span>
+      {value === id && <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white"><Check size={14} /></span>}
+    </button>)}
+  </div>;
+}

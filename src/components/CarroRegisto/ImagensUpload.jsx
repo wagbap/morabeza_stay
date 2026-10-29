@@ -1,3 +1,7 @@
+import { temFotoAnuncio } from '../../utils/fotosAnuncio';
+import ConfirmarExclusao from '../ConfirmarExclusao';
+import useConfirmarImagem from '../../hooks/useConfirmarImagem';
+import { removerImagemRegisto } from '../../services/removerImagemRegisto';
 // src/components/CarroRegisto/ImagensUpload.jsx
 // Mesma lógica do alojamento: upload direto via XHR + progresso + reordenar + foto principal
 
@@ -134,6 +138,7 @@ const ImagensUpload = ({
 
           novasFotos.push({
             id: resultado.id || Date.now() + Math.random(),
+            persistida: !!resultado.id,
             url: resultado.url || resultado.caminho_url,
             caminho_url: resultado.caminho_url || resultado.url,
             path: resultado.path || resultado.caminho_url,
@@ -189,28 +194,20 @@ const ImagensUpload = ({
   // Remover
   // ---------------------------------------------------------------------
   const handleRemoverFoto = async (id) => {
-    const fotoRemover = list.find((f) => f.id === id);
-
-    if (fotoRemover?.id && !readOnly && !fotoRemover.pendingUpload) {
-      try {
-        await fetch(`${API_URL}/api/carro/remover_imagem.php?id=${fotoRemover.id}`, {
-          method: 'DELETE',
-        });
-      } catch (error) {
-        console.error('Erro ao remover imagem do servidor:', error);
-      }
+    if (readOnly) return;
+    const imagem = list.find(foto => foto.id === id);
+    if (!imagem) return;
+    if (veiculoId && veiculoId !== 'temp' && !temFotoAnuncio(list.filter(foto => foto.id !== id))) {
+      throw new Error('imagem_ultima_obrigatoria');
     }
-
-    const atualizadas = list.filter((f) => f.id !== id);
-
-    if (fotoPrincipalId === id && atualizadas.length > 0) {
-      const novaPrincipal = atualizadas[0];
-      onFotoPrincipalChange?.(novaPrincipal.id);
-      atualizadas[0].principal = true;
-    }
-
+    await removerImagemRegisto('carro', imagem);
+    const restantes = list.filter(foto => foto.id !== id);
+    const atualizadas = fotoPrincipalId === id
+      ? restantes.map((foto, index) => ({ ...foto, principal: index === 0 })) : restantes;
     setList(atualizadas);
+    if (fotoPrincipalId === id) onFotoPrincipalChange?.(atualizadas[0]?.id ?? null);
   };
+  const confirmacaoImagem = useConfirmarImagem(handleRemoverFoto);
 
   // ---------------------------------------------------------------------
   // Definir principal
@@ -284,6 +281,7 @@ const ImagensUpload = ({
 
   return (
     <div className="space-y-6">
+      <ConfirmarExclusao {...confirmacaoImagem.dialog} />
       {/* Área de upload */}
       {!readOnly && !uploading && (
         <div
@@ -419,7 +417,8 @@ const ImagensUpload = ({
 
                     {!readOnly && !uploading && (
                       <button
-                        onClick={() => handleRemoverFoto(foto.id)}
+                        type="button"
+                        onClick={() => { if (!readOnly && !uploading) confirmacaoImagem.pedir(foto.id); }}
                         className="p-2 bg-white rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-colors"
                         title="Remover foto"
                       >

@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/Relatorios.jsx
 import React, { useState, useEffect } from 'react';
 import { Loader2, Home, Car, Compass, Award, TrendingUp, DollarSign, Percent } from 'lucide-react';
@@ -181,7 +182,7 @@ export default function Relatorios() {
 
   return (
     <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
-      <h1 className="text-[24px] font-bold mb-6">Resumo Financeiro</h1>
+      <HeaderGestao secao="relatorios" className="mb-6" />
 
       <div className="space-y-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

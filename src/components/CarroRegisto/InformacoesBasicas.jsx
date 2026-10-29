@@ -1,3 +1,4 @@
+import ResumoValorRegisto from '../ResumoValorRegisto';
 // src/components/CarroRegisto/InformacoesBasicas.jsx
 
 import React, { useState, useEffect } from 'react';
@@ -119,6 +120,7 @@ const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
               disabled={readOnly}
             />
           </div>
+          <ResumoValorRegisto valor={dados?.preco_dia} unidade="dia" />
         </div>
       </div>
       

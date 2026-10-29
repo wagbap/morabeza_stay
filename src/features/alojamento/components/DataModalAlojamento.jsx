@@ -1,3 +1,4 @@
+import CampoDataMorabeza from '../../../components/Calendario/CampoDataMorabeza';
 // DataModalAlojamento.jsx
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -78,8 +79,7 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
               </label>
               <div className="relative">
                 <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="date"
+                <CampoDataMorabeza
                   value={checkIn}
                   onChange={handleCheckInChange}
                   min={minDate}
@@ -95,8 +95,7 @@ const DataModalAlojamento = ({ onClose, onSelectData, alojamentoTitulo, currentC
               </label>
               <div className="relative">
                 <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="date"
+                <CampoDataMorabeza
                   value={checkOut}
                   onChange={handleCheckOutChange}
                   min={checkIn || minDate}

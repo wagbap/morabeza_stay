@@ -15,6 +15,7 @@ const LoginGoogle = ({ onLoginSuccess }) => {
         
         const response = await axios.post('https://welovepalop.com/api/auth_google.php', {
           action: 'google_login',
+          access_token: tokenResponse.access_token,
           google_id: googleUser.sub,
           email: googleUser.email,
           nome: googleUser.name,
@@ -24,6 +25,9 @@ const LoginGoogle = ({ onLoginSuccess }) => {
         if (response.data.status === 'success') {
           // 🔑 SEGURANÇA MÁXIMA: Guardar APENAS o token JWT assinado.
           // Nenhum dado pessoal (email, nome, roles) fica exposto no localStorage.
+          const validationToken = response.data.validation_token;
+          if (typeof validationToken === 'string' && validationToken.trim()) localStorage.setItem('reserva_validation_token', validationToken);
+          else localStorage.removeItem('reserva_validation_token');
           const token = response.data.token;
           if (token) {
             localStorage.setItem('token', token);

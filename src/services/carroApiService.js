@@ -1,6 +1,7 @@
+import api from '../api/api';
 // src/services/carroApiService.js
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://welovepalop.com/api'
+const API_URL = api.defaults.baseURL.replace(/\/$/, '');
 
 // ==================== FUNÇÃO AUXILIAR DE AUTENTICAÇÃO ====================
 function getUserIdSeguro() {

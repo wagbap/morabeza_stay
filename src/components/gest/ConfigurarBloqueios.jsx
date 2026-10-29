@@ -1,3 +1,5 @@
+import CampoDataMorabeza from '../Calendario/CampoDataMorabeza';
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/ConfigurarBloqueios.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -219,14 +221,10 @@ export default function ConfigurarBloqueios() {
             >
               <ArrowLeft size={16} className="text-slate-600" />
             </button>
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <Shield className="text-blue-600" size={24} />
-              Bloqueios e Regras de Venda
-            </h1>
-          </div>
-          <p className="text-sm text-slate-500 ml-12">
+            <HeaderGestao secao="bloqueios" className="mb-0" descricao={<>
             {experiencia?.titulo || 'Experiência'}
-          </p>
+           </>} />
+          </div>
         </div>
 
         <button
@@ -308,8 +306,7 @@ export default function ConfigurarBloqueios() {
             <label className="text-xs font-bold text-slate-700 block mb-1.5">
               Época alta — início
             </label>
-            <input
-              type="date"
+            <CampoDataMorabeza
               value={config.epoca_alta_inicio}
               onChange={(e) => setConfig(prev => ({ ...prev, epoca_alta_inicio: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20"
@@ -320,8 +317,7 @@ export default function ConfigurarBloqueios() {
             <label className="text-xs font-bold text-slate-700 block mb-1.5">
               Época alta — fim
             </label>
-            <input
-              type="date"
+            <CampoDataMorabeza
               value={config.epoca_alta_fim}
               onChange={(e) => setConfig(prev => ({ ...prev, epoca_alta_fim: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20"
@@ -417,8 +413,7 @@ export default function ConfigurarBloqueios() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1.5">Data início *</label>
-                  <input
-                    type="date"
+                  <CampoDataMorabeza
                     value={formBloqueio.data_inicio}
                     min={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setFormBloqueio(prev => ({ ...prev, data_inicio: e.target.value }))}
@@ -427,8 +422,7 @@ export default function ConfigurarBloqueios() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1.5">Data fim *</label>
-                  <input
-                    type="date"
+                  <CampoDataMorabeza
                     value={formBloqueio.data_fim}
                     min={formBloqueio.data_inicio}
                     onChange={(e) => setFormBloqueio(prev => ({ ...prev, data_fim: e.target.value }))}

@@ -1,3 +1,4 @@
+import ConversaoPreco from '../../../components/ConversaoPreco';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Star, MapPin, ChevronRight } from 'lucide-react';
@@ -46,6 +47,7 @@ const CardExperienciaRow = ({ dados }) => {
               <p className="text-2xl font-black text-gray-900 leading-none">
                 {Number(dados.preco).toLocaleString('pt-PT')} {t('cve')} <span className="text-xs text-gray-400 font-bold">{t('por_pessoa')}</span>
               </p>
+              <ConversaoPreco valorCve={dados.preco} valorUsd={dados.preco_usd} />
             </div>
 
             {/* Rating */}

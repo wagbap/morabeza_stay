@@ -40,8 +40,8 @@ const MapaInterativoCarros = lazy(() => import('./features/carros/components/Map
 
 // Rotas específicas (lazy)
 const AlojamentoRouter = lazy(() => import('./components/AlojamentoRegisto'));
-const ExperienciaRouter = lazy(() => import('./components/ExperienciaRegisto'));
-const CarroRouter = lazy(() => import('./components/CarroRegisto'));
+const ExperienciaRouter = lazy(() => import('./components/ExperienciaRegisto/ExperienciaRouter.jsx'));
+const CarroRouter = lazy(() => import('./components/CarroRegisto/CarroRouter.jsx'));
 const GestaoRouter = lazy(() => import('./components/gest/GestaoRouter'));
 
 // Admin (lazy)
@@ -79,6 +79,12 @@ const ScrollToTop = () => {
   return null;
 };
 
+// Preserve old registration links, including nested paths, search and hash.
+const RedirecionarRegisto = ({ origem, destino }) => {
+  const location = useLocation();
+  return <Navigate replace to={`${destino}${location.pathname.slice(origem.length)}${location.search}${location.hash}`} />;
+};
+
 // Componente de Loading (fallback)
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -104,6 +110,7 @@ function App() {
         {/* 👇 ESTA LINHA FAZ O SCROLL PARA O TOPO EM CADA MUDANÇA DE ROTA */}
         <ScrollToTop />
 
+        <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           
           {/* ROTAS DO PAINEL ADMINISTRATIVO */}
@@ -121,16 +128,18 @@ function App() {
             <Route path="ganhos" element={<GanhosAdmin />} />
             <Route path="repasses" element={<RepassesAdmin />} />
             <Route path="configuracoes" element={<ConfiguracoesAdmin />} />
-            <Route path="/admin/verificacoes-email" element={<VerificacoesEmail />} />
-            <Route path="/admin/verificacoes-documentos" element={<VerificacoesDocumentos />} />
+            <Route path="verificacoes-email" element={<VerificacoesEmail />} />
+            <Route path="verificacoes-documentos" element={<VerificacoesDocumentos />} />
             <Route path="mensagens" element={<Mensagens />} />
             <Route path="pagamentos" element={<Pagamentos />} />
             <Route path="denuncias" element={<Denuncias />} />
             <Route path="relatorios" element={<Relatorios />} />
-            <Route path="/admin/recebimento" element={<ConfigRecebimento />} />
+            <Route path="recebimento" element={<ConfigRecebimento />} />
           </Route>
 
           {/* ROTAS DE REGISTO */}
+          <Route path="/carro-registro/*" element={<RedirecionarRegisto origem="/carro-registro" destino="/carro-registo" />} />
+          <Route path="/experiencia-registro/*" element={<RedirecionarRegisto origem="/experiencia-registro" destino="/experiencia-registo" />} />
           <Route path="/alojamento-registro/*" element={<AlojamentoRouter />} />
           <Route path="/experiencia-registo/*" element={<ExperienciaRouter />} />
           <Route path="/carro-registo/*" element={<CarroRouter />} />
@@ -229,6 +238,20 @@ function App() {
             </LayoutPrincipal>
           } />
           
+          <Route path="/experiencias/:slug" element={
+            <LayoutPrincipal><ExperienciaDetalhes /></LayoutPrincipal>
+          } />
+
+          <Route path="/veiculos" element={
+            <LayoutPrincipal><Carros /></LayoutPrincipal>
+          } />
+          <Route path="/veiculos/:slug" element={
+            <LayoutPrincipal><CarrosDetalhes /></LayoutPrincipal>
+          } />
+          <Route path="/veiculo/:slug" element={
+            <LayoutPrincipal><CarrosDetalhes /></LayoutPrincipal>
+          } />
+
           <Route path="/experiencia/:slug" element={
             <LayoutPrincipal>
               <ExperienciaDetalhes />
@@ -296,6 +319,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
 
         </Routes>
+        </Suspense>
       </Router>
     </HelmetProvider>
   );

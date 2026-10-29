@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/LevantamentoCaucaoCondicoes.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -317,10 +318,7 @@ export default function LevantamentoCaucaoCondicoes() {
       {/* Cabeçalho + LOV de carro */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-[24px] font-bold">Levantamento, Caução e Condições</h1>
-          <p className="text-[13px] text-gray-500 mt-1">
-            Configura o local de entrega, caução e políticas do condutor para cada veículo.
-          </p>
+          <HeaderGestao secao="condicoes" className="mb-0" />
         </div>
 
         <div className="relative w-full md:w-80">

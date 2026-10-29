@@ -1,8 +1,12 @@
+import { temFotoAnuncio } from '../../utils/fotosAnuncio';
+import ConfirmarExclusao from '../ConfirmarExclusao';
+import useConfirmarImagem from '../../hooks/useConfirmarImagem';
+import { removerImagemRegisto } from '../../services/removerImagemRegisto';
 // src/components/ExperienciaRegisto/ImagensUpload.jsx
 
 import React, { useState, useRef } from 'react';
 import { Upload, X, Star, Trash2, Move, AlertCircle, Check, Plus, Loader } from 'lucide-react';
-import { uploadImagemExperiencia, removerImagemExperiencia } from '../../services/experienciaApiService';
+import { uploadImagemExperiencia } from '../../services/experienciaApiService';
 
 const ImagensUpload = ({ imagens = [], onChange, experienciaId = null, readOnly = false, maxFotos = 15 }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -47,6 +51,7 @@ const ImagensUpload = ({ imagens = [], onChange, experienciaId = null, readOnly 
           
           const novaImagem = {
             id: resultadoUpload.id || Date.now() + Math.random(),
+            persistida: !!resultadoUpload.id,
             caminho_url: resultadoUpload.url,
             url: resultadoUpload.url,
             principal: imagens.length === 0 && novasImagens.length === 0,
@@ -74,24 +79,20 @@ const ImagensUpload = ({ imagens = [], onChange, experienciaId = null, readOnly 
   };
   
   const handleRemoverImagem = async (id) => {
-    const imagemRemover = imagens.find(i => i.id === id);
-    
-    if (imagemRemover?.id && !readOnly && experienciaId) {
-      try {
-        await removerImagemExperiencia(imagemRemover.id);
-      } catch (error) {
-        console.error('Erro ao remover imagem:', error);
-      }
+    if (readOnly) return;
+    const imagem = imagens.find(foto => foto.id === id);
+    if (!imagem) return;
+    if (experienciaId && experienciaId !== 'temp' && !temFotoAnuncio(imagens.filter(foto => foto.id !== id))) {
+      throw new Error('imagem_ultima_obrigatoria');
     }
-    
-    const novasImagens = imagens.filter(img => img.id !== id);
-    
-    if (fotoPrincipalId === id && novasImagens.length > 0) {
-      novasImagens[0].principal = true;
-    }
-    
-    onChange(novasImagens);
+    await removerImagemRegisto('experiencia', imagem);
+    const restantes = imagens.filter(foto => foto.id !== id);
+    const atualizadas = fotoPrincipalId === id
+      ? restantes.map((foto, index) => ({ ...foto, principal: index === 0 })) : restantes;
+    onChange(atualizadas);
+
   };
+  const confirmacaoImagem = useConfirmarImagem(handleRemoverImagem);
   
   const handleDefinirPrincipal = (id) => {
     const novasImagens = imagens.map(img => ({
@@ -122,6 +123,7 @@ const ImagensUpload = ({ imagens = [], onChange, experienciaId = null, readOnly 
   
   return (
     <div className="space-y-6">
+      <ConfirmarExclusao {...confirmacaoImagem.dialog} />
       {!readOnly && !uploading && (
         <div
           onDragOver={handleDragOver}
@@ -190,7 +192,7 @@ const ImagensUpload = ({ imagens = [], onChange, experienciaId = null, readOnly 
                     </button>
                   )}
                   {!readOnly && (
-                    <button onClick={() => handleRemoverImagem(img.id)} className="p-2 bg-white rounded-full text-red-500 hover:bg-red-500 hover:text-white">
+                    <button type="button" onClick={() => { if (!readOnly && !uploading) confirmacaoImagem.pedir(img.id); }} className="p-2 bg-white rounded-full text-red-500 hover:bg-red-500 hover:text-white">
                       <Trash2 size={16} />
                     </button>
                   )}

@@ -1,3 +1,4 @@
+import HeaderGestao from './HeaderGestao';
 // src/components/gest/Reservas.jsx
 import React, { useState, useEffect } from 'react';
 import { Eye, RefreshCw, Home, Car, Compass, CheckCircle, XCircle, AlertCircle, PauseCircle, Trash2, DollarSign } from 'lucide-react';
@@ -196,17 +197,16 @@ export default function Reservas() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 pt-5 pb-3 border-b border-gray-100 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-[#0f172a]">Gestão de Reservas</h2>
-            <p className="text-sm text-gray-500">Reservas feitas nos seus anúncios</p>
-          </div>
-          <button onClick={fetchReservas} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
+      <HeaderGestao
+        secao="reservas"
+        acoes={
+          <button type="button" onClick={fetchReservas} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
-        </div>
+        }
+      />
 
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="border-b border-gray-100 px-5 pt-2 overflow-x-auto whitespace-nowrap">
           <div className="flex gap-6">
             {tabs.map((tab) => (
