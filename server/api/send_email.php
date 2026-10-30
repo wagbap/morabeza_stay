@@ -32,12 +32,12 @@ function emailReservaAssets(): array {
 function emailReservaImg(string $name, int $size = 24, bool $preview = false, ?int $height = null): string {
     if ($name === 'logo' || $name === 'sun') {
         $width = $name === 'logo' ? 260 : 120;
-        return '<img src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" width="' . $width . '" alt="Morabeza Stay" style="display:inline-block;vertical-align:middle;border:0;width:' . $width . 'px;max-width:100%;height:auto;">';
+        return '<img class="brand-mark" src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" width="' . $width . '" alt="Morabeza Stay" style="display:inline-block;vertical-align:middle;border:0;width:' . $width . 'px;max-width:100%;height:auto;box-sizing:border-box;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff);border-radius:10px;padding:10px 14px;">';
     }
     $assets = emailReservaAssets();
     if (!isset($assets[$name])) return '';
     $src = $preview ? 'data:image/png;base64,' . $assets[$name] : 'https://morabezastay.cv/images/email/' . rawurlencode($name) . '.png';
-    return '<img src="' . $src . '" width="' . $size . '" height="' . ($height ?? $size) . '" alt="" style="display:inline-block;vertical-align:middle;border:0;width:' . $size . 'px;height:' . ($height ?? $size) . 'px;">';
+    return '<img class="email-icon" src="' . $src . '" width="' . $size . '" height="' . ($height ?? $size) . '" alt="" style="display:inline-block;vertical-align:middle;border:0;width:' . $size . 'px;height:' . ($height ?? $size) . 'px;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff);border-radius:5px;padding:2px;">';
 }
 
 function emailReservaEsc($value): string {
@@ -92,12 +92,12 @@ function renderizarConfirmacaoReserva(array $d): string {
         $image = emailReservaUrl($item['imagem'] ?? '') ?: $photo;
         $reserved .= '<table role="presentation" width="100%" style="margin-top:10px"><tr>';
         if ($image) $reserved .= '<td class="stack" width="43%" style="padding-right:20px"><img class="photo" src="' . $e($image) . '" width="280" height="110" alt="' . $e($item['nome']) . '" style="width:100%;height:110px;object-fit:cover;border-radius:9px"></td>';
-        $reserved .= '<td class="stack" style="vertical-align:middle"><h3 style="font:bold 21px/1.3 Georgia,serif;color:#07176a;margin:0">' . $e($item['nome']) . '</h3><p style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">' . $e($item['descricao'] ?? '') . '</p></td></tr></table>';
+        $reserved .= '<td class="stack" style="vertical-align:middle"><h3 class="dm-heading" style="font:bold 21px/1.3 Georgia,serif;color:#07176a;margin:0">' . $e($item['nome']) . '</h3><p class="dm-text" style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">' . $e($item['descricao'] ?? '') . '</p></td></tr></table>';
     }
-    if ($reserved === '') $reserved = '<h3 style="font:bold 21px/1.3 Georgia,serif;color:#07176a;margin:10px 0 0">' . $e($d['titulo']) . '</h3><p style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">' . $e($d['detalhes'] ?? '') . '</p>';
+    if ($reserved === '') $reserved = '<h3 class="dm-heading" style="font:bold 21px/1.3 Georgia,serif;color:#07176a;margin:10px 0 0">' . $e($d['titulo']) . '</h3><p class="dm-text" style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">' . $e($d['detalhes'] ?? '') . '</p>';
     $rows = '';
     foreach (($d['linhas_pagamento'] ?? []) as $row) {
-        $rows .= '<tr><td style="padding:8px 10px 16px 0;font:17px/1.4 Arial,sans-serif;color:#294d83">' . $e($row['descricao']) . '</td><td align="right" style="padding:8px 0 16px;font:17px/1.4 Arial,sans-serif;color:#294d83;white-space:nowrap">' . $e(emailReservaDinheiro($row['valor'])) . '</td></tr>';
+        $rows .= '<tr><td class="dm-text" style="padding:8px 10px 16px 0;font:17px/1.4 Arial,sans-serif;color:#294d83">' . $e($row['descricao']) . '</td><td class="dm-text" align="right" style="padding:8px 0 16px;font:17px/1.4 Arial,sans-serif;color:#294d83;white-space:nowrap">' . $e(emailReservaDinheiro($row['valor'])) . '</td></tr>';
     }
     $address = (string) ($d['morada'] ?? $d['localizacao'] ?? '');
     $map = $address !== '' ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($address) : '';
@@ -114,7 +114,7 @@ function renderizarConfirmacaoReserva(array $d): string {
         'hero_image' => $d['hero_image'] ?? 'https://morabezastay.cv/media/home-beach-29984774-poster.jpg',
         'headline' => $headline, 'subtitle' => $paid ? 'Pagamento recebido. A sua viagem começa aqui.' : 'Consulte os detalhes da sua reserva.',
         'first_name' => explode(' ', $name)[0], 'greeting' => $confirmed && $paid ? 'A sua reserva está confirmada e o pagamento foi recebido.' : ($paid ? 'O pagamento foi recebido. Consulte abaixo o estado da sua reserva.' : 'Recebemos a sua reserva. O pagamento ainda está pendente.'),
-        'code' => $code, 'badge_color' => $paid ? '#087f46' : '#995500', 'badge_bg' => $paid ? '#d7f2df' : '#fff1cf', 'payment_badge' => $paid ? 'Pago' : 'Pagamento pendente',
+        'code' => $code, 'badge_state' => $paid ? 'paid' : 'pending', 'badge_color' => $paid ? '#087f46' : '#995500', 'badge_bg' => $paid ? '#d7f2df' : '#fff1cf', 'payment_badge' => $paid ? 'Pago' : 'Pagamento pendente',
         'listing_title' => $d['titulo'] . (!empty($d['localizacao']) ? ' · ' . $d['localizacao'] : ''),
         'address' => $address, 'start_label' => $startLabel, 'end_label' => $endLabel,
         'start' => emailReservaData($d['inicio'] ?? '') . (!empty($d['hora_inicio']) ? ' · ' . $d['hora_inicio'] : ''),
@@ -131,12 +131,12 @@ function renderizarConfirmacaoReserva(array $d): string {
     $replacements = [];
     foreach ($tokens as $key => $value) $replacements['{{' . $key . '}}'] = $e($value);
     $raw = [
-        'demo_banner' => !empty($d['exemplo']) ? '<tr><td align="center" style="background:#eaf2f8;border-radius:7px;padding:9px;color:#294d83;font:13px Arial,sans-serif">MODELO VISUAL &#183; DADOS DE EXEMPLO</td></tr>' : '',
+        'demo_banner' => !empty($d['exemplo']) ? '<tr><td class="dm-text dm-soft" align="center" style="background:#eaf2f8;border-radius:7px;padding:9px;color:#294d83;font:13px Arial,sans-serif">MODELO VISUAL &#183; DADOS DE EXEMPLO</td></tr>' : '',
         'listing_photo' => $photoHtml, 'reserved_items' => $reserved, 'payment_rows' => $rows,
-        'map_link' => $map ? '<table role="presentation" style="margin-top:10px"><tr><td width="30">' . $icon('map', 21) . '</td><td style="font:15px Arial,sans-serif;vertical-align:middle"><a style="color:#0758ae;text-decoration:underline" href="' . $e($map) . '">Ver localização no mapa &nbsp; &#8594;</a></td></tr></table>' : '',
-        'arrival_notes' => !empty($d['instrucoes']) ? '<p style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:12px 0 0">' . nl2br($e($d['instrucoes'])) . '</p>' : '<p style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:12px 0 0">Instruções de acesso disponíveis em Ver a minha reserva.</p>',
+        'map_link' => $map ? '<table role="presentation" style="margin-top:10px"><tr><td width="30">' . $icon('map', 21) . '</td><td style="font:15px Arial,sans-serif;vertical-align:middle"><a class="dm-link" style="color:#0758ae;text-decoration:underline" href="' . $e($map) . '">Ver localização no mapa &nbsp; &#8594;</a></td></tr></table>' : '',
+        'arrival_notes' => !empty($d['instrucoes']) ? '<p class="dm-text" style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:12px 0 0">' . nl2br($e($d['instrucoes'])) . '</p>' : '<p class="dm-text" style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:12px 0 0">Instruções de acesso disponíveis em Ver a minha reserva.</p>',
         'host_contact' => $host !== '' ? '<b>' . $e(['alojamento' => 'Alojamento', 'carro' => 'Rent-a-car', 'experiencia' => 'Organizador'][$tipo]) . ':</b><br>' . $host : 'Consulte os contactos do anfitrião na sua reserva.',
-        'principal' => $principal, 'additional_people' => $people ? '<p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin-top:10px"><b>Também nesta reserva:</b><br>' . implode('<br>', $people) . '</p>' : '',
+        'principal' => $principal, 'additional_people' => $people ? '<p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin-top:10px"><b>Também nesta reserva:</b><br>' . implode('<br>', $people) . '</p>' : '',
         'logo' => emailReservaImg('logo', 440, $preview, 82),
         'sun' => $icon('sun', 48),
         'reserved_icon' => $icon(['alojamento'=>'bed','carro'=>'car','experiencia'=>'experience'][$tipo], 26),
@@ -154,81 +154,119 @@ function renderizarConfirmacaoReserva(array $d): string {
     foreach ($raw as $key => $value) $replacements['{{' . $key . '}}'] = $value;
     $template = <<<'MORABEZA_EMAIL_HTML'
 <!doctype html>
-<html lang="pt"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{subject}}</title>
+<html lang="pt"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>{{subject}}</title>
 <style>
+:root{color-scheme:light dark;supported-color-schemes:light dark}
 body{margin:0;padding:0;background:#fff}table{border-collapse:separate;border-spacing:0}img{border:0}a{color:#0758ae}h1,h2,h3,p{margin:0}
-@media only screen and (max-width:600px){.outer{padding:12px!important}.pad{padding:16px!important}.stack{display:block!important;width:100%!important;box-sizing:border-box!important}.photo{width:100%!important;height:210px!important;margin-bottom:16px!important}.hero-title{font-size:34px!important}.support{padding:0 0 12px!important}.support-panel{height:auto!important;padding:16px!important}.qr{margin:0 auto 18px!important}.brand img{width:100%!important;max-width:440px!important;height:auto!important}.greeting{font-size:30px!important}.code{font-size:19px!important;overflow-wrap:anywhere!important}.code-main,.code-payment{display:block!important;width:100%!important;box-sizing:border-box!important}.code-main{border:0!important;padding-right:0!important}.code-payment{padding-left:0!important;padding-top:12px!important}.button{font-size:18px!important}}
+.brand-mark{background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff);border-radius:10px;padding:10px 14px}
+.email-icon{background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff);border-radius:5px;padding:2px}
+@media (prefers-color-scheme:dark){
+body,.email-background{background:#101827!important}
+.dm-surface{background:#172235!important}
+.pad,.support-panel{background:#172235!important}
+.dm-soft{background:#1c2e45!important}
+.dm-total{background:#233e5d!important}
+.dm-heading{color:#eef4ff!important}
+.dm-text{color:#cfdbec!important}
+.dm-muted{color:#a8bad0!important}
+.dm-link{color:#8dc5ff!important}
+.dm-border{border-color:#3d5068!important}
+.dm-primary{background:#2468b5!important;color:#ffffff!important}
+.dm-secondary{background:#172235!important;color:#b6d8ff!important;border-color:#78b6f7!important}
+.dm-badge-paid{background:#164b35!important}
+.dm-badge-paid td{color:#b8f5cf!important}
+.dm-badge-pending{background:#503c17!important}
+.dm-badge-pending td{color:#ffe0a1!important}
+.dm-hero,.dm-hero h1,.dm-hero p{color:#ffffff!important}
+.qr{background:#ffffff!important;background-image:linear-gradient(#ffffff,#ffffff)!important;border-color:#ffffff!important;box-shadow:none!important}
+}
+[data-ogsc] .email-background{background:#101827!important}
+[data-ogsc] .dm-surface,[data-ogsc] .pad,[data-ogsc] .support-panel{background:#172235!important}
+[data-ogsc] .dm-soft{background:#1c2e45!important}
+[data-ogsc] .dm-total{background:#233e5d!important}
+[data-ogsc] .dm-heading{color:#eef4ff!important}
+[data-ogsc] .dm-text{color:#cfdbec!important}
+[data-ogsc] .dm-muted{color:#a8bad0!important}
+[data-ogsc] .dm-link{color:#8dc5ff!important}
+[data-ogsc] .dm-border{border-color:#3d5068!important}
+[data-ogsc] .dm-primary{background:#2468b5!important;color:#ffffff!important}
+[data-ogsc] .dm-secondary{background:#172235!important;color:#b6d8ff!important;border-color:#78b6f7!important}
+[data-ogsc] .dm-badge-paid{background:#164b35!important}
+[data-ogsc] .dm-badge-paid td{color:#b8f5cf!important}
+[data-ogsc] .dm-badge-pending{background:#503c17!important}
+[data-ogsc] .dm-badge-pending td{color:#ffe0a1!important}
+@media only screen and (max-width:600px){.outer{padding:12px!important}.pad{padding:16px!important}.stack{display:block!important;width:100%!important;box-sizing:border-box!important}.photo{width:100%!important;height:210px!important;margin-bottom:16px!important}.hero-title{font-size:34px!important}.support{padding:0 0 12px!important}.support-panel{height:auto!important;padding:16px!important}.qr{margin:0 auto 18px!important}.brand img{width:100%!important;max-width:440px!important;height:auto!important;box-sizing:border-box!important}.greeting{font-size:30px!important}.code{font-size:19px!important;overflow-wrap:anywhere!important}.code-main,.code-payment{display:block!important;width:100%!important;box-sizing:border-box!important}.code-main{border:0!important;padding-right:0!important}.code-payment{padding-left:0!important;padding-top:12px!important}.button{font-size:18px!important}}
 </style></head>
-<body style="margin:0;padding:0;background:#fff;color:#294d83;font-family:Arial,Helvetica,sans-serif">
+<body class="dm-text email-background" style="margin:0;padding:0;background:#fff;color:#294d83;font-family:Arial,Helvetica,sans-serif">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">{{preheader}}</div>
-<table role="presentation" width="100%" style="font-family:Arial,Helvetica,sans-serif;color:#294d83"><tr><td align="center" class="outer" style="padding:24px 16px">
-<table role="presentation" width="760" style="width:100%;max-width:760px;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#294d83">
+<table class="dm-text email-background" role="presentation" width="100%" style="font-family:Arial,Helvetica,sans-serif;color:#294d83"><tr><td align="center" class="outer" style="padding:24px 16px">
+<table class="dm-text dm-surface" role="presentation" width="760" style="width:100%;max-width:760px;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#294d83">
 {{demo_banner}}
 <tr><td class="brand" align="center" style="padding:8px 12px 22px">{{logo}}</td></tr>
-<tr><td background="{{hero_image}}" bgcolor="#174b7e" style="background:#174b7e url('{{hero_image}}') center/cover;background-image:linear-gradient(90deg,rgba(16,54,104,.96),rgba(16,54,104,.12)),url('{{hero_image}}');border-radius:11px;padding:44px 32px">
+<tr><td class="dm-hero" background="{{hero_image}}" bgcolor="#174b7e" style="background:#174b7e url('{{hero_image}}') center/cover;background-image:linear-gradient(90deg,rgba(16,54,104,.96),rgba(16,54,104,.12)),url('{{hero_image}}');border-radius:11px;padding:44px 32px">
 <!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:760px;height:190px"><v:fill type="frame" src="{{hero_image}}" color="#174b7e"/><v:textbox inset="24px,20px,24px,20px"><![endif]-->
 <h1 class="hero-title" style="font:bold 48px/1.15 Georgia,'Times New Roman',serif;color:#fff;margin:0">{{headline}}</h1>
 <p style="font:bold 22px/1.45 Arial,Helvetica,sans-serif;color:#fff;margin:12px 0 0">{{subtitle}}</p>
 <!--[if gte mso 9]></v:textbox></v:rect><![endif]--></td></tr>
 <tr><td style="padding:23px 21px 20px">
-<h2 class="greeting" style="font:bold 34px/1.2 Georgia,'Times New Roman',serif;color:#07176a;margin:0 0 5px">Olá, {{first_name}}!</h2>
-<p style="font:18px/1.45 Arial,Helvetica,sans-serif;color:#294d83;margin:0">{{greeting}}<br>Estamos muito satisfeitos por o receber em Cabo Verde.</p></td></tr>
-<tr><td class="pad" bgcolor="#edf5fb" style="background:#edf5fb;border:1px solid #dce6f1;border-radius:10px;padding:17px 23px">
-<table role="presentation" width="100%"><tr><td class="code-main" width="43%" style="border-right:1px solid #dce6f1;padding-right:16px;vertical-align:middle">
-<h3 style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Código da reserva</h3>
-<p class="code" style="font:bold 25px/1.25 Georgia,'Times New Roman',serif;color:#07176a;margin:4px 0 0;overflow-wrap:anywhere">{{code}}</p></td>
-<td class="code-payment" style="padding-left:24px;vertical-align:middle"><table role="presentation" bgcolor="{{badge_bg}}" style="background:{{badge_bg}};border-radius:10px"><tr><td style="padding:9px 8px 9px 15px;vertical-align:middle">{{paid_icon}}</td><td style="padding:9px 16px 9px 0;font:bold 18px/1.3 Arial,sans-serif;color:{{badge_color}};vertical-align:middle">{{payment_badge}}</td></tr></table></td></tr></table></td></tr>
+<h2 class="greeting dm-heading" style="font:bold 34px/1.2 Georgia,'Times New Roman',serif;color:#07176a;margin:0 0 5px">Olá, {{first_name}}!</h2>
+<p class="dm-text" style="font:18px/1.45 Arial,Helvetica,sans-serif;color:#294d83;margin:0">{{greeting}}<br>Estamos muito satisfeitos por o receber em Cabo Verde.</p></td></tr>
+<tr><td class="pad dm-border dm-soft" bgcolor="#edf5fb" style="background:#edf5fb;border:1px solid #dce6f1;border-radius:10px;padding:17px 23px">
+<table role="presentation" width="100%"><tr><td class="code-main dm-border" width="43%" style="border-right:1px solid #dce6f1;padding-right:16px;vertical-align:middle">
+<h3 class="dm-heading" style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Código da reserva</h3>
+<p class="code dm-heading" style="font:bold 25px/1.25 Georgia,'Times New Roman',serif;color:#07176a;margin:4px 0 0;overflow-wrap:anywhere">{{code}}</p></td>
+<td class="code-payment" style="padding-left:24px;vertical-align:middle"><table class="dm-badge-{{badge_state}}" role="presentation" bgcolor="{{badge_bg}}" style="background:{{badge_bg}};border-radius:10px"><tr><td style="padding:9px 8px 9px 15px;vertical-align:middle">{{paid_icon}}</td><td style="padding:9px 16px 9px 0;font:bold 18px/1.3 Arial,sans-serif;color:{{badge_color}};vertical-align:middle">{{payment_badge}}</td></tr></table></td></tr></table></td></tr>
 <tr><td height="13" style="font-size:0;line-height:0">&nbsp;</td></tr>
-<tr><td class="pad" style="border:1px solid #dce6f1;border-radius:10px;padding:14px 15px">
+<tr><td class="pad dm-border" style="border:1px solid #dce6f1;border-radius:10px;padding:14px 15px">
 <table role="presentation" width="100%"><tr><td class="stack" width="43%" style="padding-right:23px;vertical-align:top">{{listing_photo}}</td>
 <td class="stack" width="57%" style="vertical-align:top">
-<h2 style="font:bold 22px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:2px 0 10px">{{listing_title}}</h2>
-<table role="presentation" width="100%"><tr><td width="30" style="vertical-align:middle">{{pin_icon}}</td><td style="font:15px/1.45 Arial,sans-serif;color:#294d83;vertical-align:middle">{{address}}</td></tr></table>
+<h2 class="dm-heading" style="font:bold 22px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:2px 0 10px">{{listing_title}}</h2>
+<table role="presentation" width="100%"><tr><td width="30" style="vertical-align:middle">{{pin_icon}}</td><td class="dm-text" style="font:15px/1.45 Arial,sans-serif;color:#294d83;vertical-align:middle">{{address}}</td></tr></table>
 {{map_link}}
-<table role="presentation" width="100%" style="margin-top:18px;border-top:1px solid #e0e8f2;border-bottom:1px solid #e0e8f2"><tr>
-<td width="50%" style="padding:15px 10px 15px 0;vertical-align:top"><table role="presentation"><tr><td width="34" style="vertical-align:top">{{calendar_icon}}</td><td style="vertical-align:top"><p style="font:15px/1.3 Arial,sans-serif;color:#294d83;margin:0">{{start_label}}</p><p style="font:bold 15px/1.5 Arial,sans-serif;color:#07176a;margin:4px 0 0">{{start}}</p></td></tr></table></td>
-<td style="border-left:1px solid #e0e8f2;padding:15px 0 15px 16px;vertical-align:top"><table role="presentation"><tr><td width="34" style="vertical-align:top">{{calendar_icon}}</td><td style="vertical-align:top"><p style="font:15px/1.3 Arial,sans-serif;color:#294d83;margin:0">{{end_label}}</p><p style="font:bold 15px/1.5 Arial,sans-serif;color:#07176a;margin:4px 0 0">{{end}}</p></td></tr></table></td></tr></table>
-<table role="presentation" style="margin-top:11px"><tr><td width="34" style="vertical-align:middle">{{people_icon}}</td><td style="font:16px/1.4 Arial,sans-serif;color:#294d83;vertical-align:middle">{{duration_people}}</td></tr></table></td></tr></table></td></tr>
+<table class="dm-border" role="presentation" width="100%" style="margin-top:18px;border-top:1px solid #e0e8f2;border-bottom:1px solid #e0e8f2"><tr>
+<td width="50%" style="padding:15px 10px 15px 0;vertical-align:top"><table role="presentation"><tr><td width="34" style="vertical-align:top">{{calendar_icon}}</td><td style="vertical-align:top"><p class="dm-text" style="font:15px/1.3 Arial,sans-serif;color:#294d83;margin:0">{{start_label}}</p><p class="dm-heading" style="font:bold 15px/1.5 Arial,sans-serif;color:#07176a;margin:4px 0 0">{{start}}</p></td></tr></table></td>
+<td class="dm-border" style="border-left:1px solid #e0e8f2;padding:15px 0 15px 16px;vertical-align:top"><table role="presentation"><tr><td width="34" style="vertical-align:top">{{calendar_icon}}</td><td style="vertical-align:top"><p class="dm-text" style="font:15px/1.3 Arial,sans-serif;color:#294d83;margin:0">{{end_label}}</p><p class="dm-heading" style="font:bold 15px/1.5 Arial,sans-serif;color:#07176a;margin:4px 0 0">{{end}}</p></td></tr></table></td></tr></table>
+<table role="presentation" style="margin-top:11px"><tr><td width="34" style="vertical-align:middle">{{people_icon}}</td><td class="dm-text" style="font:16px/1.4 Arial,sans-serif;color:#294d83;vertical-align:middle">{{duration_people}}</td></tr></table></td></tr></table></td></tr>
 <tr><td height="13" style="font-size:0;line-height:0">&nbsp;</td></tr>
-<tr><td class="pad" style="border:1px solid #dce6f1;border-radius:10px;padding:15px">
-<table role="presentation"><tr><td width="44" style="vertical-align:middle">{{reserved_icon}}</td><td style="vertical-align:middle"><h2 style="font:bold 23px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">O que reservou</h2></td></tr></table>
+<tr><td class="pad dm-border" style="border:1px solid #dce6f1;border-radius:10px;padding:15px">
+<table role="presentation"><tr><td width="44" style="vertical-align:middle">{{reserved_icon}}</td><td style="vertical-align:middle"><h2 class="dm-heading" style="font:bold 23px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">O que reservou</h2></td></tr></table>
 {{reserved_items}}</td></tr>
 <tr><td height="13" style="font-size:0;line-height:0">&nbsp;</td></tr>
-<tr><td class="pad" style="border:1px solid #dce6f1;border-radius:10px;padding:15px 20px">
-<table role="presentation" style="margin-bottom:16px"><tr><td width="44" style="vertical-align:middle">{{payment_icon}}</td><td style="vertical-align:middle"><h2 style="font:bold 23px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Resumo do pagamento</h2></td></tr></table>
-<table role="presentation" width="100%">{{payment_rows}}<tr><td style="padding:12px;background:#e7f3ff;border-radius:9px 0 0 9px;font:bold 24px/1.3 Georgia,'Times New Roman',serif;color:#07176a">{{total_label}}</td><td align="right" style="padding:12px;background:#e7f3ff;border-radius:0 9px 9px 0;font:bold 25px/1.3 Arial,sans-serif;color:#07176a;white-space:nowrap">{{total}}</td></tr></table>
-<p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:9px 0 0">{{payment_reference}}</p></td></tr>
+<tr><td class="pad dm-border" style="border:1px solid #dce6f1;border-radius:10px;padding:15px 20px">
+<table role="presentation" style="margin-bottom:16px"><tr><td width="44" style="vertical-align:middle">{{payment_icon}}</td><td style="vertical-align:middle"><h2 class="dm-heading" style="font:bold 23px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Resumo do pagamento</h2></td></tr></table>
+<table role="presentation" width="100%">{{payment_rows}}<tr><td class="dm-heading dm-total" style="padding:12px;background:#e7f3ff;border-radius:9px 0 0 9px;font:bold 24px/1.3 Georgia,'Times New Roman',serif;color:#07176a">{{total_label}}</td><td class="dm-heading dm-total" align="right" style="padding:12px;background:#e7f3ff;border-radius:0 9px 9px 0;font:bold 25px/1.3 Arial,sans-serif;color:#07176a;white-space:nowrap">{{total}}</td></tr></table>
+<p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:9px 0 0">{{payment_reference}}</p></td></tr>
 <tr><td height="13" style="font-size:0;line-height:0">&nbsp;</td></tr>
-<tr><td class="pad" bgcolor="#edf5fb" style="background:#edf5fb;border-radius:10px;padding:17px 22px">
+<tr><td class="pad dm-soft" bgcolor="#edf5fb" style="background:#edf5fb;border-radius:10px;padding:17px 22px">
 <table role="presentation" width="100%"><tr><td class="stack" width="34%" style="padding:0 24px 0 15px;vertical-align:top">
 <img class="qr" src="{{qr_url}}" alt="QR Code da reserva {{code}}" width="150" height="150" style="display:block;padding:12px;background:#fff;border-radius:10px;width:150px;height:150px;border:1px solid #e4ebf1;box-shadow:0 5px 15px #dbe4ed"></td>
 <td class="stack" width="66%" style="vertical-align:top">
-<h2 style="font:bold 21px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:3px 0 7px">{{qr_instruction}}</h2>
-<p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:0">Este código identifica a sua reserva.</p>
-<p style="background:#dceefa;padding:9px 12px;border-radius:8px;font:bold 15px/1.4 Arial,sans-serif;color:#07176a;margin:10px 0 0;overflow-wrap:anywhere">Código: {{code}}</p>
-<a class="button" href="{{booking_url}}" style="display:block;border-radius:10px;padding:15px;text-align:center;text-decoration:none;font:bold 21px/1.3 Georgia,'Times New Roman',serif;background:#18579b;color:#fff;margin-top:13px">Ver a minha reserva &nbsp; &#8594;</a>
-<a class="button" href="{{receipt_url}}" style="display:block;border-radius:10px;padding:11px;text-align:center;text-decoration:none;font:bold 20px/1.3 Georgia,'Times New Roman',serif;border:2px solid #18579b;color:#07176a;margin-top:10px">{{download_icon}} &nbsp; Descarregar comprovativo (PDF)</a></td></tr></table></td></tr>
+<h2 class="dm-heading" style="font:bold 21px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:3px 0 7px">{{qr_instruction}}</h2>
+<p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:0">Este código identifica a sua reserva.</p>
+<p class="dm-heading dm-total" style="background:#dceefa;padding:9px 12px;border-radius:8px;font:bold 15px/1.4 Arial,sans-serif;color:#07176a;margin:10px 0 0;overflow-wrap:anywhere">Código: {{code}}</p>
+<a class="button dm-primary" href="{{booking_url}}" style="display:block;border-radius:10px;padding:15px;text-align:center;text-decoration:none;font:bold 21px/1.3 Georgia,'Times New Roman',serif;background:#18579b;color:#fff;margin-top:13px">Ver a minha reserva &nbsp; &#8594;</a>
+<a class="button dm-secondary" href="{{receipt_url}}" style="display:block;border-radius:10px;padding:11px;text-align:center;text-decoration:none;font:bold 20px/1.3 Georgia,'Times New Roman',serif;border:2px solid #18579b;color:#07176a;margin-top:10px">{{download_icon}} &nbsp; Descarregar comprovativo (PDF)</a></td></tr></table></td></tr>
 <tr><td height="14" style="font-size:0;line-height:0">&nbsp;</td></tr>
 <tr><td><table role="presentation" width="100%"><tr>
-<td class="stack support" width="33.33%" style="padding-right:10px;vertical-align:top"><table role="presentation" width="100%"><tr><td class="support-panel" style="border:1px solid #dce6f1;border-radius:9px;padding:16px 18px;height:245px;vertical-align:top">
-<table role="presentation"><tr><td width="38" style="vertical-align:middle">{{calendar_icon}}</td><td><h3 style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Cancelamento</h3></td></tr></table>
-<p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:14px 0">{{cancellation}}</p><a href="{{booking_url}}" style="font:14px/1.4 Arial,sans-serif;color:#0758ae;text-decoration:underline">Consultar condições da reserva &#8594;</a></td></tr></table></td>
-<td class="stack support" width="33.33%" style="padding:0 5px;vertical-align:top"><table role="presentation" width="100%"><tr><td class="support-panel" style="border:1px solid #dce6f1;border-radius:9px;padding:16px 18px;height:245px;vertical-align:top">
-<table role="presentation"><tr><td width="38" style="vertical-align:middle">{{preparation_icon}}</td><td><h3 style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Preparar a chegada</h3></td></tr></table>
-<p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:14px 0 0">{{preparation}}</p>{{arrival_notes}}</td></tr></table></td>
-<td class="stack support" width="33.33%" style="padding-left:10px;vertical-align:top"><table role="presentation" width="100%"><tr><td class="support-panel" style="border:1px solid #dce6f1;border-radius:9px;padding:16px 18px;height:245px;vertical-align:top">
-<table role="presentation"><tr><td width="38" style="vertical-align:middle">{{support_icon}}</td><td><h3 style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Contactos e apoio</h3></td></tr></table>
-<p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:14px 0 0">{{host_contact}}</p>
-<p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:10px 0 0;border-top:1px solid #e0e8f2;padding-top:9px"><b>Morabeza Stay:</b><br>{{support_contact}}</p>
-<table role="presentation" style="margin-top:8px"><tr><td width="32">{{globe_icon}}</td><td><a href="https://morabezastay.cv" style="font:15px Arial,sans-serif;color:#0758ae;text-decoration:underline">morabezastay.cv</a></td></tr></table></td></tr></table></td></tr></table></td></tr>
+<td class="stack support" width="33.33%" style="padding-right:10px;vertical-align:top"><table role="presentation" width="100%"><tr><td class="support-panel dm-border" style="border:1px solid #dce6f1;border-radius:9px;padding:16px 18px;height:245px;vertical-align:top">
+<table role="presentation"><tr><td width="38" style="vertical-align:middle">{{calendar_icon}}</td><td><h3 class="dm-heading" style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Cancelamento</h3></td></tr></table>
+<p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:14px 0">{{cancellation}}</p><a class="dm-link" href="{{booking_url}}" style="font:14px/1.4 Arial,sans-serif;color:#0758ae;text-decoration:underline">Consultar condições da reserva &#8594;</a></td></tr></table></td>
+<td class="stack support" width="33.33%" style="padding:0 5px;vertical-align:top"><table role="presentation" width="100%"><tr><td class="support-panel dm-border" style="border:1px solid #dce6f1;border-radius:9px;padding:16px 18px;height:245px;vertical-align:top">
+<table role="presentation"><tr><td width="38" style="vertical-align:middle">{{preparation_icon}}</td><td><h3 class="dm-heading" style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Preparar a chegada</h3></td></tr></table>
+<p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:14px 0 0">{{preparation}}</p>{{arrival_notes}}</td></tr></table></td>
+<td class="stack support" width="33.33%" style="padding-left:10px;vertical-align:top"><table role="presentation" width="100%"><tr><td class="support-panel dm-border" style="border:1px solid #dce6f1;border-radius:9px;padding:16px 18px;height:245px;vertical-align:top">
+<table role="presentation"><tr><td width="38" style="vertical-align:middle">{{support_icon}}</td><td><h3 class="dm-heading" style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Contactos e apoio</h3></td></tr></table>
+<p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:14px 0 0">{{host_contact}}</p>
+<p class="dm-text dm-border" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:10px 0 0;border-top:1px solid #e0e8f2;padding-top:9px"><b>Morabeza Stay:</b><br>{{support_contact}}</p>
+<table role="presentation" style="margin-top:8px"><tr><td width="32">{{globe_icon}}</td><td><a class="dm-link" href="https://morabezastay.cv" style="font:15px Arial,sans-serif;color:#0758ae;text-decoration:underline">morabezastay.cv</a></td></tr></table></td></tr></table></td></tr></table></td></tr>
 <tr><td height="13" style="font-size:0;line-height:0">&nbsp;</td></tr>
-<tr><td class="pad" bgcolor="#f8fbff" style="background:#f8fbff;border:1px solid #dce6f1;border-radius:9px;padding:14px 20px">
-<table role="presentation"><tr><td width="50" style="vertical-align:middle">{{guest_icon}}</td><td style="vertical-align:middle"><h3 style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">{{principal_label}}</h3><p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:4px 0 0">{{principal}}</p>{{additional_people}}</td></tr></table></td></tr>
+<tr><td class="pad dm-border dm-soft" bgcolor="#f8fbff" style="background:#f8fbff;border:1px solid #dce6f1;border-radius:9px;padding:14px 20px">
+<table role="presentation"><tr><td width="50" style="vertical-align:middle">{{guest_icon}}</td><td style="vertical-align:middle"><h3 class="dm-heading" style="font:bold 17px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">{{principal_label}}</h3><p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:4px 0 0">{{principal}}</p>{{additional_people}}</td></tr></table></td></tr>
 <tr><td align="center" style="padding:22px 16px 10px">
-<table role="presentation" width="100%"><tr><td width="44%" style="border-top:1px solid #dce6f1"></td><td align="center" style="padding:0 14px">{{sun}}</td><td width="44%" style="border-top:1px solid #dce6f1"></td></tr></table>
-<h2 style="font:bold 23px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:8px 0 3px">Obrigado por escolher a Morabeza Stay.</h2>
-<p style="font:16px/1.4 Arial,sans-serif;color:#07176a;margin:0">Cabo Verde é sempre melhor com morabeza.</p>
-<p style="font:12px/1.4 Arial,sans-serif;color:#7a8baa;margin:15px 0 0">Email automático de confirmação de reserva.</p></td></tr>
+<table role="presentation" width="100%"><tr><td class="dm-border" width="30%" style="border-top:1px solid #dce6f1"></td><td align="center" style="padding:0 14px">{{sun}}</td><td class="dm-border" width="30%" style="border-top:1px solid #dce6f1"></td></tr></table>
+<h2 class="dm-heading" style="font:bold 23px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:8px 0 3px">Obrigado por escolher a Morabeza Stay.</h2>
+<p class="dm-heading" style="font:16px/1.4 Arial,sans-serif;color:#07176a;margin:0">Cabo Verde é sempre melhor com morabeza.</p>
+<p class="dm-muted" style="font:12px/1.4 Arial,sans-serif;color:#7a8baa;margin:15px 0 0">Email automático de confirmação de reserva.</p></td></tr>
 </table></td></tr></table></body></html>
 
 MORABEZA_EMAIL_HTML;
@@ -2311,6 +2349,60 @@ function gerarPdfComprovativoReserva(array $d): string {
     return $p->output();
 }
 
+function executarComprovativoReserva(): void {
+header('Cache-Control: no-store');
+header('Referrer-Policy: no-referrer');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Authorization, Content-Type');
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+function falhaComprovativo(): void { http_response_code(403); header('Content-Type: text/plain; charset=UTF-8'); echo 'Ligacao invalida ou expirada. Consulte a sua reserva.'; exit; }
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') { http_response_code(405); header('Allow: GET'); exit; }
+try {
+    $tipo = $_GET['tipo'] ?? '';
+    $codigo = $_GET['codigo'] ?? '';
+    $exp = filter_var($_GET['expira'] ?? '', FILTER_VALIDATE_INT);
+    $sig = $_GET['assinatura'] ?? '';
+    if (!is_string($tipo) || !in_array($tipo, ['alojamento', 'carro', 'experiencia'], true) || !is_string($codigo) || strlen($codigo) > 50 || !is_string($sig)) falhaComprovativo();
+    $settings = require __DIR__ . '/auth-secrets.local.php';
+    $key = $settings['jwt_secret'] ?? '';
+    $signed = $codigo !== '' && $exp && $exp >= time() && is_string($key) && $key !== '' && hash_equals(hash_hmac('sha256', $tipo . '|' . $codigo . '|' . $exp, $key), $sig);
+    require __DIR__ . '/config.php';
+    if (!isset($conn) && isset($pdo) && $pdo instanceof PDO) $conn = $pdo;
+    // config.php may expose credentials instead of opening a connection.
+    if ((!isset($conn) || !($conn instanceof PDO)) && isset($host, $db_name, $username, $password)) {
+        $conn = new PDO("mysql:host=$host;dbname=$db_name;charset=utf8mb4", $username, $password, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    }
+    if (!isset($conn) || !($conn instanceof PDO)) throw new RuntimeException('PDO missing');
+    if (!$signed) {
+        require_once __DIR__ . '/reserva-validacao.php';
+        $userId = utilizadorReservaQR($conn, 'host');
+        $tables = [
+            'alojamento' => ['reservas_alojamento', 'alojamentos', 'alojamento_id', 'proprietario_id'],
+            'carro' => ['reservas_carro', 'carros', 'carro_id', 'usuario_id'],
+            'experiencia' => ['reservas_experiencia', 'experiencias', 'experiencia_id', 'usuario_id'],
+        ];
+        [$table, $listing, $fk, $owner] = $tables[$tipo];
+        $id = filter_var($_GET['reserva_id'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        if ($codigo === '' && !$id) falhaComprovativo();
+        $where = $codigo !== '' ? 'r.codigo_reserva=:ref' : 'r.id=:ref';
+        $stmt = $conn->prepare('SELECT r.codigo_reserva FROM ' . $table . ' r LEFT JOIN ' . $listing . ' l ON l.id=r.' . $fk . ' WHERE ' . $where . ' AND (r.usuario_id=:cliente OR l.' . $owner . '=:anfitriao) LIMIT 1');
+        $stmt->execute([':ref'=>$codigo !== '' ? $codigo : $id, ':cliente'=>$userId, ':anfitriao'=>$userId]);
+        $codigo = $stmt->fetchColumn();
+        if (!is_string($codigo) || $codigo === '') falhaComprovativo();
+    }
+    require_once __DIR__ . '/send_email.php';
+    $d = carregarDadosEmailReserva($conn, $tipo, $codigo);
+    $d['mapa_jpeg'] = mapaComprovativoReserva($d, $settings);
+    $pdf = gerarPdfComprovativoReserva($d);
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="reserva-' . preg_replace('/[^a-zA-Z0-9_-]/', '', $codigo) . '.pdf"');
+    header('Content-Length: ' . strlen($pdf));
+    echo $pdf;
+} catch (Throwable $e) { error_log('[comprovativo-reserva] ' . $e->getMessage()); falhaComprovativo(); }
+
+}
+
 function executarEmailReserva(): void {
 header('Content-Type: application/json; charset=UTF-8');
 header('Access-Control-Allow-Origin: *');
@@ -2401,5 +2493,9 @@ try {
 }
 
 if (isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) === __FILE__) {
-    executarEmailReserva();
+    if (($_GET['action'] ?? '') === 'comprovativo') {
+        executarComprovativoReserva();
+    } else {
+        executarEmailReserva();
+    }
 }

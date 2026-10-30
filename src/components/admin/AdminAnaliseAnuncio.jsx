@@ -1,3 +1,4 @@
+import { obterTokenValidacao } from '../../utils/tokenValidacaoReserva';
 // components/admin/AdminAnaliseAnuncio.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -128,7 +129,7 @@ export default function AdminAnaliseAnuncio() {
     try {
       const res = await fetch(`${API_URL}/admin/solicitar_documento.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${obterTokenValidacao(localStorage, 'admin') || ''}` },
         body: JSON.stringify({
           action: 'listar_por_anuncio',
           anuncio_id: parseInt(id),

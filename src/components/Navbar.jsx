@@ -1,10 +1,11 @@
+import NavbarNotificacoes from './NavbarNotificacoes';
 import { idiomas, idiomaAtual } from '../utils/idiomas';
 import useManagementSession from '../hooks/useManagementSession';
 import { SESSION_KEYS } from '../utils/managementSession';
 // src/components/Navbar.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Car, Palmtree, Globe, ChevronDown, Info } from 'lucide-react';
+import { Menu, X, Home, HousePlus, Car, Palmtree, Globe, ChevronDown, Info } from 'lucide-react';
 import UserDropdown from './UserDropdown';
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +18,7 @@ const Navbar = () => {
   const { i18n, t } = useTranslation();
   const location = useLocation();
   const langRef = useRef(null);
+  const registoTooltipId = useId();
 
   const paginasComHero = ['/', '/experiencias', '/alojamentos', '/carros', '/veiculos', '/sobre'];
   const isHeroPage = paginasComHero.includes(location.pathname);
@@ -70,15 +72,17 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className={`w-full z-[100] px-6 md:px-12 py-5 flex justify-between items-center transition-all duration-300 ${getNavbarClasses()}`}>
+      <nav className={`w-full z-[100] px-4 md:px-12 py-3.5 md:py-5 flex justify-between items-center gap-3 lg:gap-0 transition-all duration-300 ${getNavbarClasses()}`}>
         
-        <Link to="/" className="flex items-center min-w-[150px]">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <Link to="/" className="flex items-center min-w-0 shrink-0 lg:min-w-[150px] lg:shrink">
           <img 
             src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" 
             alt="Morabeza Stay Logo" 
-            className="h-10 w-auto object-contain"
+            className="h-auto w-28 sm:w-36 lg:h-10 lg:w-auto object-contain"
           />
         </Link>
+        </div>
 
         {/* MENU DESKTOP */}
         <div className={`hidden lg:flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] absolute left-1/2 -translate-x-1/2 transition-colors ${
@@ -102,7 +106,7 @@ const Navbar = () => {
             <button 
               type="button" aria-label={t('idioma_seletor')} aria-expanded={langDropdownOpen}
               onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-              className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest hover:opacity-100 opacity-80 transition-all ${
+              className={`flex min-h-10 lg:min-h-0 items-center justify-center gap-1 text-[10px] font-black uppercase tracking-widest hover:opacity-100 opacity-80 transition-all ${
                 isHeroPage ? "text-white" : "text-gray-700"
               }`}
             >
@@ -128,18 +132,33 @@ const Navbar = () => {
             )}
           </div>
 
+        {user && <NavbarNotificacoes key={user.id || user.email} userId={user.id || user.email} hero={isHeroPage} />}
+
           {/* BOTÃO DE REGISTAR PROPRIEDADE OU USER DROPDOWN */}
           {!user ? (
-            <Link 
+            <div className="group relative shrink-0">
+            <Link
               to="/login"
-              className={`px-4 py-2 text-[11px] md:text-sm font-bold rounded-lg transition-all shadow-sm whitespace-nowrap ${
+              aria-label={t('registe_sua_propriedade')}
+              aria-describedby={registoTooltipId}
+              className={`flex h-10 w-10 items-center justify-center lg:h-auto lg:w-auto lg:px-4 lg:py-2 text-[11px] lg:text-sm font-semibold lg:font-bold rounded-lg transition-all shadow-sm whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${
                 isHeroPage 
                   ? "bg-white text-[#003580] hover:bg-gray-100" 
                   : "bg-[#003580] text-white hover:bg-[#002560]"
               }`}
             >
-              {t('registe_sua_propriedade')}
+              <span className="lg:hidden"><HousePlus size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+              <span className="hidden lg:inline">{t('registe_sua_propriedade')}</span>
             </Link>
+            <span
+              id={registoTooltipId}
+              role="tooltip"
+              className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-44 rounded-lg bg-blue-500 px-3 py-2 text-center text-[10px] font-medium leading-relaxed text-white shadow-lg shadow-blue-900/15 opacity-0 invisible translate-y-1 transition-all group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-y-0"
+            >
+              <span className="absolute -top-1 right-4 h-2 w-2 rotate-45 bg-blue-500" aria-hidden="true" />
+              {t('navbar_registo_dica', 'Registe a sua propriedade ou inicie sessão no sistema.')}
+            </span>
+            </div>
           ) : (
             <UserDropdown 
               user={user}

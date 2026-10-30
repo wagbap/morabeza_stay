@@ -15,6 +15,10 @@ checkEmail(emailReservaEstaPaga(['pagamento_status' => 'pago']), 'Database payme
 foreach ($fixtures as $d) {
     $body = renderizarConfirmacaoReserva($d);
     checkEmail(strpos($body, '{{') === false, 'Unresolved template tokens');
+    checkEmail(strpos($body, 'name="color-scheme" content="light dark"') !== false, 'Declare both email color schemes');
+    checkEmail(strpos($body, '@media (prefers-color-scheme:dark)') !== false, 'Missing dark email palette');
+    checkEmail(strpos($body, 'class="dm-badge-paid"') !== false, 'Paid badge needs the correct dark palette');
+    checkEmail(strpos($body, 'class="brand-mark"') !== false, 'Logo needs a contrasting background');
     checkEmail(strpos($body, 'https://morabezastay.cv/images/email/payment.png') !== false, 'Payment icon must use a public URL');
     checkEmail(strpos($body, 'logo_morabeza_r1s2ne.png') !== false, 'Use the actual site logo');
     checkEmail(strpos($body, 'cid:') === false, 'Email must not require image attachments');
@@ -27,6 +31,7 @@ foreach ($fixtures as $d) {
     $d['nome_cliente'] = '<script>alert(1)</script>';
     $body = renderizarConfirmacaoReserva($d);
     checkEmail(strpos($body, 'Pagamento recebido.') === false, 'Pending booking must not claim payment');
+    checkEmail(strpos($body, 'class="dm-badge-pending"') !== false, 'Pending badge needs its own dark palette');
     checkEmail(strpos($body, '<script>') === false, 'Customer name must be escaped');
     checkEmail(strpos($body, 'Reserva recebida') !== false, 'Pending booking heading');
     $pdf = gerarPdfComprovativoReserva($d);

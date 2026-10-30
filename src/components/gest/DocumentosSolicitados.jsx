@@ -1,10 +1,14 @@
+import api from '../../api/api';
+import { destinoRegistoNotificacao, normalizarLinkNotificacao } from '../../utils/normalizarLinkNotificacao';
+import { obterTokenValidacao } from '../../utils/tokenValidacaoReserva';
 import HeaderGestao from './HeaderGestao';
+import { useTranslation } from 'react-i18next';
 // components/prestador/DocumentosSolicitados.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText, Clock, CheckCircle2, XCircle, Upload,
   Loader2, AlertCircle, RefreshCw, X, Send, ArrowLeft,
-  AlertTriangle, Edit3, Bell, Info,
+  AlertTriangle, Edit3, Bell, Info, Eye, ExternalLink, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,6 +35,44 @@ const TIPO_ANUNCIO = {
 
 export default function DocumentosSolicitados() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const [documentoVisivel, setDocumentoVisivel] = useState(null);
+  const [preview, setPreview] = useState({ loading: true, url: '', image: false, error: false });
+  const previewRef = useRef(null);
+
+  useEffect(() => {
+    if (!documentoVisivel) return;
+    const dialog = previewRef.current;
+    const previousOverflow = document.body.style.overflow;
+    dialog.showModal();
+    document.body.style.overflow = 'hidden';
+    const controller = new AbortController();
+    let objectUrl;
+    setPreview({ loading: true, url: '', image: false, error: false });
+    (async () => {
+      try {
+        const response = await fetch(documentoVisivel.url, { signal: controller.signal });
+        if (!response.ok) throw new Error(`DOCUMENT_HTTP_${response.status}`);
+        const blob = await response.blob();
+        const image = blob.type.startsWith('image/');
+        const pdf = (await blob.slice(0, 5).text()) === '%PDF-';
+        if (!image && !pdf) throw new Error('DOCUMENT_INVALID_CONTENT');
+        if (controller.signal.aborted) return;
+        objectUrl = URL.createObjectURL(pdf ? new Blob([blob], { type: 'application/pdf' }) : blob);
+        setPreview({ loading: false, url: objectUrl, image, error: false });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error('Document preview:', error.message);
+        setPreview({ loading: false, url: '', image: false, error: true });
+      }
+    })();
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [documentoVisivel]);
 
   const [pedidos, setPedidos] = useState([]);
   const [correcoes, setCorrecoes] = useState([]);
@@ -42,7 +84,8 @@ export default function DocumentosSolicitados() {
   const [ficheiro, setFicheiro] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState({ tipo: '', texto: '' });
-  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
+  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(true);
+  const [filtroNotificacoes, setFiltroNotificacoes] = useState('todas');
   const [usuarioId, setUsuarioId] = useState(null);
 
   const pollingRef = useRef(null);
@@ -81,20 +124,9 @@ export default function DocumentosSolicitados() {
     if (!usuarioId) return;
 
     try {
-      const res = await fetch(`${API_URL}/usuarios/notificacoes.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'listar',
-          usuario_id: usuarioId,
-          limite: 20,
-        }),
+      const { data } = await api.post('/usuarios/notificacoes.php', { action: 'listar', limite: 20 }, {
+        headers: { Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
       });
-      const texto = await res.text();
-      let data;
-      try { data = JSON.parse(texto); }
-      catch { data = { status: 'error' }; }
-
       if (data.status === 'success') {
         setNotificacoes(data.data || []);
         setNaoLidas(data.nao_lidas || 0);
@@ -113,7 +145,7 @@ export default function DocumentosSolicitados() {
     try {
       const resPedidos = await fetch(`${API_URL}/admin/solicitar_documento.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
         body: JSON.stringify({
           action: 'listar_pedidos_prestador',
           prestador_id: usuarioId,
@@ -130,7 +162,7 @@ export default function DocumentosSolicitados() {
 
       const resCorr = await fetch(`${API_URL}/admin/solicitar_documento.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
         body: JSON.stringify({
           action: 'listar_correcoes_prestador',
           prestador_id: usuarioId,
@@ -171,13 +203,8 @@ export default function DocumentosSolicitados() {
   const marcarTodasLidas = async () => {
     if (!usuarioId) return;
     try {
-      await fetch(`${API_URL}/admin/anuncios/notificacoes.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'marcar_todas_lidas',
-          usuario_id: usuarioId,
-        }),
+      await api.post('/usuarios/notificacoes.php', { action: 'marcar_todas_lidas' }, {
+        headers: { Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
       });
       carregarNotificacoes();
     } catch (err) {
@@ -188,14 +215,8 @@ export default function DocumentosSolicitados() {
   const marcarLida = async (id) => {
     if (!usuarioId) return;
     try {
-      await fetch(`${API_URL}/admin/anuncios/notificacoes.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'marcar_lida',
-          notificacao_id: id,
-          usuario_id: usuarioId,
-        }),
+      await api.post('/usuarios/notificacoes.php', { action: 'marcar_lida', id }, {
+        headers: { Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
       });
       carregarNotificacoes();
     } catch (err) {
@@ -238,7 +259,7 @@ export default function DocumentosSolicitados() {
 
       const resEnv = await fetch(`${API_URL}/admin/solicitar_documento.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
         body: JSON.stringify({
           action: 'enviar_documento',
           pedido_id: pedidoSelecionado.id,
@@ -320,14 +341,38 @@ export default function DocumentosSolicitados() {
     }
   };
 
+  const abrirNotificacao = (n) => {
+    if (Number(n.lida) === 0) void marcarLida(n.id);
+    const recordDestination = destinoRegistoNotificacao(n);
+    if (recordDestination) {
+      if (n.pedido_id) {
+        (document.getElementById(`pedido-${n.pedido_id}`) || document.getElementById('documentos-pedidos'))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        navigate(recordDestination);
+      }
+      return;
+    }
+    const link = n.link || n.url;
+    if (typeof link === 'string') {
+      try {
+        const destination = new URL(link, window.location.origin);
+        if (destination.origin === window.location.origin && destination.pathname.startsWith('/') && !destination.pathname.startsWith('//')) {
+          navigate(normalizarLinkNotificacao(destination));
+          return;
+        }
+      } catch { /* Use the related record below. */ }
+    }
+    document.getElementById('documentos-pedidos')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   const totalPendencias = correcoes.length + pedidos.filter(p => p.estado === 'pendente' || p.estado === 'rejeitado').length;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-4 sm:flex sm:items-center sm:gap-4 sm:flex-wrap">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-lg hover:bg-gray-100 transition"
+          className="shrink-0 p-2 rounded-lg hover:bg-gray-100 transition"
           title="Voltar"
         >
           <ArrowLeft size={20} />
@@ -338,14 +383,14 @@ export default function DocumentosSolicitados() {
         </div>
 
         {totalPendencias > 0 && (
-          <span className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">
+          <span className="col-start-2 w-fit shrink-0 flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">
             <AlertCircle size={14} /> {totalPendencias} {totalPendencias === 1 ? 'pendência' : 'pendências'}
           </span>
         )}
 
         <button
           onClick={carregarTudo}
-          className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 text-sm"
+          className="col-start-2 w-fit shrink-0 flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 text-sm"
         >
           <RefreshCw size={16} /> Atualizar
         </button>
@@ -360,100 +405,38 @@ export default function DocumentosSolicitados() {
         </div>
       )}
 
-      {naoLidas > 0 && (
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="relative">
-              <Bell size={22} className="text-blue-600" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
-                {naoLidas > 9 ? '9+' : naoLidas}
-              </span>
-            </div>
-            <h3 className="font-bold text-blue-900 text-base">
-              Tens {naoLidas} {naoLidas === 1 ? 'notificação nova' : 'notificações novas'}
-            </h3>
-            <button
-              onClick={marcarTodasLidas}
-              className="ml-auto text-xs text-blue-700 hover:underline font-semibold flex items-center gap-1"
-            >
-              <CheckCircle2 size={12} /> Marcar todas como lidas
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {notificacoes.filter(n => n.lida == 0).slice(0, 3).map((n) => (
-              <div
-                key={n.id}
-                className="bg-white rounded-xl p-3 flex items-start gap-3 cursor-pointer hover:bg-blue-50/50 transition"
-                onClick={() => {
-                  marcarLida(n.id);
-                  if (n.tipo === 'documento' || n.tipo === 'anuncio') {
-                    setMostrarNotificacoes(false);
-                  }
-                }}
-              >
-                <div className="flex-shrink-0 mt-0.5">
-                  {getIconeNotif(n.tipo)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900">{n.titulo}</p>
-                  <p className="text-xs text-gray-600 mt-0.5">{n.mensagem}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">{formatarRelativo(n.criado_em)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {notificacoes.length > 0 && (
-        <div>
-          <button
-            onClick={() => setMostrarNotificacoes(!mostrarNotificacoes)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition text-sm font-semibold text-gray-700"
-          >
-            <span className="flex items-center gap-2">
-              <Info size={16} /> Ver histórico de notificações ({notificacoes.length})
+        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <button type="button" onClick={() => setMostrarNotificacoes(!mostrarNotificacoes)} aria-expanded={mostrarNotificacoes} aria-controls="painel-notificacoes" className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left">
+            <span className="flex items-center gap-2 text-base font-bold text-gray-900">
+              <span className="text-blue-600"><Bell size={19} /></span>{t('gest_notif_titulo', 'Notificações')}
+              {naoLidas > 0 && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">{naoLidas}</span>}
             </span>
-            <span className={`transform transition-transform ${mostrarNotificacoes ? 'rotate-180' : ''}`}>
-              ▼
-            </span>
+            <span className="text-gray-400"><ChevronDown size={18} className={`transition-transform ${mostrarNotificacoes ? 'rotate-180' : ''}`} /></span>
           </button>
-
           {mostrarNotificacoes && (
-            <div className="mt-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
-                {notificacoes.map((n) => (
-                  <div
-                    key={n.id}
-                    className={`p-4 flex items-start gap-3 hover:bg-gray-50 transition cursor-pointer ${
-                      n.lida == 0 ? 'bg-blue-50/30' : ''
-                    }`}
-                    onClick={() => {
-                      if (n.lida == 0) marcarLida(n.id);
-                    }}
-                  >
-                    <div className="flex-shrink-0 mt-0.5">
-                      {getIconeNotif(n.tipo)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`text-sm ${n.lida == 0 ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
-                          {n.titulo}
-                        </p>
-                        {n.lida == 0 && (
-                          <span className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">{n.mensagem}</p>
-                      <p className="text-[10px] text-gray-400 mt-1">{formatarRelativo(n.criado_em)}</p>
-                    </div>
-                  </div>
+            <div id="painel-notificacoes">
+              <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 pb-3">
+                {['todas', 'nao_lidas'].map(filtro => <button key={filtro} type="button" aria-pressed={filtroNotificacoes === filtro} onClick={() => setFiltroNotificacoes(filtro)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${filtroNotificacoes === filtro ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}>{t(`gest_notif_${filtro}`, filtro === 'todas' ? 'Todas' : 'Não lidas')}</button>)}
+                <button type="button" onClick={marcarTodasLidas} className="ml-auto rounded-lg px-2 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50">{t('gest_notif_marcar', 'Marcar todas como lidas')}</button>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto p-2">
+                {notificacoes.filter(n => filtroNotificacoes === 'todas' || Number(n.lida) === 0).map(n => (
+                  <button type="button" key={n.id} onClick={() => abrirNotificacao(n)} className={`group flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-blue-50 focus-visible:outline-blue-500 ${Number(n.lida) === 0 ? 'bg-blue-50/50' : ''}`}>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50">{getIconeNotif(n.tipo)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block break-words text-sm leading-snug ${Number(n.lida) === 0 ? 'font-semibold text-gray-900' : 'font-medium text-gray-600'}`}>{n.titulo}</span>
+                      <span className="mt-1 block break-words text-xs leading-relaxed text-gray-500">{n.mensagem}</span>
+                      <span className="mt-1.5 block text-[10px] font-medium text-blue-600">{formatarRelativo(n.criado_em)}</span>
+                    </span>
+                    <span className="mt-2 flex shrink-0 items-center gap-1 text-gray-400">{Number(n.lida) === 0 && <span className="h-2 w-2 rounded-full bg-blue-600" />}<ChevronRight size={14} /></span>
+                  </button>
                 ))}
+                {filtroNotificacoes === 'nao_lidas' && !notificacoes.some(n => Number(n.lida) === 0) && <p className="px-4 py-8 text-center text-sm text-gray-500">{t('gest_notif_vazio', 'Está tudo em dia. Sem notificações por ler.')}</p>}
               </div>
             </div>
           )}
-        </div>
+        </section>
       )}
 
       {loading ? (
@@ -511,7 +494,7 @@ export default function DocumentosSolicitados() {
 
                       <button
                         onClick={() => {
-                          const url = `${info.base}/fluxo?edit=${c.id}&tipo=${c.tipo}`;
+                          const url = `${info.base}/editar/${encodeURIComponent(c.id)}`;
                           console.log('🔧 A abrir anúncio para correção:', url);
                           navigate(url);
                         }}
@@ -526,7 +509,7 @@ export default function DocumentosSolicitados() {
             </div>
           )}
 
-          <div className="space-y-3">
+          <div id="documentos-pedidos" className="space-y-3 scroll-mt-24">
             <h2 className="text-sm font-bold text-blue-600 uppercase tracking-wider flex items-center gap-2">
               <FileText size={16} /> Documentos solicitados
             </h2>
@@ -551,6 +534,7 @@ export default function DocumentosSolicitados() {
                   return (
                     <div
                       key={p.id}
+                      id={`pedido-${p.id}`}
                       className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                     >
                       <div className="flex-1 min-w-0">
@@ -579,14 +563,17 @@ export default function DocumentosSolicitados() {
 
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {p.documento_url && (
-                          <a
-                            href={urlDocumentoComCache(p.documento_url, p.enviado_em)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:underline"
+                          <button
+                            type="button"
+                            onClick={() => setDocumentoVisivel({
+                              url: urlDocumentoComCache(p.documento_url, p.enviado_em),
+                              nome: TIPOS_LABEL[p.tipo_documento] || p.tipo_documento,
+                            })}
+                            className="inline-flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-100"
                           >
-                            Ver enviado
-                          </a>
+                            <Eye size={16} aria-hidden="true" />
+                            {t('gest_documento_ver', 'Ver documento')}
+                          </button>
                         )}
                         {podeEnviar && (
                           <button
@@ -613,6 +600,42 @@ export default function DocumentosSolicitados() {
             )}
           </div>
         </>
+      )}
+
+      {documentoVisivel && (
+        <dialog
+          ref={previewRef}
+          aria-labelledby="documento-preview-titulo"
+          onCancel={() => setDocumentoVisivel(null)}
+          onClose={() => setDocumentoVisivel(null)}
+          className="fixed inset-0 m-auto h-[90dvh] max-h-[900px] w-[calc(100%-2rem)] max-w-5xl overflow-hidden rounded-2xl border-0 bg-white p-0 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+        >
+          <div className="flex h-full flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-5">
+              <h2 id="documento-preview-titulo" className="min-w-0 text-sm font-semibold text-gray-900">{documentoVisivel.nome}</h2>
+              <div className="flex items-center gap-2">
+                <a href={documentoVisivel.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100">
+                  <ExternalLink size={14} aria-hidden="true" />
+                  {t('gest_documento_abrir', 'Abrir numa nova aba')}
+                </a>
+                <button type="button" autoFocus onClick={() => setDocumentoVisivel(null)} aria-label={t('gest_documento_fechar', 'Fechar documento')} className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100">
+                  <X size={19} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <p className="px-4 py-2 text-xs text-gray-500">{t('gest_documento_aviso', 'Se a pré-visualização não aparecer, abra o documento numa nova aba.')}</p>
+            {preview.loading ? (
+              <div role="status" className="flex flex-1 items-center justify-center gap-2 text-sm text-blue-600"><Loader2 size={20} className="animate-spin" aria-hidden="true" />{t('gest_documento_carregar', 'A carregar documento…')}</div>
+            ) : preview.error ? (
+              <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 bg-gray-50 p-6 text-center">
+                <span className="text-amber-600"><AlertCircle size={28} aria-hidden="true" /></span>
+                <p className="max-w-md text-sm leading-relaxed text-gray-600">{t('gest_documento_erro', 'O servidor não conseguiu disponibilizar este documento. Tente abrir numa nova aba. Se o erro continuar, contacte o suporte para verificar o ficheiro.')}</p>
+              </div>
+            ) : preview.image ? (
+              <div className="min-h-0 flex-1 overflow-auto bg-gray-50 p-4"><img src={preview.url} alt={documentoVisivel.nome} className="mx-auto h-full max-w-full object-contain" /></div>
+            ) : <iframe src={preview.url} title={documentoVisivel.nome} className="min-h-0 w-full flex-1 border-0 bg-gray-50" />}
+          </div>
+        </dialog>
       )}
 
       {showModal && pedidoSelecionado && (

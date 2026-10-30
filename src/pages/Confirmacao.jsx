@@ -127,7 +127,7 @@ const Confirmacao = () => {
   const handleDownload = async () => {
     try {
       await descarregarComprovativo({ tipo, codigo: codigoReserva, id: reservaId, url: comprovativoUrl });
-    } catch { window.alert(t('comprovativo_erro_download')); }
+    } catch (error) { window.alert(t(error.translationKey || 'comprovativo_erro_download')); }
   };
 
   const getMetodoPagamentoLabel = () => {

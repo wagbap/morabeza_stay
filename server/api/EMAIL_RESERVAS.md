@@ -96,3 +96,21 @@ Para o bot?o PDF, enviar tamb?m `comprovativo-reserva.php`. A pasta `email/` ?
 fonte de desenvolvimento; `python server/email-build/gerar.py` recompila o
 ficheiro completo ap?s altera??es. Incluir send_email.php a partir do endpoint
 PDF s? carrega fun??es; n?o envia emails. Os testes executam este bundle.
+
+## Dark / light
+
+O HTML declara os dois esquemas de cores e inclui uma paleta escura para os
+clientes que suportam prefers-color-scheme, mais seletores data-ogsc para
+Outlook. Logotipo, icones e QR mantem uma base branca para preservar contraste.
+Gmail pode aplicar a sua propria conversao de cores; confirmar num envio real
+no dispositivo do cliente. Publicar novamente send_email.php; a alteracao
+aplica-se apenas a novos emails. Previas locais verificadas nos tres tipos
+de reserva em modo claro e escuro, sem envio SMTP.
+
+## Download na area de reservas
+
+Os botoes usam GET send_email.php?action=comprovativo com o token da sessao.
+O bundle serve o mesmo PDF anexado ao email, sem enviar novamente mensagens.
+Mantem autorizacao por cliente/anfitriao e ligacoes assinadas. O endpoint
+comprovativo-reserva.php continua como URL de compatibilidade para emails
+existentes. Publicar send_email.php e comprovativo-reserva.php atualizados.

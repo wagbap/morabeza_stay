@@ -1,10 +1,10 @@
 // src/features/alojamento/components/FiltrosLateralAlojamento.jsx
-import React, { useCallback } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   X, Building2, Home, Palmtree, Hotel, Map,
-  Users, Baby, Bed, PawPrint, Plus, Minus, Sparkles,
+  Users, Baby, Bed, PawPrint, Plus, Minus, Sparkles, ChevronUp,
 } from 'lucide-react';
 
 // ------------------------------------------------------------
@@ -64,6 +64,8 @@ const FiltrosLaterais = ({
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const filtrosId = useId();
 
   // ----------------------------------------------------------
   // Valores atuais
@@ -170,15 +172,28 @@ const FiltrosLaterais = ({
       <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-xl shadow-blue-900/5">
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-6 border-b border-gray-50 pb-4">
+        <div className={`flex justify-between items-center ${filtrosAbertos ? 'mb-6 border-b border-gray-50 pb-4' : 'lg:mb-6 lg:border-b lg:border-gray-50 lg:pb-4'}`}>
           <h3 className="font-black text-gray-900 uppercase text-[10px] tracking-[0.2em]">
             {t('filtrar_por', 'Filtrar por')}
           </h3>
+          <div className="flex items-center gap-2">
           <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] font-black">
             {totalEncontrados}
           </span>
+          <button
+            type="button"
+            aria-expanded={filtrosAbertos}
+            aria-controls={filtrosId}
+            aria-label={filtrosAbertos ? t('alojamento_recolher_filtros', 'Recolher filtros') : t('alojamento_expandir_filtros', 'Expandir filtros')}
+            onClick={() => setFiltrosAbertos(abertos => !abertos)}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 lg:hidden"
+          >
+            <ChevronUp aria-hidden="true" size={18} className={`transition-transform ${filtrosAbertos ? '' : 'rotate-180'}`} />
+          </button>
+          </div>
         </div>
 
+        <div id={filtrosId} className={filtrosAbertos ? '' : 'hidden lg:block'}>
         {/* HÓSPEDES */}
         <div className="mb-8">
           <label className="block font-black text-gray-900 uppercase text-[10px] tracking-tight mb-4">
@@ -316,6 +331,7 @@ const FiltrosLaterais = ({
             <X size={14} /> {t('limpar_filtros', 'Limpar filtros')}
           </button>
         )}
+        </div>
       </div>
     </div>
   );

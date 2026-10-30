@@ -1,3 +1,4 @@
+import { obterTokenValidacao } from '../../utils/tokenValidacaoReserva';
 import CampoDataMorabeza from '../Calendario/CampoDataMorabeza';
 // components/admin/SolicitarDocumentoModal.jsx
 import React, { useState, useEffect } from 'react';
@@ -74,7 +75,7 @@ export default function SolicitarDocumentoModal({
     try {
       const res = await fetch(`${API_URL}/admin/solicitar_documento.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${obterTokenValidacao(localStorage, 'admin') || ''}` },
         body: JSON.stringify({
           action: 'listar_por_anuncio',
           anuncio_id: anuncioId,
@@ -130,7 +131,7 @@ export default function SolicitarDocumentoModal({
     try {
       const res = await fetch(`${API_URL}/admin/solicitar_documento.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${obterTokenValidacao(localStorage, 'admin') || ''}` },
         body: JSON.stringify({
           action: 'criar_pedido',
           anuncio_id: parseInt(anuncioId),
@@ -181,7 +182,7 @@ export default function SolicitarDocumentoModal({
     try {
       const res = await fetch(`${API_URL}/admin/solicitar_documento.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${obterTokenValidacao(localStorage, 'admin') || ''}` },
         body: JSON.stringify({
           action: 'aprovar_documento',
           pedido_id: pedidoId,
@@ -222,7 +223,7 @@ export default function SolicitarDocumentoModal({
     try {
       const res = await fetch(`${API_URL}/admin/solicitar_documento.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${obterTokenValidacao(localStorage, 'admin') || ''}` },
         body: JSON.stringify({
           action: 'rejeitar_documento',
           pedido_id: showRejeitar.id,

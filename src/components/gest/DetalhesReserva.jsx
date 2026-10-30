@@ -1,4 +1,5 @@
 import { descarregarComprovativo } from '../../services/comprovativoReserva';
+import { carregarDetalhesReserva } from '../../services/detalhesReservaService';
 import { useTranslation } from 'react-i18next';
 import HeaderGestao from './HeaderGestao';
 // pages/DetalhesReservaPage.jsx
@@ -53,39 +54,35 @@ export default function DetalhesReservaPage() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     if (id && tipo) {
-      fetchDetalhes();
+      fetchDetalhes(controller.signal);
     }
+    return () => controller.abort();
   }, [id, tipo]);
 
-  const fetchDetalhes = async () => {
+  const fetchDetalhes = async (signal) => {
     setLoading(true);
     setError(null);
+    setDetalhes(null);
+    setReembolsos([]);
     try {
-      const usuarioId = obterUsuarioId();
-      if (!usuarioId) {
-        setError('Usuário não autenticado');
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(
-        `${API_URL}/api/dashboard/detalhes_reserva.php?reserva_id=${id}&usuario_id=${usuarioId}&tipo=${tipo}`
-      );
-      const data = await response.json();
+      const data = await carregarDetalhesReserva(id, tipo, signal);
+      if (signal?.aborted) return;
 
       if (data.success) {
         setDetalhes(data.data);
         // Buscar reembolsos em paralelo
-        fetchReembolsos(usuarioId);
+        fetchReembolsos(obterUsuarioId());
       } else {
         setError(data.message || 'Erro ao carregar detalhes');
       }
     } catch (err) {
-      setError('Erro ao carregar detalhes da reserva');
+      if (signal?.aborted) return;
+      setError(err.response?.data?.message || 'Erro ao carregar detalhes da reserva');
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
@@ -147,7 +144,7 @@ export default function DetalhesReservaPage() {
   const baixarRecibo = async () => {
     try {
       await descarregarComprovativo({ tipo, id, codigo: detalhes?.codigo_reserva });
-    } catch { window.alert(t('comprovativo_erro_download')); }
+    } catch (error) { window.alert(t(error.translationKey || 'comprovativo_erro_download')); }
   };
 
   const getStatusConfig = (status) => {
@@ -166,7 +163,7 @@ export default function DetalhesReservaPage() {
   const downloadQRCode = () => {
     if (!detalhes?.qr_code) return;
     const link = document.createElement('a');
-    link.download = `qr-code-${detalhes.codigo_reserva}.png`;
+    link.download = `qr-code-${detalhes.codigo_reserva}.${detalhes.qr_code.startsWith('data:image/svg+xml') ? 'svg' : 'png'}`;
     link.href = detalhes.qr_code;
     link.target = '_blank';
     link.click();
@@ -211,7 +208,7 @@ export default function DetalhesReservaPage() {
 
   const statusConfig = getStatusConfig(detalhes.status);
   const valorTotal = Number(detalhes.valor) || 0;
-  const valorPago = Number(detalhes.valor_pago) || valorTotal;
+  const valorPago = detalhes.valor_pago == null ? valorTotal : Number(detalhes.valor_pago);
   const valorPendente = Math.max(0, valorTotal - valorPago);
   const temReembolso = reembolsos && reembolsos.length > 0;
 
@@ -473,7 +470,7 @@ export default function DetalhesReservaPage() {
               <Link to="/gest/minhas-reservas" className="w-full px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
                 <List className="h-4 w-4" /> Ver Todas
               </Link>
-              {detalhes.status !== 'Cancelada' && detalhes.status !== 'Concluída' && (
+              {detalhes.papel !== 'anfitriao' && detalhes.status !== 'Cancelada' && detalhes.status !== 'Concluída' && (
                 <button onClick={handleCancelar} disabled={canceling} className="w-full px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50">
                   <XCircle className="inline-block h-4 w-4 mr-2" />{canceling ? 'Cancelando...' : 'Cancelar Reserva'}
                 </button>

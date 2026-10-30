@@ -245,7 +245,7 @@ export default function Reservas() {
   const baixarRecibo = async (reserva) => {
     try {
       await descarregarComprovativo({ tipo: reserva.tipo, id: reserva.id, codigo: reserva.codigo_reserva });
-    } catch { showToast(t('comprovativo_erro_download'), 'error'); }
+    } catch (error) { showToast(t(error.translationKey || 'comprovativo_erro_download'), 'error'); }
   };
 
   const abrirReembolso = (reserva) => {

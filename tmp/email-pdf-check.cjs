@@ -1,0 +1,9 @@
+﻿const fs=require('fs'),path=require('path');
+const root=path.join(process.env.TEMP,'morabeza-email-php-check/node_modules');
+(async()=>{const {PHP}=require(path.join(root,'@php-wasm/universal'));const {loadNodeRuntime}=require(path.join(root,'@php-wasm/node'));const php=new PHP(await loadNodeRuntime('8.3',{emscriptenOptions:{processId:59482,wasmBinary:fs.readFileSync(path.join(root,'@php-wasm/node-8-3/asyncify/8_3_33/php_8_3.wasm'))}}));
+for(const d of ['/v','/v/server','/v/server/api','/v/server/previews','/v/tests'])php.mkdir(d);
+for(const f of ['server/api/send_email.php','server/previews/reservas-exemplo.json','tests/emailReserva.test.php'])php.writeFile('/v/'+f,fs.readFileSync(f));
+let r=await php.run({scriptPath:'/v/tests/emailReserva.test.php'});console.log(r.text,r.errors);if(r.exitCode)process.exit(1);
+r=await php.run({code:"<?php require '/v/server/api/send_email.php'; $out=[]; foreach(json_decode(file_get_contents('/v/server/previews/reservas-exemplo.json'),true) as $d){$d['preview_assets']=true;$out[$d['tipo']]=renderizarConfirmacaoReserva($d);} echo json_encode($out);"});
+for(const [type,html] of Object.entries(JSON.parse(r.text))){if(!html.includes('dm-badge-paid')||html.includes('{{'))throw Error('Dark template tokens');fs.writeFileSync('server/previews/email-'+type+'.html',html);}
+const preflight=await php.run({code:"<?php require '/v/server/api/send_email.php'; $_SERVER['REQUEST_METHOD']='OPTIONS'; executarComprovativoReserva();"}); console.log('Download OPTIONS:',preflight.httpStatusCode,preflight.errors); if(preflight.httpStatusCode!==204)throw Error('PDF preflight failed'); process.exit(0);})().catch(e=>{console.error(e);process.exit(1)});

@@ -5,12 +5,12 @@ require_once __DIR__ . '/emailAssets.php';
 function emailReservaImg(string $name, int $size = 24, bool $preview = false, ?int $height = null): string {
     if ($name === 'logo' || $name === 'sun') {
         $width = $name === 'logo' ? 260 : 120;
-        return '<img src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" width="' . $width . '" alt="Morabeza Stay" style="display:inline-block;vertical-align:middle;border:0;width:' . $width . 'px;max-width:100%;height:auto;">';
+        return '<img class="brand-mark" src="https://res.cloudinary.com/dpsrmzvsl/image/upload/v1781877448/logo_morabeza_r1s2ne.png" width="' . $width . '" alt="Morabeza Stay" style="display:inline-block;vertical-align:middle;border:0;width:' . $width . 'px;max-width:100%;height:auto;box-sizing:border-box;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff);border-radius:10px;padding:10px 14px;">';
     }
     $assets = emailReservaAssets();
     if (!isset($assets[$name])) return '';
     $src = $preview ? 'data:image/png;base64,' . $assets[$name] : 'https://morabezastay.cv/images/email/' . rawurlencode($name) . '.png';
-    return '<img src="' . $src . '" width="' . $size . '" height="' . ($height ?? $size) . '" alt="" style="display:inline-block;vertical-align:middle;border:0;width:' . $size . 'px;height:' . ($height ?? $size) . 'px;">';
+    return '<img class="email-icon" src="' . $src . '" width="' . $size . '" height="' . ($height ?? $size) . '" alt="" style="display:inline-block;vertical-align:middle;border:0;width:' . $size . 'px;height:' . ($height ?? $size) . 'px;background:#ffffff;background-image:linear-gradient(#ffffff,#ffffff);border-radius:5px;padding:2px;">';
 }
 
 function emailReservaEsc($value): string {
@@ -65,12 +65,12 @@ function renderizarConfirmacaoReserva(array $d): string {
         $image = emailReservaUrl($item['imagem'] ?? '') ?: $photo;
         $reserved .= '<table role="presentation" width="100%" style="margin-top:10px"><tr>';
         if ($image) $reserved .= '<td class="stack" width="43%" style="padding-right:20px"><img class="photo" src="' . $e($image) . '" width="280" height="110" alt="' . $e($item['nome']) . '" style="width:100%;height:110px;object-fit:cover;border-radius:9px"></td>';
-        $reserved .= '<td class="stack" style="vertical-align:middle"><h3 style="font:bold 21px/1.3 Georgia,serif;color:#07176a;margin:0">' . $e($item['nome']) . '</h3><p style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">' . $e($item['descricao'] ?? '') . '</p></td></tr></table>';
+        $reserved .= '<td class="stack" style="vertical-align:middle"><h3 class="dm-heading" style="font:bold 21px/1.3 Georgia,serif;color:#07176a;margin:0">' . $e($item['nome']) . '</h3><p class="dm-text" style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">' . $e($item['descricao'] ?? '') . '</p></td></tr></table>';
     }
-    if ($reserved === '') $reserved = '<h3 style="font:bold 21px/1.3 Georgia,serif;color:#07176a;margin:10px 0 0">' . $e($d['titulo']) . '</h3><p style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">' . $e($d['detalhes'] ?? '') . '</p>';
+    if ($reserved === '') $reserved = '<h3 class="dm-heading" style="font:bold 21px/1.3 Georgia,serif;color:#07176a;margin:10px 0 0">' . $e($d['titulo']) . '</h3><p class="dm-text" style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">' . $e($d['detalhes'] ?? '') . '</p>';
     $rows = '';
     foreach (($d['linhas_pagamento'] ?? []) as $row) {
-        $rows .= '<tr><td style="padding:8px 10px 16px 0;font:17px/1.4 Arial,sans-serif;color:#294d83">' . $e($row['descricao']) . '</td><td align="right" style="padding:8px 0 16px;font:17px/1.4 Arial,sans-serif;color:#294d83;white-space:nowrap">' . $e(emailReservaDinheiro($row['valor'])) . '</td></tr>';
+        $rows .= '<tr><td class="dm-text" style="padding:8px 10px 16px 0;font:17px/1.4 Arial,sans-serif;color:#294d83">' . $e($row['descricao']) . '</td><td class="dm-text" align="right" style="padding:8px 0 16px;font:17px/1.4 Arial,sans-serif;color:#294d83;white-space:nowrap">' . $e(emailReservaDinheiro($row['valor'])) . '</td></tr>';
     }
     $address = (string) ($d['morada'] ?? $d['localizacao'] ?? '');
     $map = $address !== '' ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($address) : '';
@@ -87,7 +87,7 @@ function renderizarConfirmacaoReserva(array $d): string {
         'hero_image' => $d['hero_image'] ?? 'https://morabezastay.cv/media/home-beach-29984774-poster.jpg',
         'headline' => $headline, 'subtitle' => $paid ? 'Pagamento recebido. A sua viagem começa aqui.' : 'Consulte os detalhes da sua reserva.',
         'first_name' => explode(' ', $name)[0], 'greeting' => $confirmed && $paid ? 'A sua reserva está confirmada e o pagamento foi recebido.' : ($paid ? 'O pagamento foi recebido. Consulte abaixo o estado da sua reserva.' : 'Recebemos a sua reserva. O pagamento ainda está pendente.'),
-        'code' => $code, 'badge_color' => $paid ? '#087f46' : '#995500', 'badge_bg' => $paid ? '#d7f2df' : '#fff1cf', 'payment_badge' => $paid ? 'Pago' : 'Pagamento pendente',
+        'code' => $code, 'badge_state' => $paid ? 'paid' : 'pending', 'badge_color' => $paid ? '#087f46' : '#995500', 'badge_bg' => $paid ? '#d7f2df' : '#fff1cf', 'payment_badge' => $paid ? 'Pago' : 'Pagamento pendente',
         'listing_title' => $d['titulo'] . (!empty($d['localizacao']) ? ' · ' . $d['localizacao'] : ''),
         'address' => $address, 'start_label' => $startLabel, 'end_label' => $endLabel,
         'start' => emailReservaData($d['inicio'] ?? '') . (!empty($d['hora_inicio']) ? ' · ' . $d['hora_inicio'] : ''),
@@ -104,12 +104,12 @@ function renderizarConfirmacaoReserva(array $d): string {
     $replacements = [];
     foreach ($tokens as $key => $value) $replacements['{{' . $key . '}}'] = $e($value);
     $raw = [
-        'demo_banner' => !empty($d['exemplo']) ? '<tr><td align="center" style="background:#eaf2f8;border-radius:7px;padding:9px;color:#294d83;font:13px Arial,sans-serif">MODELO VISUAL &#183; DADOS DE EXEMPLO</td></tr>' : '',
+        'demo_banner' => !empty($d['exemplo']) ? '<tr><td class="dm-text dm-soft" align="center" style="background:#eaf2f8;border-radius:7px;padding:9px;color:#294d83;font:13px Arial,sans-serif">MODELO VISUAL &#183; DADOS DE EXEMPLO</td></tr>' : '',
         'listing_photo' => $photoHtml, 'reserved_items' => $reserved, 'payment_rows' => $rows,
-        'map_link' => $map ? '<table role="presentation" style="margin-top:10px"><tr><td width="30">' . $icon('map', 21) . '</td><td style="font:15px Arial,sans-serif;vertical-align:middle"><a style="color:#0758ae;text-decoration:underline" href="' . $e($map) . '">Ver localização no mapa &nbsp; &#8594;</a></td></tr></table>' : '',
-        'arrival_notes' => !empty($d['instrucoes']) ? '<p style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:12px 0 0">' . nl2br($e($d['instrucoes'])) . '</p>' : '<p style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:12px 0 0">Instruções de acesso disponíveis em Ver a minha reserva.</p>',
+        'map_link' => $map ? '<table role="presentation" style="margin-top:10px"><tr><td width="30">' . $icon('map', 21) . '</td><td style="font:15px Arial,sans-serif;vertical-align:middle"><a class="dm-link" style="color:#0758ae;text-decoration:underline" href="' . $e($map) . '">Ver localização no mapa &nbsp; &#8594;</a></td></tr></table>' : '',
+        'arrival_notes' => !empty($d['instrucoes']) ? '<p class="dm-text" style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:12px 0 0">' . nl2br($e($d['instrucoes'])) . '</p>' : '<p class="dm-text" style="font:16px/1.5 Arial,sans-serif;color:#294d83;margin:12px 0 0">Instruções de acesso disponíveis em Ver a minha reserva.</p>',
         'host_contact' => $host !== '' ? '<b>' . $e(['alojamento' => 'Alojamento', 'carro' => 'Rent-a-car', 'experiencia' => 'Organizador'][$tipo]) . ':</b><br>' . $host : 'Consulte os contactos do anfitrião na sua reserva.',
-        'principal' => $principal, 'additional_people' => $people ? '<p style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin-top:10px"><b>Também nesta reserva:</b><br>' . implode('<br>', $people) . '</p>' : '',
+        'principal' => $principal, 'additional_people' => $people ? '<p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin-top:10px"><b>Também nesta reserva:</b><br>' . implode('<br>', $people) . '</p>' : '',
         'logo' => emailReservaImg('logo', 440, $preview, 82),
         'sun' => $icon('sun', 48),
         'reserved_icon' => $icon(['alojamento'=>'bed','carro'=>'car','experiencia'=>'experience'][$tipo], 26),
