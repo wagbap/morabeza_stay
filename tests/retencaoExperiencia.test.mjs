@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { criarReservadorVagas } from '../src/utils/retencaoExperiencia.js';
+import { criarReservadorVagas, mensagemErroRetencao } from '../src/utils/retencaoExperiencia.js';
+
+test('HTTP failures preserve the API explanation instead of hiding it', () => {
+  assert.equal(mensagemErroRetencao({ response: { data: '{"success":false,"error":"Only 2 places available"}' } }), 'Only 2 places available');
+  assert.equal(mensagemErroRetencao({ response: { data: { message: 'Session expired' } } }), 'Session expired');
+  assert.equal(mensagemErroRetencao({ response: { data: '<html>Server error</html>' } }), null);
+  assert.equal(mensagemErroRetencao(new Error('Network')), null);
+});
 
 test('StrictMode subscriptions share one in-flight hold request', async () => {
   let calls = 0;

@@ -39,8 +39,8 @@ export const TituloRegisto = ({ dominio, fase, editar = false }) => {
   const key = steps[dominio][fase - 1]?.[0] || 'info';
   return <div className="mb-7 flex items-start gap-3 sm:gap-4">
     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 sm:h-14 sm:w-14">{React.createElement(Icon, { size: 28, strokeWidth: 1.8 })}</div>
-    <div className="min-w-0"><h1 className="text-xl font-bold leading-tight tracking-tight text-[#0b183b] sm:text-2xl">{fase === 1 ? t(editar ? `crud_editar_${dominio}` : `crud_criar_${dominio}`) : t(`crud_etapa_${key}`)}</h1>
-    <p className="mt-2 text-sm leading-relaxed text-slate-500">{t(fase === 1 ? `crud_intro_${dominio}` : 'crud_intro_etapa')}</p></div>
+    <div className="min-w-0"><h1 className="text-xl font-bold leading-tight tracking-tight text-[#0b183b] sm:text-2xl">{dominio === 'experiencia' && fase === 1 ? t('experiencia_registo_informacoes_titulo','Informações da experiência') : fase === 1 ? t(editar ? `crud_editar_${dominio}` : `crud_criar_${dominio}`) : t(`crud_etapa_${key}`)}</h1>
+    <p className="mt-2 text-sm leading-relaxed text-slate-500">{dominio === 'experiencia' && fase === 1 ? t('experiencia_registo_informacoes_intro','Comece por definir como a experiência será reservada.') : dominio === 'experiencia' && fase === 8 ? t('experiencia_registo_disponibilidade_intro','Defina a capacidade e os dias de funcionamento da experiência.') : t(fase === 1 ? `crud_intro_${dominio}` : 'crud_intro_etapa')}</p></div>
   </div>;
 };
 

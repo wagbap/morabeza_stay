@@ -510,6 +510,7 @@ try {
             $reservaId = null;
 
             if ($category === 'Experiencia') {
+                if(empty($input['token_retencao']))throw new Exception('Reserve uma sessão antes de concluir o pagamento.');
                 $experiencia_id     = $input['reserva']['experiencia_id'] ?? null;
                 $data_participacao  = $input['reserva']['data_participacao'] ?? null;
                 $horario            = $input['reserva']['horario'] ?? null;
@@ -521,16 +522,20 @@ try {
                 $conn->prepare("
                     INSERT INTO reservas_experiencia
                         (usuario_id, experiencia_id, codigo_reserva, data_participacao,
-                         horario, quantidade_pessoas, preco_total, status, pagamento_status, idempotency_key, data_reserva)
+                         horario, quantidade_pessoas, quantidade_jet_skis, preco_total, status, pagamento_status, idempotency_key, data_reserva)
                     VALUES
-                        (:uid, :eid, :code, :dp, :hr, :qp, :pt, :estado, :pagamento, :idem, NOW())
+                        (:uid, :eid, :code, :dp, :hr, :qp, :qj, :pt, :estado, :pagamento, :idem, NOW())
                 ")->execute([
                     ':uid'=>$usuario_id, ':eid'=>$experiencia_id, ':code'=>$codigoReserva,
-                    ':dp'=>$data_participacao, ':hr'=>$horario, ':qp'=>$quantidade_pessoas,
+                    ':dp'=>$data_participacao, ':hr'=>$horario, ':qp'=>$quantidade_pessoas, ':qj'=>(int)($input['reserva']['quantidade_jet_skis'] ?? 1),
                     ':pt'=>$preco_total, ':idem'=>$idempotency_key,
                     ':estado'=>$estadoReserva, ':pagamento'=>$estadoPagamento,
                 ]);
                 $reservaId = $conn->lastInsertId();
+                if (!empty($input['token_retencao'])) {
+                    require_once __DIR__.'/retencaoExperiencia.php';
+                    confirmarVagasTemporarias($conn,(string)$input['token_retencao'],(int)$reservaId,false);
+                }
 
             } elseif ($category === 'Alojamento') {
                 $alojamento_id       = (int)($input['reserva']['alojamento_id'] ?? 0);

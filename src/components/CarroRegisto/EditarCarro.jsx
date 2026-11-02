@@ -1,3 +1,4 @@
+import { localizacaoObrigatoriaCompleta } from '../../utils/localizacaoObrigatoria';
 import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
 import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
@@ -106,7 +107,21 @@ const EditarCarro = () => {
     carregarCarro();
   }, [carroId, navigate, showToast]);
 
+  const validarLocalizacaoObrigatoria = () => {
+    if (localizacaoObrigatoriaCompleta(localizacao, 'local')) return true;
+    showToast(t('registo_localizacao_obrigatoria'), 'error');
+    setFase(3);
+    window.scrollTo(0, 0);
+    return false;
+  };
+  const mudarEtapa = proxima => {
+    if (fase === 3 && proxima > fase && !validarLocalizacaoObrigatoria()) return;
+    setFase(proxima);
+    window.scrollTo(0, 0);
+  };
+
   const handleNext = () => {
+    if (fase === 3 && !validarLocalizacaoObrigatoria()) return;
     setFase(fase + 1);
     window.scrollTo(0, 0);
   };
@@ -121,6 +136,7 @@ const EditarCarro = () => {
   };
 
   const handleFinalizar = async () => {
+    if (!validarLocalizacaoObrigatoria()) return;
     if (isSubmitting) return;
     if (!temFotoAnuncio(imagens)) {
       showToast(t('anuncio_foto_obrigatoria'), 'error');
@@ -159,7 +175,7 @@ const EditarCarro = () => {
     }
   };
 
-  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={handleNext} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onStepChange={mudarEtapa} onBack={handleBack} onNext={handleNext} />;
 
   if (loading) {
     return (
@@ -196,8 +212,6 @@ const EditarCarro = () => {
       <div className="mx-auto flex w-full max-w-4xl px-4 pt-4 sm:justify-end">
         <Link
           to="/gest/unidades-veiculos"
-          target="_blank"
-          rel="noopener noreferrer"
           className="flex min-h-11 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-3 text-center text-sm font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-auto"
         >
           {t('registo_atalho_unidades')}

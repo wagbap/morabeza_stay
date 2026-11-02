@@ -1,0 +1,25 @@
+const fs = require('fs'), path = require('path');
+const root = path.join(process.env.TEMP, 'morabeza-email-php-check/node_modules');
+(async () => {
+  const { PHP } = require(path.join(root, '@php-wasm/universal'));
+  const { loadNodeRuntime } = require(path.join(root, '@php-wasm/node'));
+  const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 65315, wasmBinary: fs.readFileSync(path.join(root, '@php-wasm/node-8-3/asyncify/8_3_33/php_8_3.wasm')) } }));
+  php.mkdir('/v'); php.mkdir('/v/admin');
+  php.writeFile('/v/config.php', "<?php $conn=new PDO('sqlite:/v/test.sqlite');");
+  php.writeFile('/v/reserva-validacao.php', "<?php function utilizadorReservaQR(PDO $c,string $scope):int {return 1;}");
+  php.writeFile('/v/test.sqlite', fs.readFileSync('tmp/repasses-seed.sqlite'));
+  php.writeFile('/v/admin/repassesLogica.php', fs.readFileSync('server/api/admin/repassesLogica.php'));
+  php.writeFile('/v/admin/repasses.php', fs.readFileSync('server/api/admin/repasses.php', 'utf8').replace("new DateTimeImmutable('now')", "new DateTimeImmutable('2026-10-30 12:00:00')"));
+  const result = await php.run({ scriptPath: '/v/admin/repasses.php', method: 'POST', body: new TextEncoder().encode('{"action":"painel"}') });
+  if (result.errors) throw Error(result.errors);
+  const body = JSON.parse(result.text);
+  if (body.status !== 'success') throw Error(result.text);
+  const totals = {};
+  for (const row of body.reservas) totals[row.estado] = (totals[row.estado] || 0) + row.liquido_centavos;
+  const expected = { aguardar: 900000, disponivel: 1350000, verificar: 270000, pago: 1800000 };
+  for (const key of Object.keys(expected)) if (totals[key] !== expected[key]) throw Error(JSON.stringify(totals));
+  if (body.reservas.filter(r => r.atrasado).length !== 1 || body.reservas.filter(r => r.vence_hoje).length !== 1) throw Error('Deadline mismatch');
+  fs.writeFileSync('tmp/repasses-seed-api.json', JSON.stringify(body));
+  console.log('PASS: seed through real API matches reference: 9000 waiting, 13500 available, 2700 unverified, 18000 paid, one overdue and one due today. Fixed clock 2026-10-30; SQLite/auth stub.');
+  process.exit(0);
+})().catch(e => { console.error(e); process.exit(1); });

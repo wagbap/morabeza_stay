@@ -1,40 +1,18 @@
 import api from '../api/api';
 // src/services/experienciaApiService.js
 
-const API_BASE_URL = api.defaults.baseURL.replace(/\/$/, '');
+import i18n from '../i18n';
+import { obterTokenValidacao } from '../utils/tokenValidacaoReserva';
 
 async function apiRequest(endpoint, method, data = null) {
-    const options = {
-        method: method,
-        mode: 'cors',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-    };
-
-    if (data && (method === 'POST' || method === 'PUT')) {
-        options.body = JSON.stringify(data);
-    }
-
+    const token = obterTokenValidacao(localStorage, 'host');
     try {
-        const url = `${API_BASE_URL}${endpoint}`;
-        const response = await fetch(url, options);
-        const contentType = response.headers.get('content-type');
-        
-        if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.message || 'Erro na requisição');
-            }
-            return result;
-        } else {
-            const text = await response.text();
-            throw new Error(`Resposta da API não é JSON: ${text.substring(0, 100)}...`);
-        }
+        const response = await api.request({ url: endpoint, method, data: data ?? undefined,
+            headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (!response.data || typeof response.data !== 'object') throw new Error('API_INVALID_JSON');
+        return response.data;
     } catch (error) {
-        console.error('❌ API Error:', error);
-        throw error;
+        throw new Error(error.response?.data?.message || error.response?.data?.error || error.message);
     }
 }
 
@@ -72,44 +50,24 @@ export async function buscarCategorias() {
 
 // ==================== UPLOAD DE IMAGENS ====================
 
-export async function uploadImagemExperiencia(file, experienciaId = null, ordem = 0) {
+export async function uploadImagemExperiencia(file, experienciaId = null, ordem = 0, onProgress) {
     const formData = new FormData();
     formData.append('imagem', file);
     if (experienciaId) formData.append('experiencia_id', experienciaId);
     formData.append('ordem', ordem);
-    
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                if (typeof onProgress === 'function') onProgress(percent);
-            }
+    try {
+        const { data } = await api.post('/experiencia/upload_imagem.php', formData, {
+            // The browser supplies the multipart boundary; do not serialize this as JSON.
+            headers: { 'Content-Type': undefined },
+            onUploadProgress: event => {
+                if (typeof onProgress === 'function' && event.total > 0) onProgress(Math.round(event.loaded / event.total * 100));
+            },
         });
-        
-        xhr.onload = () => {
-            if (xhr.status === 200) {
-                try {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.success) {
-                        resolve(response.data);
-                    } else {
-                        reject(new Error(response.message));
-                    }
-                } catch (e) {
-                    reject(new Error('Erro ao processar resposta do servidor'));
-                }
-            } else {
-                reject(new Error(`Erro ${xhr.status}: ${xhr.statusText}`));
-            }
-        };
-        
-        xhr.onerror = () => reject(new Error('Erro de conexão com o servidor'));
-        
-        xhr.open('POST', `${API_BASE_URL}/experiencia/upload_imagem.php`);
-        xhr.send(formData);
-    });
+        if (!data?.success || !data.data || typeof data.data !== 'object') throw new Error(data?.message || data?.error || i18n.t('experiencia_upload_resposta_invalida', 'Não foi possível interpretar a resposta do upload.'));
+        return data.data;
+    } catch (error) {
+        throw new Error(error.response?.data?.message || error.response?.data?.error || error.message);
+    }
 }
 
 export async function removerImagemExperiencia(imagemId) {
@@ -124,6 +82,10 @@ export async function salvarFluxoExperiencia(dados, experienciaId = null) {
     // Estruturar dados corretamente
     const payload = {
         usuario_id: dados.usuario_id || 1,
+        modelo_reserva: dados.modelo_reserva || 'por_pessoa',
+        equipamento_nome: dados.modelo_reserva === 'por_equipamento' ? dados.equipamento_nome?.trim() || '' : null,
+        quantidade_equipamentos: dados.modelo_reserva === 'por_equipamento' ? Number(dados.quantidade_equipamentos) : null,
+        pessoas_por_equipamento: dados.modelo_reserva === 'por_equipamento' ? Number(dados.pessoas_por_equipamento) : null,
         titulo: dados.titulo || '',
         descricao_curta: dados.descricao_curta || '',
         descricao_longa: dados.descricao_longa || '',
@@ -133,12 +95,13 @@ export async function salvarFluxoExperiencia(dados, experienciaId = null) {
         endereco: dados.endereco?.morada || dados.endereco || '',
         latitude: dados.endereco?.lat || dados.latitude || null,
         longitude: dados.endereco?.lng || dados.longitude || null,
-        ilha: dados.ilha || '',
-        preco: parseFloat(dados.preco) || 0,
+        cidade: dados.endereco?.cidade?.trim() || dados.cidade?.trim() || '',
+        ilha: dados.endereco?.ilha?.trim() || dados.ilha?.trim() || '',
+        preco: dados.modelo_reserva === 'por_equipamento' ? 0 : parseFloat(dados.preco) || 0,
         preco_crianca: dados.preco_crianca ? parseFloat(dados.preco_crianca) : null,
         preco_bebe: dados.preco_bebe ? parseFloat(dados.preco_bebe) : null,
         duracao: dados.duracao || '2 horas',
-        max_pessoas: parseInt(dados.max_pessoas) || 10,
+        max_pessoas: dados.modelo_reserva === 'por_equipamento' ? Number(dados.quantidade_equipamentos) * Number(dados.pessoas_por_equipamento) : parseInt(dados.max_pessoas) || 10,
         min_pessoas: parseInt(dados.min_pessoas) || 1,
         inclui_guia: dados.inclui_guia ? 1 : 0,
         inclui_transporte: dados.inclui_transporte ? 1 : 0,
@@ -170,7 +133,7 @@ export async function salvarFluxoExperiencia(dados, experienciaId = null) {
 }
 
 export async function buscarExperienciaParaEdicao(id) {
-    return buscarExperiencia(id);
+    return apiRequest(`/experiencia/buscar.php?id=${encodeURIComponent(id)}&edicao=1`, 'GET');
 }
 
 export default {

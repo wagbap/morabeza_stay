@@ -1,3 +1,4 @@
+import { localizacaoObrigatoriaCompleta } from '../../utils/localizacaoObrigatoria';
 import { obterUtilizadorRegisto } from '../../utils/registoSession';
 import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
@@ -160,7 +161,21 @@ const FluxoRegisto = () => {
   }, []);
 
   // ==================== NAVEGAÇÃO ====================
+  const validarLocalizacaoObrigatoria = () => {
+    if (localizacaoObrigatoriaCompleta(localizacao, 'local')) return true;
+    showToast(t('registo_localizacao_obrigatoria'), 'error');
+    setFase(3);
+    window.scrollTo(0, 0);
+    return false;
+  };
+  const mudarEtapa = proxima => {
+    if (fase === 3 && proxima > fase && !validarLocalizacaoObrigatoria()) return;
+    setFase(proxima);
+    window.scrollTo(0, 0);
+  };
+
   const handleNext = () => {
+    if (fase === 3 && !validarLocalizacaoObrigatoria()) return;
     if (fase === 1) {
       if (!informacoes.titulo) {
         showToast('O título do veículo é obrigatório', 'error');
@@ -198,6 +213,7 @@ const FluxoRegisto = () => {
 
   // ==================== FINALIZAR ====================
   const handleFinalizar = async () => {
+    if (!validarLocalizacaoObrigatoria()) return;
     if (isSubmitting) return;
     if (!temFotoAnuncio(imagens)) {
       showToast(t('anuncio_foto_obrigatoria'), 'error');
@@ -244,7 +260,7 @@ const FluxoRegisto = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={handleNext} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="carro" fase={fase} onStepChange={mudarEtapa} onBack={handleBack} onNext={handleNext} />;
 
   const temRascunho = !!localStorage.getItem(RASCUNHO_KEY);
 
@@ -265,9 +281,7 @@ const FluxoRegisto = () => {
         <div className="flex items-center">
           <Link
             to="/gest/unidades-veiculos"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg border border-white/30 px-3 py-2 text-xs font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+                className="rounded-lg border border-white/30 px-3 py-2 text-xs font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
           >
             {t('registo_atalho_unidades')}
           </Link>

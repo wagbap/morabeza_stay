@@ -17,6 +17,7 @@ const Navbar = () => {
   
   const { i18n, t } = useTranslation();
   const location = useLocation();
+  const sessionDesign = /^\/gest\/experiencia\/[^/]+\/sessoes$/.test(location.pathname);
   const langRef = useRef(null);
   const registoTooltipId = useId();
 
@@ -72,7 +73,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className={`w-full z-[100] px-4 md:px-12 py-3.5 md:py-5 flex justify-between items-center gap-3 lg:gap-0 transition-all duration-300 ${getNavbarClasses()}`}>
+      <nav className={`w-full z-[100] px-4 md:px-12 py-3.5 ${sessionDesign ? "md:py-[15px]" : "md:py-5"} flex justify-between items-center gap-3 lg:gap-0 transition-all duration-300 ${getNavbarClasses()}`}>
         
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Link to="/" className="flex items-center min-w-0 shrink-0 lg:min-w-[150px] lg:shrink">

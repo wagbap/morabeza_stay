@@ -4,7 +4,7 @@ import CalendarioMorabeza from './CalendarioMorabeza';
 import { dataLocalDeISO, dataLocalParaISO } from './dataLocal';
 
 /** Date-only field compatible with the existing controlled form handlers. */
-export default function CampoDataMorabeza({ value = '', onChange, min, max, name, className = '', ...props }) {
+export default function CampoDataMorabeza({ value = '', onChange, min, max, name, className = '', isClearable, ...props }) {
   const { t } = useTranslation();
   return (
     <CalendarioMorabeza
@@ -29,7 +29,7 @@ export default function CampoDataMorabeza({ value = '', onChange, min, max, name
       clearButtonTitle={t('calendario_limpar_data')}
       ariaLabelClose={t('calendario_limpar_data')}
       strictParsing
-      isClearable={!props.required && !props.disabled}
+      isClearable={!props.disabled && (isClearable ?? !props.required)}
     />
   );
 }

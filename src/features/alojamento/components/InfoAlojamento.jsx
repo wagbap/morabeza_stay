@@ -1,3 +1,4 @@
+import { getIconeComodidade } from '../../../utils/comodidadesQuarto';
 import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
 import { requestApiJson } from '../../../services/apiJson';
 // src/features/alojamento/components/InfoAlojamento.jsx
@@ -864,23 +865,6 @@ const SidebarReserva = ({
 const AmenitiesBar = ({ infoBasica, comodidades }) => {
   const { t } = useTranslation();
 
-  const getIconForComodidade = (nome) => {
-    const nomeLower = nome.toLowerCase();
-    if (nomeLower.includes('wifi') || nomeLower.includes('wi-fi')) return Wifi;
-    if (nomeLower.includes('ar condicionado')) return Wind;
-    if (nomeLower.includes('cozinha')) return Coffee;
-    if (nomeLower.includes('tv')) return LayoutGrid;
-    if (nomeLower.includes('quarto') || nomeLower.includes('suite')) return Bed;
-    if (nomeLower.includes('banheira')) return Bath;
-    if (nomeLower.includes('piscina')) return Droplet;
-    if (nomeLower.includes('estacionamento')) return Car;
-    if (nomeLower.includes('vista mar')) return Eye;
-    if (nomeLower.includes('segurança')) return Shield;
-    if (nomeLower.includes('elevador')) return ChevronUp;
-    if (nomeLower.includes('máquina de lavar')) return Shirt;
-    return CheckCircle;
-  };
-
   const comodidadesReais = comodidades || [];
 
   if (comodidadesReais.length === 0) {
@@ -894,11 +878,11 @@ const AmenitiesBar = ({ infoBasica, comodidades }) => {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
       {comodidadesReais.map((item, i) => {
-        const IconComponent = getIconForComodidade(item.nome);
+
         return (
           <div key={i} className="flex items-center gap-2">
             <div className="text-slate-400 shrink-0">
-              <IconComponent size={18} strokeWidth={1.5} />
+              {getIconeComodidade(item.nome || item.icone, 18)}
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] font-bold text-slate-900 leading-tight">

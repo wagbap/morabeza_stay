@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@googlemaps/js-api-loader": "^2.0.2",
     "@paypal/react-paypal-js": "^9.2.0",
     "@react-google-maps/api": "^2.20.8",

@@ -1,3 +1,8 @@
+import { equipamentoJetSki } from '../eExperienciaJetSki';
+import api from '../../../api/api';
+import { sessoesDisponiveis, opcoesDuracao, sessoesDaDuracao, vendaPorEquipamento } from '../sessoesCliente';
+import CartaoReservaExperiencia from './CartaoReservaExperiencia';
+import { precoDaSessao, totalExperiencia } from '../precoSessao';
 import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
 // src/features/experiencias/components/ExperienciaDetalhes.jsx
 import React, { useState, useEffect, useRef } from 'react';
@@ -391,9 +396,11 @@ const SidebarReservaExperiencia = ({
 }) => {
   const { t } = useTranslation();
   const [showCalendar, setShowCalendar] = useState(false);
-  const duracao = experiencia?.duracao || '';
   const [quantidadeJetSkis, setQuantidadeJetSkis] = useState(1);
+  const [sessaoIdSelecionada, setSessaoIdSelecionada] = useState(null);
   const [participantes, setParticipantes] = useState(1);
+  const [duracaoEscolhida, setDuracaoEscolhida] = useState(null);
+  const [mesCalendario, setMesCalendario] = useState(() => (dataPasseio || dateToLocalStr(new Date())).slice(0,7));
 
   // 🔥 REQ 129: Dias que têm sessões criadas
   const [diasDisponiveis, setDiasDisponiveis] = useState([]);
@@ -404,7 +411,6 @@ const SidebarReservaExperiencia = ({
   const minPessoasGrupo = Number(experiencia?.min_pessoas_grupo) || 1;
   const maxPessoasGrupo = Number(experiencia?.max_pessoas_grupo) || 10;
 
-  const opcoesDuracao = duracao ? [{ label: duracao, preco: precoBase }] : [];
 
   const configBloqueios = configuracoes;
   const datasBloqueadas = bloqueios || [];
@@ -418,9 +424,31 @@ const SidebarReservaExperiencia = ({
 
   const precoEpocaAlta = isEpocaAlta() ? Number(configBloqueios.preco_epoca_alta) : null;
   const precoBaseAtual = precoEpocaAlta ?? precoBase;
-  const precoUnitarioAtual = precoBaseAtual;
+  const disponiveis = sessoesDisponiveis(sessoes || []);
+  const duracoes = opcoesDuracao(disponiveis);
+  const duracaoSelecionada = duracoes.includes(duracaoEscolhida) ? duracaoEscolhida : duracoes[0] ?? null;
+  const sessoesDuracao = sessoesDaDuracao(disponiveis, duracaoSelecionada);
+  const periodosDisponiveis = periodosUI.filter(p => sessoesDuracao.some(s => s.periodo === p.label)).map(p => {
+    const starts=sessoesDuracao.filter(s=>s.periodo===p.label).map(s=>s.hora_inicio).sort();
+    return {...p,timeRange:starts[0]===starts.at(-1) ? starts[0] : `${starts[0]} - ${starts.at(-1)}`};
+  });
+  const periodoEfetivo = periodosDisponiveis.some(p => p.label === periodo) ? periodo : periodosDisponiveis[0]?.label;
+  const sessoesDoPeriodo = sessoesDuracao.filter(s => s.periodo === periodoEfetivo);
+  const sessaoSelecionada = sessoesDoPeriodo.find(s => sessaoIdSelecionada !== null && String(s.id) === String(sessaoIdSelecionada));
+  const referenciaSessao = sessaoSelecionada || sessoesDoPeriodo[0];
+  const vendaPorUnidade = vendaPorEquipamento(experiencia, referenciaSessao);
+  const pessoasPorUnidade = Number(referenciaSessao?.pessoas_por_unidade || experiencia?.pessoas_por_equipamento) || 2;
+  const minutosSessao = duracaoSelecionada;
+  const horasSessao = minutosSessao === null ? 0 : Math.floor(minutosSessao / 60);
+  const restoMinutos = minutosSessao === null ? 0 : minutosSessao % 60;
+  const duracao = minutosSessao === null ? '' : horasSessao === 0
+    ? t('experiencia_sessao_minutos', '{{count}} min', { count: minutosSessao })
+    : restoMinutos === 0 ? t('experiencia_sessao_horas', '{{count}} h', { count: horasSessao })
+    : t('experiencia_sessao_horas_minutos', '{{horas}} h {{minutos}} min', { horas: horasSessao, minutos: restoMinutos });
+  const precoUnitarioAtual = precoDaSessao(referenciaSessao, precoBaseAtual);
+  const precoGrupoAtual = precoDaSessao(referenciaSessao, precoEpocaAlta ?? precoGrupo);
 
-  const precoTotal = isGrupoPrivado ? (precoEpocaAlta || precoGrupo) : precoUnitarioAtual * participantes;
+  const precoTotal = totalExperiencia(isGrupoPrivado ? precoGrupoAtual : precoUnitarioAtual, participantes, isGrupoPrivado ? 'grupo_privado' : vendaPorUnidade ? 'por_equipamento' : 'por_pessoa', quantidadeJetSkis);
 
   useEffect(() => {
     if (isGrupoPrivado) {
@@ -431,18 +459,15 @@ const SidebarReservaExperiencia = ({
 
   // 🔥 REQ 129: Buscar dias que têm sessões criadas
   useEffect(() => {
+    const controller = new AbortController();
     const fetchDias = async () => {
       if (!experiencia?.id) return;
       setLoadingDias(true);
       try {
-        const mes = dataPasseio
-          ? dataPasseio.substring(0, 7)
-          : new Date().toISOString().substring(0, 7);
+        const mes = mesCalendario;
 
-        const res = await fetch(
-          `${API_URL}/api/get_dias_com_sessoes.php?experiencia_id=${experiencia.id}&mes=${mes}`
-        );
-        const data = await res.json();
+        const { data } = await api.get('/get_dias_com_sessoes.php', { params: { experiencia_id: experiencia.id, mes }, signal: controller.signal });
+        if(controller.signal.aborted)return;
 
         if (data.success) {
           // 🔥 Normalizar tudo para YYYY-MM-DD (sem hora, sem UTC)
@@ -453,13 +478,14 @@ const SidebarReservaExperiencia = ({
         }
       } catch (err) {
         console.warn('⚠️ Dias não carregados:', err.message);
-        setDiasDisponiveis([]);
+        if(!controller.signal.aborted)setDiasDisponiveis([]);
       } finally {
-        setLoadingDias(false);
+        if(!controller.signal.aborted)setLoadingDias(false);
       }
     };
     fetchDias();
-  }, [experiencia?.id, dataPasseio]);
+    return () => controller.abort();
+  }, [experiencia?.id, mesCalendario]);
 
   const dataBloqueada = (bloqueios || []).some(b => {
     if (!b.data_inicio || !b.data_fim || !dataPasseio) return false;
@@ -499,26 +525,23 @@ const SidebarReservaExperiencia = ({
   const minDateStr = dateToLocalStr(minDate);
   const maxDateStr = dateToLocalStr(maxDate);
 
-  const sessoesDoPeriodo = (sessoes || []).filter(s => s.periodo === periodo);
+
 
   useEffect(() => {
-    if (sessoesDoPeriodo.length > 0) {
-      const horarioExiste = sessoesDoPeriodo.some(s => s.hora_inicio === horario);
-      if (!horarioExiste) {
-        const primeiraDisponivel = sessoesDoPeriodo.find(s => s.vagas_disponiveis > 0);
-        setHorario(primeiraDisponivel?.hora_inicio || sessoesDoPeriodo[0].hora_inicio);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periodo, sessoes]);
+    setSessaoIdSelecionada(null);
+    setHorario('');
+    setQuantidadeJetSkis(1);setParticipantes(1);
+  }, [dataPasseio, duracaoSelecionada, periodoEfetivo, experiencia?.id]);
+  useEffect(() => { if(dataPasseio)setMesCalendario(dataPasseio.slice(0,7)); }, [dataPasseio]);
 
-  const maxParticipantesPermitidos = quantidadeJetSkis * 2;
+  const maxParticipantesPermitidos = quantidadeJetSkis * pessoasPorUnidade;
 
   useEffect(() => {
-    if (!isGrupoPrivado && participantes > maxParticipantesPermitidos) {
-      setParticipantes(maxParticipantesPermitidos);
-    }
-  }, [quantidadeJetSkis, maxParticipantesPermitidos, participantes, isGrupoPrivado]);
+    const available = Number(sessaoSelecionada?.vagas_disponiveis) || 0;
+    if (vendaPorUnidade && available && quantidadeJetSkis > available) setQuantidadeJetSkis(available);
+    const limit = vendaPorUnidade ? maxParticipantesPermitidos : available;
+    if (limit > 0 && participantes > limit) setParticipantes(limit);
+  }, [quantidadeJetSkis, maxParticipantesPermitidos, participantes, isGrupoPrivado, vendaPorUnidade, sessaoSelecionada?.vagas_disponiveis]);
 
   const formatarData = (date) => {
     if (!date) return '';
@@ -526,333 +549,40 @@ const SidebarReservaExperiencia = ({
     return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const sessaoSelecionada = sessoesDoPeriodo.find(s => s.hora_inicio === horario);
+
   const vagasDisponiveisSessao = sessaoSelecionada?.vagas_disponiveis || 0;
 
-  const semDiasDisponiveis = !loadingDias && diasDisponiveis.length === 0;
+  const semDiasDisponiveis = !loading && !disponiveis.length;
 
-  return (
-    <div className="sticky top-24 text-left font-sans">
-      <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-lg">
-        <div className="flex justify-between items-end mb-4">
-          <div className="text-3xl font-bold text-slate-900">
-            {isGrupoPrivado ? (
-              <>{(precoEpocaAlta || precoGrupo).toLocaleString('pt-PT')} CVE
-                <span className="text-sm font-normal text-slate-500"> / grupo</span>
-              </>
-            ) : (
-              <>{precoUnitarioAtual} CVE
-                <span className="text-sm font-normal text-slate-500"> / pessoa</span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-1 text-sm font-bold text-slate-900">
-            <Star size={16} className="fill-orange-500 text-orange-500" />
-            {rating} <span className="text-slate-400 font-normal text-xs">({totalAvaliacoes || 0})</span>
-          </div>
-        </div>
+  const isJetski = vendaPorUnidade && equipamentoJetSki(experiencia, referenciaSessao);
+  const maxPessoas = vendaPorUnidade ? quantidadeJetSkis * pessoasPorUnidade : Number(vagasDisponiveisSessao);
+  return <div className="sticky top-24">
+    <CartaoReservaExperiencia
+      preco={isGrupoPrivado ? precoGrupoAtual : precoUnitarioAtual} total={precoTotal}
+      rating={rating} avaliacoes={totalAvaliacoes || 0}
+      especial={isEpocaAlta()}
+      grupo={isGrupoPrivado} jetski={isJetski} vendaPorUnidade={vendaPorUnidade}
+      data={formatarData(dataPasseio)} abrirCalendario={() => setShowCalendar(v => !v)}
+      calendario={showCalendar && <div className="absolute right-0 top-full z-[100] mt-2 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"><CalendarioMorabeza
+        selected={dataPasseio ? new Date(dataPasseio + 'T00:00:00') : null}
+        onChange={date => { if (!date) return; setSessaoIdSelecionada(null); setHorario(''); setDataPasseio(dateToLocalStr(date)); setShowCalendar(false); }}
+        inline minDate={minDate} maxDate={maxDate} onMonthChange={date => setMesCalendario(dateToLocalStr(date).slice(0,7))}
+        filterDate={date => { const value = dateToLocalStr(date); return value >= minDateStr && value <= maxDateStr && !isDataBloqueadaCalendario(date) && temSessao(date); }}
+        calendarClassName="morabeza-calendar-inline" /></div>}
+      periodos={isJetski || periodosDisponiveis.length > 1 ? periodosDisponiveis : []} periodo={periodoEfetivo} selecionarPeriodo={value => { setSessaoIdSelecionada(null); setHorario(''); setPeriodo(value); }}
+      precosDuracoes={Object.fromEntries(duracoes.map(n => [n, Math.min(...sessoesDaDuracao(disponiveis,n).map(s => precoDaSessao(s,isGrupoPrivado ? precoGrupoAtual : precoBaseAtual)))]))} duracoes={duracoes} duracaoSelecionada={duracaoSelecionada} selecionarDuracao={value => {setSessaoIdSelecionada(null);setHorario('');setDuracaoEscolhida(value);}} minimoRealizacao={Number(sessaoSelecionada?.minimo_participantes ?? experiencia?.min_pessoas ?? 1)} duracao={duracao} sessoes={sessoesDoPeriodo} horario={horario} sessaoIdSelecionada={sessaoIdSelecionada}
+      selecionarHorario={(value, sessaoId) => { setSessaoIdSelecionada(sessaoId); setHorario(value); }}
+      nomeEquipamento={referenciaSessao?.equipamento_nome || experiencia?.equipamento_nome || (isJetski ? 'Jet ski' : undefined)} pessoasPorUnidade={pessoasPorUnidade} vagas={Number(vagasDisponiveisSessao)} unidades={quantidadeJetSkis} setUnidades={setQuantidadeJetSkis}
+      participantes={participantes} setParticipantes={value => { setParticipantes(value); if (isJetski && !vendaPorUnidade) setQuantidadeJetSkis(Math.ceil(value / 2)); }} minParticipantes={isGrupoPrivado ? minPessoasGrupo : 1} maxParticipantes={maxPessoas}
+      loading={loading || loadingDias} bloqueado={dataBloqueada || semDiasDisponiveis}
+      reservar={() => { if(!sessaoSelecionada)return;setPeriodo(periodoEfetivo);onReservar({ periodo:periodoEfetivo, duracao, pessoasPorUnidade, quantidadeJetSkis, participantes, maxPessoas, unidadeVenda: vendaPorUnidade ? 'unidade' : 'participante',
+        precoUnitarioAtual: isGrupoPrivado ? precoGrupoAtual : precoUnitarioAtual, precoTotal,
+        precoNormal: isGrupoPrivado ? (precoEpocaAlta ?? precoGrupo) : precoBaseAtual,
+        precoEspecialSessao: sessaoSelecionada?.preco_especial ?? null, sessaoId: sessaoSelecionada?.id,
+        vagasDisponiveis: Number(vagasDisponiveisSessao), modelo: isGrupoPrivado ? 'grupo_privado' : vendaPorUnidade ? 'por_equipamento' : 'por_pessoa' });}}
+    />
+  </div>;
 
-        {isEpocaAlta() && (
-          <div className="mb-4 p-3 bg-gradient-to-r from-red-50 to-orange-50 border border-orange-200 rounded-xl flex items-start gap-2">
-            <Tag size={14} className="text-orange-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-bold text-orange-900">🔥 Época Alta</p>
-              <p className="text-[10px] text-orange-700">
-                Preço especial ({configBloqueios.epoca_alta_inicio} → {configBloqueios.epoca_alta_fim})
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 🔥 REQ 129: Aviso se não há dias com sessões */}
-        {semDiasDisponiveis && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
-            <AlertCircle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-bold text-amber-900">Sem datas disponíveis</p>
-              <p className="text-[10px] text-amber-700 mt-0.5">
-                O anfitrião ainda não configurou sessões para os próximos dias. Contacte-o para mais informações.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {dataBloqueada && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
-            <AlertCircle size={14} className="text-red-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-bold text-red-900">🚫 Data Indisponível</p>
-              <p className="text-[10px] text-red-700 mt-0.5">Data bloqueada pelo anfitrião</p>
-            </div>
-          </div>
-        )}
-
-       {isGrupoPrivado ? (
-          <div className="mb-4 p-3 bg-purple-50 border border-purple-100 rounded-xl flex items-start gap-2">
-            <Users size={14} className="text-purple-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-bold text-purple-900">Experiência Privada</p>
-              <p className="text-[10px] text-purple-700">
-                Preço para o grupo ({minPessoasGrupo}-{maxPessoasGrupo} pessoas).
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="mb-5 p-3 bg-orange-50 rounded-xl border border-orange-100 flex items-center justify-center gap-2">
-            <Tag size={16} className="text-orange-500" />
-            <span className="text-xs font-bold text-orange-600 uppercase tracking-wide">PREÇO ESPECIAL!</span>
-          </div>
-        )}
-
-        <div className="border border-slate-300 rounded-xl mb-5 overflow-visible relative">
-          <div className="flex items-center p-3 cursor-pointer" onClick={() => setShowCalendar(!showCalendar)}>
-            <Calendar size={20} className="text-slate-400 mr-3" />
-            <div className="flex-1">
-              <label className="text-[10px] font-bold text-slate-500 uppercase block">DATA DO PASSEIO</label>
-              <div className="text-sm font-bold text-slate-900">
-                {dataPasseio ? formatarData(dataPasseio) : 'Selecionar data'}
-              </div>
-            </div>
-            <span className="text-xs font-bold text-blue-600">Alterar</span>
-          </div>
-
-          {showCalendar && (
-            <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl bg-white border border-slate-200 p-2">
-              <CalendarioMorabeza
-                selected={dataPasseio ? new Date(dataPasseio + 'T00:00:00') : null}
-                onChange={(date) => {
-                  if (!date) return;
-                  const local = dateToLocalStr(date);
-                  setDataPasseio(local);
-                  setTimeout(() => setShowCalendar(false), 200);
-                }}
-                inline
-                minDate={minDate}
-                maxDate={maxDate}
-                filterDate={(date) => {
-                  const dateStr = dateToLocalStr(date);
-                  if (dateStr < minDateStr || dateStr > maxDateStr) return false;
-                  if (isDataBloqueadaCalendario(date)) return false;
-                  if (diasDisponiveis.length > 0 && !temSessao(date)) return false;
-                  return true;
-                }}
-                dayClassName={(date) => {
-                  const dateStr = dateToLocalStr(date);
-                  if (dateStr < minDateStr || dateStr > maxDateStr) return undefined;
-                  if (isDataBloqueadaCalendario(date)) return 'bloqueado-dia';
-                  if (diasDisponiveis.length > 0 && !temSessao(date)) return 'sem-sessao-dia';
-                  if (diasDisponiveis.length > 0 && temSessao(date)) return 'dia-com-sessao';
-                  return undefined;
-                }}
-                calendarClassName="morabeza-calendar-inline"
-              />
-              {diasDisponiveis.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-slate-100 px-2 pb-1 flex items-center justify-between">
-                  <p className="text-[9px] text-slate-500 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
-                    Dias com sessões ({diasDisponiveis.length})
-                  </p>
-                  <p className="text-[9px] text-slate-400 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-slate-200 inline-block"></span>
-                    Sem sessões
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="mb-5">
-          <label className="text-[10px] font-black tracking-[0.1em] text-blue-900 block mb-2 uppercase">PERÍODO</label>
-          <div className="grid grid-cols-3 gap-2">
-            {periodosUI.map((p) => {
-              const isSelected = periodo === p.label;
-              return (
-                <button key={p.label} onClick={() => setPeriodo(p.label)}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all gap-1 ${
-                    isSelected ? 'border-blue-600 bg-blue-50/30 ring-1 ring-blue-600' : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}>
-                  {p.label === 'Manhã' && <Sun size={18} className={isSelected ? 'text-yellow-500' : 'text-slate-300'} />}
-                  {p.label === 'Meio dia' && <Sun size={18} className={isSelected ? 'text-orange-400' : 'text-slate-300'} />}
-                  {p.label === 'Tarde' && <Sunset size={18} className={isSelected ? 'text-red-400' : 'text-slate-300'} />}
-                  <span className={`text-[11px] font-bold mt-1 ${isSelected ? 'text-blue-700' : 'text-slate-600'}`}>{p.label}</span>
-                  <span className="text-[9px] text-slate-400 font-medium">{p.timeRange}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {!isGrupoPrivado && opcoesDuracao.length > 0 && (
-          <div className="mb-5">
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-[10px] font-black tracking-[0.1em] text-blue-900 uppercase">DURAÇÃO</label>
-              <span className="text-[9px] text-slate-400 flex items-center gap-1"><Info size={10}/> Escolha por quanto tempo</span>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {opcoesDuracao.map((opt) => {
-                const isSelected = duracao === opt.label;
-                return (
-                  <button key={opt.label} type="button"
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
-                      isSelected ? 'border-blue-600 bg-blue-50/30 ring-1 ring-blue-600' : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}>
-                    <Clock size={16} className={isSelected ? 'text-blue-600' : 'text-slate-400'} />
-                    <span className={`text-[10px] font-bold mt-1 text-center leading-tight ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>{opt.label}</span>
-                    <span className={`text-[8px] font-bold mt-0.5 ${isSelected ? 'text-blue-500' : 'text-slate-400'}`}>{precoUnitarioAtual} CVE</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="mb-5">
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-[10px] font-black tracking-[0.1em] text-blue-900 uppercase">HORÁRIO</label>
-            <span className="text-[9px] text-slate-400 flex items-center gap-1"><Info size={10}/> Vagas por sessão</span>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-6 text-xs text-slate-400 flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              A carregar horários...
-            </div>
-          ) : sessoesDoPeriodo.length === 0 ? (
-            <div className="text-center py-6 bg-slate-50 rounded-xl border border-slate-100">
-              <Clock size={24} className="text-slate-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-500 font-medium">Sem horários disponíveis para este período</p>
-              <p className="text-[10px] text-slate-400 mt-1">Tente outro período</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-5 gap-2">
-              {sessoesDoPeriodo.map((s) => {
-                const isSelected = horario === s.hora_inicio;
-                const isEsgotado = s.vagas_disponiveis === 0;
-                return (
-                  <button key={s.id} onClick={() => !isEsgotado && setHorario(s.hora_inicio)} disabled={isEsgotado}
-                    className={`flex flex-col items-center justify-center py-2 rounded-xl border transition-all ${
-                      isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-md' :
-                      isEsgotado ? 'bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed' :
-                      'bg-white border-slate-200 text-slate-800 hover:border-blue-300'
-                    }`}>
-                    <span className={`text-[10px] font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>{s.hora_inicio}</span>
-                    <span className={`text-[8px] font-medium mt-0.5 ${
-                      isSelected ? 'text-blue-100' :
-                      s.vagas_disponiveis >= 4 ? 'text-green-600' :
-                      s.vagas_disponiveis >= 1 ? 'text-orange-500' : 'text-slate-300'
-                    }`}>
-                      {isEsgotado ? 'Esgotado' : `${s.vagas_disponiveis} disp.`}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {isGrupoPrivado ? (
-          <div className="mb-5">
-            <label className="text-[10px] font-black tracking-[0.1em] text-blue-900 block mb-2 uppercase">Nº DE PESSOAS NO GRUPO</label>
-            <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-white">
-              <div>
-                <p className="text-xs font-bold text-slate-900">Pessoas</p>
-                <p className="text-[9px] text-slate-400">Entre {minPessoasGrupo} e {maxPessoasGrupo}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setParticipantes(Math.max(minPessoasGrupo, participantes - 1))} className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><Minus size={12} /></button>
-                <span className="text-sm font-bold w-4 text-center">{participantes}</span>
-                <button onClick={() => setParticipantes(Math.min(maxPessoasGrupo, participantes + 1))} className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><Plus size={12} /></button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="mb-5">
-            <label className="text-[10px] font-black tracking-[0.1em] text-blue-900 block mb-2 uppercase">QUANTIDADE E PARTICIPANTES</label>
-            <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl mb-2 bg-white">
-              <div>
-                <p className="text-xs font-bold text-slate-900">Jet skis</p>
-                <p className="text-[9px] text-slate-400">Máx. {Math.max(1, Math.floor(vagasDisponiveisSessao / 2))}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setQuantidadeJetSkis(Math.max(1, quantidadeJetSkis - 1))} className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><Minus size={12}/></button>
-                <span className="text-sm font-bold w-4 text-center">{quantidadeJetSkis}</span>
-                <button onClick={() => setQuantidadeJetSkis(quantidadeJetSkis + 1)}
-                  disabled={quantidadeJetSkis >= Math.max(1, Math.floor(vagasDisponiveisSessao / 2))}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50"><Plus size={12}/></button>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-white">
-              <div>
-                <p className="text-xs font-bold text-slate-900">Participantes</p>
-                <p className="text-[9px] text-slate-400">Máx. {maxParticipantesPermitidos}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setParticipantes(Math.max(1, participantes - 1))} className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><Minus size={12}/></button>
-                <span className="text-sm font-bold w-4 text-center">{participantes}</span>
-                <button onClick={() => setParticipantes(Math.min(maxParticipantesPermitidos, participantes + 1))} className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"><Plus size={12}/></button>
-              </div>
-            </div>
-            <p className="text-[9px] text-slate-400 mt-2 flex items-center gap-1"><Info size={10}/> Máx. 2 pessoas por jet ski.</p>
-          </div>
-        )}
-
-        <div className="pt-4 border-t border-slate-100 space-y-2 mb-4">
-          {isGrupoPrivado ? (
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-slate-500">Preço do grupo</span>
-              <span className="text-sm font-bold text-blue-600">{(precoEpocaAlta || precoGrupo).toLocaleString('pt-PT')} CVE</span>
-            </div>
-          ) : (
-            <>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-500">Preço por pessoa</span>
-                <span className="text-sm font-bold text-blue-600">{precoUnitarioAtual} CVE</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-500">{precoUnitarioAtual} CVE x {participantes}</span>
-                <span className="text-sm font-bold text-blue-600">{precoTotal} CVE</span>
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-between items-center pt-3 border-t border-slate-100 mt-2">
-            <span className="text-sm font-bold text-slate-800">Total</span>
-            <span className="text-xl font-bold text-blue-600">{precoTotal.toLocaleString('pt-PT')} CVE</span>
-          </div>
-
-          <button
-            disabled={
-              vagasDisponiveisSessao === 0 ||
-              loading ||
-              dataBloqueada ||
-              semDiasDisponiveis
-            }
-            onClick={() => onReservar({
-              duracao, quantidadeJetSkis, participantes,
-              precoUnitarioAtual: isGrupoPrivado ? (precoEpocaAlta || precoGrupo) : precoUnitarioAtual,
-              precoTotal,
-              sessaoId: sessaoSelecionada?.id,
-              vagasDisponiveis: vagasDisponiveisSessao,
-              modelo: isGrupoPrivado ? 'grupo_privado' : 'por_pessoa'
-            })}
-            className={`w-full font-bold py-3.5 rounded-xl flex items-center justify-center gap-3 transition-all shadow-lg mt-4 text-sm ${
-              vagasDisponiveisSessao > 0 && !loading && !dataBloqueada && !semDiasDisponiveis
-                ? "bg-blue-900 hover:bg-blue-950 text-white shadow-blue-200 cursor-pointer"
-                : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-            }`}>
-            <Calendar size={16}/>
-            {loading ? 'A carregar...' :
-             semDiasDisponiveis ? 'Sem datas disponíveis' :
-             dataBloqueada ? 'Data Indisponível' :
-             vagasDisponiveisSessao > 0
-               ? (isGrupoPrivado ? 'Reservar grupo privado' : `Reservar ${quantidadeJetSkis} jet skis`)
-               : 'Esgotado'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
@@ -1052,21 +782,37 @@ const ExperienciaDetalhes = () => {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchDados = async () => {
       try {
         setLoading(true);
+        setSessoes([]);
         setError(null);
 
         const usuarioId = usuarioLogado?.id ? `&usuario_id=${usuarioLogado.id}` : '';
         const result = await fetchJSON(
-          `${API_URL}/api/experiencia_pagina_completa.php?slug=${slug}&data=${dataPasseio}${usuarioId}`
+          `${API_URL}/api/experiencia_pagina_completa.php?slug=${slug}&data=${dataPasseio}${usuarioId}`, { signal: controller.signal }
         );
+        if(controller.signal.aborted)return;
 
         if (!result.success || !result.experiencia) {
           throw new Error(result.error || 'Experiência não encontrada');
         }
 
-        const dados = result.experiencia;
+        let dados = result.experiencia;
+        // Older detail endpoints may omit the canonical equipment model.
+        try {
+          const { data: cadastro } = await api.get('/experiencia/buscar.php', {params: {id: dados.id}, signal: controller.signal});
+          if (controller.signal.aborted) return;
+          if (cadastro.success && Number(cadastro.data?.id) === Number(dados.id)) {
+            const metadata = {};
+            for (const key of ['modelo_reserva','equipamento_nome','quantidade_equipamentos','pessoas_por_equipamento']) {
+              if (cadastro.data[key] !== undefined && cadastro.data[key] !== null) metadata[key] = cadastro.data[key];
+            }
+            dados = {...dados, ...metadata};
+          }
+        } catch { if (controller.signal.aborted) return; }
+
 
         setExperiencia(dados);
 
@@ -1080,18 +826,24 @@ const ExperienciaDetalhes = () => {
 
         if (dados.anfitriao) setAnfitriao(dados.anfitriao);
 
-        setSessoes(result.sessoes || []);
+        setSessoes((result.sessoes || []).map(sessao => ({
+          ...sessao,
+          hora_inicio: String(sessao.hora_inicio || '').slice(0, 5),
+          hora_fim: String(sessao.hora_fim || '').slice(0, 5),
+          vagas_disponiveis: Number(sessao.vagas_disponiveis ?? 0),
+        })));
         setBloqueios(result.bloqueios || []);
         setConfiguracoes(result.configuracoes || null);
 
       } catch (error) {
         console.error("Erro ao carregar detalhes:", error);
-        setError(error.message);
+        if(!controller.signal.aborted)setError(error.message);
       } finally {
-        setLoading(false);
+        if(!controller.signal.aborted)setLoading(false);
       }
     };
     fetchDados();
+    return () => controller.abort();
   }, [slug, dataPasseio, usuarioLogado?.id]);
 
   const registrarCliqueReserva = () => {};
@@ -1100,10 +852,16 @@ const ExperienciaDetalhes = () => {
   const registrarCliqueContato = () => {};
 
   const periodosUI = [
-    { label: 'Manhã', range: [8, 11], timeRange: '08:00 - 11:00', temHorarios: true },
-    { label: 'Meio dia', range: [12, 14], timeRange: '12:00 - 14:00', temHorarios: true },
-    { label: 'Tarde', range: [15, 17], timeRange: '15:00 - 17:00', temHorarios: true }
-  ];
+    { label: 'Manhã', range: [8, 12], timeRange: '08:00 - 12:00', temHorarios: true },
+    { label: 'Meio dia', range: [12, 16], timeRange: '12:00 - 16:00', temHorarios: true },
+    { label: 'Tarde', range: [16, 20], timeRange: '16:00 - 20:00', temHorarios: true }
+  ].map(p => {
+    const slots = sessoes.filter(s => s.periodo === p.label);
+    if (!slots.length) return p;
+    const starts = slots.map(s => s.hora_inicio).filter(Boolean).sort();
+    const ends = slots.map(s => s.hora_fim).filter(Boolean).sort();
+    return starts.length && ends.length ? { ...p, timeRange: `${starts[0]} - ${ends[ends.length - 1]}` } : p;
+  });
 
   const handleReservarAgora = (dadosReserva) => {
     registrarCliqueReserva();
@@ -1122,14 +880,18 @@ const ExperienciaDetalhes = () => {
           dataISO: dataPasseio,
           duracao: dadosReserva.duracao,
           quantidadeJetSkis: dadosReserva.quantidadeJetSkis,
+          pessoasPorUnidade: dadosReserva.pessoasPorUnidade,
           participantes: dadosReserva.participantes,
-          maxPessoas: experiencia.max_pessoas,
+          maxPessoas: dadosReserva.maxPessoas || experiencia.max_pessoas,
+          unidadeVenda: dadosReserva.unidadeVenda,
           precoPorPessoa: dadosReserva.precoUnitarioAtual,
+          precoNormal: dadosReserva.precoNormal,
           precoTotal: dadosReserva.precoTotal,
           sessaoId: dadosReserva.sessaoId,
+          precoEspecialSessao: dadosReserva.precoEspecialSessao,
           vagasDisponiveis: dadosReserva.vagasDisponiveis,
           modelo: dadosReserva.modelo,
-          capacidadePorUnidade: 2,
+          capacidadePorUnidade: dadosReserva.pessoasPorUnidade,
           preco_adulto: experiencia.preco_adulto || experiencia.preco,
           preco_crianca: experiencia.preco_crianca,
           preco_bebe: experiencia.preco_bebe,
@@ -1147,7 +909,7 @@ const ExperienciaDetalhes = () => {
         },
         dataSelecionada: dataFormatada,
         horarioSelecionado: horario,
-        periodoSelecionado: periodo
+        periodoSelecionado: dadosReserva.periodo || periodo
       }
     });
   };

@@ -1,4 +1,5 @@
 import api from '../../api/api';
+import { urlDocumento } from '../../utils/urlDocumento';
 import { destinoRegistoNotificacao, normalizarLinkNotificacao } from '../../utils/normalizarLinkNotificacao';
 import { obterTokenValidacao } from '../../utils/tokenValidacaoReserva';
 import HeaderGestao from './HeaderGestao';
@@ -62,6 +63,12 @@ export default function DocumentosSolicitados() {
         setPreview({ loading: false, url: objectUrl, image, error: false });
       } catch (error) {
         if (controller.signal.aborted) return;
+        // Navegar para o PDF nao exige permissao CORS de leitura por JavaScript.
+        if (error instanceof TypeError) {
+          const image = /\.(png|jpe?g|gif|webp)(?:[?#]|$)/i.test(documentoVisivel.url);
+          setPreview({ loading: false, url: documentoVisivel.url, image, error: false });
+          return;
+        }
         console.error('Document preview:', error.message);
         setPreview({ loading: false, url: '', image: false, error: true });
       }
@@ -308,13 +315,7 @@ export default function DocumentosSolicitados() {
   };
 
   const urlDocumentoComCache = (url, enviadoEm) => {
-    if (!url) return '';
-    let u = url;
-    if (u.startsWith('https:///')) u = u.replace('https:///', 'https://');
-    if (u.startsWith('http:///'))  u = u.replace('http:///', 'http://');
-    const sep = u.includes('?') ? '&' : '?';
-    const ts = enviadoEm ? new Date(enviadoEm).getTime() : Date.now();
-    return `${u}${sep}v=${ts}`;
+    return urlDocumento(url, API_URL, enviadoEm);
   };
 
   const StatusBadge = ({ estado }) => {
@@ -614,7 +615,7 @@ export default function DocumentosSolicitados() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-5">
               <h2 id="documento-preview-titulo" className="min-w-0 text-sm font-semibold text-gray-900">{documentoVisivel.nome}</h2>
               <div className="flex items-center gap-2">
-                <a href={documentoVisivel.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100">
+                <a href={preview.url || documentoVisivel.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100">
                   <ExternalLink size={14} aria-hidden="true" />
                   {t('gest_documento_abrir', 'Abrir numa nova aba')}
                 </a>

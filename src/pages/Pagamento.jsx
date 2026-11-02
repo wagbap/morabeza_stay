@@ -279,6 +279,7 @@ const PagamentoContent = () => {
     } else {
       payload = {
         category: 'Experiencia',
+        token_retencao: rD?.tokenRetencao || null,
         usuario: {
           email: titular.email || '',
           nome_completo: titular.nome || '',
@@ -290,6 +291,7 @@ const PagamentoContent = () => {
           data_participacao: rD?.dataISO,
           horario: `${rD?.periodo || ''} ${rD?.horario || ''}`.trim(),
           quantidade_pessoas: rD?.participantes,
+          quantidade_jet_skis: rD?.quantidadeJetSkis || 0,
           preco_total: getTotalPagar('experiencia', rD),
         },
         participante_principal: { ...participantePrincipal },
@@ -340,6 +342,10 @@ const PagamentoContent = () => {
         return;
       }
 
+      if (tipo === 'experiencia' && reserva.tokenRetencao) {
+        const { data: retencao } = await api.post('/validar_retencao.php', { token: reserva.tokenRetencao, preco_total: getTotalPagar(tipo, reserva) });
+        if (!retencao.success) throw new Error(retencao.error || t('experiencia_erro_bloquear_vagas'));
+      }
       const totalPagar = getTotalPagar(tipo, reserva);
       const valorEmEUR = totalPagar / TAXA_CONVERSAO_CVE_EUR;
 

@@ -1,4 +1,5 @@
 
+import { useSearchParams } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import {
   Search, Loader2, Calendar, Check, X, Home, Compass, Car, RefreshCw, DollarSign, PauseCircle, AlertCircle,
@@ -10,6 +11,7 @@ import ReembolsoModal from '../../components/gest/ReembolsoModal';
 const API_BASE = 'https://welovepalop.com';
 
 const ReservasAdmin = () => {
+  const [searchParams] = useSearchParams();
   const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pesquisa, setPesquisa] = useState('');
@@ -56,6 +58,13 @@ const ReservasAdmin = () => {
   useEffect(() => {
     carregarReservas();
   }, []);
+
+  useEffect(() => {
+    const id = searchParams.get('reserva'), tipo = searchParams.get('tipo');
+    if (!id || !tipo || loading) return;
+    const booking = reservas.find(r => String(r.id) === id && r.tipo_reserva === tipo);
+    if (booking) setReservaSelecionada(booking);
+  }, [reservas, loading, searchParams]);
 
   // ---------------------------------------------------------
   // Executar alteração de estado via Modal Profissional

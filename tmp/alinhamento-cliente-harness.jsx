@@ -1,0 +1,13 @@
+import React,{useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import i18next from 'i18next';
+import {I18nextProvider} from 'react-i18next';
+import pt from '../src/locales/pt.js';
+import Card from '../src/features/experiencias/components/CartaoReservaExperiencia.jsx';
+import {opcoesDuracao,sessoesDaDuracao} from '../src/features/experiencias/sessoesCliente.js';
+import {totalExperiencia} from '../src/features/experiencias/precoSessao.js';
+await i18next.init({lng:'pt',resources:{pt:{translation:pt.translation || pt}},initImmediate:false});
+const short=Array.from({length:10},(_,i)=>({id:i+1,hora_inicio:`${String(8+Math.floor(i/4)).padStart(2,'0')}:${String(i%4*15).padStart(2,'0')}`,hora_fim:`${String(8+Math.floor((i+1)/4)).padStart(2,'0')}:${String((i+1)%4*15).padStart(2,'0')}`,vagas_disponiveis:5,preco_especial:2000}));
+const all=[...short,{id:20,hora_inicio:'08:00',hora_fim:'16:00',vagas_disponiveis:10,preco_especial:2000}];
+function Harness(){const [equipment,setEquipment]=useState(false),[duration,setDuration]=useState(15),[id,setId]=useState(null),[people,setPeople]=useState(1),[units,setUnits]=useState(1);const sessions=sessoesDaDuracao(all,duration);const selected=sessions.find(s=>s.id===id);window.setEquipment=()=>{setEquipment(true);setPeople(1);setUnits(1);setId(null);};window.booking={equipment,duration,id,people,units};return <div className="min-h-screen bg-slate-50 p-4"><main className="mx-auto max-w-[430px]"><Card preco={2000} total={totalExperiencia(2000,people,equipment?'por_equipamento':'por_pessoa',units)} rating={5} avaliacoes={7} grupo={false} jetski={equipment} vendaPorUnidade={equipment} nomeEquipamento="Kayak" pessoasPorUnidade={2} unidades={units} setUnidades={setUnits} duracoes={opcoesDuracao(all)} duracaoSelecionada={duration} selecionarDuracao={n=>{setDuration(n);setId(null);setPeople(1);setUnits(1);}} duracao={duration===480?'8 h':'15 min'} data="03/11/2026" periodos={[]} periodo="Manhã" sessoes={sessions} sessaoIdSelecionada={id} selecionarHorario={(_,n)=>setId(n)} vagas={selected?.vagas_disponiveis || 0} participantes={people} setParticipantes={setPeople} maxParticipantes={equipment?units*2:selected?.vagas_disponiveis || 0} minimoRealizacao={3} reservar={()=>{window.submitted=window.booking;}}/></main></div>};
+createRoot(document.getElementById('cliente-test')).render(<I18nextProvider i18n={i18next}><Harness/></I18nextProvider>);

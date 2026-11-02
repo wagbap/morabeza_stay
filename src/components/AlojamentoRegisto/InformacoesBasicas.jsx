@@ -1,3 +1,4 @@
+import { getIconeComodidade as renderIconeComodidade } from '../../utils/comodidadesQuarto';
 import ResumoValorRegisto from '../ResumoValorRegisto';
 // src/components/AlojamentoRegisto/InformacoesBasicas.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -42,27 +43,8 @@ const FotoQuartoEdicao = ({ src, alt, className }) => {
 // ============================================================
 // MAPEAMENTO DE ÍCONES PARA COMODIDADES
 // ============================================================
-const getIconeComodidade = (nome) => {
-  const n = (nome || '').toLowerCase();
-  if (n.includes('wifi') || n.includes('wi-fi')) return Wifi;
-  if (n.includes('ar condicionado') || n.includes('ar-condicionado')) return Snowflake;
-  if (n.includes('cozinha')) return Coffee;
-  if (n.includes('tv') || n.includes('televis')) return Tv;
-  if (n.includes('banheira')) return Bath;
-  if (n.includes('wc') || n.includes('casa de banho') || n.includes('banheiro')) return Bath;
-  if (n.includes('piscina')) return Droplet;
-  if (n.includes('estacionamento')) return Car;
-  if (n.includes('vista')) return Eye;
-  if (n.includes('segurança') || n.includes('cofre')) return Lock;
-  if (n.includes('máquina de lavar') || n.includes('lavar roupa')) return Shirt;
-  if (n.includes('aquecimento')) return Flame;
-  if (n.includes('varanda') || n.includes('terraço')) return Sun;
-  if (n.includes('frigorífico') || n.includes('geladeira')) return Refrigerator;
-  if (n.includes('micro-ondas') || n.includes('microondas')) return Mic;
-  if (n.includes('ventilador')) return Wind;
-  if (n.includes('secador')) return Wind;
-  if (n.includes('cama')) return Bed;
-  return CheckCircle2;
+const getIconeComodidade = (nome) => function IconeComodidade({ size = 18, className = '' }) {
+  return <span className={`inline-flex shrink-0 ${className}`} aria-hidden="true">{renderIconeComodidade(nome, size)}</span>;
 };
 
 // ============================================================

@@ -179,6 +179,8 @@ const Localizacao = ({ dados = {}, onChange, readOnly = false, carroId = null })
           <input
             type="text"
             value={busca}
+            required
+            aria-required="true"
             onChange={(e) => handleLocalizacaoChange(e.target.value)}
             onFocus={() => setMostrarSugestoes(true)}
             onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
@@ -219,6 +221,8 @@ const Localizacao = ({ dados = {}, onChange, readOnly = false, carroId = null })
           <input
             type="text"
             value={cidade}
+            required
+            aria-required="true"
             onChange={(e) => handleCidadeChange(e.target.value)}
             placeholder="Ex: Santa Maria, Mindelo, Praia..."
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
@@ -237,6 +241,8 @@ const Localizacao = ({ dados = {}, onChange, readOnly = false, carroId = null })
           <Navigation size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <select
             value={ilha}
+            required
+            aria-required="true"
             onChange={(e) => handleIlhaChange(e.target.value)}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4] bg-white"
             disabled={readOnly}

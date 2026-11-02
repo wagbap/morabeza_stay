@@ -26,7 +26,7 @@ import {
   Settings2
 } from "lucide-react";
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar({ isOpen, onClose, sessionDesign = false }) {
   const location = useLocation();
   const { t } = useTranslation();
   const { userRoles, user, loading, error, retry } = useSidebarSession();
@@ -40,13 +40,13 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
-  const linkClass = (path) => `flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium transition-colors ${
+  const linkClass = (path) => `${sessionDesign ? "text-[#070e51]! rounded-md! px-2! py-3! font-normal!" : ""} flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium transition-colors ${
     isActive(path)
       ? "bg-[#e8f6ed] text-[#064e3b]"
       : "text-[#4b5563] hover:bg-gray-50"
   }`;
 
-  const iconClass = (path) => `w-[22px] h-[22px] flex-shrink-0 ${
+  const iconClass = (path) => `${sessionDesign ? "text-[#070e51]!" : ""} w-[22px] h-[22px] flex-shrink-0 ${
     isActive(path) ? "text-[#16a34a]" : "text-[#1e3a8a]"
   }`;
 
@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   return (
     <div className={`
-      w-[260px] max-w-[calc(100vw-2rem)] h-full min-h-0 bg-white border-r border-gray-100 flex flex-col flex-shrink-0
+      ${sessionDesign ? "w-[214px]" : "w-[260px]"} max-w-[calc(100vw-2rem)] h-full min-h-0 bg-white border-r border-gray-100 flex flex-col flex-shrink-0
       fixed inset-y-0 left-0 z-40 lg:static lg:translate-x-0 transition-transform duration-300 ease-in-out
       ${isOpen ? "translate-x-0 visible" : "-translate-x-full invisible lg:visible"}
     `}>
@@ -78,14 +78,14 @@ export default function Sidebar({ isOpen, onClose }) {
       </div>}
 
       {/* Header com informações do usuário */}
-      <div className="px-4 py-6 border-b border-gray-100">
+      <div className={`px-4 border-b border-gray-100 ${sessionDesign ? "py-4" : "py-6"}`}>
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003580] to-[#6b82c6] flex items-center justify-center text-white font-bold flex-shrink-0">
             {nomeExibicao.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-gray-800 truncate">{nomeExibicao}</p>
-            <p className="text-xs text-gray-400 truncate">{emailExibicao}</p>
+            <p className="text-xs text-gray-400 truncate">{sessionDesign ? t('agenda_experiencia_conta_anfitriao', 'Conta de anfitrião') : emailExibicao}</p>
           </div>
         </div>
 
@@ -109,11 +109,11 @@ export default function Sidebar({ isOpen, onClose }) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 px-4">
-        <nav aria-label={t('sidebar_menu')} className="space-y-1.5">
+      <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${sessionDesign ? "px-4 py-1.5" : "py-4 px-4"}`}>
+        <nav aria-label={t('sidebar_menu')} className={sessionDesign ? "space-y-1" : "space-y-1.5"}>
           {hasManagementRole && (
             <>
-              <div className="px-4 py-2">
+              <div className={sessionDesign ? "hidden" : "px-4 py-2"}>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('sidebar_gestao')}</p>
               </div>
 
@@ -126,6 +126,29 @@ export default function Sidebar({ isOpen, onClose }) {
                 <span className={iconClass('/gest/reservas')}><CalendarCheck className="h-full w-full" strokeWidth={2} /></span>
                 <span className="text-[15px] truncate">{t('sidebar_reservas')}</span>
               </Link>
+
+                  {/* 🔥 NOVO: Link para configurar sessões das experiências */}
+              {userRoles.guia && (
+                <Link
+                  to="/gest/minhas-experiencias"
+                  onClick={onClose}
+                  className={linkClass('/gest/minhas-experiencias')} aria-current={isActive('/gest/minhas-experiencias') ? 'page' : undefined}
+                >
+                  <span className={iconClass('/gest/minhas-experiencias')}><Settings2 className="h-full w-full" strokeWidth={2} /></span>
+                  <span className="text-[15px] truncate">{t('sidebar_experiencias')}</span>
+                </Link>
+              )}
+
+              {userRoles.proprietarioVeiculos && (
+                <Link
+                  to="/gest/unidades-veiculos"
+                  onClick={onClose}
+                  className={linkClass('/gest/unidades-veiculos')} aria-current={isActive('/gest/unidades-veiculos') ? 'page' : undefined}
+                >
+                  <span className={iconClass('/gest/unidades-veiculos')}><KeyRound className="h-full w-full" strokeWidth={2} /></span>
+                  <span className="text-[15px] truncate">{t('sidebar_unidades')}</span>
+                </Link>
+              )}
 
               <Link to="/gest/validar-reservas" onClick={onClose} className={linkClass('/gest/validar-reservas')} aria-current={isActive('/gest/validar-reservas') ? 'page' : undefined}>
                 <span className={iconClass('/gest/validar-reservas')}><QrCode className="h-full w-full" strokeWidth={2} /></span>
@@ -172,28 +195,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 <span className="text-[15px] truncate">{t('sidebar_documentos')}</span>
               </Link>
 
-              {/* 🔥 NOVO: Link para configurar sessões das experiências */}
-              {userRoles.guia && (
-                <Link
-                  to="/gest/minhas-experiencias"
-                  onClick={onClose}
-                  className={linkClass('/gest/minhas-experiencias')} aria-current={isActive('/gest/minhas-experiencias') ? 'page' : undefined}
-                >
-                  <span className={iconClass('/gest/minhas-experiencias')}><Settings2 className="h-full w-full" strokeWidth={2} /></span>
-                  <span className="text-[15px] truncate">{t('sidebar_experiencias')}</span>
-                </Link>
-              )}
-
-              {userRoles.proprietarioVeiculos && (
-                <Link
-                  to="/gest/unidades-veiculos"
-                  onClick={onClose}
-                  className={linkClass('/gest/unidades-veiculos')} aria-current={isActive('/gest/unidades-veiculos') ? 'page' : undefined}
-                >
-                  <span className={iconClass('/gest/unidades-veiculos')}><KeyRound className="h-full w-full" strokeWidth={2} /></span>
-                  <span className="text-[15px] truncate">{t('sidebar_unidades')}</span>
-                </Link>
-              )}
+          
             </>
           )}
 

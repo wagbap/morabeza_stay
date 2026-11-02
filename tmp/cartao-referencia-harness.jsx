@@ -1,0 +1,11 @@
+import React,{useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import i18next from 'i18next';
+import {I18nextProvider} from 'react-i18next';
+import pt from '../src/locales/pt.js';
+import Card from '../src/features/experiencias/components/CartaoReservaExperiencia.jsx';
+await i18next.init({lng:'pt',resources:{pt:{translation:pt.translation || pt}},initImmediate:false});
+const rates={15:2000,30:3000,60:5000,120:8000};
+const time=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
+function Harness(){const [duration,setDuration]=useState(15),[id,setId]=useState(1),[people,setPeople]=useState(2),[units,setUnits]=useState(1),[period,setPeriod]=useState('Manhã');const sessions=Array.from({length:Math.floor(240/duration)},(_,i)=>({id:i+1,hora_inicio:time(480+i*duration),hora_fim:time(480+(i+1)*duration),vagas_disponiveis:5}));return <main style={{maxWidth:630,margin:'14px auto'}}><Card preco={rates[duration]} total={rates[duration]*units} rating={0} avaliacoes={0} jetski vendaPorUnidade nomeEquipamento="Jet ski" pessoasPorUnidade={2} unidades={units} setUnidades={setUnits} duracoes={[15,30,60,120]} precosDuracoes={rates} duracaoSelecionada={duration} selecionarDuracao={n=>{setDuration(n);setId(null)}} data="03/11/2026" periodos={[{label:'Manhã',timeRange:'08:00 - 12:00'},{label:'Meio dia',timeRange:'12:00 - 16:00'},{label:'Tarde',timeRange:'16:00 - 18:00'}]} periodo={period} selecionarPeriodo={setPeriod} sessoes={sessions} sessaoIdSelecionada={id} selecionarHorario={(_,n)=>setId(n)} vagas={5} participantes={people} setParticipantes={setPeople} maxParticipantes={units*2} reservar={()=>{}}/></main>};
+createRoot(document.getElementById('reference-test')).render(<I18nextProvider i18n={i18next}><Harness/></I18nextProvider>);

@@ -63,6 +63,9 @@ const Anfitrioes = lazy(() => import('./components/admin/Anfitrioes'));
 const DetalhesConteudo = lazy(() => import('./components/admin/DetalhesConteudo'));
 const AdminAnaliseAnuncio = lazy(() => import('./components/admin/AdminAnaliseAnuncio'));
 const RepassesAdmin = lazy(() => import('./components/admin/RepassesAdmin'));
+const DetalhesRepasse = lazy(() => import('./components/admin/DetalhesRepasse'));
+const VerificarRepasse = lazy(() => import('./components/admin/VerificarRepasse'));
+const RegistarRepasse = lazy(() => import('./components/admin/RegistarRepasse'));
 const VerificacoesEmail = lazy(() => import('./components/admin/VerificacoesEmail'));
 const VerificacoesDocumentos = lazy(() => import('./components/admin/VerificacoesDocumentos'));
 
@@ -127,6 +130,9 @@ function App() {
             <Route path="anfitrioes" element={<Anfitrioes />} />
             <Route path="ganhos" element={<GanhosAdmin />} />
             <Route path="repasses" element={<RepassesAdmin />} />
+            <Route path="repasses/:tipo/:id" element={<DetalhesRepasse />} />
+            <Route path="repasses/:tipo/:id/verificar" element={<VerificarRepasse />} />
+            <Route path="repasses/:tipo/:id/registar" element={<RegistarRepasse />} />
             <Route path="configuracoes" element={<ConfiguracoesAdmin />} />
             <Route path="verificacoes-email" element={<VerificacoesEmail />} />
             <Route path="verificacoes-documentos" element={<VerificacoesDocumentos />} />

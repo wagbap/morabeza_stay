@@ -1,3 +1,5 @@
+import { erroInformacoesExperiencia, erroDisponibilidadeExperiencia } from './modeloExperiencia';
+import { localizacaoExperienciaCompleta } from './validarLocalizacao';
 import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
 import BotaoAcaoRegisto from '../BotaoAcaoRegisto';
@@ -7,14 +9,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Check, ChevronRight, HelpCircle, User, Loader } from 'lucide-react';
-import InformacoesBasicas from './InformacoesBasicas';
+import InformacoesBasicas from './InformacoesModelo';
 import Localizacao from './Localizacao';
 import Categoria from './Categoria';
 import Inclusoes from './Inclusoes';
 import Requisitos from './Requisitos';
 import Idiomas from './Idiomas';
 import ImagensUpload from './ImagensUpload';
-import Disponibilidade from './Disponibilidade';
+import Disponibilidade from './DisponibilidadeModelo';
 import { buscarExperienciaParaEdicao, salvarFluxoExperiencia } from '../../services/experienciaApiService';
 import { useToast } from '../../Toast';
 
@@ -100,15 +102,19 @@ const EditarExperiencia = () => {
             inclui_guia: data.inclui_guia == 1,
             inclui_transporte: data.inclui_transporte == 1,
             inclui_refeicao: data.inclui_refeicao == 1,
+            modelo_reserva: data.modelo_reserva || 'por_pessoa',
+            equipamento_nome: data.equipamento_nome || '',
+            quantidade_equipamentos: data.quantidade_equipamentos ?? 1,
+            pessoas_por_equipamento: data.pessoas_por_equipamento ?? 2,
             ponto_encontro: data.ponto_encontro || ''
           });
 
           setEndereco({
-            morada: data.endereco || '',
-            cidade: data.localizacao || '',
-            ilha: data.ilha || '',
-            lat: data.latitude || null,
-            lng: data.longitude || null
+            morada: typeof data.endereco === 'object' ? data.endereco?.morada || '' : data.endereco || '',
+            cidade: data.endereco?.cidade ?? data.localizacao ?? '',
+            ilha: data.endereco?.ilha ?? data.ilha ?? '',
+            lat: data.endereco?.lat ?? data.latitude ?? null,
+            lng: data.endereco?.lng ?? data.longitude ?? null
           });
 
           setCategoria(data.categoria || 'aventura');
@@ -136,9 +142,26 @@ const EditarExperiencia = () => {
     carregarExperiencia();
   }, [experienciaId, navigate, showToast]);
 
-  const handleNext = () => {
-    setFase(fase + 1);
+  const validarLocalizacao = () => {
+    if (localizacaoExperienciaCompleta(endereco)) return true;
+    showToast(t('experiencia_localizacao_obrigatoria'), 'error');
+    setFase(2);
     window.scrollTo(0, 0);
+    return false;
+  };
+  const validarInformacoes = () => { const key=erroInformacoesExperiencia(informacoes);if(key){showToast(t(key),'error');setFase(1);return false;}return true; };
+  const validarDisponibilidade = () => { const key=erroDisponibilidadeExperiencia(informacoes,disponibilidade);if(key){showToast(t(key),'error');setFase(8);return false;}return true; };
+  const mudarEtapa = proxima => {
+    if (fase === 1 && proxima > fase && !validarInformacoes()) return;
+    if (fase === 2 && proxima > fase && !validarLocalizacao()) return;
+    setFase(proxima);
+    window.scrollTo(0, 0);
+  };
+
+  const handleNext = () => {
+    if(fase===1 && !validarInformacoes())return;
+    if(fase===2 && !validarLocalizacao())return;
+    setFase(Math.min(8,fase+1));window.scrollTo(0,0);
   };
 
   const handleBack = () => {
@@ -152,6 +175,8 @@ const EditarExperiencia = () => {
 
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+    if (!validarInformacoes() || !validarDisponibilidade()) return;
+    if (!validarLocalizacao()) return;
     if (!temFotoAnuncio(imagens)) {
       showToast(t('anuncio_foto_obrigatoria'), 'error');
       setFase(7);
@@ -194,7 +219,7 @@ const EditarExperiencia = () => {
     }
   };
 
-  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={handleNext} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onStepChange={mudarEtapa} onBack={handleBack} onNext={handleNext} />;
 
   if (loading) {
     return (
@@ -233,18 +258,16 @@ const EditarExperiencia = () => {
 
         </div>
       </header>
-      <div className="mx-auto flex w-full max-w-4xl px-4 pt-4 sm:justify-end">
+      <div className="mx-auto flex w-full max-w-6xl px-4 pt-4 sm:justify-end">
         <Link
           to="/gest/minhas-experiencias"
-          target="_blank"
-          rel="noopener noreferrer"
           className="flex min-h-11 w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-3 text-center text-sm font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-600 sm:w-auto"
         >
           {t('registo_atalho_sessoes')}
         </Link>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         {renderProgressBar()}
 
         <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
@@ -331,8 +354,11 @@ const EditarExperiencia = () => {
             <>
               <TituloRegisto dominio="experiencia" fase={fase} editar={true} />
               <Disponibilidade
+                categoria={categoria}
                 dados={disponibilidade}
                 onChange={setDisponibilidade}
+                informacoes={informacoes}
+                onInformacoesChange={setInformacoes}
                 readOnly={false}
               />
             </>
@@ -349,7 +375,8 @@ const EditarExperiencia = () => {
             {fase < 8 && (
               <button
                 onClick={handleNext}
-                className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
+                  disabled={fase === 1 && Boolean(erroInformacoesExperiencia(informacoes))}
+                className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
               >
                 Continuar <ChevronRight size={18} />
               </button>

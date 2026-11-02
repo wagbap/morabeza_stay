@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Loader2, Compass, Plus, Edit2, Trash2, Settings2, Eye, MapPin,
   Star, Users, Clock, AlertCircle, RefreshCw, CheckCircle,
-  XCircle, Search, User, Shield, Ban
+  XCircle, Search, User, Ban
 } from 'lucide-react';
 
 const API_BASE = 'https://welovepalop.com';
@@ -351,15 +351,6 @@ export default function MinhasExperiencias() {
                         >
                             <Settings2 size={14} />
                             Configurar Sessões
-                        </button>
-
-                        {/* 🔥 Botão secundário: Bloqueios */}
-                        <button
-                            onClick={() => navigate(`/gest/experiencia/${exp.id}/bloqueios`)}
-                            className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm"
-                        >
-                            <Shield size={14} />
-                            Bloqueios e Regras
                         </button>
 
                           {/* 🔥 NOVO Botão: Políticas de Reserva */}

@@ -93,6 +93,18 @@ body {
   border-radius: 4px;
 }
 
+/* Only the main admin content shows a scrollbar, when needed. */
+.admin-workspace nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.admin-workspace nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* Prevenir overflow no mobile */
 @media (max-width: 768px) {
   body {

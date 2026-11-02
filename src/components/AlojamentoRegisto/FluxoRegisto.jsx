@@ -1,3 +1,4 @@
+import { localizacaoObrigatoriaCompleta } from '../../utils/localizacaoObrigatoria';
 import { useTranslation } from 'react-i18next';
 import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
@@ -445,7 +446,21 @@ const FluxoRegistoContent = () => {
     return true;
   };
 
+  const validarLocalizacaoObrigatoria = () => {
+    if (localizacaoObrigatoriaCompleta(localizacaoDados, 'endereco')) return true;
+    showToast(t('registo_localizacao_obrigatoria'), 'error');
+    setFase(2);
+    window.scrollTo(0, 0);
+    return false;
+  };
+  const mudarEtapa = proxima => {
+    if (fase === 2 && proxima > fase && !validarLocalizacaoObrigatoria()) return;
+    setFase(proxima);
+    window.scrollTo(0, 0);
+  };
+
   const handleSaveLocalizacao = () => {
+    if (!validarLocalizacaoObrigatoria()) return;
     if (!localizacaoDados.endereco?.trim()) {
       showToast('Por favor, insira o endereço', 'error');
       return false;
@@ -602,6 +617,7 @@ const FluxoRegistoContent = () => {
 
   // ==================== ENVIAR PARA ANÁLISE (API) ====================
   const handleEnviarParaAnalise = async () => {
+    if (!validarLocalizacaoObrigatoria()) return;
     if (isSubmitting) return;
     if (!temFotoAnuncio(fotos)) {
       showToast(t('anuncio_foto_obrigatoria'), 'error');
@@ -741,7 +757,7 @@ const FluxoRegistoContent = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => <EtapasRegisto dominio="alojamento" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={({ 1: handleSaveInformacoes, 2: handleSaveLocalizacao, 3: handleSaveComodidades, 4: handleSaveRegras })[fase]} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="alojamento" fase={fase} onStepChange={mudarEtapa} onBack={handleBack} onNext={({ 1: handleSaveInformacoes, 2: handleSaveLocalizacao, 3: handleSaveComodidades, 4: handleSaveRegras })[fase]} />;
 
   // ==================== FASES ====================
   const renderFaseInformacoes = () => (

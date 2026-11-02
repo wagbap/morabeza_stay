@@ -4,8 +4,13 @@ import {
   Snowflake, Flame, Fan, Wifi, Tv, Lock, Refrigerator, Wine, Microwave,
   Coffee, Shirt, Wind, Bed, Package, BookOpen, Moon, Shield, Baby, Zap,
   Sun, DoorOpen, Utensils, Waves, Building, Mountain, Bath, ShowerHead,
-  Droplets, Sparkles, Scroll, Users, Check,
+  Droplets, Sparkles, Scroll, Users, Check, Croissant, Dumbbell, PawPrint, Fence, Car, Accessibility, CookingPot, WashingMachine, ChevronUp, Eye,
 } from 'lucide-react';
+
+// Small equipment icons absent from the installed Lucide set; inherit CSS color.
+const Iron = ({size = 18}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17c1-5 5-8 10-8h6l2 9H3zM9 9V6h8l2 3M3 21h18"/><path d="M16 13h1"/></svg>;
+const HairDryer = ({size = 18}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5h10a5 5 0 0 1 0 10H3zM3 7H1v6h2M10 15l2 7h4l-2-7M17 7l3-1M18 10h4M17 13l3 1"/></svg>;
+const Barbecue = ({size = 18}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 10h18a9 7 0 0 1-18 0zM7 16l-2 6M17 16l2 6M6 20h12M8 6V3M12 6V2M16 6V3"/></svg>;
 
 // ============================================================
 // LISTA OFICIAL DE COMODIDADES DE QUARTO
@@ -30,10 +35,10 @@ export const COMODIDADES_QUARTO = [
   { id: 'cozinha_privativa',   nome: 'Cozinha privativa',              icone: 'utensils',     categoria: 'Cozinha' },
   { id: 'kitchenette',         nome: 'Kitchenette',                    icone: 'utensils',     categoria: 'Cozinha' },
 
-  { id: 'ferro_engomar',       nome: 'Ferro de engomar',               icone: 'flame',        categoria: 'Utilidades' },
+  { id: 'ferro_engomar',       nome: 'Ferro de engomar',               icone: 'iron',         categoria: 'Utilidades' },
   { id: 'tabua_engomar',       nome: 'Tábua de engomar',               icone: 'shirt',        categoria: 'Utilidades' },
-  { id: 'maq_lavar_roupa',     nome: 'Máquina de lavar roupa',         icone: 'shirt',        categoria: 'Utilidades' },
-  { id: 'secador',             nome: 'Secador de cabelo',              icone: 'wind',         categoria: 'Utilidades' },
+  { id: 'maq_lavar_roupa',     nome: 'Máquina de lavar roupa',         icone: 'washingMachine', categoria: 'Utilidades' },
+  { id: 'secador',             nome: 'Secador de cabelo',              icone: 'hairDryer',    categoria: 'Utilidades' },
 
   { id: 'toalhas_roupa',       nome: 'Toalhas e roupa de cama',        icone: 'bed',          categoria: 'Roupa de cama e quarto' },
   { id: 'armario',             nome: 'Armário',                        icone: 'package',      categoria: 'Roupa de cama e quarto' },
@@ -45,8 +50,8 @@ export const COMODIDADES_QUARTO = [
   { id: 'berco',               nome: 'Berço',                          icone: 'baby',         categoria: 'Família' },
   { id: 'cama_extra',          nome: 'Cama extra',                     icone: 'bed',          categoria: 'Família' },
 
-  { id: 'varanda_privada',     nome: 'Varanda privada',                icone: 'sun',          categoria: 'Espaço exterior' },
-  { id: 'terraco_privado',     nome: 'Terraço privado',                icone: 'sun',          categoria: 'Espaço exterior' },
+  { id: 'varanda_privada',     nome: 'Varanda privada',                icone: 'fence',        categoria: 'Espaço exterior' },
+  { id: 'terraco_privado',     nome: 'Terraço privado',                icone: 'fence',        categoria: 'Espaço exterior' },
   { id: 'entrada_privada',     nome: 'Entrada privada',                icone: 'doorOpen',     categoria: 'Espaço exterior' },
 
   { id: 'vista_mar',           nome: 'Vista para o mar',               icone: 'waves',        categoria: 'Vistas' },
@@ -67,6 +72,11 @@ export const COMODIDADES_QUARTO = [
 // MAPA DE ÍCONES
 // ============================================================
 const ICONES = {
+  iron: <Iron size={18} />, hairDryer: <HairDryer size={18} />, barbecue: <Barbecue size={18} />,
+  croissant: <Croissant size={18} />, dumbbell: <Dumbbell size={18} />, pawPrint: <PawPrint size={18} />,
+  fence: <Fence size={18} />, car: <Car size={18} />, accessibility: <Accessibility size={18} />,
+  cookingPot: <CookingPot size={18} />, washingMachine: <WashingMachine size={18} />,
+  elevator: <ChevronUp size={18} />, eye: <Eye size={18} />,
   snowflake:    <Snowflake size={18} />,
   flame:        <Flame size={18} />,
   fan:          <Fan size={18} />,
@@ -108,6 +118,7 @@ const normalizar = (str) =>
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[_-]+/g, ' ')
     .trim();
 
 // ============================================================
@@ -127,6 +138,20 @@ export const getIconeComodidade = (nome, size = 18) => {
 
   // 2) Fallback por palavras-chave
   const mapa = [
+    [/pequeno almoco|breakfast|croissant/, 'croissant'],
+    [/ginasio|academia|gym|fitness|dumbbell/, 'dumbbell'],
+    [/animais|animal|pets|paw/, 'pawPrint'],
+    [/churras|barbecue|bbq|grelhador/, 'barbecue'],
+    [/hair ?dryer|secador/, 'hairDryer'],
+    [/ferro|iron/, 'iron'],
+    [/varanda|terraco|balcony|fence/, 'fence'],
+    [/piscina|pool|swimming/, 'waves'],
+    [/estacionamento|parking|garagem/, 'car'],
+    [/acessib|cadeira de rodas|wheelchair/, 'accessibility'],
+    [/elevador|elevator/, 'elevator'],
+    [/hospedes|guests/, 'users'],
+    [/quartos|bedroom|suite/, 'bed'],
+    [/lavar roupa|washing/, 'washingMachine'],
     [/wifi|wi-fi|internet/,             'wifi'],
     [/ar[- ]?condicionado/,             'snowflake'],
     [/aquecimento/,                     'flame'],

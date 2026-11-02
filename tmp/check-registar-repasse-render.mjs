@@ -1,0 +1,31 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import i18next from 'i18next';
+import { I18nextProvider } from 'react-i18next';
+import { rolldown } from 'rolldown';
+
+// Only seed the initial state for SSR; the production component is unchanged.
+const row = JSON.parse(fs.readFileSync('tmp/repasses-seed-api.json', 'utf8')).reservas.find(r => r.codigo_reserva === 'MS-EXEMPLO-002');
+Object.assign(row, { iban_banco: 'Banco de teste', iban_pais: 'Cabo Verde' });
+let source = fs.readFileSync('src/components/admin/RegistarRepasse.jsx', 'utf8');
+source = source.replace("import { pedirRepasses, enviarComprovativoRepasse } from '../../services/repassesService';", 'const pedirRepasses = async () => { throw Error("Unexpected request in SSR"); }; const enviarComprovativoRepasse = pedirRepasses;');
+source = source.replace('useState(null)', `useState(${JSON.stringify(row)})`).replace('useState(true)', 'useState(false)');
+fs.writeFileSync('tmp/registar-repasse-test-view.jsx', source);
+const bundle = await rolldown({ input: 'tmp/registar-repasse-test-view.jsx', platform: 'node', external: id => !id.startsWith('.') && !path.isAbsolute(id) });
+await bundle.write({ file: 'tmp/registar-repasse-test-view.mjs', format: 'es' });
+await bundle.close();
+const { default: Page } = await import('./registar-repasse-test-view.mjs');
+await i18next.init({ lng: 'pt', resources: { pt: { translation: {} } }, initImmediate: false });
+const html = renderToStaticMarkup(React.createElement(I18nextProvider, { i18n: i18next }, React.createElement(MemoryRouter, { initialEntries: [`/admin/repasses/carro/${row.reserva_id}/registar`] }, React.createElement(Routes, null, React.createElement(Route, { path: '/admin/repasses/:tipo/:id/registar', element: React.createElement(Page) })))));
+for (const text of ['Dados da transferência', 'Resumo da reserva', 'Destino do repasse', 'Condições verificadas', 'Santiago Rent', 'Banco de teste', 'MS-EXEMPLO-002']) assert.ok(html.includes(text), text);
+assert.ok(!html.includes('<dialog'), 'Registration must not be a modal');
+assert.ok(html.includes('type="checkbox"'), 'Explicit transfer confirmation');
+assert.ok(html.includes('type="file"'), 'Receipt upload');
+assert.ok(html.includes('readOnly=""'), 'Amount and booking must be locked');
+assert.ok(!html.includes(`>${row.iban_numero}<`), 'IBAN masked by default');
+assert.ok(html.includes('disabled=""'), 'Save disabled until required fields are complete');
+console.log('PASS: independent registration page renders all reference sections, readonly booking, file input, confirmation and masked IBAN; no dialog. SSR with controlled seed state.');

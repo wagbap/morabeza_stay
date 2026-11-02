@@ -161,10 +161,10 @@ const ImagensUpload = ({ imagens = [], onChange, experienciaId = null, readOnly 
       )}
       
       {erro && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
-          <AlertCircle size={18} className="text-red-500" />
-          <p className="text-sm text-red-600">{erro}</p>
-          <button onClick={() => setErro('')} className="ml-auto text-red-400 hover:text-red-600">
+        <div role="alert" className="min-w-0 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+          <span className="shrink-0 text-red-500"><AlertCircle size={18} /></span>
+          <p className="min-w-0 flex-1 break-all text-sm text-red-600">{erro}</p>
+          <button type="button" onClick={() => setErro('')} className="ml-auto shrink-0 text-red-400 hover:text-red-600">
             <X size={16} />
           </button>
         </div>

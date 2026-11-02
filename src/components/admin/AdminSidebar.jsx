@@ -232,7 +232,7 @@ const AdminSidebar = () => {
         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      <div className="hidden md:block w-64 h-screen bg-[#003580] flex flex-col justify-between text-white shadow-xl flex-shrink-0 overflow-y-auto">
+      <div className="hidden md:flex w-64 h-full min-h-0 bg-[#003580] flex-col justify-between text-white shadow-xl flex-shrink-0 overflow-hidden">
         <SidebarContent />
       </div>
 

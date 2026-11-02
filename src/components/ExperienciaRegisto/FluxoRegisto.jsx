@@ -1,3 +1,5 @@
+import { erroInformacoesExperiencia, erroDisponibilidadeExperiencia } from './modeloExperiencia';
+import { localizacaoExperienciaCompleta } from './validarLocalizacao';
 import { obterUtilizadorRegisto } from '../../utils/registoSession';
 import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import RegistoVisual, { EtapasRegisto, TituloRegisto } from '../RegistoVisual';
@@ -7,14 +9,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Check, ChevronRight, HelpCircle, Loader, Save, X, AlertCircle } from 'lucide-react';
-import InformacoesBasicas from './InformacoesBasicas';
+import InformacoesBasicas from './InformacoesModelo';
 import Localizacao from './Localizacao';
 import Categoria from './Categoria';
 import Inclusoes from './Inclusoes';
 import Requisitos from './Requisitos';
 import Idiomas from './Idiomas';
 import ImagensUpload from './ImagensUpload';
-import Disponibilidade from './Disponibilidade';
+import Disponibilidade from './DisponibilidadeModelo';
 import { salvarFluxoExperiencia } from '../../services/experienciaApiService';
 import { useToast } from '../../Toast';
 
@@ -48,6 +50,10 @@ const FluxoRegisto = () => {
     inclui_guia: true,
     inclui_transporte: false,
     inclui_refeicao: false,
+    modelo_reserva: '',
+    equipamento_nome: '',
+    quantidade_equipamentos: 1,
+    pessoas_por_equipamento: 2,
     ponto_encontro: ''
   });
 
@@ -123,7 +129,11 @@ const FluxoRegisto = () => {
       inclui_guia: true,
       inclui_transporte: false,
       inclui_refeicao: false,
-      ponto_encontro: ''
+      modelo_reserva: '',
+    equipamento_nome: '',
+    quantidade_equipamentos: 1,
+    pessoas_por_equipamento: 2,
+    ponto_encontro: ''
     });
     setEndereco({
       morada: '',
@@ -182,27 +192,26 @@ const FluxoRegisto = () => {
   }, []);
 
   // ==================== NAVEGAÇÃO ====================
-  const handleNext = () => {
-    if (fase === 1) {
-      if (!informacoes.titulo || !informacoes.titulo.trim()) {
-        showToast('O título da experiência é obrigatório', 'error');
-        return;
-      }
-      if (!informacoes.preco || Number(informacoes.preco) <= 0) {
-        showToast('O preço é obrigatório', 'error');
-        return;
-      }
-    }
-
-    if (fase === 2) {
-      if (!endereco.ilha) {
-        showToast('A ilha é obrigatória', 'error');
-        return;
-      }
-    }
-
-    setFase(fase + 1);
+  const validarLocalizacao = () => {
+    if (localizacaoExperienciaCompleta(endereco)) return true;
+    showToast(t('experiencia_localizacao_obrigatoria'), 'error');
+    setFase(2);
     window.scrollTo(0, 0);
+    return false;
+  };
+  const validarInformacoes = () => { const key=erroInformacoesExperiencia(informacoes);if(key){showToast(t(key),'error');setFase(1);return false;}return true; };
+  const validarDisponibilidade = () => { const key=erroDisponibilidadeExperiencia(informacoes,disponibilidade);if(key){showToast(t(key),'error');setFase(8);return false;}return true; };
+  const mudarEtapa = proxima => {
+    if (fase === 1 && proxima > fase && !validarInformacoes()) return;
+    if (fase === 2 && proxima > fase && !validarLocalizacao()) return;
+    setFase(proxima);
+    window.scrollTo(0, 0);
+  };
+
+  const handleNext = () => {
+    if(fase===1 && !validarInformacoes())return;
+    if(fase===2 && !validarLocalizacao())return;
+    setFase(Math.min(8,fase+1));window.scrollTo(0,0);
   };
 
   const handleBack = () => {
@@ -217,6 +226,8 @@ const FluxoRegisto = () => {
   // ==================== FINALIZAR ====================
   const handleFinalizar = async () => {
     if (isSubmitting) return;
+    if (!validarInformacoes() || !validarDisponibilidade()) return;
+    if (!validarLocalizacao()) return;
     if (!temFotoAnuncio(imagens)) {
       showToast(t('anuncio_foto_obrigatoria'), 'error');
       setFase(7);
@@ -269,7 +280,7 @@ const FluxoRegisto = () => {
   };
 
   // ==================== BARRA DE PROGRESSO ====================
-  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onStepChange={setFase} onBack={handleBack} onNext={handleNext} />;
+  const renderProgressBar = () => <EtapasRegisto dominio="experiencia" fase={fase} onStepChange={mudarEtapa} onBack={handleBack} onNext={handleNext} />;
 
   const temRascunho = !!localStorage.getItem(RASCUNHO_KEY);
 
@@ -291,9 +302,7 @@ const FluxoRegisto = () => {
         <div className="flex items-center">
           <Link
             to="/gest/minhas-experiencias"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-lg border border-white/30 px-3 py-2 text-xs font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+                className="rounded-lg border border-white/30 px-3 py-2 text-xs font-semibold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
           >
             {t('registo_atalho_sessoes')}
           </Link>
@@ -324,7 +333,7 @@ const FluxoRegisto = () => {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         {renderProgressBar()}
 
         <div data-registo-card className="bg-white rounded-lg shadow-md p-8">
@@ -419,8 +428,11 @@ const FluxoRegisto = () => {
             <>
               <TituloRegisto dominio="experiencia" fase={fase} editar={false} />
               <Disponibilidade
+                categoria={categoria}
                 dados={disponibilidade}
                 onChange={setDisponibilidade}
+                informacoes={informacoes}
+                onInformacoesChange={setInformacoes}
                 readOnly={false}
               />
             </>
@@ -459,7 +471,8 @@ const FluxoRegisto = () => {
               {fase < 8 && (
                 <button
                   onClick={handleNext}
-                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64"
+                  disabled={fase === 1 && Boolean(erroInformacoesExperiencia(informacoes))}
+                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto sm:min-w-64 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
                 >
                   Continuar <ChevronRight size={18} />
                 </button>

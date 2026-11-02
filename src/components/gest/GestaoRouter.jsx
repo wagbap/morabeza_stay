@@ -1,7 +1,7 @@
 // src/components/gest/GestaoRouter.jsx
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 
 import Navbar from '../Navbar'; 
@@ -25,8 +25,7 @@ import MinhasExperiencias from './MinhasExperiencias';
 
 // 🔥 Lazy para páginas mais pesadas
 const ValidarReserva = lazy(() => import('../ValidarReserva'));
-const ConfigurarSessoes = lazy(() => import('./ConfigurarSessoes'));
-const ConfigurarBloqueios = lazy(() => import('./ConfigurarBloqueios'));
+const ConfigurarSessoes = lazy(() => import('./AgendaExperiencia'));
 const PoliticasReserva = lazy(() => import('./PoliticasReserva'));
 
 const LoadingSpinner = () => (
@@ -36,6 +35,8 @@ const LoadingSpinner = () => (
 );
 
 const LayoutGestao = ({ children }) => {
+  const location = useLocation();
+  const sessionDesign = /^\/gest\/experiencia\/[^/]+\/sessoes$/.test(location.pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const navigate = useNavigate();
@@ -90,7 +91,7 @@ const LayoutGestao = ({ children }) => {
       <Navbar />
 
       <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar sessionDesign={sessionDesign} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         
         {sidebarOpen && (
           <div 
@@ -111,7 +112,7 @@ const LayoutGestao = ({ children }) => {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <div className={`flex-1 overflow-y-auto ${sessionDesign ? "bg-[#fbfcff] p-4 lg:pt-3.5 lg:pb-8" : "p-4 md:p-8"}`}>
             <Suspense fallback={<LoadingSpinner />}>
               {children}
             </Suspense>
@@ -121,6 +122,11 @@ const LayoutGestao = ({ children }) => {
       </div>
     </div>
   );
+};
+
+const RedirecionarBloqueiosParaSessoes = () => {
+  const { id } = useParams();
+  return <Navigate to={`/gest/experiencia/${id}/sessoes`} replace />;
 };
 
 const GestaoRouter = () => {
@@ -146,8 +152,9 @@ const GestaoRouter = () => {
       {/* 🔥 EXPERIÊNCIAS DO ANFITRIÃO */}
       {/* ============================================================ */}
       <Route path="minhas-experiencias" element={<LayoutGestao><MinhasExperiencias /></LayoutGestao>} />
+      <Route path="experiencia/:id/sessoes/anterior" element={<RedirecionarBloqueiosParaSessoes />} />
       <Route path="experiencia/:id/sessoes" element={<LayoutGestao><ConfigurarSessoes /></LayoutGestao>} />
-      <Route path="experiencia/:id/bloqueios" element={<LayoutGestao><ConfigurarBloqueios /></LayoutGestao>} />
+      <Route path="experiencia/:id/bloqueios" element={<RedirecionarBloqueiosParaSessoes />} />
       <Route path="experiencia/:id/politicas" element={<LayoutGestao><PoliticasReserva /></LayoutGestao>} />
 
       {/* ============================================================ */}

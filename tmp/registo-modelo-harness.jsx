@@ -1,0 +1,12 @@
+import React,{useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import i18next from 'i18next';
+import {I18nextProvider} from 'react-i18next';
+import pt from '../src/locales/pt.js';
+import Informacoes from '../src/components/ExperienciaRegisto/InformacoesModelo.jsx';
+import Disponibilidade from '../src/components/ExperienciaRegisto/DisponibilidadeModelo.jsx';
+import RegistoVisual,{EtapasRegisto,TituloRegisto} from '../src/components/RegistoVisual.jsx';
+import {erroInformacoesExperiencia,erroDisponibilidadeExperiencia} from '../src/components/ExperienciaRegisto/modeloExperiencia.js';
+await i18next.init({lng:'pt',resources:{pt:{translation:pt.translation || pt}},initImmediate:false});
+function Harness(){const [fase,setFase]=useState(1),[info,setInfo]=useState({modelo_reserva:'',titulo:'',descricao_curta:'',max_pessoas:10,min_pessoas:3,quantidade_equipamentos:5,pessoas_por_equipamento:2}),[days,setDays]=useState({dias_disponiveis:['terca','quarta','quinta','sexta','sabado','domingo']});window.registo={info,days};window.setStage=setFase;window.checkRegisto=()=>fase===1?erroInformacoesExperiencia(info):erroDisponibilidadeExperiencia(info,days);return <RegistoVisual><main className="mx-auto max-w-6xl p-5"><EtapasRegisto dominio="experiencia" fase={fase} onStepChange={setFase} onBack={()=>setFase(1)} onNext={()=>setFase(8)}/><section data-registo-card><TituloRegisto dominio="experiencia" fase={fase}/><div className="mt-7">{fase===1?<Informacoes dados={info} onChange={setInfo}/>:<Disponibilidade dados={days} onChange={setDays} informacoes={info} onInformacoesChange={setInfo}/>}</div></section></main></RegistoVisual>};
+createRoot(document.getElementById('registo-test')).render(<I18nextProvider i18n={i18next}><Harness/></I18nextProvider>);
