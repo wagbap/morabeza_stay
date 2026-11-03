@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { requestApiJson } from '../services/apiJson';
 
+import { filtrarCarrosAprovados } from '../features/carros/utils/publicacaoCarro';
+
 const SOURCES = {
   alojamentos: '/get_alojamentos.php',
   carros: '/get_carro.php',
@@ -23,7 +25,7 @@ export const useFetchHomeData = () => {
         const result = results[index];
         if (result.status === 'fulfilled') {
           const list = Array.isArray(result.value) ? result.value : result.value?.data;
-          next[key] = Array.isArray(list) ? list : [];
+          next[key] = key === 'carros' ? filtrarCarrosAprovados(list) : (Array.isArray(list) ? list : []);
         } else {
           next[key] = [];
           console.warn(`API indisponivel: ${key}`, { status: result.reason?.response?.status || null });

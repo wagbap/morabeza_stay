@@ -1,4 +1,28 @@
 export default {
+  experiencia_card_ver_precos_duracoes: "Odja presus i durason",
+  experiencia_card_consultar_precos: "Konsulta presus",
+  experiencia_card_unidade_grupo: "/ grupu",
+
+  experiencia_card_por_equipamento: "Pa ekipamentu i durason",
+  experiencia_card_por_grupo: "Pa grupu",
+  experiencia_card_por_participante: "Pa partisipanti",
+
+  alojamento_card_nao_informado: "Ka informadu",
+  gest_carros_unidades_meus: "My cars",
+  gest_carros_unidades_buscar: "Search my cars",
+  gest_carros_unidades_sem_resultados: "No cars found.",
+  gest_carros_unidades_configurar: "Configure units",
+  gest_carros_unidades_condicoes: "Vehicle conditions",
+  gest_carros_unidades_voltar: "Back to my cars",
+
+  carro_categoria_label: "Kategoria",
+  carro_categoria_selecionar: "Skodje un kategoria",
+  carro_categoria_suv: "SUV",
+  carro_categoria_economico: "Ekonómiku",
+  carro_categoria_pickup: "Pickup",
+  carro_categoria_luxo: "Luxu",
+  carro_categoria_eletrico: "Elétriku",
+
 
 
   agenda_experiencia_motivo_selecione: "Selecione um motivo da lista.",

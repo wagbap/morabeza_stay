@@ -2,6 +2,7 @@ import { requestApiJson } from '../../../services/apiJson';
 import { extrairFotosCarro } from '../utils/fotosCarro';
 import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
 // src/features/carros/CarrosDetalhes.jsx
+import { confirmarAprovacaoCarro } from '../utils/publicacaoCarro';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -764,6 +765,18 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
           signal: controller.signal,
         });
         if (controller.signal.aborted) return;
+
+        const aprovado = data.success && data.data && await confirmarAprovacaoCarro(
+          data.data,
+          (url, options) => requestApiJson(url, { ...options, signal: controller.signal })
+        );
+        if (controller.signal.aborted) return;
+
+        if (data.success && data.data && !aprovado) {
+          const erro = new Error('Vehicle unavailable');
+          erro.notFound = true;
+          throw erro;
+        }
 
         if (data.success && data.data) {
           setCarro(data.data);

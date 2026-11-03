@@ -65,9 +65,11 @@ const CardOferta = ({ imageContainerRef, ...props }) => {
         </div>
         <div className="mb-4 flex items-center gap-1.5 text-xs text-slate-500"><span className="text-amber-400 [&_svg]:fill-current"><Star size={18} strokeWidth={0} /></span>{Number(total_avaliacoes) > 0 ? <><span className="font-semibold text-slate-700">{rating.toFixed(1)}</span><span>({Number(total_avaliacoes)})</span></> : <span>{t('alojamento_card_sem_avaliacoes')}</span>}</div>
         <div className="mt-auto">
+          {props.precoSobConsulta ? <p className="text-lg font-bold text-slate-900">{props.precoConsultaLabel}</p> : <>
           {preco_rotulo === 'a_partir_de' && <p className="mb-0.5 text-xs text-slate-500">{t('a_partir_de', 'A partir de')}</p>}
           <p className="flex flex-wrap items-baseline gap-x-1.5 text-2xl font-extrabold tracking-tight text-slate-900">{price.toLocaleString('pt-PT')} CVE <span className="text-sm font-normal tracking-normal text-slate-500">{t(props.periodo)}</span></p>
           <ConversaoPreco valorCve={price} valorUsd={props.preco_usd} />
+          </>}
           <span className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3 text-sm font-semibold text-blue-600">{t('card_ver_disponibilidade', 'Ver disponibilidade')}<ArrowRight size={19} /></span>
         </div>
       </div>

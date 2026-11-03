@@ -6,6 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 import BotaoFavorito from '../../../components/BotaoFavorito';
 import { extrairFotosAlojamento } from '../utils/fotosAlojamento';
 import { obterCasasBanho } from '../utils/casasBanho';
+import { obterQuartosAlojamento } from '../utils/quartosAlojamento';
 
 const IMAGEM_LOCAL = '/images/alojamento-indisponivel.svg';
 
@@ -37,11 +38,11 @@ const CardAlojamento = (props) => {
     }
   };
   const countLabel = (value, singular, plural) => value == null || typeof value === 'object'
-    ? '\u2014' : `${value} ${t(Number(value) === 1 ? singular : plural)}`;
+    ? t('alojamento_card_nao_informado', 'Não informado') : `${value} ${t(Number(value) === 1 ? singular : plural)}`;
   const facts = [
     { icon: /apart/i.test(type) ? Building2 : House, text: type },
     { icon: Users, text: countLabel(props.capacidade_efetiva ?? props.capacidade, 'hospede', 'hospedes') },
-    { icon: BedDouble, text: countLabel(props.numero_quartos ?? props.quartos, 'quarto', 'quartos') },
+    { icon: BedDouble, text: countLabel(obterQuartosAlojamento(props), 'quarto', 'quartos') },
     { icon: Bath, text: countLabel(obterCasasBanho(props.casas_banho, props.comodidades), 'alojamento_card_banho', 'alojamento_card_banhos') },
   ];
   const item = { ...props, imagem_url: photos[0], tipo: 'alojamento' };

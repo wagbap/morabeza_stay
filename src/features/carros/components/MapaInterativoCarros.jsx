@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Map, Marker, NavigationControl } from 'react-map-gl';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin, ChevronRight, Gauge, X } from 'lucide-react';
-import axios from 'axios';
+import api from '../../../api/api';
+import { filtrarCarrosAprovados } from '../utils/publicacaoCarro';
 
 // Importar o CSS do Mapbox
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -176,8 +177,8 @@ const MapaCarros = () => {
     const carregarDados = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(
-          'https://welovepalop.com/api/get_carro_detalhes.php'
+        const res = await api.get(
+          '/get_carro_detalhes.php'
         );
 
         let dados = [];
@@ -195,7 +196,7 @@ const MapaCarros = () => {
 
         console.log('Carros recebidos:', dados.length, dados);
 
-        const dadosProcessados = processarCoordenadasUnicas(dados);
+        const dadosProcessados = processarCoordenadasUnicas(filtrarCarrosAprovados(dados));
         setCarros(dadosProcessados);
 
         // Só faz zoom automático se vier ?foco=ID na URL

@@ -1,10 +1,12 @@
+import ListaCarrosUnidades from './ListaCarrosUnidades';
+import { useTranslation } from 'react-i18next';
 import HeaderGestao from './HeaderGestao';
 // src/components/gest/UnidadesVeiculos.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Loader2, Car, Plus, Pencil, Wrench, History, X, Save,
-  CheckCircle, AlertCircle, FileText, Key, Search, ChevronDown, Check,
+  CheckCircle, AlertCircle, FileText, Key, Check,
   Upload, Eye, Trash2, Lock, Unlock, Truck, CircleDot, Shield
 } from 'lucide-react';
 
@@ -20,16 +22,14 @@ const ESTADOS = [
 
 export default function UnidadesVeiculos() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const carroId = searchParams.get('carro_id');
   const [loading, setLoading] = useState(true);
   const [carros, setCarros] = useState([]);
   const [carroSelecionado, setCarroSelecionado] = useState(null);
   const [unidades, setUnidades] = useState([]);
   const [loadingUnidades, setLoadingUnidades] = useState(false);
-
-  // LOV (dropdown com search)
-  const [dropdownAberto, setDropdownAberto] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const dropdownRef = useRef(null);
 
   // Modais
   const [modalForm, setModalForm] = useState(false);
@@ -61,9 +61,6 @@ export default function UnidadesVeiculos() {
   // Fecha dropdowns ao clicar fora
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownAberto(false);
-      }
       if (estadoMenuRef.current && !estadoMenuRef.current.contains(e.target)) {
         setEstadoMenuAberto(null);
       }
@@ -118,7 +115,7 @@ export default function UnidadesVeiculos() {
       }
 
       setCarros(lista);
-      if (lista.length > 0) setCarroSelecionado(lista[0]);
+
     } catch (e) {
       console.error(e);
       showToast('erro', 'Erro ao carregar carros');
@@ -126,6 +123,10 @@ export default function UnidadesVeiculos() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setCarroSelecionado(carros.find(carro => String(carro.id) === carroId) || null);
+  }, [carros, carroId]);
 
   // ============ CARREGAR UNIDADES ============
   useEffect(() => {
@@ -401,15 +402,6 @@ export default function UnidadesVeiculos() {
     );
   };
 
-  // ============ LOV: filtro ============
-  const carrosFiltrados = carros.filter(c => {
-    const t = (c.titulo || '').toLowerCase();
-    const m = (c.marca || '').toLowerCase();
-    const mo = (c.modelo || '').toLowerCase();
-    const s = searchTerm.toLowerCase();
-    return t.includes(s) || m.includes(s) || mo.includes(s);
-  });
-
   if (loading) {
     return (
       <div className="max-w-6xl w-full text-[#1a1f36] px-4 py-6 md:px-0 flex justify-center items-center h-96">
@@ -433,78 +425,27 @@ export default function UnidadesVeiculos() {
     );
   }
 
+  if (!carroSelecionado) {
+    return <ListaCarrosUnidades carros={carros}
+      onUnidades={carro => setSearchParams({ carro_id: String(carro.id) })}
+      onCondicoes={carro => navigate(`/gest/condicoes-veiculos?carro_id=${carro.id}`)} />;
+  }
+
   return (
     <div className="max-w-7xl w-full text-[#1a1f36] px-4 py-6 md:px-0">
       <HeaderGestao secao="unidades" className="mb-6" />
 
-      {/* LOV — Dropdown com search bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <h2 className="text-[18px] font-bold">
-          Unidades {carroSelecionado && `— ${carroSelecionado.titulo || carroSelecionado.modelo}`}
-        </h2>
-
-        <div className="relative w-full md:w-80" ref={dropdownRef}>
-          <button
-            onClick={() => setDropdownAberto(!dropdownAberto)}
-            className="w-full flex items-center justify-between bg-white border border-gray-200 text-[#0f172a] text-[14px] font-medium rounded-xl px-4 py-2.5 shadow-sm hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center gap-2 truncate">
-              <Car size={18} className="text-green-600 flex-shrink-0" />
-              <span className="truncate">{carroSelecionado?.titulo || 'Selecione um veículo...'}</span>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${dropdownAberto ? 'rotate-180' : ''}`} />
-          </button>
-
-          {dropdownAberto && (
-            <div className="absolute right-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-100 z-50 p-2">
-              <div className="relative mb-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Pesquisar veículo..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none bg-gray-50/50"
-                  autoFocus
-                />
-              </div>
-
-              <div className="max-h-56 overflow-y-auto space-y-1">
-                {carrosFiltrados.length > 0 ? (
-                  carrosFiltrados.map(c => {
-                    const isSelected = carroSelecionado?.id === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => {
-                          setCarroSelecionado(c);
-                          setDropdownAberto(false);
-                          setSearchTerm('');
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left ${
-                          isSelected ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-gray-50 text-gray-700'
-                        }`}
-                      >
-                        <span className="truncate">
-                          {c.titulo || `${c.marca} ${c.modelo}`} {c.ano ? `(${c.ano})` : ''}
-                        </span>
-                        {isSelected && <Check size={14} className="text-blue-900" />}
-                      </button>
-                    );
-                  })
-                ) : (
-                  <p className="text-center py-3 text-xs text-gray-400">Nenhum veículo encontrado</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={() => setSearchParams({})} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50">
+          {t('gest_carros_unidades_voltar', 'Voltar aos meus carros')}
+        </button>
+        <h2 className="text-lg font-bold">{carroSelecionado.titulo || carroSelecionado.modelo}</h2>
       </div>
 
       {/* Botões de ação */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 mb-4">
         <button
-          onClick={() => navigate('/gest/condicoes-veiculos')}
+          onClick={() => navigate(`/gest/condicoes-veiculos?carro_id=${carroSelecionado.id}`)}
           className="flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-800 px-4 py-2 rounded-lg text-[13px] font-bold transition-colors"
         >
           <Shield size={16} /> Condições dos Veículos

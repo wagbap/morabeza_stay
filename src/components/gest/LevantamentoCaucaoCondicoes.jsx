@@ -1,7 +1,7 @@
 import HeaderGestao from './HeaderGestao';
 // src/components/gest/LevantamentoCaucaoCondicoes.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Car, Loader2, Search, ChevronDown, Check,
   MapPin, Shield, UserCheck, Save, AlertCircle, CheckCircle,
@@ -41,6 +41,8 @@ const POLITICAS_COMBUSTIVEL = [
 
 export default function LevantamentoCaucaoCondicoes() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const carroId = searchParams.get('carro_id');
 
   const [loading, setLoading] = useState(true);
   const [carros, setCarros] = useState([]);
@@ -127,7 +129,7 @@ export default function LevantamentoCaucaoCondicoes() {
         else if (data.success && data.data?.carros) lista = data.data.carros;
 
         setCarros(lista);
-        if (lista.length > 0) setCarroSelecionado(lista[0]);
+        setCarroSelecionado(carroId ? lista.find(carro => String(carro.id) === carroId) || null : lista[0] || null);
       } catch (e) {
         console.error(e);
         showToast('erro', 'Erro ao carregar carros');
@@ -136,7 +138,7 @@ export default function LevantamentoCaucaoCondicoes() {
       }
     };
     fetchCarros();
-  }, []);
+  }, [carroId]);
 
   // Carregar condições do carro selecionado
   useEffect(() => {
@@ -288,7 +290,7 @@ export default function LevantamentoCaucaoCondicoes() {
     return (
       <div className="max-w-7xl w-full px-4 py-6 md:px-0">
         <button
-          onClick={() => navigate('/gest/unidades-veiculos')}
+          onClick={() => navigate(carroSelecionado ? `/gest/unidades-veiculos?carro_id=${carroSelecionado.id}` : '/gest/unidades-veiculos')}
           className="flex items-center gap-2 text-[13px] font-bold text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft size={16} /> Voltar às Unidades
@@ -309,7 +311,7 @@ export default function LevantamentoCaucaoCondicoes() {
 
       {/* Botão voltar */}
       <button
-        onClick={() => navigate('/gest/unidades-veiculos')}
+        onClick={() => navigate(carroSelecionado ? `/gest/unidades-veiculos?carro_id=${carroSelecionado.id}` : '/gest/unidades-veiculos')}
         className="flex items-center gap-2 text-[13px] font-bold text-gray-600 hover:text-gray-900 mb-4"
       >
         <ArrowLeft size={16} /> Voltar às Unidades
@@ -874,7 +876,7 @@ export default function LevantamentoCaucaoCondicoes() {
         {/* Footer guardar */}
         <div className="flex items-center justify-end gap-2 p-5 border-t border-gray-100 bg-gray-50/50">
           <button
-            onClick={() => navigate('/gest/unidades-veiculos')}
+            onClick={() => navigate(carroSelecionado ? `/gest/unidades-veiculos?carro_id=${carroSelecionado.id}` : '/gest/unidades-veiculos')}
             className="px-4 py-2 rounded-lg text-[13px] font-bold text-gray-600 hover:bg-gray-100"
           >
             Cancelar

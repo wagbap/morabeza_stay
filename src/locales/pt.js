@@ -1,4 +1,28 @@
 export default {
+  experiencia_card_ver_precos_duracoes: "Ver pre\u00e7os e dura\u00e7\u00f5es",
+  experiencia_card_consultar_precos: "Consultar pre\u00e7os",
+  experiencia_card_unidade_grupo: "/ grupo",
+
+  experiencia_card_por_equipamento: "Por equipamento e dura\u00e7\u00e3o",
+  experiencia_card_por_grupo: "Por grupo",
+  experiencia_card_por_participante: "Por participante",
+
+  alojamento_card_nao_informado: "N\u00e3o informado",
+  gest_carros_unidades_meus: "Meus carros",
+  gest_carros_unidades_buscar: "Pesquisar os meus carros",
+  gest_carros_unidades_sem_resultados: "Nenhum carro encontrado.",
+  gest_carros_unidades_configurar: "Configurar unidades",
+  gest_carros_unidades_condicoes: "Condi\u00e7\u00f5es do ve\u00edculo",
+  gest_carros_unidades_voltar: "Voltar aos meus carros",
+
+  carro_categoria_label: "Categoria",
+  carro_categoria_selecionar: "Selecione a categoria",
+  carro_categoria_suv: "SUV",
+  carro_categoria_economico: "Económico",
+  carro_categoria_pickup: "Pickup",
+  carro_categoria_luxo: "Luxo",
+  carro_categoria_eletrico: "Elétrico",
+
 
 
   agenda_experiencia_motivo_selecione: "Selecione um motivo da lista.",

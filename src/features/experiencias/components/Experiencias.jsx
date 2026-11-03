@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import PaginacaoAnuncios from '../../../components/PaginacaoAnuncios';
+import usePaginacao from '../../../hooks/usePaginacao';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
 import { Loader2, LayoutGrid, List, Info, ArrowRight, ChevronDown } from 'lucide-react';
@@ -110,6 +112,13 @@ const Experiencias = () => {
     return 0;
   });
 
+  const resultadosRef = useRef(null);
+  const paginacao = usePaginacao(experienciasOrdenadas, JSON.stringify([location.search, orcamento, categoriasSelecionadas, filtroDestino, ordenar]), 9);
+  const mudarPagina = pagina => {
+    paginacao.onPage(pagina);
+    resultadosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   // Handler para a SearchBar
   const handleSearchBar = (queryString) => {
     const params = new URLSearchParams(queryString);
@@ -163,7 +172,7 @@ const Experiencias = () => {
           </aside>
 
           {/* LISTAGEM DE RESULTADOS */}
-          <div className="w-full lg:col-span-9">
+          <div ref={resultadosRef} className="w-full scroll-mt-6 lg:col-span-9">
             
             {/* HEADER DA LISTAGEM */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
@@ -236,7 +245,7 @@ const Experiencias = () => {
                 : "flex flex-col gap-6 text-left"
               }>
                 {experienciasOrdenadas.length > 0 ? (
-                  experienciasOrdenadas.map(exp => (
+                  paginacao.items.map(exp => (
                     <CardExperiencia key={exp.id} {...exp} isList={viewMode === 'list'} />
                   ))
                 ) : (
@@ -250,6 +259,7 @@ const Experiencias = () => {
                 )}
               </div>
             )}
+            {!loading && <PaginacaoAnuncios total={paginacao.total} pagina={paginacao.page} porPagina={9} onChange={mudarPagina} />}
           </div>
         </div>
 

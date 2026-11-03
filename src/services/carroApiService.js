@@ -1,4 +1,5 @@
 import api from '../api/api';
+import { filtrarCarrosAprovados } from '../features/carros/utils/publicacaoCarro';
 // src/services/carroApiService.js
 
 const API_URL = api.defaults.baseURL.replace(/\/$/, '');
@@ -117,7 +118,14 @@ export async function listarCarrosPublicos(opcoes = {}) {
         offset,
         status
     });
-    return apiRequest(`/carro/listar.php${qs}`, 'GET');
+    const result = await apiRequest(`/carro/listar.php${qs}`, 'GET');
+    if (Array.isArray(result)) return filtrarCarrosAprovados(result);
+    if (Array.isArray(result.data)) return { ...result, data: filtrarCarrosAprovados(result.data) };
+    if (Array.isArray(result.data?.items)) {
+        const items = filtrarCarrosAprovados(result.data.items);
+        return { ...result, data: { ...result.data, items, total: items.length } };
+    }
+    return result;
 }
 
 export async function buscarCarro(id) {

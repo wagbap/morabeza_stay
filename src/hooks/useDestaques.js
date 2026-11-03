@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { requestApiJson } from '../services/apiJson';
 
+import { filtrarCarrosAprovados } from '../features/carros/utils/publicacaoCarro';
+import { completarDadosCardAlojamento } from '../features/alojamento/utils/quartosAlojamento';
+
 const vazio = { alojamentos: [], carros: [], experiencias: [] };
 
 export default function useDestaques() {
@@ -15,13 +18,20 @@ export default function useDestaques() {
       setLoading(true);
       setError(false);
       try {
-        const response = await requestApiJson('/alojamento/destaques.php', { signal: controller.signal });
+        const [destaques, catalogo] = await Promise.allSettled([
+          requestApiJson('/alojamento/destaques.php', { signal: controller.signal }),
+          requestApiJson('/get_alojamentos.php', { signal: controller.signal }),
+        ]);
+        if (destaques.status !== 'fulfilled') throw destaques.reason;
+        const response = destaques.value;
         if (response?.success !== true || !response.data ||
             !Object.keys(vazio).every(key => Array.isArray(response.data[key]))) {
           throw new Error('Invalid featured listings response');
         }
         if (!controller.signal.aborted) {
-          setData(Object.fromEntries(Object.keys(vazio).map(key => [key, response.data[key].slice(0, 3)])));
+          const next = Object.fromEntries(Object.keys(vazio).map(key => [key, (key === 'carros' ? filtrarCarrosAprovados(response.data[key]) : response.data[key]).slice(0, 3)]));
+          if (catalogo.status === 'fulfilled') next.alojamentos = completarDadosCardAlojamento(next.alojamentos, catalogo.value);
+          setData(next);
         }
       } catch {
         if (!controller.signal.aborted) setError(true);

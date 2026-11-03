@@ -999,30 +999,30 @@ const ExperienciaDetalhes = () => {
 
             <div className="mt-6 pt-6 border-t border-slate-100 text-left">
               <h3 className="text-sm font-bold text-slate-900 mb-4">Informações principais</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:flex-wrap sm:gap-x-8">
                 <div className="flex items-center gap-2">
-                  <Clock size={18} className="text-slate-400" />
+                  <span className="shrink-0 text-slate-400"><Clock size={18} /></span>
                   <div>
                     <p className="text-[11px] font-bold">{experiencia.duracao}</p>
                     <p className="text-[9px] text-slate-400">Duração</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Users size={18} className="text-slate-400" />
+                  <span className="shrink-0 text-slate-400"><Users size={18} /></span>
                   <div>
                     <p className="text-[11px] font-bold">Máx. {experiencia.max_pessoas}</p>
                     <p className="text-[9px] text-slate-400">Participantes</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <MapPin size={18} className="text-slate-400" />
+                  <span className="shrink-0 text-slate-400"><MapPin size={18} /></span>
                   <div>
                     <p className="text-[11px] font-bold">{experiencia.ilha || experiencia.localizacao}</p>
                     <p className="text-[9px] text-slate-400">Localização</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Star size={18} className="text-slate-400" />
+                  <span className="shrink-0 text-slate-400"><Star size={18} /></span>
                   <div>
                     <p className="text-[11px] font-bold">{experiencia.rating_formatado || '5.0'}</p>
                     <p className="text-[9px] text-slate-400">Avaliação</p>

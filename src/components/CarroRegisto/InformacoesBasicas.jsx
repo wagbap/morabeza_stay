@@ -1,8 +1,9 @@
+import SeletorCategoria from './SeletorCategoria';
 import ResumoValorRegisto from '../ResumoValorRegisto';
 // src/components/CarroRegisto/InformacoesBasicas.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Car, Tag, DollarSign, FileText, Loader } from 'lucide-react';
+import { Tag, DollarSign, Loader } from 'lucide-react';
 import { buscarTiposCarro } from '../../services/carroApiService';
 
 const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
@@ -53,25 +54,12 @@ const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
           </div>
         </div>
         
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Categoria
-          </label>
-          <div className="relative">
-            <Car size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <select
-              value={dados.categoria_id || ''}
-              onChange={(e) => handleChange('categoria_id', parseInt(e.target.value))}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4] bg-white"
-              disabled={readOnly}
-            >
-              <option value="">Selecione a categoria</option>
-              {tipos.map(tipo => (
-                <option key={tipo.id} value={tipo.id}>{tipo.icone} {tipo.nome}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <SeletorCategoria
+          tipos={tipos}
+          value={dados.categoria_id}
+          onChange={valor => handleChange('categoria_id', valor)}
+          disabled={readOnly}
+        />
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

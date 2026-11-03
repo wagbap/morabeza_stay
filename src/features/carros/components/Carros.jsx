@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import PaginacaoAnuncios from '../../../components/PaginacaoAnuncios';
+import usePaginacao from '../../../hooks/usePaginacao';
+import React, { useState, useEffect, useRef } from 'react';
+import api from '../../../api/api';
+import { filtrarCarrosAprovados } from '../utils/publicacaoCarro';
 import { Helmet } from 'react-helmet-async';
 import { Loader2, LayoutGrid, List, Info } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
@@ -28,14 +31,14 @@ const Carros = () => {
   const buscarDados = async (queryString = '') => {
     try {
       setLoading(true);
-      let url = 'https://welovepalop.com/api/get_carro.php'; 
+      let url = '/get_carro.php';
       if (queryString) url += `?${queryString}`;
       
-      const response = await axios.get(url);
+      const response = await api.get(url);
       if (response.data.success) {
-        setCarros(response.data.data);
+        setCarros(filtrarCarrosAprovados(response.data.data));
       } else {
-        setCarros(Array.isArray(response.data) ? response.data : []);
+        setCarros(filtrarCarrosAprovados(response.data));
       }
     } catch (error) {
       console.error("Erro ao carregar veículos:", error);
@@ -72,6 +75,13 @@ const Carros = () => {
     });
     setCarrosFiltrados(filtrados);
   }, [carros, orcamento, categoriasSelecionadas, filtroBusca]);
+
+  const resultadosRef = useRef(null);
+  const paginacao = usePaginacao(carrosFiltrados, JSON.stringify([location.search, orcamento, categoriasSelecionadas, filtroBusca]), 9);
+  const mudarPagina = pagina => {
+    paginacao.onPage(pagina);
+    resultadosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const handleSearchBar = (queryString) => {
     const params = new URLSearchParams(queryString);
@@ -113,7 +123,7 @@ const Carros = () => {
             />
           </aside>
 
-          <div className="w-full lg:col-span-9">
+          <div ref={resultadosRef} className="w-full scroll-mt-6 lg:col-span-9">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
               <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter">
                 {filtroBusca || "Veículos"}: <span className="text-blue-600 text-4xl">{carrosFiltrados.length}</span> disponíveis
@@ -146,7 +156,7 @@ const Carros = () => {
                 : "flex flex-col gap-6"
               }>
                 {carrosFiltrados.length > 0 ? (
-                  carrosFiltrados.map(carro => (
+                  paginacao.items.map(carro => (
                     <CardCarro key={carro.id} carro={carro} isList={viewMode === 'list'} />
                   ))
                 ) : (
@@ -160,6 +170,7 @@ const Carros = () => {
                 )}
               </div>
             )}
+            {!loading && <PaginacaoAnuncios total={paginacao.total} pagina={paginacao.page} porPagina={9} onChange={mudarPagina} />}
           </div>
         </div>
       </main>

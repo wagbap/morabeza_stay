@@ -1,4 +1,28 @@
 export default {
+  experiencia_card_ver_precos_duracoes: "View prices and durations",
+  experiencia_card_consultar_precos: "Check prices",
+  experiencia_card_unidade_grupo: "/ group",
+
+  experiencia_card_por_equipamento: "Per equipment and duration",
+  experiencia_card_por_grupo: "Per group",
+  experiencia_card_por_participante: "Per participant",
+
+  alojamento_card_nao_informado: "Not provided",
+  gest_carros_unidades_meus: "My cars",
+  gest_carros_unidades_buscar: "Search my cars",
+  gest_carros_unidades_sem_resultados: "No cars found.",
+  gest_carros_unidades_configurar: "Configure units",
+  gest_carros_unidades_condicoes: "Vehicle conditions",
+  gest_carros_unidades_voltar: "Back to my cars",
+
+  carro_categoria_label: "Category",
+  carro_categoria_selecionar: "Select a category",
+  carro_categoria_suv: "SUV",
+  carro_categoria_economico: "Economy",
+  carro_categoria_pickup: "Pickup",
+  carro_categoria_luxo: "Luxury",
+  carro_categoria_eletrico: "Electric",
+
 
 
   agenda_experiencia_motivo_selecione: "Selecione um motivo da lista.",
