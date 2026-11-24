@@ -1,0 +1,21 @@
+const fs=require('fs'),path=require('path'),crypto=require('crypto'),assert=require('assert/strict');
+const root=path.join(process.env.TEMP,'morabeza-email-php-check/node_modules');
+(async()=>{
+ const {PHP}=require(path.join(root,'@php-wasm/universal'));const {loadNodeRuntime}=require(path.join(root,'@php-wasm/node'));
+ const php=new PHP(await loadNodeRuntime('8.3',{emscriptenOptions:{processId:65475,wasmBinary:fs.readFileSync(path.join(root,'@php-wasm/node-8-3/asyncify/8_3_33/php_8_3.wasm'))}}));
+ php.mkdir('/v');php.mkdir('/v/api');
+ for(const f of ['horarios_carro.php','carroHorarios.php','carroStock.php','reserva-validacao.php','reserva-jwt.php'])php.writeFile('/v/api/'+f,fs.readFileSync('server/api/'+f));
+ php.writeFile('/v/api/config.php',`<?php class TestHoursDb extends PDO {public function __construct(){parent::__construct('sqlite:/v/fixture.sqlite');$this->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);}public function prepare(string $sql,array $options=[]):PDOStatement|false{return parent::prepare(str_replace(' FOR UPDATE','',$sql),$options);}}$conn=new TestHoursDb();`);
+ php.writeFile('/v/api/auth-secrets.local.php',"<?php return ['jwt_secret'=>'fixture-only'];");
+ let r=await php.run({code:`<?php require '/v/api/config.php';$conn->exec("CREATE TABLE usuarios(id INTEGER,email TEXT);INSERT INTO usuarios VALUES(7,'host@example.invalid'),(8,'other@example.invalid');CREATE TABLE carros(id INTEGER,usuario_id INTEGER,status TEXT,status_carro TEXT,levantamento_hora_inicio TEXT,levantamento_hora_fim TEXT,devolucao_mesmo_horario INTEGER,devolucao_hora_inicio TEXT,devolucao_hora_fim TEXT);INSERT INTO carros VALUES(24,7,'disponivel','aprovado','10:00','14:00',1,NULL,NULL);");`});assert.equal(r.exitCode,0);
+ const jwt=(id,email,secret='fixture-only')=>{const head=Buffer.from(JSON.stringify({alg:'HS256'})).toString('base64url'),body=Buffer.from(JSON.stringify({data:{id,email},exp:Math.floor(Date.now()/1000)+3600})).toString('base64url');return head+'.'+body+'.'+crypto.createHmac('sha256',secret).update(head+'.'+body).digest('base64url');};
+ const request=(body,token,method='POST')=>php.run({scriptPath:'/v/api/horarios_carro.php',method,body:Buffer.from(JSON.stringify(body)),headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})}});
+ const payload={carro_id:24,acao:'guardar',levantamento_hora_inicio:'10:00',levantamento_hora_fim:'14:00',devolucao_mesmo_horario:0,devolucao_hora_inicio:'16:30',devolucao_hora_fim:'19:45'};
+ for(const token of [undefined,jwt(7,'host@example.invalid','forged'),jwt(8,'other@example.invalid')])assert.equal((await request(payload,token)).httpStatusCode,403);
+ const token=jwt(7,'host@example.invalid');
+ r=await request(payload,token);assert.equal(r.httpStatusCode,200,r.text);assert.equal(JSON.parse(r.text).horarios.devolucao_hora_inicio,'16:30');
+ r=await request({...payload,devolucao_hora_inicio:'20:00'},token);assert.equal(r.httpStatusCode,422);
+ r=await request({carro_id:24,acao:'listar'},token);assert.equal(JSON.parse(r.text).horarios.devolucao_hora_inicio,'16:30');
+ r=await request({...payload,devolucao_mesmo_horario:1},token);assert.equal(JSON.parse(r.text).horarios.devolucao_hora_inicio,'10:00');assert.equal(JSON.parse(r.text).horarios.devolucao_hora_fim,'14:00');
+ console.log('PASS HTTP: host ownership/auth checked, independent window persisted/read back, inverted window rejected without mutation, same hours option persisted.');process.exit(0);
+})().catch(e=>{console.error(e);process.exit(1)});

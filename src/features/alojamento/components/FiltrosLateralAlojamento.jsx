@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   X, Building2, Home, Palmtree, Hotel, Map,
-  Users, Baby, Bed, PawPrint, Plus, Minus, Sparkles, ChevronUp,
+  Users, Baby, Bed, PawPrint, Plus, Minus, Sparkles, ChevronUp, Search,
 } from 'lucide-react';
 
 // ------------------------------------------------------------
@@ -66,6 +66,7 @@ const FiltrosLaterais = ({
   const navigate = useNavigate();
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const filtrosId = useId();
+  const pesquisaNomeId = useId();
 
   // ----------------------------------------------------------
   // Valores atuais
@@ -132,6 +133,7 @@ const FiltrosLaterais = ({
   // Limpar
   // ----------------------------------------------------------
   const temFiltrosAtivos =
+    Boolean(searchParams.nome?.trim()) ||
     tiposSelecionados.length > 0 ||
     orcamento < orcamentoMaximo ||
     criancas > 0 ||
@@ -141,7 +143,7 @@ const FiltrosLaterais = ({
   const limparTudo = useCallback(() => {
     setOrcamento(orcamentoMaximo);
     setTiposSelecionados([]);
-    updateParam({ criancas: null, quartos: null, pet: null, adultos: 2, hospedes: 2 });
+    updateParam({ nome: null, criancas: null, quartos: null, pet: null, adultos: 2, hospedes: 2 });
   }, [orcamentoMaximo, setOrcamento, setTiposSelecionados, updateParam]);
 
   // ----------------------------------------------------------
@@ -152,7 +154,7 @@ const FiltrosLaterais = ({
 
       {/* MAPA */}
       <div
-        onClick={() => navigate('/mapa')}
+        onClick={() => onAbrirMapa ? onAbrirMapa() : navigate('/mapa')}
         className="relative rounded-2xl overflow-hidden h-32 border-4 border-white shadow-lg cursor-pointer group"
       >
         <img
@@ -169,10 +171,10 @@ const FiltrosLaterais = ({
       </div>
 
       {/* BLOCO DE FILTROS */}
-      <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-xl shadow-blue-900/5">
+      <div className="bg-white p-5 sm:p-6 rounded-[32px] border border-gray-100 shadow-xl shadow-blue-900/5">
 
         {/* Header */}
-        <div className={`flex justify-between items-center ${filtrosAbertos ? 'mb-6 border-b border-gray-50 pb-4' : 'lg:mb-6 lg:border-b lg:border-gray-50 lg:pb-4'}`}>
+        <div className={`flex justify-between items-center mb-6`}>
           <h3 className="font-black text-gray-900 uppercase text-[10px] tracking-[0.2em]">
             {t('filtrar_por', 'Filtrar por')}
           </h3>
@@ -193,6 +195,14 @@ const FiltrosLaterais = ({
           </div>
         </div>
 
+        <div className={filtrosAbertos ? 'mb-6 border-b border-gray-100 pb-6' : 'lg:mb-6 lg:border-b lg:border-gray-100 lg:pb-6'}>
+          <label htmlFor={pesquisaNomeId} className="mb-3 block text-[11px] font-black uppercase text-gray-900">{t('aloj_filtro_nome_titulo')}</label>
+          <div className="relative">
+            <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-blue-600"><Search size={20} strokeWidth={1.8} /></span>
+            <input id={pesquisaNomeId} type="search" value={searchParams.nome || ''} onChange={e => updateParam({ nome: e.target.value })} placeholder={t('aloj_filtro_nome_placeholder')} aria-describedby={`${pesquisaNomeId}-ajuda`} className="min-h-11 w-full min-w-0 rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 outline-none placeholder:text-gray-500 focus:border-blue-600 focus:ring-1 focus:ring-blue-600" />
+          </div>
+          <p id={`${pesquisaNomeId}-ajuda`} className="mt-2 text-xs leading-relaxed text-gray-500">{t('aloj_filtro_nome_ajuda')}</p>
+        </div>
         <div id={filtrosId} className={filtrosAbertos ? '' : 'hidden lg:block'}>
         {/* HÓSPEDES */}
         <div className="mb-8">

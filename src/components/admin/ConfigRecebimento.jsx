@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, CheckCircle, AlertTriangle, RefreshCw, Server, CreditCard, Building } from 'lucide-react';
 

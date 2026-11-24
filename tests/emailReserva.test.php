@@ -15,6 +15,9 @@ checkEmail(emailReservaEstaPaga(['pagamento_status' => 'pago']), 'Database payme
 foreach ($fixtures as $d) {
     $body = renderizarConfirmacaoReserva($d);
     checkEmail(strpos($body, '{{') === false, 'Unresolved template tokens');
+    checkEmail(strpos($body, 'src="https://morabezastay.cv/images/email_header.jpg"') !== false, 'Paid email must use the supplied header image');
+    checkEmail(strpos($body, 'home-beach-29984774-poster.jpg') === false, 'Old hero image must be removed');
+    checkEmail(strpos($body, '<h1') === false, 'Paid header artwork already contains its heading');
     checkEmail(strpos($body, 'name="color-scheme" content="light dark"') !== false, 'Declare both email color schemes');
     checkEmail(strpos($body, '@media (prefers-color-scheme:dark)') !== false, 'Missing dark email palette');
     checkEmail(strpos($body, 'class="dm-badge-paid"') !== false, 'Paid badge needs the correct dark palette');
@@ -31,6 +34,7 @@ foreach ($fixtures as $d) {
     $d['nome_cliente'] = '<script>alert(1)</script>';
     $body = renderizarConfirmacaoReserva($d);
     checkEmail(strpos($body, 'Pagamento recebido.') === false, 'Pending booking must not claim payment');
+    checkEmail(strpos($body, 'email_header.jpg') === false, 'Pending email must not show paid confirmation artwork');
     checkEmail(strpos($body, 'class="dm-badge-pending"') !== false, 'Pending badge needs its own dark palette');
     checkEmail(strpos($body, '<script>') === false, 'Customer name must be escaped');
     checkEmail(strpos($body, 'Reserva recebida') !== false, 'Pending booking heading');
@@ -38,6 +42,18 @@ foreach ($fixtures as $d) {
     checkEmail(strpos($pdf, 'Mapa ilustrativo - Praia, Cabo Verde') !== false, 'Missing location needs labelled example map');
     checkEmail(strpos($pdf, '/Subtype /Image') !== false, 'Fallback map must be embedded in PDF');
     checkEmail(strpos($pdf, '%PDF-1.4') === 0 && substr($pdf, -5) === '%%EOF', 'Invalid PDF envelope');
+    checkEmail(strpos($pdf, '/Count 1') !== false, 'Standard receipt must preserve its original single-page design');
+    if ($d['tipo'] === 'carro') {
+    $longReservation = $d;
+    $longReservation['itens'] = array_fill(0, 16, ['nome' => 'Long reserved item name', 'descricao' => str_repeat('Full equipment and booking description ', 15)]);
+    $longPdf = gerarPdfComprovativoReserva($longReservation);
+    checkEmail(preg_match('~/Type /Pages /Kids \[[^\]]+\] /Count ([0-9]+)~', $longPdf, $pageCount) === 1 && (int)$pageCount[1] > 2, 'Long reservations need additional pages');
+    checkEmail(strpos($longPdf, '(Long reserved item name)') !== false, 'Reserved item must be retained');
+    }
+    $wrapper = new ComprovativoReservaPDF();
+    foreach ($wrapper->wrap(str_repeat('W', 150), 200, 11) as $wrappedLine) {
+        checkEmail($wrapper->width($wrappedLine, 11) <= 200, 'Long unbroken references must wrap inside their column');
+    }
     preg_match('/startxref\n(\d+)/', $pdf, $matches);
     checkEmail(substr($pdf, (int) $matches[1], 4) === 'xref', 'Invalid PDF offset');
     $url = urlComprovativoReserva($d, 'test-only-key', 1900000000);

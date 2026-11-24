@@ -1,0 +1,30 @@
+const fs=require('fs'),path=require('path'),http=require('http'),assert=require('assert/strict');
+process.env.PLAYWRIGHT_BROWSERS_PATH=path.resolve('tmp/webkit-browsers');
+const {chromium,webkit}=require(path.join(process.env.TEMP,'morabeza-email-php-check/node_modules/playwright-core'));
+const root=path.resolve('dist');const server=http.createServer((req,res)=>{let f=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!f.startsWith(root+path.sep)||!fs.existsSync(f)||fs.statSync(f).isDirectory())f=path.join(root,'index.html');res.setHeader('Content-Type',({'.js':'application/javascript','.css':'text/css','.woff2':'font/woff2','.mp4':'video/mp4','.jpg':'image/jpeg'})[path.extname(f)]||'text/html');fs.createReadStream(f).pipe(res);});
+(async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));const b=await (process.env.TEST_WEBKIT?webkit:chromium).launch(process.env.TEST_WEBKIT?{headless:true}:{headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});const page=await b.newPage({viewport:{width:1600,height:1000},reducedMotion:'reduce'});const errors=[],pedidos=[];page.on('pageerror',e=>errors.push(e.message));
+ const baseCar={status_carro:'aprovado',status:'disponivel',preco_dia:5000,localizacao:'Praia',ano:2024,imagens:[]};
+ const rows=[{...baseCar,id:1,titulo:'Toyota Santiago',slug:'toyota-santiago',marca:'Toyota',modelo:'RAV4',tipo:'SUV',ilha:'Santiago',passageiros:7},{...baseCar,id:2,titulo:'Clio Santiago',slug:'clio-santiago',marca:'Renault',modelo:'Clio',tipo:'Compacto',ilha:'Santiago',passageiros:5},{...baseCar,id:3,titulo:'Toyota Sal',slug:'toyota-sal',marca:'Toyota',modelo:'Yaris',tipo:'SUV',ilha:'Sal',passageiros:7}];
+ await page.route('https://**/*',async route=>{const req=route.request(),u=new URL(req.url());if(req.resourceType()==='script')return route.fulfill({contentType:'application/javascript',body:''});if(req.resourceType()==='image'){const f=u.hostname==='res.cloudinary.com'?'logo.png':'mapa.jpg';return route.fulfill({contentType:f.endsWith('png')?'image/png':'image/jpeg',body:fs.readFileSync('tmp/referencia-experiencias/'+f)});}let data={success:true,data:[]};if(u.pathname.endsWith('get_experiencias.php')){pedidos.push(u);data={success:true,data:[{id:21,titulo:'Passeio Serra Malagueta',slug:'serra',ilha:'Santiago',localizacao:'Praia',preco:2000,categoria_nome:'Aventura',max_pessoas:6,status:'aprovado',duracao:'2h'},{id:22,titulo:'Passeio de barco',slug:'barco',ilha:'Santiago',localizacao:'Tarrafal',preco:2500,categoria_nome:'Mar',max_pessoas:6,status:'aprovado',duracao:'2h'}]};}if(u.pathname.endsWith('/get_carro.php')){pedidos.push(u);data={success:true,data:rows};}if(u.pathname.endsWith('get_carro_fotos.php'))data={success:true,data:{id:u.searchParams.get('id'),galeria_fonte:'carro_imagens',imagens:[]}};if(u.pathname.endsWith('get_experiencias.php') && u.searchParams.get('localizacao')) data.data=data.data.filter(row=>row.localizacao===u.searchParams.get('localizacao'));return route.fulfill({json:data,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type,Authorization','Access-Control-Allow-Methods':'GET,POST,OPTIONS'}});});
+ await page.addInitScript(()=>localStorage.setItem('i18nextLng','pt'));const base='http://127.0.0.1:'+server.address().port;fs.mkdirSync('tmp/carros-sugestoes',{recursive:true});
+
+
+ await page.goto(base+'/experiencias?destino=Santiago&localizacao=Praia');
+ const zone=page.locator('[data-exp-search]').getByRole('button',{name:'Zona',exact:true});
+ for(const target of ['Tarrafal','Praia']) {
+   await zone.click();
+   await page.getByRole('option',{name:target,exact:true}).waitFor();
+   assert.equal(await page.getByRole('listbox',{name:'Zona',exact:true}).getByRole('option').count(),3);
+   await page.getByRole('option',{name:target,exact:true}).click();
+   await page.locator('[data-exp-search] button[type=submit]').click();
+   await page.waitForURL(u=>u.searchParams.get('localizacao')===target);
+   await page.getByRole('heading',{name:target==='Tarrafal'?'Passeio de barco':'Passeio Serra Malagueta',exact:true}).waitFor();
+ }
+ await page.goto(base+'/experiencias?destino=Santiago&localizacao=SemResultados');
+ await zone.click();
+ await page.getByRole('option',{name:'Tarrafal',exact:true}).waitFor();
+ assert.equal(await page.getByRole('listbox',{name:'Zona',exact:true}).getByRole('option').count(),4);
+ assert.deepEqual(errors,[]);
+ console.log('PASS: direct filtered entry, repeated zone searches, empty results; no browser errors');
+ await b.close();server.close();
+})().catch(e=>{console.error(e);server.close();process.exit(1)});

@@ -1,0 +1,1 @@
+import{t as e}from"./axios-yLnXbQNe.js";function t(e){let t=typeof e==`string`&&e.trim()?e.trim().replace(/\/+$/,``):`https://welovepalop.com/api`;return/\/api$/i.test(t)?t:`${t}/api`}var n=e.create({baseURL:t(`https://welovepalop.com/api`),headers:{"Content-Type":`application/json`}});export{n as t};

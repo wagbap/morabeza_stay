@@ -4,7 +4,11 @@ import { extrairFotosCarro } from '../../features/carros/utils/fotosCarro';
 import { IMAGEM_INDISPONIVEL } from '../../utils/imagemIndisponivel';
 
 function fotos(item, categoria) {
-  const values = [...new Set([...extrairFotosCarro({ ...item, imagem_principal: null, imagem_url: null, imagem_capa: null }), ...extrairFotosCarro(item)])];
+  const galeria = extrairFotosCarro(item);
+  // A listagem administrativa pode fornecer apenas a capa, sobretudo para
+  // anúncios pendentes que não estão disponíveis no endpoint público.
+  const capas = extrairFotosCarro({ imagens: [item.imagem_principal, item.imagem_url, item.imagem_capa, item.foto_principal, item.foto] });
+  const values = [...new Set([...galeria, ...capas])];
   return categoria === 'experiencias' ? values.map(url => url.replace('/uploads/carros/', '/uploads/experiencias/')) : values;
 }
 
@@ -14,10 +18,11 @@ export default function FotoAnuncioAdmin({ item, categoria }) {
   useEffect(() => {
     if (categoria === 'alojamentos') return;
     const controller = new AbortController();
-    const endpoint = categoria === 'carros' ? '/get_carro_detalhes.php' : '/experiencia/buscar.php';
-    requestApiJson(endpoint, { params: { id: item.id }, signal: controller.signal, retries: 0 })
+    const endpoint = categoria === 'carros' ? '/carro/buscar.php' : '/experiencia/buscar.php';
+    const params = { id: item.id };
+    requestApiJson(endpoint, { params, signal: controller.signal, retries: 0 })
       .then(response => {
-        if (!controller.signal.aborted && response?.success === true && response.data) {
+        if (!controller.signal.aborted && response?.success === true && response.data && (categoria !== 'carros' || String(response.data.id) === String(item.id))) {
           setDetalhes(response.data.carro || response.data.experiencia || response.data);
         }
       }).catch(() => { /* Keep the listing image if details are unavailable. */ });

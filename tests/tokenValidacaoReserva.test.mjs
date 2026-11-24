@@ -2,6 +2,22 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { obterTokenValidacao } from '../src/utils/tokenValidacaoReserva.js';
 const storage = values => ({ getItem: key => values[key] ?? null });
+const jwt = exp => `${Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url')}.${Buffer.from(JSON.stringify({ exp, data: { id: 7 } })).toString('base64url')}.test-signature`;
+
+test('experience management keeps the login session when the eight-hour auxiliary token expires', () => {
+  const token = jwt(Math.floor(Date.now() / 1000) + 86400);
+  const saved = storage({ token, morabeza_token: token, reserva_validation_token: 'expired-auxiliary' });
+  assert.equal(obterTokenValidacao(saved, 'host', true), token);
+  // Reloading the page reads the same persistent login, without rewriting it.
+  assert.equal(obterTokenValidacao(saved, 'host', true), token);
+});
+
+test('an expired or malformed JWT alias cannot hide another valid login token', () => {
+  const valid = jwt(Math.floor(Date.now() / 1000) + 3600);
+  assert.equal(obterTokenValidacao(storage({ token: jwt(1), morabeza_token: valid }), 'host', true), valid);
+  assert.equal(obterTokenValidacao(storage({ token: 'bad.payload.signature', access_token: valid }), 'host', true), valid);
+  assert.equal(obterTokenValidacao(storage({ token: jwt(1), admin_token: valid }), 'host', true), null);
+});
 test('host validation never borrows the administrative account token', () => {
   assert.equal(obterTokenValidacao(storage({ admin_token: 'admin', morabeza_admin: JSON.stringify({ token: 'admin-profile' }) }), 'host'), null);
   assert.equal(obterTokenValidacao(storage({ admin_token: 'admin', token: 'host' }), 'host'), 'host');

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /gest
+Disallow: /checkout
+Disallow: /pagamento
+Disallow: /confirmacao
+
+Sitemap: https://morabezastay.cv/sitemap.xml

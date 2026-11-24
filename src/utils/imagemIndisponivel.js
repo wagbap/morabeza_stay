@@ -1,6 +1,14 @@
-export const IMAGEM_INDISPONIVEL = 'https://res.cloudinary.com/dpsrmzvsl/image/upload/v1792737521/3586230-sem-foto-sinal-adesivo-com-texto-inscricao-no-fundo-isolado-gratis-vetor_q5vj47.jpg';
+export const IMAGEM_INDISPONIVEL = '/images/placeholders/sem-imagem-pt.svg';
+
+export function obterImagemIndisponivel(idioma = 'pt') {
+  const lingua = String(idioma).toLowerCase().split('-')[0];
+  const codigo = lingua === 'it' ? 'ir' : lingua;
+  return `/images/placeholders/sem-imagem-${['pt','en','fr','es','de','ir','cv'].includes(codigo) ? codigo : 'pt'}.svg`;
+}
 
 export function substituirImagemIndisponivel(event) {
   const imagem = event.currentTarget;
-  if (imagem.src !== IMAGEM_INDISPONIVEL) imagem.src = IMAGEM_INDISPONIVEL;
+  const fallback = imagem.dataset?.fallback || IMAGEM_INDISPONIVEL;
+  const absoluto = new URL(fallback, imagem.ownerDocument?.baseURI || 'https://morabezastay.cv/').href;
+  if (imagem.src !== absoluto) imagem.src = fallback;
 }

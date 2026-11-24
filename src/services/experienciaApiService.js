@@ -5,7 +5,8 @@ import i18n from '../i18n';
 import { obterTokenValidacao } from '../utils/tokenValidacaoReserva';
 
 async function apiRequest(endpoint, method, data = null) {
-    const token = obterTokenValidacao(localStorage, 'host');
+    const token = obterTokenValidacao(localStorage, 'host', true)
+        || obterTokenValidacao(localStorage, 'host');
     try {
         const response = await api.request({ url: endpoint, method, data: data ?? undefined,
             headers: token ? { Authorization: `Bearer ${token}` } : {} });

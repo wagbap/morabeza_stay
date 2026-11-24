@@ -1,3 +1,4 @@
+import SeletorPesquisa from '../../../components/SeletorPesquisa';
 // src/features/alojamento/components/SearchBarAlojamento.jsx
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
@@ -11,9 +12,8 @@ import CalendarioMorabeza from '../../../components/Calendario/CalendarioMorabez
 // ------------------------------------------------------------
 // Constantes
 // ------------------------------------------------------------
-const ISLAS = [
-  { value: 'Santiago',    label: 'Santiago'    }
-];
+
+const ZONAS = ['Praia', 'Tarrafal', 'Assomada', 'Cidade Velha', 'São Domingos', 'Santa Cruz', 'São Salvador do Mundo', 'São Lourenço dos Órgãos', 'São Miguel'];
 
 const LIMITES = { adultos: 30, criancas: 10, quartos: 10 };
 
@@ -83,7 +83,7 @@ const Stepper = ({ value, min, max, onChange, label }) => (
 // ------------------------------------------------------------
 // Componente principal
 // ------------------------------------------------------------
-const SearchBar = ({ onSearch, className = '' }) => {
+const FormularioPesquisa = ({ onSearch, className = '' }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,7 +93,8 @@ const SearchBar = ({ onSearch, className = '' }) => {
   // ----------------------------------------------------------
   const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
-  const [destino,    setDestino]    = useState(urlParams.get('destino') || 'Santiago');
+  const [destino,    setDestino]    = useState('Santiago');
+  const [zona, setZona] = useState(urlParams.get('zona') || '');
   const [startDate,  setStartDate]  = useState(fromISODate(urlParams.get('entrada')));
   const [endDate,    setEndDate]    = useState(fromISODate(urlParams.get('saida')));
   const [adultos,    setAdultos]    = useState(Number(urlParams.get('adultos'))  || 2);
@@ -111,15 +112,6 @@ const SearchBar = ({ onSearch, className = '' }) => {
   // ----------------------------------------------------------
   // 2) Sincronizar com URL quando ela muda externamente
   // ----------------------------------------------------------
-  useEffect(() => {
-    setDestino(urlParams.get('destino') || 'Santiago');
-    setStartDate(fromISODate(urlParams.get('entrada')));
-    setEndDate(fromISODate(urlParams.get('saida')));
-    setAdultos(Number(urlParams.get('adultos')) || 2);
-    setCriancas(Number(urlParams.get('criancas')) || 0);
-    setQuartos(Number(urlParams.get('quartos')) || 1);
-    setPet(urlParams.get('pet') === '1');
-  }, [urlParams]);
 
   // ----------------------------------------------------------
   // 3) Fechar popovers ao clicar fora (funciona em mobile)
@@ -210,6 +202,8 @@ const SearchBar = ({ onSearch, className = '' }) => {
 
     const params = {
       destino,
+      zona,
+      nome: urlParams.get('nome') || '',
       entrada:  toISODate(startDate),
       saida:    toISODate(endDate),
       adultos,
@@ -232,13 +226,14 @@ const SearchBar = ({ onSearch, className = '' }) => {
     navigate(`/alojamentos?${query}`);
     setShowCalendario(false);
     setShowHospedes(false);
-  }, [destino, startDate, endDate, adultos, criancas, quartos, totalHospedes, pet, navigate, onSearch, t]);
+  }, [destino, zona, startDate, endDate, adultos, criancas, quartos, totalHospedes, pet, navigate, onSearch, t, urlParams]);
 
   // ----------------------------------------------------------
   // 7) Limpar tudo
   // ----------------------------------------------------------
   const limparTudo = useCallback(() => {
     setDestino('Santiago');
+    setZona('');
     setStartDate(null);
     setEndDate(null);
     setAdultos(2);
@@ -256,46 +251,39 @@ const SearchBar = ({ onSearch, className = '' }) => {
     setPet(false);
   }, []);
 
-  const temFiltros = startDate || endDate || adultos !== 2 || criancas > 0 || quartos !== 1 || pet;
+  const temFiltros = zona || startDate || endDate || adultos !== 2 || criancas > 0 || quartos !== 1 || pet;
 
   // ----------------------------------------------------------
   // RENDER
   // ----------------------------------------------------------
   return (
-    <div className={`max-w-7xl mx-auto px-4 relative z-50 font-sans ${className}`}>
+    <div data-aloj-search className={`max-w-7xl mx-auto px-4 relative z-50 font-sans ${className}`}>
       <form
         onSubmit={handleSearch}
-        className="bg-white p-2 rounded-2xl shadow-xl flex flex-col md:flex-row items-stretch md:items-center border border-gray-100 gap-2"
+        className="bg-white p-2 rounded-2xl shadow-xl flex flex-col lg:flex-row items-stretch lg:items-center border border-gray-100 gap-0 lg:gap-2"
       >
         {/* ---------------- DESTINO ---------------- */}
-        <div className="flex-1 flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-gray-100 hover:bg-gray-50 transition-colors rounded-xl">
+        <div className="flex-1 flex items-center min-h-[60px] px-4 py-3 border-b lg:border-b-0 lg:border-r border-gray-100 hover:bg-gray-50 transition-colors rounded-xl">
           <div className="flex items-center gap-3 w-full text-left">
             <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-blue-600 shrink-0">
               <MapPin size={18} />
             </div>
             <div className="flex flex-col flex-1 min-w-0">
               <label className="text-[10px] uppercase font-black text-gray-400 tracking-wider">
-                {t('label_destino', 'DESTINO')}
+                {t('aloj_pesquisa_ilha')}
               </label>
-              <div className="relative flex items-center">
-                <select
-                  value={destino}
-                  onChange={(e) => setDestino(e.target.value)}
-                  aria-label={t('label_destino', 'Destino')}
-                  className="bg-transparent outline-none w-full text-sm font-bold text-gray-900 cursor-pointer appearance-none pr-5 truncate"
-                >
-                  {ISLAS.map(({ value, label }) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="text-gray-400 pointer-events-none absolute right-0" />
-              </div>
+              <span className="block w-full truncate text-sm font-bold text-gray-900">{destino}</span>
             </div>
           </div>
         </div>
 
+        <div className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-xl border-b border-gray-100 px-4 py-3 lg:border-b-0 lg:border-r">
+          <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 text-blue-600"><MapPin size={20} /></span>
+          <span className="min-w-0 flex-1"><span className="text-[10px] uppercase font-black text-gray-400 tracking-wider">{t('aloj_pesquisa_zona')}</span><span className="relative block"><SeletorPesquisa aria-label={t('aloj_pesquisa_zona')} value={zona} onChange={e => setZona(e.target.value)} className="w-full cursor-pointer appearance-none rounded-none border-0 bg-transparent py-0.5 pr-6 text-sm font-bold text-gray-900 outline-none focus-visible:outline-none focus-visible:ring-0"><option value="">{t('aloj_pesquisa_todas_zonas')}</option>{[...new Set([...ZONAS, ...(zona ? [zona] : [])])].map(v => <option key={v} value={v}>{v}</option>)}</SeletorPesquisa><span aria-hidden="true" className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400"><ChevronDown size={14} /></span></span></span>
+        </div>
+
         {/* ---------------- DATAS ---------------- */}
-        <div ref={calendarioRef} className="flex-[1.4] relative flex items-center px-4 py-3 border-b md:border-b-0 md:border-r border-gray-100 hover:bg-gray-50 transition-colors rounded-xl">
+        <div ref={calendarioRef} className="flex-[1.4] relative flex items-center min-h-[60px] px-4 py-3 border-b lg:border-b-0 lg:border-r border-gray-100 hover:bg-gray-50 transition-colors rounded-xl">
           <button
             type="button"
             onClick={() => { setShowCalendario(v => !v); setShowHospedes(false); }}
@@ -350,6 +338,7 @@ const SearchBar = ({ onSearch, className = '' }) => {
                 aria-hidden="true"
               />
               <div
+                data-exp-calendar
                 className="absolute top-full left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 mt-2 z-[100]
                            shadow-2xl rounded-2xl bg-white border border-slate-200 p-2
                            w-[calc(100vw-2rem)] max-w-[420px] md:w-auto"
@@ -361,28 +350,15 @@ const SearchBar = ({ onSearch, className = '' }) => {
                     startDate={startDate}
                     endDate={endDate}
                     onChange={onChangeDatas}
+                    onFechar={() => setShowCalendario(false)}
+                    onLimpar={() => { setStartDate(null); setEndDate(null); setAvisoData(''); }}
                     minDate={new Date()}
                     locale="pt"
                     monthsShown={1}
                   />
 
                   
-                <div className="p-2 border-t border-slate-100 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => { setStartDate(null); setEndDate(null); }}
-                    className="text-gray-500 hover:text-red-500 font-bold text-[10px] uppercase tracking-wider"
-                  >
-                    {t('limpar', 'Limpar')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowCalendario(false)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-wider px-4 py-2 rounded-lg"
-                  >
-                    {t('fechar', 'Fechar')}
-                  </button>
-                </div>
+                
               </div>
             </>
           )}
@@ -395,7 +371,7 @@ const SearchBar = ({ onSearch, className = '' }) => {
             onClick={() => { setShowHospedes(v => !v); setShowCalendario(false); }}
             aria-expanded={showHospedes}
             aria-haspopup="dialog"
-            className={`flex items-center w-full px-4 py-3 border transition-all rounded-xl ${
+            className={`flex items-center min-h-[60px] w-full px-4 py-3 border-b border-gray-100 transition-all rounded-xl ${
               showHospedes ? 'border-blue-600 ring-1 ring-blue-600 bg-white' : 'border-transparent hover:bg-gray-50'
             }`}
           >
@@ -543,7 +519,7 @@ const SearchBar = ({ onSearch, className = '' }) => {
         </div>
 
         {/* ---------------- BOTÃO BUSCAR ---------------- */}
-        <div className="w-full md:w-auto flex gap-2">
+        <div className="w-full lg:w-auto flex gap-2">
           {temFiltros && (
             <button
               type="button"
@@ -556,7 +532,7 @@ const SearchBar = ({ onSearch, className = '' }) => {
           )}
           <button
             type="submit"
-            className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-8 rounded-xl text-xs transition-all uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-200 active:scale-95"
+            className="min-h-12 flex-1 lg:flex-none bg-blue-600 hover:bg-blue-700 text-white font-black py-3 px-8 rounded-xl text-xs transition-all uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-200 active:scale-95"
           >
             <Search size={16} strokeWidth={3} />
             <span>{t('botao_buscar', 'BUSCAR')}</span>
@@ -574,4 +550,7 @@ const SearchBar = ({ onSearch, className = '' }) => {
   );
 };
 
-export default SearchBar;
+export default function SearchBar(props) {
+  const location = useLocation();
+  return <FormularioPesquisa key={location.search} {...props} />;
+}

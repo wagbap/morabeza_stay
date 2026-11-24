@@ -114,8 +114,7 @@
 }
 
 /* Selecionado */
-.morabeza-calendar-inline .react-datepicker__day--selected,
-.morabeza-calendar-inline .react-datepicker__day--keyboard-selected {
+.morabeza-calendar-inline .react-datepicker__day--selected {
   background: #1e3a8a !important;
   color: #ffffff !important;
   font-weight: 700;
@@ -151,6 +150,11 @@
   background: transparent !important;
   color: #cbd5e1 !important;
   transform: none !important;
+}
+
+.morabeza-calendar-inline .morabeza-dia-passado,
+.morabeza-calendar-inline .morabeza-dia-passado:hover {
+  text-decoration: none !important;
 }
 
 /* Dias fora do mês */
@@ -201,3 +205,10 @@
 @media (max-width: 767px) {
   .morabeza-date-field input { font-size: 16px; }
 }
+.morabeza-calendar-inline .react-datepicker__children-container {
+  clear: both;
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+

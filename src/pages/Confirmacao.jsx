@@ -1,3 +1,4 @@
+import { telefoneInternacionalValido } from '../utils/telefoneInternacional';
 // Confirmacao.jsx - Com suporte para Carros
 import React, { useEffect, useState } from 'react';
 import { descarregarComprovativo } from '../services/comprovativoReserva';
@@ -75,7 +76,7 @@ const Confirmacao = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { reservaId, codigoReserva, reservaData, metodoPagamento, tipo: tipoState, status, comprovativoUrl } = location.state || {};
+  const { reservaId, codigoReserva, reservaData, metodoPagamento, tipo: tipoState, status, comprovativoUrl, telefoneCliente } = location.state || {};
   
   const [userEmail, setUserEmail] = useState('');
   const [tipo, setTipo] = useState(tipoState || 'experiencia');
@@ -116,6 +117,21 @@ const Confirmacao = () => {
 
   // ✅ Prioridade: email do utilizador LOGADO (token) → email da reserva → vazio
   const emailUsuario = userEmail || reservaData?.email || '';
+
+  const whatsappUrl = (() => {
+    if (!codigoReserva || !telefoneInternacionalValido(telefoneCliente)) return '';
+    const detalhes = [
+      t('whatsapp_reserva_titulo', 'Reserva Morabeza Stay'),
+      `${t('whatsapp_reserva_codigo', 'C?digo')}: ${codigoReserva}`,
+      reservaData?.titulo && `${t('whatsapp_reserva_anuncio', 'Reserva')}: ${reservaData.titulo}`,
+      reservaData?.checkIn && `${t('whatsapp_reserva_inicio', 'In?cio')}: ${reservaData.checkIn}`,
+      reservaData?.checkOut && `${t('whatsapp_reserva_fim', 'Fim')}: ${reservaData.checkOut}`,
+      !reservaData?.checkIn && (reservaData?.data || reservaData?.dataISO) && `${t('whatsapp_reserva_data', 'Data')}: ${reservaData.data || reservaData.dataISO}`,
+      reservaData?.horario && `${t('whatsapp_reserva_hora', 'Hor?rio')}: ${reservaData.horario}`,
+      precoTotal > 0 && `${t('whatsapp_reserva_total', 'Total')}: ${precoTotal} CVE`,
+    ].filter(Boolean).join('\n');
+    return `https://wa.me/${telefoneCliente.replace(/\D/g, '')}?text=${encodeURIComponent(detalhes)}`;
+  })();
 
   const handleCopyCode = () => {
     if (codigoReserva) {
@@ -340,6 +356,7 @@ const Confirmacao = () => {
               >
                 <List size={16}/> {t('ver_minhas_reservas')}
               </button>
+              {whatsappUrl && <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="h-[44px] px-5 border border-green-200 rounded-lg text-sm font-bold text-green-700 flex items-center gap-2 hover:bg-green-50 transition">{t('whatsapp_reserva_abrir', 'Abrir no WhatsApp')}</a>}
               <button 
                 onClick={handleDownload}
                 className="h-[44px] px-5 border border-slate-200 rounded-lg text-sm font-bold text-blue-900 flex items-center gap-2 hover:bg-slate-50 transition"

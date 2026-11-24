@@ -44,6 +44,7 @@ try {
 
     $id = (int) parametroCarro('id');
     $localizacao = parametroCarro('localizacao');
+    $destino = parametroCarro('destino');
     $inicio = parametroCarro('data_levantamento');
     $fim = parametroCarro('data_devolucao');
     $orcamento = parametroCarro('orcamento');
@@ -67,6 +68,10 @@ try {
             }
             $query .= ' AND preco_dia <= :orcamento';
             $params[':orcamento'] = $orcamento;
+        }
+        if ($destino !== '') {
+            $query .= ' AND ilha = :destino';
+            $params[':destino'] = $destino;
         }
         if ($localizacao !== '') {
             $query .= ' AND localizacao LIKE :localizacao';

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, Loader2, Shield, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { SESSION_KEYS } from '../../utils/managementSession';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -77,6 +78,8 @@ const AdminLogin = () => {
         return;
       }
 
+      const tokenAdmin = typeof data.token === 'string' ? data.token.trim() : null;
+
       const adminData = {
         id: data.user.id,
         nome: data.user.nome || data.user.name || 'Admin',
@@ -88,9 +91,10 @@ const AdminLogin = () => {
           `https://ui-avatars.com/api/?name=${encodeURIComponent(
             data.user.nome || 'Admin'
           )}&background=003580&color=fff`,
-        token: data.token || null,
+        token: tokenAdmin,
       };
 
+      [...SESSION_KEYS, 'morabeza_admin', 'admin_token'].forEach(key => localStorage.removeItem(key));
       localStorage.setItem('morabeza_admin', JSON.stringify(adminData));
 
       navigate('/admin/dashboard');

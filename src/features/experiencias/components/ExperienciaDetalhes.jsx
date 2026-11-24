@@ -1,3 +1,4 @@
+import { dataLocalDeISO } from '../../../components/Calendario/dataLocal';
 import { equipamentoJetSki } from '../eExperienciaJetSki';
 import api from '../../../api/api';
 import { sessoesDisponiveis, opcoesDuracao, sessoesDaDuracao, vendaPorEquipamento } from '../sessoesCliente';
@@ -6,7 +7,7 @@ import { precoDaSessao, totalExperiencia } from '../precoSessao';
 import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
 // src/features/experiencias/components/ExperienciaDetalhes.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import CalendarioMorabeza from '../../../components/Calendario/CalendarioMorabeza';
 import mapboxgl from 'mapbox-gl';
@@ -41,7 +42,7 @@ async function fetchJSON(url, options = {}) {
     if (text.trim().startsWith('<')) throw new Error('Resposta inválida');
     return JSON.parse(text);
   } catch (err) {
-    console.warn('⚠️ fetchJSON:', url, err.message);
+    if (!options.signal?.aborted) console.warn('⚠️ fetchJSON:', url, err.message);
     throw err;
   }
 }
@@ -404,7 +405,12 @@ const SidebarReservaExperiencia = ({
 
   // 🔥 REQ 129: Dias que têm sessões criadas
   const [diasDisponiveis, setDiasDisponiveis] = useState([]);
-  const [loadingDias, setLoadingDias] = useState(false);
+  const [loadingDias, setLoadingDias] = useState(true);
+  const [erroDias, setErroDias] = useState(false);
+  const [tentativaDias, setTentativaDias] = useState(0);
+  const [origemDias, setOrigemDias] = useState('');
+  const chaveDias = `${experiencia?.id}:${mesCalendario}`;
+  const estadoDias = loadingDias || origemDias !== chaveDias ? 'loading' : erroDias ? 'error' : 'ready';
 
   const isGrupoPrivado = experiencia?.modelo_reserva === 'grupo_privado';
   const precoGrupo = Number(experiencia?.preco_grupo) || 0;
@@ -463,10 +469,12 @@ const SidebarReservaExperiencia = ({
     const fetchDias = async () => {
       if (!experiencia?.id) return;
       setLoadingDias(true);
+      setErroDias(false);
+      setDiasDisponiveis([]);
       try {
         const mes = mesCalendario;
 
-        const { data } = await api.get('/get_dias_com_sessoes.php', { params: { experiencia_id: experiencia.id, mes }, signal: controller.signal });
+        const { data } = await api.get('/get_dias_com_sessoes.php', { params: { experiencia_id: experiencia.id, mes }, signal: controller.signal, timeout: 15000 });
         if(controller.signal.aborted)return;
 
         if (data.success) {
@@ -475,17 +483,19 @@ const SidebarReservaExperiencia = ({
           setDiasDisponiveis(dias);
         } else {
           setDiasDisponiveis([]);
+          setErroDias(true);
         }
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.warn('⚠️ Dias não carregados:', err.message);
-        if(!controller.signal.aborted)setDiasDisponiveis([]);
+        if(!controller.signal.aborted) { setDiasDisponiveis([]); setErroDias(true); }
       } finally {
-        if(!controller.signal.aborted)setLoadingDias(false);
+        if(!controller.signal.aborted) { setLoadingDias(false); setOrigemDias(`${experiencia?.id}:${mesCalendario}`); }
       }
     };
     fetchDias();
     return () => controller.abort();
-  }, [experiencia?.id, mesCalendario]);
+  }, [experiencia?.id, mesCalendario, tentativaDias]);
 
   const dataBloqueada = (bloqueios || []).some(b => {
     if (!b.data_inicio || !b.data_fim || !dataPasseio) return false;
@@ -507,7 +517,7 @@ const SidebarReservaExperiencia = ({
   const temSessao = (date) => {
     const dateStr = dateToLocalStr(date);
     // 🔥 Se não há dias carregados, permite tudo (fallback)
-    if (!diasDisponiveis || diasDisponiveis.length === 0) return true;
+    if (estadoDias !== 'ready' || !diasDisponiveis || diasDisponiveis.length === 0) return false;
     return diasDisponiveis.includes(dateStr);
   };
 
@@ -564,6 +574,10 @@ const SidebarReservaExperiencia = ({
       grupo={isGrupoPrivado} jetski={isJetski} vendaPorUnidade={vendaPorUnidade}
       data={formatarData(dataPasseio)} abrirCalendario={() => setShowCalendar(v => !v)}
       calendario={showCalendar && <div className="absolute right-0 top-full z-[100] mt-2 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl"><CalendarioMorabeza
+        estado={estadoDias}
+        onTentarNovamente={() => { setLoadingDias(true); setTentativaDias(n => n + 1); }}
+        onFechar={() => setShowCalendar(false)}
+        onLimpar={() => { setDataPasseio(''); setSessaoIdSelecionada(null); setHorario(''); }}
         selected={dataPasseio ? new Date(dataPasseio + 'T00:00:00') : null}
         onChange={date => { if (!date) return; setSessaoIdSelecionada(null); setHorario(''); setDataPasseio(dateToLocalStr(date)); setShowCalendar(false); }}
         inline minDate={minDate} maxDate={maxDate} onMonthChange={date => setMesCalendario(dateToLocalStr(date).slice(0,7))}
@@ -574,7 +588,7 @@ const SidebarReservaExperiencia = ({
       selecionarHorario={(value, sessaoId) => { setSessaoIdSelecionada(sessaoId); setHorario(value); }}
       nomeEquipamento={referenciaSessao?.equipamento_nome || experiencia?.equipamento_nome || (isJetski ? 'Jet ski' : undefined)} pessoasPorUnidade={pessoasPorUnidade} vagas={Number(vagasDisponiveisSessao)} unidades={quantidadeJetSkis} setUnidades={setQuantidadeJetSkis}
       participantes={participantes} setParticipantes={value => { setParticipantes(value); if (isJetski && !vendaPorUnidade) setQuantidadeJetSkis(Math.ceil(value / 2)); }} minParticipantes={isGrupoPrivado ? minPessoasGrupo : 1} maxParticipantes={maxPessoas}
-      loading={loading || loadingDias} bloqueado={dataBloqueada || semDiasDisponiveis}
+      loading={loading || estadoDias === 'loading'} bloqueado={estadoDias !== 'ready' || dataBloqueada || semDiasDisponiveis}
       reservar={() => { if(!sessaoSelecionada)return;setPeriodo(periodoEfetivo);onReservar({ periodo:periodoEfetivo, duracao, pessoasPorUnidade, quantidadeJetSkis, participantes, maxPessoas, unidadeVenda: vendaPorUnidade ? 'unidade' : 'participante',
         precoUnitarioAtual: isGrupoPrivado ? precoGrupoAtual : precoUnitarioAtual, precoTotal,
         precoNormal: isGrupoPrivado ? (precoEpocaAlta ?? precoGrupo) : precoBaseAtual,
@@ -752,6 +766,7 @@ const TabContent = ({ activeTab, experiencia }) => {
 };
 
 const ExperienciaDetalhes = () => {
+  const location = useLocation();
   const { t } = useTranslation();
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -770,7 +785,7 @@ const ExperienciaDetalhes = () => {
   const [bloqueios, setBloqueios] = useState([]);
   const [configuracoes, setConfiguracoes] = useState(null);
 
-  const [dataPasseio, setDataPasseio] = useState(dateToLocalStr(new Date()));
+  const [dataPasseio, setDataPasseio] = useState(() => { const p = new URLSearchParams(location.search); const value = p.get('data') || p.get('data_inicio'); return dataLocalDeISO(value) && value >= dateToLocalStr(new Date()) ? value : dateToLocalStr(new Date()); });
   const [periodo, setPeriodo] = useState("Manhã");
   const [horario, setHorario] = useState("");
   const [usuarioLogado, setUsuarioLogado] = useState(null);
@@ -836,6 +851,7 @@ const ExperienciaDetalhes = () => {
         setConfiguracoes(result.configuracoes || null);
 
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error("Erro ao carregar detalhes:", error);
         if(!controller.signal.aborted)setError(error.message);
       } finally {
@@ -1111,19 +1127,6 @@ const ExperienciaDetalhes = () => {
 
       <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12 text-left">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900">
-              Avaliações dos participantes
-              <span className="ml-2 text-sm font-normal text-slate-500">
-                ({experiencia.total_avaliacoes || 0} avaliações)
-              </span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <Star size={20} className="fill-orange-400 text-orange-400" />
-              <span className="text-2xl font-bold text-slate-900">{experiencia.rating_formatado || '5.0'}</span>
-            </div>
-          </div>
-
           <AvaliacoesSeccao
             experienciaId={experiencia.id}
             usuarioLogado={usuarioLogado}

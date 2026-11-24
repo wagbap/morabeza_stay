@@ -1,6 +1,4 @@
-import api from '../../api/api';
 import { urlDocumento } from '../../utils/urlDocumento';
-import { destinoRegistoNotificacao, normalizarLinkNotificacao } from '../../utils/normalizarLinkNotificacao';
 import { obterTokenValidacao } from '../../utils/tokenValidacaoReserva';
 import HeaderGestao from './HeaderGestao';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText, Clock, CheckCircle2, XCircle, Upload,
   Loader2, AlertCircle, RefreshCw, X, Send, ArrowLeft,
-  AlertTriangle, Edit3, Bell, Info, Eye, ExternalLink, ChevronDown, ChevronRight,
+  AlertTriangle, Edit3, Info, Eye, ExternalLink,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -83,19 +81,14 @@ export default function DocumentosSolicitados() {
 
   const [pedidos, setPedidos] = useState([]);
   const [correcoes, setCorrecoes] = useState([]);
-  const [notificacoes, setNotificacoes] = useState([]);
-  const [naoLidas, setNaoLidas] = useState(0);
   const [loading, setLoading] = useState(true);
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [ficheiro, setFicheiro] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState({ tipo: '', texto: '' });
-  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(true);
-  const [filtroNotificacoes, setFiltroNotificacoes] = useState('todas');
   const [usuarioId, setUsuarioId] = useState(null);
 
-  const pollingRef = useRef(null);
 
   // Obter ID do utilizador de forma segura (JWT ou LocalStorage)
   useEffect(() => {
@@ -126,22 +119,6 @@ export default function DocumentosSolicitados() {
     const id = obterUserId();
     setUsuarioId(id);
   }, []);
-
-  const carregarNotificacoes = async () => {
-    if (!usuarioId) return;
-
-    try {
-      const { data } = await api.post('/usuarios/notificacoes.php', { action: 'listar', limite: 20 }, {
-        headers: { Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
-      });
-      if (data.status === 'success') {
-        setNotificacoes(data.data || []);
-        setNaoLidas(data.nao_lidas || 0);
-      }
-    } catch (err) {
-      console.error('Erro ao carregar notificações:', err);
-    }
-  };
 
   const carregarTudo = async () => {
     if (!usuarioId) {
@@ -184,7 +161,6 @@ export default function DocumentosSolicitados() {
         setCorrecoes(dataCorr.data || []);
       }
 
-      await carregarNotificacoes();
     } catch (err) {
       console.error(err);
       setMsg({ tipo: 'erro', texto: 'Erro de ligação.' });
@@ -194,42 +170,8 @@ export default function DocumentosSolicitados() {
   };
 
   useEffect(() => {
-    if (usuarioId) {
-      carregarTudo();
-
-      pollingRef.current = setInterval(() => {
-        carregarNotificacoes();
-      }, 15000);
-    }
-
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
+    if (usuarioId) carregarTudo();
   }, [usuarioId]);
-
-  const marcarTodasLidas = async () => {
-    if (!usuarioId) return;
-    try {
-      await api.post('/usuarios/notificacoes.php', { action: 'marcar_todas_lidas' }, {
-        headers: { Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
-      });
-      carregarNotificacoes();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const marcarLida = async (id) => {
-    if (!usuarioId) return;
-    try {
-      await api.post('/usuarios/notificacoes.php', { action: 'marcar_lida', id }, {
-        headers: { Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` },
-      });
-      carregarNotificacoes();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const abrirEnvio = (pedido) => {
     setPedidoSelecionado(pedido);
@@ -302,18 +244,6 @@ export default function DocumentosSolicitados() {
     });
   };
 
-  const formatarRelativo = (d) => {
-    if (!d) return '';
-    const data = new Date(d);
-    const agora = new Date();
-    const diff = (agora - data) / 1000 / 60;
-
-    if (diff < 1) return 'Agora';
-    if (diff < 60) return `${Math.floor(diff)}m atrás`;
-    if (diff < 1440) return `${Math.floor(diff / 60)}h atrás`;
-    return data.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-  };
-
   const urlDocumentoComCache = (url, enviadoEm) => {
     return urlDocumento(url, API_URL, enviadoEm);
   };
@@ -332,38 +262,6 @@ export default function DocumentosSolicitados() {
         {s.ic} {s.txt}
       </span>
     );
-  };
-
-  const getIconeNotif = (tipo) => {
-    switch (tipo) {
-      case 'documento': return <FileText size={16} className="text-blue-600" />;
-      case 'anuncio':   return <AlertTriangle size={16} className="text-orange-600" />;
-      default:          return <Bell size={16} className="text-gray-600" />;
-    }
-  };
-
-  const abrirNotificacao = (n) => {
-    if (Number(n.lida) === 0) void marcarLida(n.id);
-    const recordDestination = destinoRegistoNotificacao(n);
-    if (recordDestination) {
-      if (n.pedido_id) {
-        (document.getElementById(`pedido-${n.pedido_id}`) || document.getElementById('documentos-pedidos'))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        navigate(recordDestination);
-      }
-      return;
-    }
-    const link = n.link || n.url;
-    if (typeof link === 'string') {
-      try {
-        const destination = new URL(link, window.location.origin);
-        if (destination.origin === window.location.origin && destination.pathname.startsWith('/') && !destination.pathname.startsWith('//')) {
-          navigate(normalizarLinkNotificacao(destination));
-          return;
-        }
-      } catch { /* Use the related record below. */ }
-    }
-    document.getElementById('documentos-pedidos')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const totalPendencias = correcoes.length + pedidos.filter(p => p.estado === 'pendente' || p.estado === 'rejeitado').length;
@@ -404,40 +302,6 @@ export default function DocumentosSolicitados() {
           {msg.tipo === 'sucesso' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
           <span>{msg.texto}</span>
         </div>
-      )}
-
-      {notificacoes.length > 0 && (
-        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-          <button type="button" onClick={() => setMostrarNotificacoes(!mostrarNotificacoes)} aria-expanded={mostrarNotificacoes} aria-controls="painel-notificacoes" className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left">
-            <span className="flex items-center gap-2 text-base font-bold text-gray-900">
-              <span className="text-blue-600"><Bell size={19} /></span>{t('gest_notif_titulo', 'Notificações')}
-              {naoLidas > 0 && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">{naoLidas}</span>}
-            </span>
-            <span className="text-gray-400"><ChevronDown size={18} className={`transition-transform ${mostrarNotificacoes ? 'rotate-180' : ''}`} /></span>
-          </button>
-          {mostrarNotificacoes && (
-            <div id="painel-notificacoes">
-              <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 pb-3">
-                {['todas', 'nao_lidas'].map(filtro => <button key={filtro} type="button" aria-pressed={filtroNotificacoes === filtro} onClick={() => setFiltroNotificacoes(filtro)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${filtroNotificacoes === filtro ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}>{t(`gest_notif_${filtro}`, filtro === 'todas' ? 'Todas' : 'Não lidas')}</button>)}
-                <button type="button" onClick={marcarTodasLidas} className="ml-auto rounded-lg px-2 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50">{t('gest_notif_marcar', 'Marcar todas como lidas')}</button>
-              </div>
-              <div className="max-h-[420px] overflow-y-auto p-2">
-                {notificacoes.filter(n => filtroNotificacoes === 'todas' || Number(n.lida) === 0).map(n => (
-                  <button type="button" key={n.id} onClick={() => abrirNotificacao(n)} className={`group flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-blue-50 focus-visible:outline-blue-500 ${Number(n.lida) === 0 ? 'bg-blue-50/50' : ''}`}>
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50">{getIconeNotif(n.tipo)}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block break-words text-sm leading-snug ${Number(n.lida) === 0 ? 'font-semibold text-gray-900' : 'font-medium text-gray-600'}`}>{n.titulo}</span>
-                      <span className="mt-1 block break-words text-xs leading-relaxed text-gray-500">{n.mensagem}</span>
-                      <span className="mt-1.5 block text-[10px] font-medium text-blue-600">{formatarRelativo(n.criado_em)}</span>
-                    </span>
-                    <span className="mt-2 flex shrink-0 items-center gap-1 text-gray-400">{Number(n.lida) === 0 && <span className="h-2 w-2 rounded-full bg-blue-600" />}<ChevronRight size={14} /></span>
-                  </button>
-                ))}
-                {filtroNotificacoes === 'nao_lidas' && !notificacoes.some(n => Number(n.lida) === 0) && <p className="px-4 py-8 text-center text-sm text-gray-500">{t('gest_notif_vazio', 'Está tudo em dia. Sem notificações por ler.')}</p>}
-              </div>
-            </div>
-          )}
-        </section>
       )}
 
       {loading ? (

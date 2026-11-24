@@ -54,13 +54,6 @@ const Breadcrumbs = memo(({ navigate, t, filtroDestino }) => (
 ));
 Breadcrumbs.displayName = 'Breadcrumbs';
 
-const AvisoPreco = memo(({ t }) => (
-  <div className="bg-blue-50 border border-blue-100 text-blue-800 p-4 rounded-xl mb-8 flex items-center gap-3 text-sm font-medium text-left">
-    <Info size={18} className="text-blue-600 shrink-0" />
-    <span>{t('precos_finais_com_taxas', 'Preços em CVE. Taxas incluídas.')}</span>
-  </div>
-));
-AvisoPreco.displayName = 'AvisoPreco';
 
 const LoadingState = memo(({ t }) => (
   <div className="flex flex-col items-center justify-center py-32 text-center">
@@ -137,6 +130,8 @@ const Alojamentos = () => {
     const p = new URLSearchParams(location.search);
     return {
       destino:  p.get('destino')  || '',
+      zona: p.get('zona') || '',
+      nome: p.get('nome') || '',
       entrada:  p.get('entrada')  || '',
       saida:    p.get('saida')    || '',
       hospedes: parseInt(p.get('hospedes') || '1', 10) || 1,
@@ -231,6 +226,7 @@ const Alojamentos = () => {
 
         const apiParams = {
           destino:  searchParams.destino,
+          zona: searchParams.zona,
           entrada:  searchParams.entrada,
           saida:    searchParams.saida,
           hospedes: searchParams.hospedes,
@@ -262,6 +258,7 @@ const Alojamentos = () => {
   }, [
     tentativa,
     searchParams.destino,
+    searchParams.zona,
     searchParams.entrada,
     searchParams.saida,
     searchParams.hospedes,
@@ -301,6 +298,8 @@ const Alojamentos = () => {
     );
 
     return alojamentos.filter((casa) => {
+      const nome = normalizarTexto(searchParams.nome);
+      if (nome && !normalizarTexto(casa.titulo || casa.nome).includes(nome)) return false;
       // 1) Orçamento
       const preco = Number(casa.preco_mostrar ?? casa.preco_noite ?? 0);
       if (preco > orcamentoDeferido) return false;
@@ -327,6 +326,9 @@ const Alojamentos = () => {
         if (!campos.some((c) => c.includes(destinoNorm))) return false;
       }
 
+      const zonaNorm = normalizarTexto(searchParams.zona);
+      if (zonaNorm && ![casa.localizacao, casa.cidade, casa.zona].some(valor => normalizarTexto(valor).includes(zonaNorm))) return false;
+
       // 5) Pet-friendly (usa flag do backend)
       if (searchParams.pet && !casa.pet_friendly) return false;
 
@@ -337,6 +339,8 @@ const Alojamentos = () => {
     orcamentoDeferido,
     tiposDeferidos,
     filtroDestino,
+    searchParams.zona,
+    searchParams.nome,
     searchParams.hospedes,
     searchParams.adultos,
     searchParams.criancas,
@@ -403,7 +407,7 @@ const Alojamentos = () => {
   // RENDER
   // ============================================================
   return (
-    <div className="bg-[#f8f9fc] min-h-screen">
+    <div className="bg-white min-h-screen">
       <Helmet>
         <title>
           MorabezaStay | {t('alojamentos', 'Alojamentos')}
@@ -413,8 +417,8 @@ const Alojamentos = () => {
 
       <AlojamentoHero />
 
-      <div className="relative -mt-12 z-40 px-4 flex justify-center">
-        <div className="w-full max-w-6xl">
+      <div className="relative -mt-[58px] md:-mt-12 z-40 px-4 flex justify-center">
+        <div className="w-full max-w-7xl">
           <SearchBar />
         </div>
       </div>
@@ -489,12 +493,12 @@ const Alojamentos = () => {
                 {t('opcoes', 'opções')}
               </h1>
 
-              <div className="flex items-center gap-2 bg-white p-1.5 rounded-full shadow-sm border border-gray-100 self-stretch md:self-auto">
+              <div className="flex max-w-full flex-wrap items-center gap-2 bg-white p-1.5 rounded-full shadow-sm border border-gray-100 self-stretch md:flex-nowrap md:self-auto">
                 <div className="relative" data-dropdown-ordernar>
                   <button
                     type="button"
                     onClick={toggleDropdown}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 md:px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                    className="flex items-center gap-2 bg-blue-600 text-white px-3 md:px-5 py-2.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wide sm:tracking-widest hover:bg-blue-700 transition-colors"
                   >
                     <span className="whitespace-nowrap">
                       {t('ordenar_por', 'Ordenar por')}: {labelOrdenarAtual}
@@ -558,7 +562,6 @@ const Alojamentos = () => {
               </div>
             </div>
 
-            <AvisoPreco t={t} />
 
             {erro && !loading && (
               <div className="mb-6 bg-red-50 border border-red-100 text-red-800 p-4 rounded-xl flex items-start gap-3 text-sm text-left">

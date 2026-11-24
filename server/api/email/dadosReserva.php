@@ -45,7 +45,16 @@ function carregarDadosEmailReserva(PDO $conn, string $tipo, string $codigo, arra
         $rows[] = ['descricao' => $length . ' noite(s)', 'valor' => $r['subtotal_noites']];
         if ((float) ($r['taxa_limpeza'] ?? 0) > 0) $rows[] = ['descricao' => 'Taxa de limpeza', 'valor' => $r['taxa_limpeza']];
     } else $rows[] = ['descricao' => $details, 'valor' => $r['preco_total']];
+    $caucao = null;
+    if ($tipo === 'carro') {
+        // Use the terms accepted for this booking, never the listing's current terms.
+        $stmt = $conn->prepare('SELECT snapshot_json FROM reservas_carro_condicoes WHERE reserva_id = :id LIMIT 1');
+        $stmt->execute(['id' => $r['id']]);
+        $snapshot = json_decode((string) ($stmt->fetchColumn() ?: ''), true);
+        $caucao = is_array($snapshot['caucao'] ?? null) ? $snapshot['caucao'] : null;
+    }
     return [
+        'caucao' => $caucao,
         'tipo' => $tipo, 'reserva_id' => $r['id'], 'usuario_id' => $r['usuario_id'], 'codigo_reserva' => $r['codigo_reserva'],
         'status' => $r['status'], 'status_pagamento' => $r['pagamento_status'], 'preco_total' => $r['preco_total'],
         'titulo' => $l['titulo'] ?? $l['nome'] ?? $extra['experiencia'] ?? ucfirst($tipo),

@@ -1,4 +1,4 @@
-// Pagamento.jsx - v6 (sem holds / quarto_ocupacao) + FormularioPagamentoStripe UI + fetch robusto
+// Checkout payment; car stock is held on entry using the server deadline.
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -10,6 +10,9 @@ import FormularioPagamentoStripe from './FormularioPagamentoStripe';
 import api from '../api/api';
 import { obterTokenValidacao } from '../utils/tokenValidacaoReserva';
 import { obterUtilizadorCheckout } from '../utils/utilizadorCheckout';
+import { mensagemErroRetencao } from '../utils/retencaoExperiencia';
+import usePagamentoCarro from '../features/carros/hooks/usePagamentoCarro';
+import { erroPagamentoCarro, pagamentoCarroEmCurso } from '../features/carros/utils/pagamentoCarro';
 
 const ResumoReservaExperiencia = React.lazy(() => import('../features/experiencias/components/ResumoReservaExperiencia'));
 const ResumoReservaAlojamento = React.lazy(() => import('../features/alojamento/components/ResumoReservaAlojamento'));
@@ -78,6 +81,7 @@ const PagamentoContent = () => {
   const isProcessingRef = useRef(false);
   const hasMountedRef = useRef(false);
   const [pagamentoRecebido, setPagamentoRecebido] = useState(false);
+  const [retencaoInvalida, setRetencaoInvalida] = useState(false);
 
   const { reservaData, tipo: tipoState } = location.state || {};
 
@@ -85,6 +89,10 @@ const PagamentoContent = () => {
   const [error, setError] = useState('');
   const [reserva, setReserva] = useState(reservaData || {});
   const [tipo, setTipo] = useState(tipoState || 'experiencia');
+  const pagamentoCarro = usePagamentoCarro(reserva, tipo === 'carro');
+  const carroPodePagar = Boolean(pagamentoCarro.dados && !pagamentoCarro.erro
+    && (pagamentoCarro.segundos > 0 || pagamentoCarroEmCurso(pagamentoCarro.dados.paymentStatus))
+    && pagamentoCarro.dados.paymentStatus !== 'processing');
 
   // ---------------------------------------------------------
   // Bootstrap
@@ -251,6 +259,7 @@ const PagamentoContent = () => {
     } else if (tipo === 'carro') {
       payload = {
         category: 'Carro',
+        documentos_condutor: rD?.documentos_condutor,
         usuario: {
           email: titular.email || '',
           nome_completo: titular.nome || '',
@@ -264,11 +273,12 @@ const PagamentoContent = () => {
           dias: rD?.dias,
           preco_total: getTotalPagar('carro', rD),
           carro_id: rD?.id,
+          quantidade: rD?.quantidade,
         },
         participante_principal: {
           ...participantePrincipal,
-          hora_levantamento: participantePrincipal.hora_levantamento || '10:00',
-          carta_conducao_nome: participantePrincipal.carta_conducao_nome || '',
+          hora_levantamento: rD?.horaLevantamento || participantePrincipal.hora_levantamento,
+          hora_devolucao: rD?.horaDevolucao || participantePrincipal.hora_devolucao,
           observacoes: participantePrincipal.observacoes || '',
         },
         participantes_adicionais: [],
@@ -343,8 +353,16 @@ const PagamentoContent = () => {
       }
 
       if (tipo === 'experiencia' && reserva.tokenRetencao) {
-        const { data: retencao } = await api.post('/validar_retencao.php', { token: reserva.tokenRetencao, preco_total: getTotalPagar(tipo, reserva) });
-        if (!retencao.success) throw new Error(retencao.error || t('experiencia_erro_bloquear_vagas'));
+        try {
+          const { data: retencao } = await api.post('/validar_retencao.php', { token: reserva.tokenRetencao, preco_total: getTotalPagar(tipo, reserva) });
+          if (!retencao.success) {
+            setRetencaoInvalida(true);
+            throw new Error(retencao.error || t('experiencia_erro_bloquear_vagas'));
+          }
+        } catch (err) {
+          if (err.response?.status === 400 || err.response?.status === 409) setRetencaoInvalida(true);
+          throw new Error(mensagemErroRetencao(err) || err.message || t('experiencia_erro_bloquear_vagas'));
+        }
       }
       const totalPagar = getTotalPagar(tipo, reserva);
       const valorEmEUR = totalPagar / TAXA_CONVERSAO_CVE_EUR;
@@ -356,23 +374,29 @@ const PagamentoContent = () => {
 
       const valorEmCentavos = Math.round(valorEmEUR * 100);
 
-      const resIntent = await fetchComTimeout(`${API_BASE}/api/create-payment-intent.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: valorEmCentavos, currency: 'eur' }),
-      }, 8000);
-
-      if (!resIntent.ok) {
-        throw new Error(t('erro_servidor_pagamentos', 'Servidor de pagamentos indisponível.'));
+      let dataIntent;
+      if (tipo === 'carro') {
+        try {
+          dataIntent = await pagamentoCarro.verificar();
+        } catch (err) {
+          throw new Error(t(erroPagamentoCarro(err.response?.data?.code)));
+        }
+      } else {
+        const resIntent = await fetchComTimeout(`${API_BASE}/api/create-payment-intent.php`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: valorEmCentavos, currency: 'eur', tipo }),
+        }, 20000);
+        dataIntent = await lerJsonSeguro(resIntent);
+        if (!resIntent.ok) throw new Error(t('erro_servidor_pagamentos', 'Servidor de pagamentos indispon?vel.'));
       }
-
-      const dataIntent = await lerJsonSeguro(resIntent);
 
       if (!dataIntent.clientSecret) {
         throw new Error(dataIntent.error || t('erro_servidor_pagamentos', 'Servidor de pagamentos indisponível.'));
       }
 
-      const result = await stripe.confirmCardPayment(dataIntent.clientSecret, {
+      const result = dataIntent.alreadyPaid
+        ? await stripe.retrievePaymentIntent(dataIntent.clientSecret)
+        : await stripe.confirmCardPayment(dataIntent.clientSecret, {
         payment_method: {
           card: cardNumberElement,
           billing_details: zip ? { address: { postal_code: zip } } : undefined,
@@ -380,6 +404,9 @@ const PagamentoContent = () => {
       });
 
       if (result.error) {
+        if (tipo === 'carro') {
+          try { await pagamentoCarro.confirmarFalha(); } catch { /* Server owns release decisions. */ }
+        }
         setError(result.error.message);
         return;
       }
@@ -392,13 +419,17 @@ const PagamentoContent = () => {
       const saveResult = await salvarReservaNoBackend(result.paymentIntent);
 
       if (saveResult.success) {
+        let telefoneCliente = '';
+        try { telefoneCliente = JSON.parse(sessionStorage.getItem(CACHE_KEYS[tipo]) || '{}').participantePrincipal?.phone || ''; } catch { /* A confirma??o continua dispon?vel sem o atalho do WhatsApp. */ }
         sessionStorage.removeItem(CACHE_KEYS[tipo]);
+        if (tipo === 'carro') sessionStorage.removeItem('pedidoStockCarro');
         isProcessingRef.current = false;
         navigate('/confirmacao', {
           state: {
             reservaId: saveResult.data?.reserva_id,
             codigoReserva: saveResult.data?.codigo_reserva,
             comprovativoUrl: saveResult.data?.comprovativo_url,
+            telefoneCliente,
             reservaData: reserva,
             metodoPagamento: 'cartao',
             tipo,
@@ -420,7 +451,7 @@ const PagamentoContent = () => {
       setLoading(false);
       isProcessingRef.current = false;
     }
-  }, [stripe, elements, reserva, tipo, t, navigate, salvarReservaNoBackend, showToast, loading]);
+  }, [stripe, elements, reserva, tipo, t, navigate, salvarReservaNoBackend, showToast, loading, pagamentoCarro]);
 
   const getTituloStepper = () => {
     if (tipo === 'alojamento') return t('dados_hospedes');
@@ -459,7 +490,7 @@ const PagamentoContent = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8">
             <h1 className="text-2xl font-bold text-blue-900 mb-2 text-left">{t('pagamento')}</h1>
-            <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('pagamento_com_cartao')}</p>
+            <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('pagamento_com_cartao', 'Pagamento com cart\u00e3o')}</p>
 
             <div className="bg-[#F8FFF9] border border-green-100 rounded-2xl p-4 flex gap-3 mb-8 text-left">
               <ShieldCheck className="text-green-500 shrink-0" size={20} />
@@ -475,6 +506,17 @@ const PagamentoContent = () => {
               </div>
             )}
 
+            {retencaoInvalida && (
+              <button
+                type="button"
+                onClick={() => navigate('/checkout-experiancia', { state: { reservaData: { ...reserva, tokenRetencao: null } } })}
+                disabled={loading}
+                className="mb-6 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold disabled:opacity-50"
+              >
+                {t('pagamento_rever_disponibilidade', 'Rever disponibilidade e reservar novamente')}
+              </button>
+            )}
+
             <div className="space-y-4 text-left">
               <h3 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-4">
                 {t('dados_cartao')}
@@ -484,6 +526,22 @@ const PagamentoContent = () => {
                 valorTotal={getTotalPagar(tipo, reserva)}
                 moeda="CVE"
                 onPagar={handleFinalizarPagamento}
+                disabled={retencaoInvalida || (tipo === 'carro' && !carroPodePagar)}
+                avisoPagamento={tipo === 'carro' ? (
+                  <div role="status" className="text-sm text-slate-600">
+                    {pagamentoCarro.erro ? t(pagamentoCarro.erro.chave)
+                      : !pagamentoCarro.dados ? t('carro_pagamento_preparar')
+                      : pagamentoCarro.dados.alreadyPaid ? t('carro_pagamento_aprovado')
+                      : pagamentoCarro.segundos === 0 && pagamentoCarroEmCurso(pagamentoCarro.dados.paymentStatus) ? t('carro_pagamento_em_curso')
+                      : t('carro_pagamento_prazo', { tempo: `${String(Math.floor(pagamentoCarro.segundos / 60)).padStart(2, '0')}:${String(pagamentoCarro.segundos % 60).padStart(2, '0')}` })}
+                    {pagamentoCarro.erro?.terminal && (
+                      <button type="button" className="mt-3 block text-blue-700 underline" onClick={() => {
+                        sessionStorage.removeItem('pedidoStockCarro');
+                        navigate('/checkout-carro', { state: { reservaData: reserva } });
+                      }}>{t('pagamento_rever_disponibilidade')}</button>
+                    )}
+                  </div>
+                ) : null}
               />
             </div>
 

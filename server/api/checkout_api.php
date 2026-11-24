@@ -12,6 +12,8 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit(); }
 
 include_once __DIR__ . '/config.php';
+require_once __DIR__ . '/carroStripeStock.php';
+require_once __DIR__ . '/carroCaucao.php';
 
 // Coloca aqui a mesma chave secreta usada no teu create-payment-intent.php.
 // Este valor fica apenas no servidor PHP.
@@ -53,11 +55,11 @@ function pagamentoCheckoutStripe(array $input): bool {
         !is_string($proof) || $proof === '' || strlen($proof) > 512) {
         throw new Exception('Referencia de pagamento Stripe invalida.');
     }
-    $secret = CHECKOUT_STRIPE_SECRET_KEY;
+    $secret = carroStripeChave();
     if (!is_string($secret) || trim($secret) === '') {
         throw new Exception('Coloque a chave secreta em CHECKOUT_STRIPE_SECRET_KEY no checkout_api.php.');
     }
-    require_once __DIR__ . '/../vendor/autoload.php';
+    carroStripeCliente(); // Loads either supported SDK installation path.
     \Stripe\Stripe::setApiKey(trim($secret));
     $intent = \Stripe\PaymentIntent::retrieve(['id' => $ref, 'expand' => ['latest_charge']]);
     $total = $input['reserva']['preco_total'] ?? null;
@@ -617,31 +619,62 @@ try {
                 $carro_id = $input['reserva']['carro_id'] ?? $input['reserva']['id'] ?? null;
                 $data_levantamento = $input['reserva']['checkIn'] ?? $input['reserva']['data_levantamento'] ?? null;
                 $data_devolucao    = $input['reserva']['checkOut'] ?? $input['reserva']['data_devolucao'] ?? null;
+                $quantidade = filter_var($input['reserva']['quantidade'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+                if (!$quantidade || !$carro_id || !$data_levantamento || !$data_devolucao) throw new Exception('Dados de stock da reserva incompletos.');
+                carroPeriodoStock($data_levantamento, $data_devolucao);
+                $conn->prepare('SELECT id FROM carros WHERE id=? FOR UPDATE')->execute([$carro_id]);
+                $hold = $conn->prepare("SELECT * FROM carro_stock_retencoes WHERE stripe_id=? AND estado='ativa' FOR UPDATE");
+                $hold->execute([$input['stripe_id']]);
+                $retencao = $hold->fetch(PDO::FETCH_ASSOC);
+                if (!$retencao || (int)$retencao['carro_id'] !== (int)$carro_id || (int)$retencao['quantidade'] !== $quantidade
+                    || $retencao['data_levantamento'] !== $data_levantamento || $retencao['data_devolucao'] !== $data_devolucao) {
+                    throw new Exception('O pagamento não corresponde a uma retenção válida de stock.');
+                }
+                $hora_levantamento=carroHora((string)($input['participante_principal']['hora_levantamento']??''));
+                $hora_devolucao=carroHora((string)($input['participante_principal']['hora_devolucao']??''));
+                if(substr((string)($retencao['hora_levantamento']??''),0,5)!==$hora_levantamento || substr((string)($retencao['hora_devolucao']??''),0,5)!==$hora_devolucao)throw new Exception('As horas não correspondem ao pagamento.');
+                $stock = carroStockLer($conn, (int)$carro_id, $data_levantamento, $data_devolucao, true, $retencao['token'],false,$hora_levantamento,$hora_devolucao);
+                if ($stock['quantidade_disponivel'] < $quantidade) throw new Exception('Não há unidades disponíveis para concluir esta reserva.');
                 $dias              = $input['reserva']['dias'] ?? 1;
                 $preco_total       = $input['reserva']['preco_total'] ?? 0;
+                $condicoes = !empty($retencao['caucao_json'])
+                    ? json_decode($retencao['caucao_json'], true, 512, JSON_THROW_ON_ERROR)
+                    : carroCondicoesPagamento($conn, (int)$carro_id, $quantidade, $data_levantamento, $data_devolucao);
+                if (abs((float)$preco_total - (float)$condicoes['total_aluguer']) > 0.001) throw new Exception('O pagamento deve incluir apenas o aluguer, sem caução.');
+                $preco_total = $condicoes['total_aluguer'];
 
+                require_once __DIR__.'/carroDocumentos.php';
+                $docs=carroDocumentosValidar($conn,$input['documentos_condutor']??[],(int)$carro_id,$data_levantamento,$data_devolucao,(string)($input['participante_principal']['email']??''),$retencao['token']);
+                if(($condicoes['documentos_lote']??null)!==$docs['id'])throw new Exception('Os documentos não correspondem ao pagamento.');
                 $num_documento     = $input['participante_principal']['num_documento'] ?? '';
-                $hora_levantamento = $input['participante_principal']['hora_levantamento'] ?? '10:00';
+                carroHorariosValidar($condicoes['horarios']??carroHorariosLer($conn,(int)$carro_id),$hora_levantamento,$hora_devolucao);
                 $observacoes       = $input['participante_principal']['observacoes'] ?? '';
-                $carta_conducao    = $input['participante_principal']['carta_conducao_nome'] ?? '';
+                $carta_conducao    = ''; // Private files are linked through carro_documento_lotes, never public URLs.
 
                 $conn->prepare("
                     INSERT INTO reservas_carro
-                        (usuario_id, carro_id, codigo_reserva, data_levantamento, data_devolucao, dias,
-                         preco_total, status, pagamento_status, num_documento, hora_levantamento,
+                        (usuario_id, carro_id, codigo_reserva, data_levantamento, data_devolucao, dias, quantidade, comissao,
+                         preco_total, status, pagamento_status, num_documento, hora_levantamento, hora_devolucao,
                          observacoes, carta_conducao, idempotency_key, data_reserva)
                     VALUES
-                        (:uid, :cid, :code, :in, :out, :ds,
-                         :prc, :estado, :pagamento, :doc, :hora,
+                        (:uid, :cid, :code, :in, :out, :ds, :quantidade, :comissao,
+                         :prc, :estado, :pagamento, :doc, :hora, :hora_fim,
                          :obs, :carta, :idem, NOW())
                 ")->execute([
                     ':uid'=>$usuario_id, ':cid'=>$carro_id, ':code'=>$codigoReserva,
                     ':in'=>$data_levantamento, ':out'=>$data_devolucao, ':ds'=>$dias,
-                    ':prc'=>$preco_total, ':doc'=>$num_documento, ':hora'=>$hora_levantamento,
+                    ':quantidade'=>$quantidade,
+                    ':comissao'=>round($preco_total * 0.10, 2),
+                    ':prc'=>$preco_total, ':doc'=>$num_documento, ':hora'=>$hora_levantamento, ':hora_fim'=>$hora_devolucao,
                     ':obs'=>$observacoes, ':carta'=>$carta_conducao, ':idem'=>$idempotency_key,
                     ':estado'=>$estadoReserva, ':pagamento'=>$estadoPagamento,
                 ]);
                 $reservaId = $conn->lastInsertId();
+                $conn->prepare("UPDATE carro_stock_retencoes SET estado='consumida' WHERE token=? AND estado='ativa'")->execute([$retencao['token']]);
+                $conn->prepare('UPDATE carro_documento_lotes SET reserva_id=? WHERE id=? AND reserva_id IS NULL')->execute([$reservaId,$docs['id']]);
+                // Usar a tabela de snapshots já existente; não somar a caução
+                // a reservas_carro.preco_total nem à comissão dos repasses.
+                carroGuardarCaucaoReserva($conn, (int)$reservaId, $condicoes['caucao'], $condicoes['horarios']);
             } else {
                 throw new Exception("Categoria inválida: " . $category);
             }

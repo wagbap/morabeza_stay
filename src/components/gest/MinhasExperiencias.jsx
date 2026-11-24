@@ -1,15 +1,15 @@
-import HeaderGestao from './HeaderGestao';
+import '@fontsource-variable/inter';
+import ConfirmarExclusao from '../ConfirmarExclusao';
+import api from '../../api/api';
+import ListaAnunciosGestao, { CartaoAnuncioGestao, GrelhaAnunciosGestao, IconeGestao as Icone } from './ListaAnunciosGestao';
 // src/components/gest/MinhasExperiencias.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Loader2, Compass, Plus, Edit2, Trash2, Settings2, Eye, MapPin,
-  Star, Users, Clock, AlertCircle, RefreshCw, CheckCircle,
-  XCircle, Search, User, Ban
-} from 'lucide-react';
+import { Loader2, Compass, Settings2, Users, Clock, CheckCircle, XCircle, Waves, Shield } from 'lucide-react';
 
-const API_BASE = 'https://welovepalop.com';
+
+
 
 // ============================================================
 // HELPER: obter utilizador do JWT
@@ -47,7 +47,11 @@ export default function MinhasExperiencias() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState('todos');
   const [deletandoId, setDeletandoId] = useState(null);
+  const [exclusao, setExclusao] = useState(null);
+  const [erroExclusao, setErroExclusao] = useState(null);
+  const apagandoRef = useRef(false);
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
   const showToast = (message, type = 'success') => {
@@ -63,18 +67,15 @@ export default function MinhasExperiencias() {
     setError(null);
     try {
       const usuarioId = obterUsuarioId();
-      console.log('👤 Usuario ID:', usuarioId);
 
       if (!usuarioId) {
-        setError('Utilizador não autenticado');
+        setError('gest_exp_nao_autenticado');
         setLoading(false);
         return;
       }
 
-      const res = await fetch(`${API_BASE}/api/get_experiencias.php?usuario_id=${usuarioId}`);
-      const data = await res.json();
+      const { data } = await api.get('/get_experiencias.php', { params: { usuario_id: usuarioId } });
 
-      console.log('📦 Resposta API:', data);
 
       let lista = [];
       if (data.success && data.data) {
@@ -85,12 +86,20 @@ export default function MinhasExperiencias() {
 
       // Validar que cada experiência tem id
       const listaValida = lista.filter(exp => exp && exp.id);
-      console.log(`✅ ${listaValida.length} experiências carregadas`);
 
-      setExperiencias(listaValida);
+      const atualizadas = await Promise.all(listaValida.map(async exp => {
+        try {
+          const { data } = await api.get('/experiencia/buscar.php', { params: { id: exp.id } });
+          if (data.success && String(data.data?.id) === String(exp.id)) {
+            return { ...exp, modelo_reserva: data.data.modelo_reserva, equipamento_nome: data.data.equipamento_nome };
+          }
+        } catch { /* Preserve the existing listing when metadata is unavailable. */ }
+        return exp;
+      }));
+      setExperiencias(atualizadas);
     } catch (err) {
       console.error('❌ Erro ao buscar experiências:', err);
-      setError('Erro ao carregar experiências');
+      setError('gest_exp_erro_carregar');
     } finally {
       setLoading(false);
     }
@@ -98,31 +107,31 @@ export default function MinhasExperiencias() {
 
   useEffect(() => {
     fetchExperiencias();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ============================================================
   // DELETAR EXPERIÊNCIA
   // ============================================================
   const deletarExperiencia = async (exp) => {
-    if (!window.confirm(`Tem certeza que deseja eliminar "${exp.titulo}"?\nEsta ação não pode ser desfeita.`)) return;
+    if (apagandoRef.current) return;
+    apagandoRef.current = true;
+    setErroExclusao(null);
 
     setDeletandoId(exp.id);
     try {
-      const res = await fetch(`${API_BASE}/api/experiencias.php?id=${exp.id}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
+      const { data } = await api.delete('/experiencias.php', { params: { id: exp.id } });
       if (data.success) {
-        showToast('Experiência eliminada!', 'success');
+        setExclusao(null);
+        showToast(t('gest_exp_eliminada'), 'success');
         fetchExperiencias();
       } else {
-        showToast(data.error || 'Erro ao eliminar', 'error');
+        setErroExclusao('gest_exp_erro_eliminar');
       }
     } catch (err) {
       console.error(err);
-      showToast('Erro de conexão', 'error');
+      setErroExclusao('gest_exp_erro_ligacao');
     } finally {
+      apagandoRef.current = false;
       setDeletandoId(null);
     }
   };
@@ -131,6 +140,7 @@ export default function MinhasExperiencias() {
   // FILTRAR
   // ============================================================
   const experienciasFiltradas = experiencias.filter(exp => {
+    if (filtro !== 'todos' && exp.status !== filtro) return false;
     if (!busca.trim()) return true;
     const termo = busca.toLowerCase();
     return (
@@ -140,298 +150,28 @@ export default function MinhasExperiencias() {
     );
   });
 
-  // ============================================================
-  // RENDER
-  // ============================================================
   return (
-    <div className="text-left">
-      {toast.show && (
-        <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-xl shadow-2xl text-white font-medium text-sm flex items-center gap-2 ${
-          toast.type === 'success' ? 'bg-emerald-600' :
-          toast.type === 'error' ? 'bg-red-600' : 'bg-amber-600'
-        }`}>
-          <AlertCircle size={18} />
-          <span>{toast.message}</span>
-        </div>
-      )}
-
-      {/* HEADER */}
-      <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
-        <div>
-          <HeaderGestao secao="experiencias" className="mb-0" />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchExperiencias}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs rounded-lg border border-slate-200 transition"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Atualizar
-          </button>
-          <button
-            onClick={() => navigate('/experiencia-registo')}
-            className="flex items-center gap-2 bg-blue-900 hover:bg-blue-950 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition shadow-md"
-          >
-            <Plus size={16} />
-            Nova Experiência
-          </button>
-        </div>
-      </div>
-
-      {/* BUSCA */}
-      {experiencias.length > 0 && (
-        <div className="mb-5">
-          <div className="relative max-w-md">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Pesquisar por título, ilha ou localização..."
-              className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ESTADOS */}
-      {loading ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-          <Loader2 size={32} className="animate-spin text-blue-600 mx-auto mb-3" />
-          <p className="text-slate-500 text-sm">A carregar experiências...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 rounded-2xl border border-red-200 p-8 text-center">
-          <AlertCircle size={32} className="text-red-500 mx-auto mb-3" />
-          <p className="text-red-700 font-medium">{error}</p>
-          <button
-            onClick={fetchExperiencias}
-            className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      ) : experiencias.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Compass size={28} className="text-slate-400" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Nenhuma experiência criada</h3>
-          <p className="text-sm text-slate-500 mb-6">
-            Comece por criar a sua primeira experiência para começar a receber reservas
-          </p>
-          <button
-            onClick={() => navigate('/experiencia-registo')}
-            className="inline-flex items-center gap-2 bg-blue-900 hover:bg-blue-950 text-white font-bold text-sm px-5 py-3 rounded-xl transition"
-          >
-            <Plus size={16} />
-            Criar primeira experiência
-          </button>
-        </div>
-      ) : experienciasFiltradas.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-          <Search size={32} className="text-slate-400 mx-auto mb-3" />
-          <p className="text-slate-500 text-sm">Nenhuma experiência encontrada para "{busca}"</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {experienciasFiltradas.map((exp) => (
-            <div
-              key={exp.id}
-              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col"
-            >
-              {/* IMAGEM */}
-              <div className="relative h-44 bg-slate-100">
-                <img
-                  src={exp.imagem_principal || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop'}
-                  alt={exp.titulo}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600&h=400&fit=crop';
-                  }}
-                />
-
-                {/* BADGE STATUS */}
-                <div className="absolute top-3 left-3 flex gap-1.5">
-                  {exp.ativo === 1 || exp.status === 'aprovado' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/95 backdrop-blur text-white text-[10px] font-bold rounded-full">
-                      <CheckCircle size={10} />
-                      Ativo
-                    </span>
-                  ) : exp.status === 'pendente' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-500/95 backdrop-blur text-white text-[10px] font-bold rounded-full">
-                      <Clock size={10} />
-                      Pendente
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-500/95 backdrop-blur text-white text-[10px] font-bold rounded-full">
-                      <XCircle size={10} />
-                      Inativo
-                    </span>
-                  )}
-
-                  {/* BADGE MODELO */}
-                  {exp.modelo_reserva === 'grupo_privado' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/95 backdrop-blur text-white text-[10px] font-bold rounded-full">
-                      <Users size={10} />
-                      Grupo
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/95 backdrop-blur text-white text-[10px] font-bold rounded-full">
-                      <User size={10} />
-                      Por Pessoa
-                    </span>
-                  )}
-                </div>
-
-                {/* RATING */}
-                {exp.rating_formatado && (
-                  <div className="absolute top-3 right-3 bg-white/95 backdrop-blur rounded-full px-2 py-1 flex items-center gap-1 shadow-sm">
-                    <Star size={10} className="fill-orange-400 text-orange-400" />
-                    <span className="text-[10px] font-bold text-slate-900">{exp.rating_formatado}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* CONTEÚDO */}
-              <div className="p-4 flex-1 flex flex-col">
-                <h3 className="text-sm font-bold text-slate-900 leading-tight line-clamp-2 mb-2">
-                  {exp.titulo}
-                </h3>
-
-                <div className="flex items-center gap-1 text-[11px] text-slate-500 mb-3">
-                  <MapPin size={11} className="text-orange-500" />
-                  <span className="truncate">{exp.ilha}{exp.localizacao ? `, ${exp.localizacao}` : ''}</span>
-                </div>
-
-                {/* MÉTRICAS */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <div className="bg-slate-50 rounded-lg p-2 text-center">
-                    <Clock size={12} className="text-blue-600 mx-auto mb-1" />
-                    <p className="text-[10px] font-bold text-slate-900 truncate">{exp.duracao || '—'}</p>
-                    <p className="text-[9px] text-slate-400">Duração</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-2 text-center">
-                    <Users size={12} className="text-green-600 mx-auto mb-1" />
-                    <p className="text-[10px] font-bold text-slate-900">
-                      {exp.modelo_reserva === 'grupo_privado'
-                        ? (exp.max_pessoas_grupo || '—')
-                        : (exp.max_pessoas || '—')}
-                    </p>
-                    <p className="text-[9px] text-slate-400">Máx.</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-2 text-center">
-                    <Star size={12} className="text-orange-500 mx-auto mb-1" />
-                    <p className="text-[10px] font-bold text-slate-900">{exp.total_avaliacoes || 0}</p>
-                    <p className="text-[9px] text-slate-400">Aval.</p>
-                  </div>
-                </div>
-
-                {/* PREÇO */}
-                {(exp.preco || exp.preco_grupo) && (
-                  <div className="mb-4 flex items-baseline gap-1">
-                    <span className="text-lg font-bold text-blue-600">
-                      {exp.modelo_reserva === 'grupo_privado'
-                        ? Number(exp.preco_grupo || 0).toLocaleString('pt-PT')
-                        : Number(exp.preco || 0).toLocaleString('pt-PT')}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      CVE {exp.modelo_reserva === 'grupo_privado' ? '/ grupo' : '/ pessoa'}
-                    </span>
-                  </div>
-                )}
-
-                {/* AÇÕES */}
-               <div className="mt-auto pt-3 border-t border-slate-100 space-y-2">
-                        {/* 🔥 Botão principal: Configurar Sessões */}
-                        <button
-                            onClick={() => navigate(`/gest/experiencia/${exp.id}/sessoes`)}
-                            className="w-full flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm"
-                        >
-                            <Settings2 size={14} />
-                            Configurar Sessões
-                        </button>
-
-                          {/* 🔥 NOVO Botão: Políticas de Reserva */}
-                          <button
-                            onClick={() => navigate(`/gest/experiencia/${exp.id}/politicas`)}
-                            className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm"
-                          >
-                            <Ban size={14} />
-                            Políticas de Reserva
-                          </button>
-
-                        {/* 🔥 Ações rápidas */}
-                        <div className="grid grid-cols-3 gap-2">
-                            <button
-                            onClick={() => navigate(`/experiencia/${exp.slug || exp.id}`)}
-                            className="flex items-center justify-center gap-1 py-2 text-[10px] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition"
-                            title="Ver página pública"
-                            >
-                            <Eye size={12} />
-                            Ver
-                            </button>
-
-                            <button
-                            onClick={() => navigate(`/experiencia-registo/editar/${exp.id}`)}
-                            className="flex items-center justify-center gap-1 py-2 text-[10px] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition"
-                            title="Editar experiência"
-                            >
-                            <Edit2 size={12} />
-                            Editar
-                            </button>
-
-                            <button
-                            onClick={() => deletarExperiencia(exp)}
-                            disabled={deletandoId === exp.id}
-                            className="flex items-center justify-center gap-1 py-2 text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition disabled:opacity-50"
-                            title="Eliminar experiência"
-                            >
-                            {deletandoId === exp.id ? (
-                                <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                                <Trash2 size={12} />
-                            )}
-                            Eliminar
-                            </button>
-                        </div>
-                        </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* RESUMO */}
-      {!loading && experiencias.length > 0 && (
-        <div className="mt-8 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Total experiências</p>
-              <p className="text-2xl font-bold text-slate-900">{experiencias.length}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Ativas</p>
-              <p className="text-2xl font-bold text-green-600">
-                {experiencias.filter(e => e.ativo === 1 || e.status === 'aprovado').length}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Pendentes</p>
-              <p className="text-2xl font-bold text-amber-600">
-                {experiencias.filter(e => e.status === 'pendente').length}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Total avaliações</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {experiencias.reduce((acc, e) => acc + (parseInt(e.total_avaliacoes) || 0), 0)}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="w-full pb-8 text-left text-[#101127] [font-family:'Inter_Variable',Arial,sans-serif]">
+      <ConfirmarExclusao aberto={!!exclusao} nome={exclusao?.titulo} loading={deletandoId !== null} erro={erroExclusao}
+        tituloKey="gest_exp_apagar_titulo" confirmarKey="gest_exp_apagar_titulo"
+        onClose={() => { if (!apagandoRef.current) setExclusao(null); }}
+        onConfirm={() => { if (exclusao) void deletarExperiencia(exclusao); }} />
+      {toast.show && <p role="status" className={`fixed right-6 top-6 z-50 rounded-xl px-5 py-3 text-sm text-white shadow-lg ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>{toast.message}</p>}
+      <ListaAnunciosGestao icon={Compass} titulo={t('gest_header_experiencias_titulo')} descricao={t('gest_header_experiencias_descricao')} subtitulo={t('gest_exp_meus_anuncios')} adicionar={t('gest_exp_nova')} onAdicionar={() => navigate('/experiencia-registo/fluxo')} busca={busca} onBusca={setBusca} pesquisa={t('gest_exp_pesquisar')} filtro={filtro} onFiltro={setFiltro} filtros={['todos','aprovado','pendente','inativo'].map(value => ({value,label:t(`gest_lista_estado_${value}`)}))}>
+        {loading ? <p role="status" className="flex justify-center gap-3 py-16"><Icone icon={Loader2} className="animate-spin" />{t('gest_exp_carregar')}</p> : error ? <div role="alert"><p>{t(error)}</p><button type="button" onClick={fetchExperiencias}>{t('atualizar')}</button></div> : !experienciasFiltradas.length ? <p className="rounded-xl bg-white p-8 text-center">{t('gest_exp_sem_resultados')}</p> : <GrelhaAnunciosGestao>{experienciasFiltradas.map(exp => {
+          const equipamento = exp.modelo_reserva === 'por_equipamento';
+          const grupo = exp.modelo_reserva === 'grupo_privado';
+          const ativo = exp.status === 'aprovado';
+          const pendente = exp.status === 'pendente';
+          return <CartaoAnuncioGestao key={exp.id} icon={Compass} imagem={exp.imagem_principal} titulo={exp.titulo} localizacao={[exp.ilha,exp.localizacao].filter(Boolean).join(' · ')}
+            preco={equipamento ? t('experiencia_card_ver_precos_duracoes') : `${Number((grupo ? exp.preco_grupo : exp.preco) || 0).toLocaleString('pt-PT')} CVE ${t(grupo ? 'experiencia_card_unidade_grupo' : 'por_pessoa')}`}
+            estado={{icon:ativo ? CheckCircle : pendente ? Clock : XCircle,texto:t(ativo ? 'gest_frota_ativo' : pendente ? 'gest_exp_pendente' : 'gest_exp_inativo'),cor:ativo ? 'bg-[#b5f6b5] text-[#164c20]' : pendente ? 'bg-[#ffe187] text-[#302609]' : 'bg-slate-200 text-slate-600'}}
+            resumo={<span className="flex items-center gap-2"><Icone icon={equipamento ? Waves : Users} />{t(equipamento ? 'experiencia_card_por_equipamento' : grupo ? 'experiencia_card_por_grupo' : 'experiencia_card_por_participante')}</span>}
+            nota={<span>{exp.duracao || '—'} · {t('gest_exp_participantes',{count:Number(exp.max_pessoas)||0})}</span>}
+            acoes={[{label:t('gest_exp_configurar'),icon:Settings2,onClick:()=>navigate(`/gest/experiencia/${exp.id}/sessoes`)},{label:t('gest_exp_politicas'),icon:Shield,onClick:()=>navigate(`/gest/experiencia/${exp.id}/politicas`)}]}
+            onVer={()=>navigate(`/experiencia/${exp.slug||exp.id}`)} onEditar={()=>navigate(`/experiencia-registo/editar/${exp.id}`)} onEliminar={()=>{setErroExclusao(null);setExclusao(exp);}} eliminando={deletandoId===exp.id} bloquearExclusao={deletandoId!==null} />;
+        })}</GrelhaAnunciosGestao>}
+      </ListaAnunciosGestao>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const VIDEO_URL = 'https://videos.pexels.com/video-files/19147576/19147576-hd_1920_1080_30fps.mp4';
-const POSTER = 'https://res.cloudinary.com/dpsrmzvsl/image/upload/v1776794055/ChatGPT_Image_21_04_2026_18_53_49_tjncp9.png';
+const VIDEO_URL = '/media/experiences-19147576.mp4';
+const POSTER = '/media/experiences-19147576-poster.jpg';
 
 const ExperiencesHero = () => {
   const { t } = useTranslation();
@@ -51,7 +51,7 @@ const ExperiencesHero = () => {
 
   
   return (
-    <div ref={heroRef} className="relative h-[450px] w-full overflow-hidden">
+    <div ref={heroRef} className="relative h-[390px] md:h-[450px] w-full overflow-hidden">
       <video
         ref={videoRef}
         poster={POSTER}
@@ -66,14 +66,14 @@ const ExperiencesHero = () => {
       
       <div className="absolute inset-0 bg-gradient-to-b from-blue-900/60 to-blue-900/20"></div>
 
-      <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
-        <h1 className="mb-4 text-4xl font-black leading-tight tracking-tight text-white drop-shadow-lg sm:text-5xl md:text-6xl">
+      <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4 pt-20 pb-12">
+        <h1 className="mb-4 text-[28px] font-black leading-tight tracking-tight text-white drop-shadow-lg sm:text-4xl lg:text-5xl">
           {t('passeio_experiencia_santiago')}
         </h1>
-        <p className="mx-auto max-w-4xl text-lg font-medium leading-relaxed text-white drop-shadow-md sm:text-xl md:text-3xl">
+        <p className="mx-auto max-w-4xl text-base font-medium leading-relaxed text-white drop-shadow-md sm:text-lg lg:text-xl">
           {t('descubra_melhor_ilha')}
         </p>
-        <div className="mt-10 flex justify-center" aria-hidden="true">
+        <div className="mt-6 flex justify-center" aria-hidden="true">
           <div className="h-1.5 w-32 rounded-full bg-[#a5d6a7] shadow-[0_0_15px_#a5d6a7]" />
         </div>
       </div>

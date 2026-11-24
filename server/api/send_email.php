@@ -68,6 +68,29 @@ function emailReservaData($value): string {
     return $value;
 }
 
+/** Shared full deposit instructions for the email and car receipt. Rental totals are untouched. */
+function emailReservaCaucaoLinhas(array $d): array {
+    if (($d['tipo'] ?? '') !== 'carro' || !is_array($d['caucao'] ?? null)) return [];
+    $c = $d['caucao'];
+    if (!isset($c['exige_caucao'])) return [];
+    if ((int) $c['exige_caucao'] === 0) return ['Este veículo não exige caução.'];
+    if (!is_numeric($c['caucao_valor'] ?? null) || (float) $c['caucao_valor'] <= 0) return [];
+    $q = max(1, (int) ($c['quantidade'] ?? 1));
+    $linhas = ['Valor por carro: ' . emailReservaDinheiro($c['caucao_valor']) . ($q > 1 ? ' · Total para ' . $q . ' carros: ' . emailReservaDinheiro((float) $c['caucao_valor'] * $q) : '') . '.',
+        'Pague a caução ao proprietário no levantamento. Não está incluída na cobrança online nem na comissão.'];
+    $nomes = ['dinheiro' => 'Dinheiro', 'transferencia' => 'Transferência bancária', 'multibanco' => 'Multibanco/Vinti4', 'cheque' => 'Cheque'];
+    $formas = $c['caucao_formas'] ?? [];
+    if (is_string($formas)) $formas = json_decode($formas, true) ?: explode(',', $formas);
+    if (is_array($formas)) {
+        $formas = array_values(array_filter(array_map(static function ($f) use ($nomes) {
+            return is_string($f) ? ($nomes[trim($f)] ?? trim($f)) : '';
+        }, $formas)));
+        if ($formas) $linhas[] = 'Métodos aceites: ' . implode(' · ', $formas);
+    }
+    if (trim((string) ($c['caucao_condicoes'] ?? '')) !== '') $linhas[] = 'Condições de devolução ou retenção: ' . trim($c['caucao_condicoes']);
+    return $linhas;
+}
+
 /** Pure renderer: no sending, network access or database side effects. */
 function renderizarConfirmacaoReserva(array $d): string {
     $e = 'emailReservaEsc';
@@ -111,7 +134,6 @@ function renderizarConfirmacaoReserva(array $d): string {
     $reference = array_filter([$d['metodo_pagamento'] ?? '', $d['referencia_pagamento'] ?? '']);
     $tokens = [
         'subject' => $headline . ' · ' . $code, 'preheader' => $headline . ' · ' . $d['titulo'] . ' · ' . $code,
-        'hero_image' => $d['hero_image'] ?? 'https://morabezastay.cv/media/home-beach-29984774-poster.jpg',
         'headline' => $headline, 'subtitle' => $paid ? 'Pagamento recebido. A sua viagem começa aqui.' : 'Consulte os detalhes da sua reserva.',
         'first_name' => explode(' ', $name)[0], 'greeting' => $confirmed && $paid ? 'A sua reserva está confirmada e o pagamento foi recebido.' : ($paid ? 'O pagamento foi recebido. Consulte abaixo o estado da sua reserva.' : 'Recebemos a sua reserva. O pagamento ainda está pendente.'),
         'code' => $code, 'badge_state' => $paid ? 'paid' : 'pending', 'badge_color' => $paid ? '#087f46' : '#995500', 'badge_bg' => $paid ? '#d7f2df' : '#fff1cf', 'payment_badge' => $paid ? 'Pago' : 'Pagamento pendente',
@@ -130,7 +152,13 @@ function renderizarConfirmacaoReserva(array $d): string {
     ];
     $replacements = [];
     foreach ($tokens as $key => $value) $replacements['{{' . $key . '}}'] = $e($value);
+    // This artwork contains the paid confirmation text; never show it for pending payments.
+    $heroBanner = $paid
+        ? '<tr><td style="padding:0"><img src="https://morabezastay.cv/images/email_header.jpg" width="760" alt="Reserva confirmada. Pagamento recebido. A sua viagem começa aqui." style="display:block;width:100%;max-width:760px;height:auto;border:0;border-radius:11px"></td></tr>'
+        : '<tr><td class="dm-hero" bgcolor="#174b7e" style="background:#174b7e;border-radius:11px;padding:44px 32px"><h1 class="hero-title" style="font:bold 48px/1.15 Georgia,serif;color:#fff;margin:0">' . $e($headline) . '</h1><p style="font:bold 22px/1.45 Arial,sans-serif;color:#fff;margin:12px 0 0">Consulte os detalhes da sua reserva.</p></td></tr>';
     $raw = [
+        'deposit_section' => ($deposito = emailReservaCaucaoLinhas($d)) ? '<tr><td height="13"></td></tr><tr><td class="pad dm-border" style="border:1px solid #dce6f1;border-radius:10px;padding:15px 20px"><h2 class="dm-heading" style="font:bold 23px/1.3 Georgia,serif;color:#07176a;margin:0">Caução no levantamento</h2><p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:10px 0 0">' . implode('</p><p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">', array_map(static function ($linha) { return nl2br(emailReservaEsc($linha)); }, $deposito)) . '</p></td></tr>' : '',
+        'hero_banner' => $heroBanner,
         'demo_banner' => !empty($d['exemplo']) ? '<tr><td class="dm-text dm-soft" align="center" style="background:#eaf2f8;border-radius:7px;padding:9px;color:#294d83;font:13px Arial,sans-serif">MODELO VISUAL &#183; DADOS DE EXEMPLO</td></tr>' : '',
         'listing_photo' => $photoHtml, 'reserved_items' => $reserved, 'payment_rows' => $rows,
         'map_link' => $map ? '<table role="presentation" style="margin-top:10px"><tr><td width="30">' . $icon('map', 21) . '</td><td style="font:15px Arial,sans-serif;vertical-align:middle"><a class="dm-link" style="color:#0758ae;text-decoration:underline" href="' . $e($map) . '">Ver localização no mapa &nbsp; &#8594;</a></td></tr></table>' : '',
@@ -203,11 +231,7 @@ body,.email-background{background:#101827!important}
 <table class="dm-text dm-surface" role="presentation" width="760" style="width:100%;max-width:760px;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#294d83">
 {{demo_banner}}
 <tr><td class="brand" align="center" style="padding:8px 12px 22px">{{logo}}</td></tr>
-<tr><td class="dm-hero" background="{{hero_image}}" bgcolor="#174b7e" style="background:#174b7e url('{{hero_image}}') center/cover;background-image:linear-gradient(90deg,rgba(16,54,104,.96),rgba(16,54,104,.12)),url('{{hero_image}}');border-radius:11px;padding:44px 32px">
-<!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:760px;height:190px"><v:fill type="frame" src="{{hero_image}}" color="#174b7e"/><v:textbox inset="24px,20px,24px,20px"><![endif]-->
-<h1 class="hero-title" style="font:bold 48px/1.15 Georgia,'Times New Roman',serif;color:#fff;margin:0">{{headline}}</h1>
-<p style="font:bold 22px/1.45 Arial,Helvetica,sans-serif;color:#fff;margin:12px 0 0">{{subtitle}}</p>
-<!--[if gte mso 9]></v:textbox></v:rect><![endif]--></td></tr>
+{{hero_banner}}
 <tr><td style="padding:23px 21px 20px">
 <h2 class="greeting dm-heading" style="font:bold 34px/1.2 Georgia,'Times New Roman',serif;color:#07176a;margin:0 0 5px">Olá, {{first_name}}!</h2>
 <p class="dm-text" style="font:18px/1.45 Arial,Helvetica,sans-serif;color:#294d83;margin:0">{{greeting}}<br>Estamos muito satisfeitos por o receber em Cabo Verde.</p></td></tr>
@@ -236,6 +260,7 @@ body,.email-background{background:#101827!important}
 <table role="presentation" style="margin-bottom:16px"><tr><td width="44" style="vertical-align:middle">{{payment_icon}}</td><td style="vertical-align:middle"><h2 class="dm-heading" style="font:bold 23px/1.3 Georgia,'Times New Roman',serif;color:#07176a;margin:0">Resumo do pagamento</h2></td></tr></table>
 <table role="presentation" width="100%">{{payment_rows}}<tr><td class="dm-heading dm-total" style="padding:12px;background:#e7f3ff;border-radius:9px 0 0 9px;font:bold 24px/1.3 Georgia,'Times New Roman',serif;color:#07176a">{{total_label}}</td><td class="dm-heading dm-total" align="right" style="padding:12px;background:#e7f3ff;border-radius:0 9px 9px 0;font:bold 25px/1.3 Arial,sans-serif;color:#07176a;white-space:nowrap">{{total}}</td></tr></table>
 <p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:9px 0 0">{{payment_reference}}</p></td></tr>
+{{deposit_section}}
 <tr><td height="13" style="font-size:0;line-height:0">&nbsp;</td></tr>
 <tr><td class="pad dm-soft" bgcolor="#edf5fb" style="background:#edf5fb;border-radius:10px;padding:17px 22px">
 <table role="presentation" width="100%"><tr><td class="stack" width="34%" style="padding:0 24px 0 15px;vertical-align:top">
@@ -2050,7 +2075,16 @@ function carregarDadosEmailReserva(PDO $conn, string $tipo, string $codigo, arra
         $rows[] = ['descricao' => $length . ' noite(s)', 'valor' => $r['subtotal_noites']];
         if ((float) ($r['taxa_limpeza'] ?? 0) > 0) $rows[] = ['descricao' => 'Taxa de limpeza', 'valor' => $r['taxa_limpeza']];
     } else $rows[] = ['descricao' => $details, 'valor' => $r['preco_total']];
+    $caucao = null;
+    if ($tipo === 'carro') {
+        // Use the terms accepted for this booking, never the listing's current terms.
+        $stmt = $conn->prepare('SELECT snapshot_json FROM reservas_carro_condicoes WHERE reserva_id = :id LIMIT 1');
+        $stmt->execute(['id' => $r['id']]);
+        $snapshot = json_decode((string) ($stmt->fetchColumn() ?: ''), true);
+        $caucao = is_array($snapshot['caucao'] ?? null) ? $snapshot['caucao'] : null;
+    }
     return [
+        'caucao' => $caucao,
         'tipo' => $tipo, 'reserva_id' => $r['id'], 'usuario_id' => $r['usuario_id'], 'codigo_reserva' => $r['codigo_reserva'],
         'status' => $r['status'], 'status_pagamento' => $r['pagamento_status'], 'preco_total' => $r['preco_total'],
         'titulo' => $l['titulo'] ?? $l['nome'] ?? $extra['experiencia'] ?? ucfirst($tipo),
@@ -2091,6 +2125,11 @@ class ComprovativoReservaPDF {
     public $stream = '';
     public $links = [];
     public $images = [];
+    public $pages = [];
+    public function newPage(): void {
+        $this->pages[] = [$this->stream, $this->links];
+        $this->stream = ''; $this->links = [];
+    }
     public function color(string $hex, bool $fill = true): void {
         $rgb = sscanf(ltrim($hex, '#'), '%02x%02x%02x');
         $this->stream .= sprintf('%.3f %.3f %.3f %s ', $rgb[0]/255, $rgb[1]/255, $rgb[2]/255, $fill ? 'rg' : 'RG');
@@ -2122,12 +2161,26 @@ class ComprovativoReservaPDF {
     }
     public function width(string $s,float $size): float {
         $latin=iconv('UTF-8','Windows-1252//TRANSLIT',$s);$w=0;
-        foreach(str_split($latin===false?'':$latin) as $c) $w+=strpos(' ilI.,:;!|',$c)!==false?.26:(strpos('MW@%',$c)!==false?.86:.53);
+        // Conservative Helvetica/Bold advances keep wrapping safe in both fonts.
+        foreach(str_split($latin===false?'':$latin) as $c) {
+            $w+=strpos(' ilI.,:;!|',$c)!==false?.31:
+                (strpos('MW@%mw',$c)!==false?1.0:
+                ((ord($c)>=128 || ($c>='A' && $c<='Z'))?.80:.62));
+        }
         return $w*$size;
     }
     public function wrap(string $s,float $width,float $size): array {
         $lines=[];$line='';
         foreach(preg_split('/\s+/u',trim($s))?:[] as $word) {
+            // Split long references and email addresses as well as ordinary words.
+            if ($this->width($word,$size)>$width) {
+                if ($line!=='') {$lines[]=$line;$line='';}
+                foreach(preg_split('//u',$word,-1,PREG_SPLIT_NO_EMPTY)?:[] as $char) {
+                    if ($line!=='' && $this->width($line.$char,$size)>$width) {$lines[]=$line;$line='';}
+                    $line.=$char;
+                }
+                continue;
+            }
             if($line!=='' && $this->width($line.' '.$word,$size)>$width) {$lines[]=$line;$line='';}
             $line.=($line===''?'':' ').$word;
         }
@@ -2210,6 +2263,7 @@ class ComprovativoReservaPDF {
         $this->stream.=sprintf('q %.2f 0 0 %.2f %.2f %.2f cm /%s Do Q ',$w,$h,$x,842-$y-$h,$name);return true;
     }
     public function output(): string {
+        if ($this->pages) return $this->outputPages();
         $objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','',
             '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
             '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
@@ -2234,6 +2288,38 @@ class ComprovativoReservaPDF {
         foreach(array_slice($offsets,1) as $offset) $pdf.=sprintf("%010d 00000 n \n",$offset);
         return $pdf."trailer\n<< /Size ".$count." /Root 1 0 R >>\nstartxref\n".$xref."\n%%EOF";
     }
+    private function outputPages(): string {
+        $pages=array_merge($this->pages,[[$this->stream,$this->links]]);
+        $objects=['<< /Type /Catalog /Pages 2 0 R >>','',
+            '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+            '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'];
+        $resources='';$kids=[];
+        foreach($this->images as $name=>[$bytes,$info]) {
+            $id=count($objects)+1;$resources.='/'.$name.' '.$id.' 0 R ';
+            $png=!empty($info['png']);
+            $space=$png?$info['space']:'/'.($info['channels']===1?'DeviceGray':'DeviceRGB');
+            $filter=$png?'/FlateDecode /DecodeParms << /Predictor 15 /Colors '.$info['channels'].' /BitsPerComponent '.$info['bits'].' /Columns '.$info['width'].' >>':'/DCTDecode';
+            $objects[]='<< /Type /XObject /Subtype /Image /Width '.$info['width'].' /Height '.$info['height'].' /ColorSpace '.$space.' /BitsPerComponent '.($png?$info['bits']:8).' /Filter '.$filter.' /Length '.strlen($bytes).">>\nstream\n".$bytes."\nendstream";
+        }
+        foreach($pages as [$stream,$links]) {
+            $annotations=[];
+            foreach($links as [$x,$y,$x2,$y2,$url]) {
+                $annotations[]=(count($objects)+1).' 0 R';
+                $url=str_replace(['\\','(',')'],['\\\\','\\(','\\)'],$url);
+                $objects[]=sprintf('<< /Type /Annot /Subtype /Link /Rect [%.2f %.2f %.2f %.2f] /Border [0 0 0] /A << /S /URI /URI (%s) >> >>',$x,$y,$x2,$y2,$url);
+            }
+            $content=count($objects)+1;
+            $objects[]='<< /Length '.strlen($stream).">>\nstream\n".$stream."\nendstream";
+            $kids[]=(count($objects)+1).' 0 R';
+            $objects[]='<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << '.$resources.' >> >> /Contents '.$content.' 0 R /Annots ['.implode(' ',$annotations).'] >>';
+        }
+        $objects[1]='<< /Type /Pages /Kids ['.implode(' ',$kids).'] /Count '.count($kids).' >>';
+        $pdf="%PDF-1.4\n";$offsets=[];
+        foreach($objects as $i=>$object) {$offsets[]=strlen($pdf);$pdf.=($i+1)." 0 obj\n".$object."\nendobj\n";}
+        $xref=strlen($pdf);$count=count($objects)+1;$pdf.="xref\n0 ".$count."\n0000000000 65535 f \n";
+        foreach($offsets as $offset) $pdf.=sprintf("%010d 00000 n \n",$offset);
+        return $pdf."trailer\n<< /Size ".$count." /Root 1 0 R >>\nstartxref\n".$xref."\n%%EOF";
+    }
 }
 
 /** Fetch only a fixed map provider, never an arbitrary request URL. */
@@ -2248,8 +2334,174 @@ function mapaComprovativoReserva(array $d,array $settings): string {
     return $status===200 && is_string($bytes) && strlen($bytes)<2500000?$bytes:'';
 }
 
-function gerarPdfComprovativoReserva(array $d): string {
+function gerarPdfComprovativoCarro(array $d): string {
+    $overflow=[];
     $p=new ComprovativoReservaPDF();$tipo=$d['tipo'];$blue='#0755b1';$gray='#575a60';$paid=emailReservaEstaPaga($d);
+    $startLabel=['alojamento'=>'Check-in','carro'=>'Levantamento','experiencia'=>'Atividade'][$tipo];
+    $endLabel=['alojamento'=>'Check-out','carro'=>'Devolução','experiencia'=>'Fim / duração'][$tipo];
+    $personLabel=['alojamento'=>'Hóspede principal','carro'=>'Condutor principal','experiencia'=>'Participante principal'][$tipo];
+    $arrival=['alojamento'=>'check-in','carro'=>'levantamento','experiencia'=>'início da atividade'][$tipo];
+    // Keep the original two-column design. Only wrap and resize occupied areas.
+    $fit=function(float $x,float $y,string $text,float $w,float $size,float $leading,int $maxLines,bool $bold=false,string $color='#36383d') use($p,&$overflow): float {
+        $lines=$p->wrap($text,$w,$size);
+        if(count($lines)>$maxLines) $overflow[]=implode(' ',array_slice($lines,$maxLines));
+        foreach(array_slice($lines,0,$maxLines) as $line) {$p->text($x,$y,$line,$size,$bold,$color);$y+=$leading;}
+        return $y;
+    };
+    $time=static function($value): string {
+        $value=(string)$value;
+        return preg_match('/^(\d{2}:\d{2})(?::\d{2})?$/',$value,$m)?$m[1]:$value;
+    };
+    $booking='https://morabezastay.cv/gest/reserva/'.rawurlencode((string)$d['reserva_id']).'/'.$tipo;
+    $p->text(20,46,'MORABEZA.',21,true,'#071b40');$p->text(147,46,'STAY',21,false,'#071b40');
+    $p->text(218,31,'NÚMERO DE RESERVA',10);
+    $code=(string)$d['codigo_reserva'];
+    $fit(218,45,$code,107,7,8,2,false,'#36383d');
+    $p->text(349,32,'COMPROVATIVO DE RESERVA',10);
+    $fit(349,47,'Apresente no '.$arrival.', impresso ou digital',225,8,9,2);
+    $p->line(18,62,578,62,'#8d939b');$p->line(337,8,337,403,'#c3c7cc',.7,true);
+    $title=$d['titulo'].(!empty($d['localizacao'])?' - '.$d['localizacao']:'');
+    $endTitle=$fit(20,97,$title,305,16,19,2,true,'#10131b');
+    $monthNames=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    $startDate=DateTimeImmutable::createFromFormat('!Y-m-d',substr($d['inicio'],0,10));
+    $endDate=DateTimeImmutable::createFromFormat('!Y-m-d',substr($d['fim'],0,10));
+    $period=emailReservaData($d['inicio']).' a '.emailReservaData($d['fim']);
+    if($startDate && $endDate && $startDate->format('Y-m')===$endDate->format('Y-m')) $period=$startDate->format('j').' a '.$endDate->format('j').' de '.$monthNames[(int)$startDate->format('n')-1].' de '.$startDate->format('Y');
+    if($tipo==='experiencia') $period=emailReservaData($d['inicio']).(!empty($d['horario'])?' · '.$d['horario']:'');
+    $periodEnd=$fit(20,$endTitle+1,$period,305,13,15,1);
+    $y1=max(143,$periodEnd+12);
+    $p->text(20,$y1+5,$time($d['hora_inicio']??''),10);
+    $fit(93,$y1+5,$startLabel.' · '.emailReservaData($d['inicio']),230,12.5,15,1);
+    $addressEnd=$fit(93,$y1+21,(string)($d['morada']??''),230,10,13,2,false,$gray);
+    $item=$d['itens'][0]??['nome'=>$d['titulo'],'descricao'=>$d['detalhes']??''];
+    $cardY=max(184,$addressEnd+8);
+    $nameSize=$p->width($item['nome'],11)>175?9.5:11;
+    $nameLines=min(2,count($p->wrap($item['nome'],176,$nameSize)));
+    $descLines=min(3,count($p->wrap($item['descricao']??'',176,9)));
+    $cardH=max(47,18+$nameLines*12+$descLines*11);
+    $p->box(93,$cardY,233,$cardH,$blue,'#ffffff',4);$p->itemIcon($tipo,110,$cardY+15);
+    $nameEnd=$fit(142,$cardY+17,$item['nome'],176,$nameSize,12,2,true);
+    $fit(142,$nameEnd+3,$item['descricao']??'',176,9,11,3,false,$gray);
+    foreach(array_slice($d['itens']??[],1) as $extra) $overflow[]=($extra['nome']??'').' - '.($extra['descricao']??'');
+    $y2=max(258,$cardY+$cardH+26);
+    $p->line(74,$y1,74,$y2,$blue,1.6);
+    foreach([$y1,$y2] as $cy) $p->box(66,$cy-8,16,16,$blue,'#ffffff',8);
+    $p->text(20,$y2+5,$time($d['hora_fim']??''),10);
+    $endText=$tipo==='experiencia'?($d['duracao']??'Consultar a reserva'):emailReservaData($d['fim']);
+    $endY=$fit(93,$y2+5,$endLabel.' · '.$endText,230,12.5,15,1);
+    $fit(93,$endY+7,$d['detalhes']??'',230,10,13,3,false,$gray);
+    $p->qr($d['codigo_reserva'],424,81,82);$p->text(437,175,'QR da reserva',8,false,$gray);
+    $p->text(357,201,$personLabel,10,false,$gray);$p->text(508,201,'Estado',10,false,$gray);
+    $personEnd=$fit(357,219,$d['participante_principal']['nome_completo']??$d['nome_cliente'],142,11.5,14,3,true);
+    $p->text(508,219,$paid?'PAGO':'PENDENTE',10,true);
+    $summaryY=max(251,$personEnd+16);$p->itemIcon($tipo,358,$summaryY,'#575a60');
+    $count=(int)($d['quartos_quantidade']??0);
+    $summary=$tipo==='alojamento'?($count?($count===1?'1 quarto reservado':$count.' quartos reservados'):'Alojamento reservado'):($tipo==='carro'?'Veículo reservado':'Atividade reservada');
+    $fit(384,$summaryY+11,$summary,105,9.5,12,3,true);
+    if(!empty($d['pessoas_resumo'])) {
+        $p->box(499,$summaryY,6,6,$gray,null,3);$p->box(497,$summaryY+7,10,6,$gray,null,2);
+        $fit(514,$summaryY+11,$d['pessoas_resumo'],62,9.5,12,3,true);
+    }
+    $p->line(12,403,583,403,'#c3c7cc',.7,true);$p->line(309,403,309,831,'#c3c7cc',.7,true);
+    $p->text(20,432,'Informação da reserva',12,true);$p->text(321,432,['alojamento'=>'Checklist da sua estadia','carro'=>'Checklist do seu aluguer','experiencia'=>'Checklist da sua atividade'][$tipo],12,true);
+    $breakdown=implode(' · ',array_column($d['linhas_pagamento']??[],'descricao'))?:$d['detalhes'];
+    $info=[[$paid?'Total pago: ':'Total da reserva: ',emailReservaDinheiro($d['preco_total'])],
+        [$tipo==='alojamento'?'Estadia: ':'Reserva: ',$breakdown],['Código: ',$d['codigo_reserva']],['Gerir a reserva: ','morabezastay.cv'],
+        ['Pagamento: ',implode(' · ',array_filter([$d['metodo_pagamento']??'',$d['referencia_pagamento']??'']))?:'Consultar a reserva'],
+        ['Apoio: ',$d['support_email']??'morabezastay.cv']];
+    $iy=459;
+    foreach($info as $index=>[$label,$value]) {
+        $p->icon($index,24,$iy-9);
+        if($index===0) {
+            $p->text(54,$iy,$label,10,false,'#36383d');
+            $p->text(54+$p->width($label,10),$iy,$value,10,true,'#36383d');$iy+=29;
+        } else {
+            $remaining=count($info)-$index-1;
+            $maxLines=max(1,min(4,(int)floor((780-$iy-$remaining*29-16)/13)));
+            $iy=$fit(54,$iy,$label.$value,240,10,13,$maxLines,false,'#36383d')+16;
+        }
+        if($index===3) $p->link(54,$iy-28,230,17,$booking);
+    }
+    $deposito=emailReservaCaucaoLinhas($d);
+    if($deposito) {
+        $tituloCaucao='Caução no levantamento';
+        $linhasCaucao=$p->wrap(implode(' ', $deposito),274,9);
+        $inicioCaucao=$iy+7;
+        $cabem=max(0,(int)floor((780-$inicioCaucao-19)/12));
+        if($cabem>=2) {
+            $p->text(20,$inicioCaucao,$tituloCaucao,11,true);
+            foreach(array_slice($linhasCaucao,0,$cabem) as $i=>$linha) $p->text(20,$inicioCaucao+19+$i*12,$linha,9,false,'#36383d');
+            if(count($linhasCaucao)>$cabem) $overflow[]=$tituloCaucao.' (continuação): '.implode(' ',array_slice($linhasCaucao,$cabem));
+        } else $overflow[]=$tituloCaucao.': '.implode(' ', $deposito);
+    }
+    $checks=[$tipo==='carro'?'Leve a carta de condução e um documento de identificação.':'Leve um documento de identificação.',
+        'Guarde este comprovativo e apresente o QR no '.$arrival.'.','Confirme com o anfitrião o horário e as instruções de chegada.'];
+    $cy=459;
+    foreach($checks as $check) {$p->box(322,$cy-10,14,14,'#5e6165',null,1);$cy=$fit(350,$cy,$check,224,10,13,3)+13;}
+    $detailY=max(574,$cy+10);
+    $p->text(321,$detailY,['alojamento'=>'O seu alojamento','carro'=>'O seu veículo','experiencia'=>'A sua experiência'][$tipo],12,true);
+    $dy=$fit(321,$detailY+20,$title,256,10.5,13,2,true);
+    $addressEnd=$fit(321,$dy+2,(string)($d['morada']??''),256,9,11,2);
+    $contact=implode(' · ',array_filter([$d['anfitriao_phone']??'',$d['anfitriao_email']??'']));
+    if($contact!=='') $addressEnd=$fit(321,$addressEnd,$contact,256,8,10,2);
+    $mapY=max(620,$addressEnd+10);$mapH=max(80,807-$mapY);
+    $lat=$d['latitude']??null;$lng=$d['longitude']??null;
+    $mapUrl=is_numeric($lat)&&is_numeric($lng)?'https://www.google.com/maps/search/?api=1&query='.rawurlencode($lat.','.$lng):'https://www.google.com/maps/search/?api=1&query='.rawurlencode($d['morada']??$title);
+    $hasMap=!empty($d['mapa_jpeg']) && $p->jpeg($d['mapa_jpeg'],321,$mapY,256,$mapH);
+    $illustrative=false;
+    if(!$hasMap) {
+        $assets=emailReservaAssets();
+        $fallback=base64_decode($assets['map-example']??'',true);
+        if($fallback!==false && $fallback!=='') {
+            $hasMap=$p->jpeg($fallback,321,$mapY,256,$mapH);
+            $illustrative=$hasMap;
+        }
+    }
+    if($illustrative) {
+        $p->box(327,$mapY+6,218,16,'#ffffff','#ffffff',2);
+        $p->text(333,$mapY+17,'Mapa ilustrativo - Praia, Cabo Verde',8,true,'#0755b1');
+    }
+    if(!$hasMap) {
+        $p->box(321,$mapY,256,$mapH,'#e2e6eb','#f3f6f9',3);$p->text(343,$mapY+40,'Ver localização no mapa',13,true,$blue);
+        $p->paragraph(343,$mapY+63,'Abra este link para consultar a localização confirmada da sua reserva.',210,10,14);
+    }
+    $p->link(321,$mapY,256,$mapH,$mapUrl);
+    if(!empty($d['exemplo'])) $p->text(20,805,'MODELO COM DADOS DE EXEMPLO. Não constitui reserva válida.',6.5,false,$gray);
+    $p->paragraph(20,816,'Aplicam-se as condições de cancelamento aceites na reserva. Não substitui uma fatura fiscal.',280,6.5,8,false,$gray);
+    // Exceptional overflow continues on extra pages; the normal receipt stays one page.
+    if($overflow) {
+        $p->newPage();$column=0;$oy=100;
+        $continuationHeader=function() use($p): void {
+            $p->text(20,46,'MORABEZA.',21,true,'#071b40');$p->text(147,46,'STAY',21,false,'#071b40');
+            $p->text(20,78,'Detalhes adicionais da reserva',12,true);
+            $p->line(18,62,578,62,'#8d939b');$p->line(300,90,300,810,'#c3c7cc',.7,true);
+        };
+        $continuationHeader();
+        foreach($overflow as $text) {
+            foreach($p->wrap($text,255,10) as $line) {
+                if($oy>790) {
+                    if($column===0) {$column=1;$oy=100;}
+                    else {$p->newPage();$continuationHeader();$column=0;$oy=100;}
+                }
+                $p->text($column===0?20:320,$oy,$line,10);$oy+=14;
+            }
+            $oy+=12;
+        }
+    }
+    return $p->output();
+}
+
+/** Preserve the original accommodation and experience typography. */
+class ComprovativoReservaPDFOriginal extends ComprovativoReservaPDF {
+    public function width(string $s,float $size): float {
+        $latin=iconv('UTF-8','Windows-1252//TRANSLIT',$s);$w=0;
+        foreach(str_split($latin===false?'':$latin) as $c) $w+=strpos(' ilI.,:;!|',$c)!==false?.26:(strpos('MW@%',$c)!==false?.86:.53);
+        return $w*$size;
+    }
+}
+
+function gerarPdfComprovativoOriginal(array $d): string {
+    $p=new ComprovativoReservaPDFOriginal();$tipo=$d['tipo'];$blue='#0755b1';$gray='#575a60';$paid=emailReservaEstaPaga($d);
     $startLabel=['alojamento'=>'Check-in','carro'=>'Levantamento','experiencia'=>'Atividade'][$tipo];
     $endLabel=['alojamento'=>'Check-out','carro'=>'Devolução','experiencia'=>'Fim / duração'][$tipo];
     $personLabel=['alojamento'=>'Hóspede principal','carro'=>'Condutor principal','experiencia'=>'Participante principal'][$tipo];
@@ -2347,6 +2599,22 @@ function gerarPdfComprovativoReserva(array $d): string {
     if(!empty($d['exemplo'])) $p->text(20,805,'MODELO COM DADOS DE EXEMPLO. Não constitui reserva válida.',6.5,false,$gray);
     $p->paragraph(20,816,'Aplicam-se as condições de cancelamento aceites na reserva. Não substitui uma fatura fiscal.',280,6.5,8,false,$gray);
     return $p->output();
+}
+
+/** Each booking type selects its own receipt model. */
+function gerarPdfComprovativoAlojamento(array $d): string {
+    return gerarPdfComprovativoOriginal($d);
+}
+function gerarPdfComprovativoExperiencia(array $d): string {
+    return gerarPdfComprovativoOriginal($d);
+}
+function gerarPdfComprovativoReserva(array $d): string {
+    switch ($d['tipo']) {
+        case 'alojamento': return gerarPdfComprovativoAlojamento($d);
+        case 'carro': return gerarPdfComprovativoCarro($d);
+        case 'experiencia': return gerarPdfComprovativoExperiencia($d);
+        default: throw new InvalidArgumentException('Unsupported booking type');
+    }
 }
 
 function executarComprovativoReserva(): void {

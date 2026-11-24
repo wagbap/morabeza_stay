@@ -1,3 +1,5 @@
+import CampoTelefoneInternacional from '../../../components/CampoTelefoneInternacional';
+import { telefoneInternacionalValido } from '../../../utils/telefoneInternacional';
 import api from '../../../api/api';
 import { mensagemErroRetencao } from '../../../utils/retencaoExperiencia';
 import { totalExperiencia, precoDaSessao, minutosDaSessao } from '../precoSessao';
@@ -60,13 +62,7 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
 
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1">{t('telefone', 'Telefone / WhatsApp')} *</label>
-          <input
-            type="tel"
-            value={participantePrincipal.phone}
-            onChange={(e) => updateParticipantePrincipal('phone', e.target.value)}
-            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900"
-            placeholder="+238 991 23 45"
-          />
+          <CampoTelefoneInternacional value={participantePrincipal.phone} onChange={value => updateParticipantePrincipal('phone', value)} />
         </div>
 
         <div>
@@ -785,7 +781,7 @@ const CheckoutExperiencia = () => {
     setError('');
     if (!participantePrincipal.nome_completo.trim()) { setError(t('erro_nome_obrigatorio', 'Nome obrigatório')); return false; }
     if (!participantePrincipal.email.trim()) { setError(t('erro_email_obrigatorio', 'Email obrigatório')); return false; }
-    if (!participantePrincipal.phone.trim()) { setError(t('erro_telefone_obrigatorio', 'Telefone obrigatório')); return false; }
+    if (!telefoneInternacionalValido(participantePrincipal.phone)) { setError(t('checkout_telefone_internacional_invalido', 'Introduza um telefone v?lido com indicativo internacional.')); return false; }
     if (!participantePrincipal.nacionalidade.trim()) { setError(t('erro_nacionalidade_obrigatoria', 'Nacionalidade obrigatória')); return false; }
     if (!reserva.dataISO) { setError(t('erro_data_obrigatoria', 'Data obrigatória')); return false; }
     if (!reserva.horario) { setError(t('erro_horario_obrigatorio', 'Horário obrigatório')); return false; }

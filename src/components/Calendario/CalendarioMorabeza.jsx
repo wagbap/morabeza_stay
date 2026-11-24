@@ -1,5 +1,8 @@
 // src/components/Calendario/CalendarioMorabeza.jsx
-import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { periodoSemBloqueios } from './validarPeriodo';
+import React, { useMemo, useRef } from 'react';
+import AcoesCalendario from './AcoesCalendario';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { pt } from 'date-fns/locale';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -49,6 +52,8 @@ const CalendarioMorabeza = ({
   inline = true,
   selected,
   onChange,
+  onLimpar,
+  onFechar,
   startDate,
   endDate,
   selectsRange = false,
@@ -66,8 +71,13 @@ const CalendarioMorabeza = ({
   permitirCheckoutEmBloqueado = true,
   dayClassName: dayClassNameExterna,
   containerClassName = '',
+  estado = 'ready',
+  onTentarNovamente,
   ...rest
 }) => {
+  const { t } = useTranslation();
+  const picker = useRef(null);
+  const indisponivel = estado !== 'ready' || rest.disabled || rest.readOnly;
   const hojeMeiaNoite = new Date();
   hojeMeiaNoite.setHours(0, 0, 0, 0);
 
@@ -153,8 +163,7 @@ const CalendarioMorabeza = ({
     d.setHours(0, 0, 0, 0);
     if (minDateEfetiva && d.getTime() < new Date(minDateEfetiva).setHours(0, 0, 0, 0)) return 'morabeza-dia-passado';
 
-    const iso = paraISO(d);
-    if (datasBloqueadasEfetivas.includes(iso)) {
+    if (!filtrarData(date)) {
       return 'morabeza-dia-bloqueado';
     }
     return '';
@@ -182,9 +191,29 @@ const CalendarioMorabeza = ({
   // ------------------------------------------------------------
   // onChange com validação
   // ------------------------------------------------------------
+  const filtrarData = date => {
+    if (indisponivel || (rest.filterDate && !rest.filterDate(date))) return false;
+    if (selectsRange && startDate && !endDate && date > startDate) {
+      return periodoSemBloqueios(startDate, date, datasBloqueadasEfetivas, permitirCheckoutEmBloqueado);
+    }
+    return !datasBloqueadasEfetivas.includes(paraISO(date));
+  };
+
   const handleChangeInterno = (update) => {
+    const datas = Array.isArray(update) ? update : [update];
+    if (indisponivel) return;
+    if (datas.some(date => {
+      if (!date) return false;
+      const dia = new Date(date).setHours(0, 0, 0, 0);
+      return !Number.isFinite(dia)
+        || (minDateEfetiva && dia < new Date(minDateEfetiva).setHours(0, 0, 0, 0))
+        || (maxDate && dia > new Date(maxDate).setHours(0, 0, 0, 0))
+        || (rest.filterDate && date === datas.filter(Boolean).at(-1) && !rest.filterDate(date));
+    })) return;
+
     if (Array.isArray(update)) {
       const [start, end] = update;
+      if (!periodoSemBloqueios(start, end, datasBloqueadasEfetivas, permitirCheckoutEmBloqueado)) return;
 
       // Rejeita check-in em dia bloqueado
       if (start && !end) {
@@ -208,8 +237,13 @@ const CalendarioMorabeza = ({
 
   return (
     <div className={`morabeza-calendar-wrapper ${containerClassName}`}>
+      {estado !== 'ready' && <div className="mb-3 rounded-xl bg-slate-50 p-3 text-sm text-gray-600" role={estado === 'error' ? 'alert' : 'status'}>
+        <p>{estado === 'error' ? t('calendario_erro_disponibilidade', 'Não foi possível carregar a disponibilidade.') : t('calendario_carregar_disponibilidade', 'A carregar disponibilidade…')}</p>
+        {estado === 'error' && onTentarNovamente && <button type="button" onClick={onTentarNovamente} className="mt-2 rounded-lg bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700">{t('calendario_tentar_novamente', 'Tentar novamente')}</button>}
+      </div>}
       <DatePicker
         {...rest}
+        ref={picker}
         inline={inline}
         locale={locale}
         selectsRange={selectsRange}
@@ -218,6 +252,7 @@ const CalendarioMorabeza = ({
         endDate={selectsRange ? endDate : undefined}
         onChange={handleChangeInterno}
         excludeDates={excludeDatesParaPicker}
+        filterDate={filtrarData}
         minDate={minDateEfetiva}
         maxDate={maxDate}
         monthsShown={monthsShown}
@@ -254,7 +289,14 @@ const CalendarioMorabeza = ({
             </button>
           </div>
         )}
-      />
+      >
+        {rest.children}
+        <AcoesCalendario
+          disabled={indisponivel}
+          onLimpar={() => onLimpar ? onLimpar() : handleChangeInterno(selectsRange ? [null, null] : null)}
+          onFechar={() => { picker.current?.setOpen(false); onFechar?.(); }}
+        />
+      </DatePicker>
     </div>
   );
 };

@@ -1,3 +1,5 @@
+import CondicoesCarro from './CondicoesCarro';
+import CaucaoCarro from './CaucaoCarro';
 // src/features/carros/components/ResumoReservaCarro.jsx
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +28,8 @@ const ResumoReservaCarro = ({ reserva, precoTotal, showPaymentInfo = false, paym
   const precoDia = reserva?.precoDia || 0;
   const subtotal = reserva?.subtotal || 0;
   const taxaServico = reserva?.taxaServico || 0;
-  const horaLevantamento = reserva?.horaLevantamento || reserva?.hora_levantamento || '10:00';
+  const horaLevantamento = reserva?.horaLevantamento || reserva?.hora_levantamento || t('carro_horas_por_escolher');
+  const horaDevolucao = reserva?.horaDevolucao || reserva?.hora_devolucao || t('carro_horas_por_escolher');
 
   return (
     <div className="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm sticky top-6 text-left">
@@ -82,12 +85,12 @@ const ResumoReservaCarro = ({ reserva, precoTotal, showPaymentInfo = false, paym
 
       <div className="space-y-4 border-t border-slate-100 pt-5">
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('levantamento')}</span>
+          <span className="text-xs text-slate-600 font-medium">{t('carro_horas_levantamento_escolhida')}</span>
           <span className="text-xs font-bold text-blue-900">{formatarData(checkIn)} - {horaLevantamento}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('devolucao')}</span>
-          <span className="text-xs font-bold text-blue-900">{formatarData(checkOut)} - {horaLevantamento}</span>
+          <span className="text-xs text-slate-600 font-medium">{t('carro_horas_devolucao_escolhida')}</span>
+          <span className="text-xs font-bold text-blue-900">{formatarData(checkOut)} - {horaDevolucao}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-xs text-slate-600 font-medium">{t('dias')}</span>
@@ -100,7 +103,7 @@ const ResumoReservaCarro = ({ reserva, precoTotal, showPaymentInfo = false, paym
             <span className="text-slate-800">{formatNumber(precoDia)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">{t('subtotal_dias', { dias })}</span>
+            <span className="text-slate-500">{t('subtotal_dias', { count: Number(dias), dias })}</span>
             <span className="text-slate-800">{formatNumber(subtotal)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px] font-medium">
@@ -113,6 +116,9 @@ const ResumoReservaCarro = ({ reserva, precoTotal, showPaymentInfo = false, paym
           <span className="text-base font-bold text-blue-900">{t('total')}</span>
           <span className="text-xl font-bold text-blue-600">{formatNumber(precoTotal)} CVE</span>
         </div>
+
+        <CondicoesCarro dados={reserva} />
+        <CaucaoCarro dados={reserva} quantidade={reserva?.quantidade || 1} />
 
         <div className="bg-green-50 p-3 rounded-xl flex gap-2 mt-3 border border-green-100">
           <ShieldCheck className="text-green-600 shrink-0" size={18} />

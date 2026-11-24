@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { temFotoAnuncio } from '../../utils/fotosAnuncio';
 import ConfirmarExclusao from '../ConfirmarExclusao';
 import useConfirmarImagem from '../../hooks/useConfirmarImagem';
@@ -23,6 +24,7 @@ const ImagensUpload = ({
   maxFotos = 20,
   readOnly = false,
 }) => {
+  const { t } = useTranslation();
   // Aceita ambos os nomes (fotos/onFotosChange OU imagens/onChange)
   const list = fotos ?? imagens ?? [];
   const setList = onFotosChange ?? onChange ?? (() => {});
@@ -78,7 +80,7 @@ const ImagensUpload = ({
             } else {
               reject(new Error(response.message || 'Erro no upload'));
             }
-          } catch (e) {
+          } catch {
             reject(new Error('Erro ao processar resposta do servidor'));
           }
         } else {
@@ -281,6 +283,7 @@ const ImagensUpload = ({
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-gray-600">{t('carro_fotos_apenas_veiculo')}</p>
       <ConfirmarExclusao {...confirmacaoImagem.dialog} />
       {/* Área de upload */}
       {!readOnly && !uploading && (

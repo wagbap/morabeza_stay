@@ -1,3 +1,5 @@
+import CampoTelefoneInternacional from '../../../components/CampoTelefoneInternacional';
+import { telefoneInternacionalValido } from '../../../utils/telefoneInternacional';
 // src/features/alojamento/components/CheckoutAlojamento.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -86,13 +88,7 @@ const ParticipantePrincipal = ({ participantePrincipal, updateParticipantePrinci
 
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1">{t('telefone', 'Telefone')} *</label>
-          <input
-            type="tel"
-            value={participantePrincipal.phone}
-            onChange={(e) => updateParticipantePrincipal('phone', e.target.value)}
-            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900"
-            placeholder="+238 991 23 45"
-          />
+          <CampoTelefoneInternacional value={participantePrincipal.phone} onChange={value => updateParticipantePrincipal('phone', value)} />
         </div>
 
         <div>
@@ -646,8 +642,8 @@ const CheckoutAlojamento = () => {
       setError(t('erro_email_obrigatorio', 'O email do hóspede principal é obrigatório'));
       return false;
     }
-    if (!participantePrincipal.phone.trim()) {
-      setError(t('erro_telefone_obrigatorio', 'O telefone do hóspede principal é obrigatório'));
+    if (!telefoneInternacionalValido(participantePrincipal.phone)) {
+      setError(t('checkout_telefone_internacional_invalido', 'Introduza um telefone v?lido com indicativo internacional.'));
       return false;
     }
     if (!participantePrincipal.nacionalidade.trim()) {

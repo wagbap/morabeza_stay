@@ -1,5 +1,6 @@
 // hooks/useDetalhes.js
 import { useState, useEffect } from 'react';
+import api from '../api/api';
 
 const useDetalhes = (tipo, id) => {
   const [data, setData] = useState(null);
@@ -13,11 +14,15 @@ const useDetalhes = (tipo, id) => {
       return;
     }
 
+    const controller = new AbortController();
     const fetchDetalhes = async () => {
       setLoading(true);
+      setError(null);
       try {
-        const response = await fetch(`/api/admin/get_detalhes.php?tipo=${tipo}&id=${id}`);
-        const result = await response.json();
+        const { data: result } = await api.get('/admin/get_detalhes.php', {
+          params: { tipo, id },
+          signal: controller.signal,
+        });
         
         if (result.success) {
           setData(result.data);
@@ -25,14 +30,16 @@ const useDetalhes = (tipo, id) => {
           setError(result.message || 'Erro ao carregar dados');
         }
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.error('Erro:', err);
         setError('Erro de conexão com o servidor');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     fetchDetalhes();
+    return () => controller.abort();
   }, [tipo, id]);
 
   return { data, loading, error };

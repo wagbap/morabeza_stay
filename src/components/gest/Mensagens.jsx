@@ -1,7 +1,7 @@
-import HeaderGestao from './HeaderGestao';
+import '@fontsource-variable/inter';
 // src/components/gest/Mensagens.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Search, X, ChevronLeft, Loader2, Home, Car, Compass } from 'lucide-react';
+import { Send, Search, X, ChevronLeft, Loader2, Home, Car, Compass, MessageCircle, CheckCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const API_BASE = 'https://welovepalop.com/api/mensagens';
@@ -79,10 +79,10 @@ function obterUsuario() {
 // ============================================================
 const getIconeTipo = (tipo, size = 14) => {
   switch(tipo) {
-    case 'alojamento': return <Home size={size} className="text-blue-500" />;
-    case 'carro': return <Car size={size} className="text-green-500" />;
-    case 'experiencia': return <Compass size={size} className="text-purple-500" />;
-    default: return <Home size={size} className="text-slate-400" />;
+    case 'alojamento': return <span className="text-blue-500"><Home size={size} /></span>;
+    case 'carro': return <span className="text-green-500"><Car size={size} /></span>;
+    case 'experiencia': return <span className="text-purple-500"><Compass size={size} /></span>;
+    default: return <span className="text-slate-400"><Home size={size} /></span>;
   }
 };
 
@@ -95,15 +95,6 @@ const getLabelTipo = (tipo) => {
   }
 };
 
-const getCorTipo = (tipo) => {
-  switch(tipo) {
-    case 'alojamento': return 'bg-blue-50 text-blue-700 border-blue-200';
-    case 'carro': return 'bg-green-50 text-green-700 border-green-200';
-    case 'experiencia': return 'bg-purple-50 text-purple-700 border-purple-200';
-    default: return 'bg-slate-50 text-slate-700 border-slate-200';
-  }
-};
-
 // Nome a mostrar: título ou fallback "#ID"
 const getNomeAnuncio = (titulo, tipo, id) => {
   if (titulo) return titulo;
@@ -111,7 +102,9 @@ const getNomeAnuncio = (titulo, tipo, id) => {
 };
 
 export default function Mensagens({ onClose }) {
+  const { t } = useTranslation();
   const [contactos, setContactos] = useState([]);
+  const [apenasNaoLidas, setApenasNaoLidas] = useState(false);
   const [activeContact, setActiveContact] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [novaMensagem, setNovaMensagem] = useState('');
@@ -155,7 +148,7 @@ export default function Mensagens({ onClose }) {
       const data = await response.json();
       
       if (data.success && data.data) {
-        setContactos(data.data);
+        setContactos(data.data.filter(c => String(c.id) !== String(usuarioLogado.id) && (c.ultima_mensagem || c.ultima_mensagem_data || Number(c.nao_lidas_count) > 0)));
       }
     } catch (error) {
       console.error('Erro:', error);
@@ -240,6 +233,8 @@ export default function Mensagens({ onClose }) {
           created_at: new Date().toISOString(),
           lida: 0
         }]);
+      } else {
+        setNovaMensagem(texto);
       }
     } catch (error) {
       console.error('Erro:', error);
@@ -289,218 +284,35 @@ export default function Mensagens({ onClose }) {
     return null;
   })();
 
+  const conversas = apenasNaoLidas ? contactos.filter(c => Number(c.nao_lidas_count) > 0) : contactos;
+
   return (
-    <div className="w-full h-[calc(100vh-120px)] min-h-[600px] bg-white rounded-xl border border-gray-100 shadow-sm flex overflow-hidden">
-      
-      {/* ============ PAINEL ESQUERDO — Lista de contactos ============ */}
-      <div className={`w-full md:w-[340px] flex-shrink-0 flex flex-col border-r border-gray-100 ${isChatOpenMobile ? 'hidden md:flex' : 'flex'}`}>
-        
-        <div className="flex items-center justify-between p-4 border-b border-gray-100 gap-3">
-          <HeaderGestao secao="mensagens" className="mb-0" />
-          {onClose && (
-            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-500">
-              <X size={18} />
-            </button>
-          )}
+    <div className="flex h-[calc(100vh-130px)] min-h-[570px] w-full gap-3 text-[#0b1737] [font-family:Inter_Variable,Arial,sans-serif]">
+      <section className={`flex w-full flex-col overflow-hidden rounded-2xl border border-[#e4e8f0] bg-white shadow-sm md:w-[37%] md:min-w-[310px] md:max-w-[500px] ${isChatOpenMobile ? 'hidden md:flex' : ''}`}>
+        <div className="border-b border-[#e4e8f0] px-5 pb-4 pt-5">
+          <div className="flex items-center gap-3"><span className="text-[#0758f9]"><MessageCircle size={34} strokeWidth={2.2} /></span><h1 className="text-[28px] font-bold tracking-tight">{t('mensagens_painel_titulo', 'Mensagens')}</h1>{onClose && <button onClick={onClose} aria-label={t('mensagens_fechar', 'Fechar')} className="ml-auto text-slate-400"><X size={20} /></button>}</div>
+          <p className="mt-2 text-[15px] text-[#506080]">{t('mensagens_painel_descricao', 'Converse com os seus clientes e com o apoio.')}</p>
+          <div className="my-5 border-t border-[#e4e8f0]" />
+          <h2 className="mb-4 text-lg font-bold">{t('mensagens_conversas', 'As suas conversas')}</h2>
+          <label className="relative block"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#73809a]"><Search size={19} /></span><input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder={t('mensagens_pesquisar', 'Pesquisar nas conversas')} className="h-11 w-full rounded-lg border border-[#d6dce8] pl-10 pr-3 text-sm outline-none focus:border-blue-500" /></label>
+          <div className="mt-5 flex gap-2"><button type="button" onClick={() => setApenasNaoLidas(false)} className={`rounded-lg px-6 py-2.5 text-sm ${!apenasNaoLidas ? 'bg-[#dfeaff] font-semibold text-[#0758f9]' : 'border border-[#e4e8f0] text-[#465575]'}`}>{t('mensagens_todas', 'Todas')}</button><button type="button" onClick={() => setApenasNaoLidas(true)} className={`rounded-lg px-5 py-2.5 text-sm ${apenasNaoLidas ? 'bg-[#dfeaff] font-semibold text-[#0758f9]' : 'border border-[#e4e8f0] text-[#465575]'}`}>{t('mensagens_nao_lidas', 'Não lidas')}</button></div>
         </div>
-
-        <div className="p-3 border-b border-gray-100">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
+        <div className="flex-1 overflow-y-auto p-2">
+          {loading ? <div className="py-8 text-center text-blue-600"><Loader2 className="mx-auto animate-spin" /></div> : conversas.length === 0 ? <p className="px-4 py-8 text-center text-sm text-slate-400">{t('mensagens_sem_conversas', 'Nenhuma conversa encontrada')}</p> : conversas.map(contacto => <button type="button" key={contacto.id} onClick={() => { setActiveContact(contacto); setIsChatOpenMobile(true); }} className={`flex w-full items-start gap-4 rounded-xl border-l-4 px-4 py-4 text-left transition ${String(activeContact?.id) === String(contacto.id) ? 'border-[#0758f9] bg-[#eaf1ff]' : 'border-transparent hover:bg-slate-50'}`}>
+            <AvatarMensagem contacto={contacto} className="h-14 w-14 text-base" />
+            <span className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-2"><span className="truncate text-base font-bold">{contacto.nome || t('mensagens_utilizador', 'Utilizador')}</span><span className="shrink-0 text-xs text-[#667697]">{formatarHora(contacto.ultima_mensagem_data)}</span></span><span className="mt-1 block truncate text-sm text-[#435371]">{contacto.ultima_mensagem}</span>{contacto.anuncio_id && <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-[#435371]">{getIconeTipo(contacto.tipo_anuncio, 15)}<span className="truncate">{getNomeAnuncio(contacto.anuncio_titulo, contacto.tipo_anuncio, contacto.anuncio_id)}</span></span>}</span>
+            {Number(contacto.nao_lidas_count) > 0 && <span className="mt-7 flex h-6 min-w-6 items-center justify-center rounded-full bg-[#0758f9] px-1 text-xs font-bold text-white">{contacto.nao_lidas_count}</span>}
+          </button>)}
         </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="text-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
-            </div>
-          ) : contactos.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm px-4">
-              Nenhum contacto encontrado
-            </div>
-          ) : (
-            contactos.map((contacto) => {
-              const naoLidas = contacto.nao_lidas_count || 0;
-              const temAnuncio = contacto.anuncio_id;
-              return (
-                <div 
-                  key={contacto.id}
-                  onClick={() => { setActiveContact(contacto); setIsChatOpenMobile(true); }}
-                  className={`flex items-start gap-3 p-3.5 cursor-pointer border-l-2 transition-colors ${
-                    activeContact?.id === contacto.id 
-                      ? 'bg-blue-50 border-blue-600' 
-                      : 'bg-white border-transparent hover:bg-gray-50'
-                  }`}
-                >
-                  {/* Avatar */}
-                  <div className="relative flex-shrink-0">
-                    <AvatarMensagem contacto={contacto} className="w-12 h-12 text-base" />
-                    {/* 🔴 Badge vermelha */}
-                    {naoLidas > 0 && (
-                      <span className="absolute -bottom-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 border-2 border-white shadow-md">
-                        {naoLidas > 99 ? '99+' : naoLidas}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-0.5">
-                      <span className={`text-sm truncate ${naoLidas > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>
-                        {contacto.nome || 'Utilizador'}
-                      </span>
-                      <span className="text-[11px] text-gray-400 whitespace-nowrap ml-2">
-                        {formatarHora(contacto.ultima_mensagem_data)}
-                      </span>
-                    </div>
-
-                    {/* 🏷️ Badge do anúncio — NOME */}
-                    {temAnuncio && (
-                      <div className="flex items-center gap-1 mb-1">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${getCorTipo(contacto.tipo_anuncio)} max-w-full`}>
-                          {getIconeTipo(contacto.tipo_anuncio, 10)}
-                          <span className="truncate">
-                            {getNomeAnuncio(contacto.anuncio_titulo, contacto.tipo_anuncio, contacto.anuncio_id)}
-                          </span>
-                        </span>
-                      </div>
-                    )}
-
-                    <p className={`text-xs truncate ${naoLidas > 0 ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
-                      {contacto.ultima_mensagem || 'Nenhuma mensagem ainda'}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* ============ PAINEL DIREITO — Conversa ============ */}
-      <div className={`flex-1 bg-gray-50 flex flex-col ${!isChatOpenMobile ? 'hidden md:flex' : 'flex'}`}>
-        
-        {activeContact ? (
-          <>
-            {/* Cabeçalho */}
-            <div className="bg-white border-b border-gray-100">
-              <div className="flex items-center gap-3 p-3.5 h-[64px]">
-                <button 
-                  onClick={() => setIsChatOpenMobile(false)}
-                  className="md:hidden p-1 hover:bg-gray-100 rounded-lg"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <AvatarMensagem contacto={activeContact} className="w-10 h-10 text-sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{activeContact.nome}</p>
-                  <p className="text-[11px] text-gray-500">{activeContact.online ? 'Online' : 'Offline'}</p>
-                </div>
-              </div>
-
-              {/* 🏷️ Barra do anúncio — NOME */}
-              {anuncioAtivo && (
-                <div className={`flex items-center gap-2 px-4 py-2 border-t text-xs font-medium ${getCorTipo(anuncioAtivo.tipo)}`}>
-                  {getIconeTipo(anuncioAtivo.tipo, 13)}
-                  <span>Referente a</span>
-                  <span className="font-bold truncate max-w-[240px]">
-                    {getNomeAnuncio(anuncioAtivo.titulo, anuncioAtivo.tipo, anuncioAtivo.id)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Lista de mensagens */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {loadingChat ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
-                </div>
-              ) : mensagens.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 text-sm">
-                  Nenhuma mensagem ainda. Diga olá! 👋
-                </div>
-              ) : (
-                mensagens.map((msg, i) => {
-                  const isMeu = Number(msg.remetente_id) === Number(usuarioLogado.id);
-                  const mostrarBadgeAnuncio = msg.anuncio_id && 
-                    (i === 0 || mensagens[i-1]?.anuncio_id !== msg.anuncio_id);
-
-                  return (
-                    <React.Fragment key={msg.id || i}>
-                      {/* Separador do anúncio — NOME */}
-                      {mostrarBadgeAnuncio && (
-                        <div className="flex justify-center my-2">
-                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border ${getCorTipo(msg.tipo_anuncio)} max-w-[90%]`}>
-                            {getIconeTipo(msg.tipo_anuncio, 11)}
-                            <span className="truncate">
-                              {getNomeAnuncio(msg.anuncio_titulo, msg.tipo_anuncio, msg.anuncio_id)}
-                            </span>
-                          </span>
-                        </div>
-                      )}
-
-                      <div className={`flex ${isMeu ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[75%] px-3.5 py-2 rounded-2xl ${
-                          isMeu 
-                            ? 'bg-blue-600 text-white rounded-tr-sm' 
-                            : 'bg-white border border-gray-200 text-gray-900 rounded-tl-sm'
-                        }`}>
-                          <p className="text-sm leading-relaxed break-words">{msg.mensagem}</p>
-                          <span className={`text-[10px] block text-right mt-1 ${isMeu ? 'text-blue-200' : 'text-gray-400'}`}>
-                            {formatarHora(msg.created_at)}
-                          </span>
-                        </div>
-                      </div>
-                    </React.Fragment>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <div className="p-3 bg-white border-t border-gray-100">
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-2 py-1">
-                <input 
-                  ref={inputRef}
-                  type="text" 
-                  placeholder="Escreva uma mensagem..." 
-                  value={novaMensagem}
-                  onChange={(e) => setNovaMensagem(e.target.value)}
-                  onKeyPress={(e) => { if (e.key === 'Enter') enviarMensagem(); }}
-                  className="flex-1 bg-transparent border-none focus:outline-none text-sm px-2 py-1.5"
-                />
-                <button 
-                  onClick={enviarMensagem}
-                  disabled={!novaMensagem.trim()}
-                  className={`p-2 rounded-full ${
-                    novaMensagem.trim() ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
-                  }`}
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-center p-8">
-            <div>
-              <div className="w-a16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Send size={28} className="text-gray-400" />
-              </div>
-              <p className="text-gray-500 text-sm">Selecione uma conversa</p>
-            </div>
-          </div>
-        )}
-      </div>
+      </section>
+      <section className={`min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#e4e8f0] bg-white shadow-sm ${isChatOpenMobile ? 'flex' : 'hidden md:flex'}`}>
+        {activeContact ? <>
+          <header className="flex h-[76px] shrink-0 items-center gap-4 border-b border-[#e4e8f0] px-5"><button type="button" onClick={() => setIsChatOpenMobile(false)} aria-label={t('mensagens_voltar', 'Voltar')} className="text-slate-600 md:hidden"><ChevronLeft size={22} /></button><AvatarMensagem contacto={activeContact} className="h-12 w-12 text-base" /><h2 className="truncate text-xl font-bold">{activeContact.nome}</h2></header>
+          {anuncioAtivo && <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-[#e4e8f0] p-4"><span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[#eef4ff] text-[#0758f9]">{getIconeTipo(anuncioAtivo.tipo, 24)}</span><div className="min-w-0"><p className="truncate text-base font-bold">{getNomeAnuncio(anuncioAtivo.titulo, anuncioAtivo.tipo, anuncioAtivo.id)}</p><p className="mt-1 text-sm text-[#667697]">{t('mensagens_sobre_anuncio', 'Conversa sobre o an?ncio')}</p></div></div>}
+          <div className="flex-1 overflow-y-auto px-5 py-6">{loadingChat ? <div className="py-8 text-center text-blue-600"><Loader2 className="mx-auto animate-spin" /></div> : mensagens.length === 0 ? <p className="py-12 text-center text-sm text-slate-400">{t('mensagens_vazia', 'Ainda n?o h? mensagens nesta conversa.')}</p> : mensagens.map((msg, i) => { const meu = Number(msg.remetente_id) === Number(usuarioLogado.id); return <div key={msg.id || i} className={`mb-6 flex items-start gap-3 ${meu ? 'justify-end' : ''}`}>{!meu && <AvatarMensagem contacto={activeContact} className="h-9 w-9 text-xs" />}<div className={`max-w-[80%] ${meu ? 'text-right' : ''}`}><p className={`rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${meu ? 'bg-[#0758f9] text-white' : 'bg-[#eef0f4] text-[#10192e]'}`}>{msg.mensagem}</p><span className="mt-1 inline-flex items-center gap-1 text-xs text-[#71809d]">{formatarHora(msg.created_at)}{meu && Number(msg.lida) === 1 && <span className="text-[#0758f9]"><CheckCheck size={15} /></span>}</span></div></div>; })}<div ref={messagesEndRef} /></div>
+          <form onSubmit={e => { e.preventDefault(); enviarMensagem(); }} className="flex gap-3 border-t border-[#e4e8f0] p-4"><input ref={inputRef} value={novaMensagem} onChange={e => setNovaMensagem(e.target.value)} placeholder={t('mensagens_escrever', 'Escreva uma mensagem...')} className="h-12 min-w-0 flex-1 rounded-xl border border-[#d6dce8] px-4 text-sm outline-none focus:border-blue-500" /><button type="submit" disabled={!novaMensagem.trim()} aria-label={t('mensagens_enviar', 'Enviar mensagem')} className="flex h-12 w-14 items-center justify-center rounded-xl bg-[#0758f9] text-white disabled:opacity-40"><Send size={22} /></button></form>
+        </> : <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-slate-400">{t('mensagens_selecionar', 'Selecione uma conversa')}</div>}
+      </section>
     </div>
   );
 }

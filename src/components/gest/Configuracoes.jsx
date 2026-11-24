@@ -15,7 +15,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Send,
   Award,
   Home,
   Compass,
@@ -44,11 +43,6 @@ export default function Configuracoes() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editando, setEditando] = useState(false);
-  const [emailVerificado, setEmailVerificado] = useState(false);
-  const [verificandoEmail, setVerificandoEmail] = useState(false);
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [emailMessage, setEmailMessage] = useState({ type: '', text: '' });
 
   const [userRoles, setUserRoles] = useState([]);
   const [userRoleNames, setUserRoleNames] = useState([]);
@@ -214,7 +208,6 @@ export default function Configuracoes() {
           foto: fotoFinal,
         });
 
-        setEmailVerificado(userData.email_verificado == 1 || userData.email_verificado === true);
       } else {
         const utilizadorCompleto = {
           ...userFromToken,
@@ -639,69 +632,6 @@ export default function Configuracoes() {
     }
   };
 
-  const handleReenviarOtp = async () => {
-    setVerificandoEmail(true);
-    setEmailMessage({ type: '', text: '' });
-    try {
-      const response = await fetch(`${API_URL}/auth_google.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'resend_verification_otp',
-          user_id: usuarioLogado.id,
-        }),
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        setShowOtpModal(true);
-        setEmailMessage({ type: 'success', text: 'Código enviado para o seu email!' });
-        setTimeout(() => setEmailMessage({ type: '', text: '' }), 3000);
-      } else {
-        setEmailMessage({ type: 'error', text: data.message || 'Erro ao enviar código' });
-      }
-    } catch (error) {
-      setEmailMessage({ type: 'error', text: 'Erro ao conectar com o servidor' });
-    } finally {
-      setVerificandoEmail(false);
-    }
-  };
-
-  const handleVerificarOtp = async () => {
-    if (!otpCode || otpCode.length !== 6) {
-      setEmailMessage({ type: 'error', text: 'Digite o código de 6 dígitos' });
-      return;
-    }
-    setVerificandoEmail(true);
-    try {
-      const response = await fetch(`${API_URL}/auth_google.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'verify_otp',
-          email: formData.email,
-          otp: otpCode,
-        }),
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        setEmailVerificado(true);
-        setShowOtpModal(false);
-        setOtpCode('');
-        setEmailMessage({ type: 'success', text: 'Email verificado com sucesso!' });
-        const updatedUser = { ...usuarioLogado, email_verificado: true };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        setUsuarioLogado(updatedUser);
-        setTimeout(() => setEmailMessage({ type: '', text: '' }), 3000);
-      } else {
-        setEmailMessage({ type: 'error', text: data.message || 'Código inválido ou expirado' });
-      }
-    } catch (error) {
-      setEmailMessage({ type: 'error', text: 'Erro ao verificar código' });
-    } finally {
-      setVerificandoEmail(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="max-w-6xl w-full px-4 py-6 flex justify-center items-center h-96">
@@ -712,59 +642,6 @@ export default function Configuracoes() {
 
   return (
     <div className="max-w-6xl w-full px-4 py-6 md:px-0">
-      {showOtpModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Verificar Email</h2>
-              <button
-                onClick={() => {
-                  setShowOtpModal(false);
-                  setOtpCode('');
-                }}
-                className="p-1 hover:bg-gray-100 rounded-lg"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <p className="text-gray-600 mb-4">
-              Enviamos um código de verificação para <strong>{formData.email}</strong>
-            </p>
-            <input
-              type="text"
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value)}
-              placeholder="Digite o código de 6 dígitos"
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              maxLength={6}
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowOtpModal(false);
-                  setOtpCode('');
-                }}
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleVerificarOtp}
-                disabled={verificandoEmail}
-                className="flex-1 px-4 py-2 rounded-lg bg-blue-900 text-white hover:bg-blue-950 transition flex items-center justify-center gap-2"
-              >
-                {verificandoEmail ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <CheckCircle2 size={16} />
-                )}
-                Verificar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col lg:flex-row gap-8">
         <aside className="w-full lg:w-[300px] flex-shrink-0">
           <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible bg-white lg:bg-transparent p-2 lg:p-0 rounded-xl border border-gray-100 lg:border-0 shadow-sm lg:shadow-none">
@@ -842,15 +719,15 @@ export default function Configuracoes() {
                 </div>
               </div>
 
-              {(message.text || emailMessage.text) && (
+              {message.text && (
                 <div
                   className={`mx-6 md:mx-8 mt-4 p-3 rounded-lg ${
-                    message.type === 'success' || emailMessage.type === 'success'
+                    message.type === 'success'
                       ? 'bg-green-50 text-green-700'
                       : 'bg-red-50 text-red-700'
                   }`}
                 >
-                  {message.text || emailMessage.text}
+                  {message.text}
                 </div>
               )}
 
@@ -880,39 +757,12 @@ export default function Configuracoes() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className="text-[14px] text-[#334155]">{formData.email}</span>
-                      {emailVerificado ? (
-                        <span className="flex items-center gap-1 bg-[#e8f6ed] text-[#16a34a] px-2 py-0.5 rounded text-[11px] font-bold">
-                          <CheckCircle2 className="w-3 h-3" /> Verificado
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 bg-[#fef3c7] text-[#d97706] px-2 py-0.5 rounded text-[11px] font-bold">
-                          <AlertCircle className="w-3 h-3" /> Não verificado
-                        </span>
-                      )}
                     </div>
                     <p className="text-[13px] text-[#64748b] leading-relaxed max-w-lg mb-4">
                       Este é o e-mail que usa para iniciar sessão.
                     </p>
 
-                    {!emailVerificado && (
-                      <div className="bg-[#fffbeb] border border-[#fef3c7] p-4 rounded-xl">
-                        <p className="text-[13px] text-[#92400e] mb-3">
-                          ⚠️ O seu email ainda não foi verificado.
-                        </p>
-                        <button
-                          onClick={handleReenviarOtp}
-                          disabled={verificandoEmail}
-                          className="text-[13px] font-bold text-[#2563eb] hover:underline flex items-center gap-2"
-                        >
-                          {verificandoEmail ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <Send size={14} />
-                          )}
-                          Reenviar código de verificação
-                        </button>
-                      </div>
-                    )}
+
                   </div>
                 </div>
 

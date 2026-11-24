@@ -2,6 +2,7 @@
 import React from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
+import { SESSION_KEYS } from '../utils/managementSession';
 
 const LoginGoogle = ({ onLoginSuccess }) => {
   const login = useGoogleLogin({
@@ -23,6 +24,7 @@ const LoginGoogle = ({ onLoginSuccess }) => {
         });
         
         if (response.data.status === 'success') {
+          [...SESSION_KEYS, 'morabeza_admin', 'admin_token'].forEach(key => localStorage.removeItem(key));
           // 🔑 SEGURANÇA MÁXIMA: Guardar APENAS o token JWT assinado.
           // Nenhum dado pessoal (email, nome, roles) fica exposto no localStorage.
           const validationToken = response.data.validation_token;

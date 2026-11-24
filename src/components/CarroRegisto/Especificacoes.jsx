@@ -159,8 +159,10 @@ const Especificacoes = ({ dados = {}, onChange, readOnly = false }) => {
             <Settings size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="number"
-              value={dados.quilometragem || 0}
-              onChange={(e) => handleChange('quilometragem', parseInt(e.target.value))}
+              min="0"
+              step="1"
+              value={dados.quilometragem ?? ''}
+              onChange={(e) => handleChange('quilometragem', e.target.value === '' ? '' : Number(e.target.value))}
               placeholder="Ex: 25000"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
               disabled={readOnly}

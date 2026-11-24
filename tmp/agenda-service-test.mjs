@@ -14,7 +14,7 @@ const obterTokenValidacao = () => null;
 //#endregion
 //#region src/services/agendaExperiencias.js
 async function pedirAgendaExperiencia(payload, signal) {
-	const token = obterTokenValidacao(localStorage, "host");
+	const token = obterTokenValidacao(localStorage, "host", true) || obterTokenValidacao(localStorage, "host");
 	const { data } = await _api_default.post("/agenda_experiencias.php", payload, {
 		signal,
 		timeout: 6e4,

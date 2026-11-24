@@ -508,7 +508,7 @@ const MapaCarros = () => {
                 </button>
                 <button
                   onClick={() =>
-                    navigate(`/carro/${modalCarro.slug || modalCarro.id}`)
+                    navigate(`/carro/${modalCarro.slug || modalCarro.id}${location.search}`)
                   }
                   className="flex-[2] py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
                 >

@@ -236,7 +236,7 @@ const UserDropdown = ({ user, userRoles, onLogout, isOpen, setIsOpen }) => {
                 <User size={16} /> Perfil
               </button>
 
-              {!canManageAlojamento && (
+              {!(canManageAlojamento && canManageCarros && canManageExperiencias) && (
                 <button 
                   onClick={() => handleNavigation('/gest/configuracoes?tab=funcoes')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all font-semibold text-sm"

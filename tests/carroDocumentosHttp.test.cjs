@@ -1,0 +1,28 @@
+const fs=require('fs'),path=require('path'),crypto=require('crypto'),assert=require('assert/strict');
+const root=path.join(process.env.TEMP,'morabeza-email-php-check/node_modules');
+(async()=>{
+ const {PHP}=require(path.join(root,'@php-wasm/universal'));const {loadNodeRuntime}=require(path.join(root,'@php-wasm/node'));
+ const php=new PHP(await loadNodeRuntime('8.3',{emscriptenOptions:{processId:65472,wasmBinary:fs.readFileSync(path.join(root,'@php-wasm/node-8-3/asyncify/8_3_33/php_8_3.wasm'))}}));
+ for(const d of ['/v','/v/api','/v/public','/v/private'])php.mkdir(d);
+ for(const f of ['documentos_condutor.php','carroDocumentos.php','carroHorarios.php','carroStock.php','reserva-validacao.php','reserva-jwt.php'])php.writeFile('/v/api/'+f,fs.readFileSync('server/api/'+f));
+ php.writeFile('/v/api/config.php',`<?php $conn=new PDO('sqlite:/v/fixture.sqlite');$conn->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);$conn->sqliteCreateFunction('UTC_TIMESTAMP',fn()=>gmdate('Y-m-d H:i:s'));`);
+ php.writeFile('/v/api/auth-secrets.local.php',"<?php return ['jwt_secret'=>'fixture-only'];");
+ php.writeFile('/v/api/documentos-config.local.php',"<?php return ['directory'=>'/v/private'];");
+ const admin='a'.repeat(64);
+ php.writeFile('/v/api/auth_admin.php',`<?php function obterTokenAdmin(){return substr($_SERVER['HTTP_AUTHORIZATION']??'',7);}function validarAdminAutenticado($db){return obterTokenAdmin()==='${admin}';}`);
+ const pdf='%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF',doc='d'.repeat(32);php.writeFile('/v/private/'+doc+'.bin',pdf);
+ let r=await php.run({code:`<?php require '/v/api/config.php';$conn->exec("CREATE TABLE usuarios(id INTEGER,email TEXT);INSERT INTO usuarios VALUES(7,'host@example.invalid'),(8,'other@example.invalid');CREATE TABLE carros(id INTEGER,usuario_id INTEGER);INSERT INTO carros VALUES(24,7);CREATE TABLE reservas_carro(id INTEGER,carro_id INTEGER,status TEXT,pagamento_status TEXT,data_levantamento TEXT,data_devolucao TEXT);CREATE TABLE carro_documento_lotes(id TEXT,reserva_id INTEGER);INSERT INTO carro_documento_lotes VALUES('lote',1);CREATE TABLE carro_documentos_condutor(id TEXT,lote_id TEXT,tipo TEXT,ficheiro TEXT,mime TEXT,sha256 TEXT);CREATE TABLE carro_documento_acessos(documento_id TEXT,utilizador_id INTEGER,contexto TEXT,finalidade TEXT);CREATE TABLE admin_access_tokens(user_id INTEGER,token_hash TEXT,expires_at TEXT);");$conn->prepare('INSERT INTO reservas_carro VALUES(1,24,?,?,?,?)')->execute(['confirmada','pago',gmdate('Y-m-d'),gmdate('Y-m-d',time()+172800)]);$conn->prepare('INSERT INTO carro_documentos_condutor VALUES(?,?,?,?,?,?)')->execute(['${doc}','lote','identificacao','${doc}.bin','application/pdf','${crypto.createHash('sha256').update(pdf).digest('hex')}']);$conn->prepare('INSERT INTO admin_access_tokens VALUES(?,?,?)')->execute([1,hash('sha256','${admin}'),gmdate('Y-m-d H:i:s',time()+3600)]);`});assert.equal(r.exitCode,0);
+ const jwt=(id,email,secret='fixture-only')=>{const head=Buffer.from(JSON.stringify({alg:'HS256'})).toString('base64url'),body=Buffer.from(JSON.stringify({data:{id,email},exp:Math.floor(Date.now()/1000)+3600})).toString('base64url');return head+'.'+body+'.'+crypto.createHmac('sha256',secret).update(head+'.'+body).digest('base64url');};
+ const request=(body,token,method='POST')=>php.run({scriptPath:'/v/api/documentos_condutor.php',method,body:Buffer.from(JSON.stringify(body)),headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},$_SERVER:{DOCUMENT_ROOT:'/v/public'}});
+ assert.equal((await request({},null,'GET')).httpStatusCode,405);
+ assert.equal((await request({reserva_id:1})).httpStatusCode,403);
+ assert.equal((await request({reserva_id:1},jwt(7,'host@example.invalid','forged'))).httpStatusCode,403);
+ assert.equal((await request({reserva_id:1},jwt(8,'other@example.invalid'))).httpStatusCode,403);
+ r=await request({reserva_id:1},jwt(7,'host@example.invalid'));assert.equal(r.httpStatusCode,200);assert.equal(JSON.parse(r.text).documentos.length,1);assert.equal(r.text.includes('/private'),false);assert.equal(r.text.includes('.bin'),false);
+ assert.equal((await request({reserva_id:1,contexto:'admin'},jwt(7,'host@example.invalid'))).httpStatusCode,403);
+ r=await request({reserva_id:1,documento_id:doc,acao:'descarregar'},jwt(7,'host@example.invalid'));assert.equal(r.httpStatusCode,200);assert.equal(r.text,pdf);assert.ok(r.headers['content-disposition'][0].includes('attachment'));
+ await php.run({code:"<?php require '/v/api/config.php';$conn->exec(\"UPDATE reservas_carro SET status='cancelada'\");"});
+ assert.equal((await request({reserva_id:1,documento_id:doc,acao:'descarregar'},jwt(7,'host@example.invalid'))).httpStatusCode,403);
+ assert.equal((await request({reserva_id:1,documento_id:doc,acao:'descarregar',contexto:'admin'},admin)).httpStatusCode,200);
+ console.log('PASS HTTP: no public GET, anonymous/forged/other-host denied, host scoped to own confirmed handover, admin context checked, private download authenticated, no paths in listing.');process.exit(0);
+})().catch(e=>{console.error(e);process.exit(1)});

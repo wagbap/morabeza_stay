@@ -1,3 +1,4 @@
+import DocumentosCondutorPrivados from '../../features/carros/components/DocumentosCondutorPrivados';
 import { descarregarComprovativo } from '../../services/comprovativoReserva';
 import { carregarDetalhesReserva } from '../../services/detalhesReservaService';
 import { useTranslation } from 'react-i18next';
@@ -436,6 +437,8 @@ export default function DetalhesReservaPage() {
           </div>
 
           {/* Anfitrião */}
+          {tipo?.toLowerCase() === 'carro' && detalhes.papel === 'anfitriao' && <DocumentosCondutorPrivados reservaId={id} contexto="host" />}
+
           {detalhes.proprietario && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
               <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2"><span className="text-blue-600"><User className="h-5 w-5" /></span>{t('anfitriao', 'Anfitrião')}</h4>

@@ -97,7 +97,7 @@ const LoadingSpinner = () => (
 
 // Layout Principal memoizado
 const LayoutPrincipal = React.memo(({ children }) => (
-  <div className="min-h-screen bg-[#f8f9fc] flex flex-col">
+  <div className="min-h-screen bg-white flex flex-col">
     <Navbar />
     <div className="flex-grow">{children}</div>
     <Footer />

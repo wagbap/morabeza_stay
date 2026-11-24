@@ -27,5 +27,10 @@ private/
 
 # Private PHP deployment settings
 server/api/auth-secrets.local.php
+server/api/stripe-config.local.php
+tmp/php-stock/
+tmp/php-stock.zip
 tmp/pdf-deps/
 tmp/pdfs/
+
+server/api/documentos-config.local.php

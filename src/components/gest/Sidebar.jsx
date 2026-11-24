@@ -26,7 +26,7 @@ import {
   Settings2
 } from "lucide-react";
 
-export default function Sidebar({ isOpen, onClose, sessionDesign = false }) {
+export default function Sidebar({ isOpen, onClose, sessionDesign = false, vehicleDesign = false }) {
   const location = useLocation();
   const { t } = useTranslation();
   const { userRoles, user, loading, error, retry } = useSidebarSession();
@@ -42,7 +42,7 @@ export default function Sidebar({ isOpen, onClose, sessionDesign = false }) {
 
   const linkClass = (path) => `${sessionDesign ? "text-[#070e51]! rounded-md! px-2! py-3! font-normal!" : ""} flex items-center gap-3.5 px-4 py-3 rounded-xl font-medium transition-colors ${
     isActive(path)
-      ? "bg-[#e8f6ed] text-[#064e3b]"
+      ? (vehicleDesign ? "bg-[#d6f1d9] text-[#166522] font-bold!" : "bg-[#e8f6ed] text-[#064e3b]")
       : "text-[#4b5563] hover:bg-gray-50"
   }`;
 
@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen, onClose, sessionDesign = false }) {
 
   return (
     <div className={`
-      ${sessionDesign ? "w-[214px]" : "w-[260px]"} max-w-[calc(100vw-2rem)] h-full min-h-0 bg-white border-r border-gray-100 flex flex-col flex-shrink-0
+      ${vehicleDesign ? "w-[300px] bg-[#f7f8fc]! font-sans" : sessionDesign ? "w-[214px]" : "w-[260px]"} max-w-[calc(100vw-2rem)] h-full min-h-0 bg-white border-r border-gray-100 flex flex-col flex-shrink-0
       fixed inset-y-0 left-0 z-40 lg:static lg:translate-x-0 transition-transform duration-300 ease-in-out
       ${isOpen ? "translate-x-0 visible" : "-translate-x-full invisible lg:visible"}
     `}>
@@ -128,6 +128,7 @@ export default function Sidebar({ isOpen, onClose, sessionDesign = false }) {
               </Link>
 
                   {/* 🔥 NOVO: Link para configurar sessões das experiências */}
+              {userRoles.anfitrion && <Link to="/gest/meus-alojamentos" onClick={onClose} className={linkClass('/gest/meus-alojamentos')} aria-current={isActive('/gest/meus-alojamentos') ? 'page' : undefined}><span className={iconClass('/gest/meus-alojamentos')}><Home className="h-full w-full" strokeWidth={2} /></span><span className="text-[15px] truncate">{t('gest_aloj_titulo')}</span></Link>}
               {userRoles.guia && (
                 <Link
                   to="/gest/minhas-experiencias"
@@ -146,7 +147,7 @@ export default function Sidebar({ isOpen, onClose, sessionDesign = false }) {
                   className={linkClass('/gest/unidades-veiculos')} aria-current={isActive('/gest/unidades-veiculos') ? 'page' : undefined}
                 >
                   <span className={iconClass('/gest/unidades-veiculos')}><KeyRound className="h-full w-full" strokeWidth={2} /></span>
-                  <span className="text-[15px] truncate">{t('sidebar_unidades')}</span>
+                  <span className="text-[15px] truncate">{t('gest_frota_titulo', 'Meus veículos')}</span>
                 </Link>
               )}
 

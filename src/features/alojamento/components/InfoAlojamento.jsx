@@ -12,7 +12,7 @@ import {
   ChevronRight, ChevronLeft, LayoutGrid, Camera,
   CheckCircle, ExternalLink, ChevronDown, X, Loader2,
   Droplet, Car, Eye, Shield, ChevronUp, Shirt,
-  CalendarDays, Maximize2, Phone, Mail, ShieldCheck
+  CalendarDays, Maximize2, Phone, Mail, ShieldCheck, Info
 } from 'lucide-react';
 import AvaliacoesSeccaoAlojamento from './AvaliacoesSeccaoAlojamento';
 import SeccaoEscolhaQuarto from './SeccaoEscolhaQuarto';
@@ -743,15 +743,12 @@ const SidebarReserva = ({
                 startDate={startDate}
                 endDate={endDate}
                 onChange={onChange}
+                onFechar={() => setShowCalendar(false)}
                 minDate={new Date()}
                 locale="pt"
-                excludeDates={datasBloqueadas.map(d => new Date(d))}
+                excludeDates={datasBloqueadas}
               />
-              <div className="p-2 border-t border-slate-100 flex justify-end">
-                <button onClick={() => setShowCalendar(false)} className="text-blue-900 font-bold text-[10px] uppercase">
-                  {t('fechar') || 'Fechar'}
-                </button>
-              </div>
+              
             </div>
           )}
 
@@ -854,6 +851,12 @@ const SidebarReserva = ({
             <p className="text-[10px] text-green-700 leading-tight">{t('cancelamento_prazo') || 'Até 48 horas antes do check-in'}</p>
           </div>
         </div>
+        {vendaPorQuarto && !carrinhoQuartos.length && (
+          <div className="mt-3 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-blue-900">
+            <span aria-hidden="true" className="shrink-0 text-blue-600"><Info size={22} /></span>
+            <p className="text-sm font-semibold leading-snug">{t('alojamento_aviso_escolher_quarto', 'Por favor, escolha um quarto abaixo e bora reservar!')}</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1262,9 +1265,8 @@ export const InfoAlojamento = () => {
     const gerais = alojamento.datas_bloqueadas || [];
     const porQuarto = alojamento.datas_bloqueadas_por_quarto || {};
 
-    if (vendaPorQuarto && carrinhoQuartos.length === 1 && carrinhoQuartos[0].tipoQuartoId) {
-      const tipoId = String(carrinhoQuartos[0].tipoQuartoId);
-      const especificas = porQuarto[tipoId] || [];
+    if (vendaPorQuarto && carrinhoQuartos.length) {
+      const especificas = carrinhoQuartos.flatMap(quarto => porQuarto[String(quarto.tipoQuartoId)] || []);
       return [...new Set([...gerais, ...especificas])];
     }
     return gerais;
@@ -1278,7 +1280,8 @@ export const InfoAlojamento = () => {
   }, []);
 
   const handleSelecaoQuarto = useCallback((idQuarto, titulo, novoPreco) => {
-    if (!(quantidades[idQuarto] > 0) && window.matchMedia('(max-width: 1023px)').matches) {
+    const faltamDatas = !datasSelecionadas.checkIn || !datasSelecionadas.checkOut;
+    if (faltamDatas && !(quantidades[idQuarto] > 0) && window.matchMedia('(max-width: 1023px)').matches) {
       setPedidoCalendarioMobile(value => value + 1);
     }
     setQuantidades(prev => {
@@ -1289,7 +1292,7 @@ export const InfoAlojamento = () => {
       return { ...prev, [idQuarto]: 1 };
     });
     setQuartoSelecionado(prev => (prev === idQuarto ? null : idQuarto));
-  }, [quantidades]);
+  }, [quantidades, datasSelecionadas.checkIn, datasSelecionadas.checkOut]);
 
   const handleRemoverQuarto = useCallback((tipoId) => {
     if (tipoId === null || tipoId === undefined) return;

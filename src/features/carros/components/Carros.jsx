@@ -1,11 +1,14 @@
+import BarraResultadosLista from '../../../components/BarraResultadosLista';
+import { useTranslation } from 'react-i18next';
 import PaginacaoAnuncios from '../../../components/PaginacaoAnuncios';
 import usePaginacao from '../../../hooks/usePaginacao';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../../../api/api';
 import { filtrarCarrosAprovados } from '../utils/publicacaoCarro';
+import { correspondePesquisaCarro } from '../utils/pesquisaCarros';
 import { Helmet } from 'react-helmet-async';
-import { Loader2, LayoutGrid, List, Info } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Loader2, Info } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import CarrosHero from './CarrosHero';
 import SearchBarCarros from './SearchBarCarros';
@@ -13,48 +16,39 @@ import CardCarro from './CardCarro';
 import FiltrosLateralCarros from './FiltrosLateralCarros';
 
 const Carros = () => {
+  const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
 
+  const apiParams = new URLSearchParams(location.search);
+  apiParams.delete('search'); apiParams.delete('campo');
+  const pesquisaApi = `?${apiParams}`;
+
   // Estados de Dados
-  const [carros, setCarros] = useState([]);
-  const [carrosFiltrados, setCarrosFiltrados] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [resultado, setResultado] = useState(null);
+  const loading = resultado?.key !== pesquisaApi;
+  const carros = useMemo(() => resultado?.key === pesquisaApi ? resultado.carros : [], [resultado, pesquisaApi]);
   const [viewMode, setViewMode] = useState('grid');
+  const [ordenar, setOrdenar] = useState('recomendados');
 
   // Estados de Filtro
   const [orcamento, setOrcamento] = useState(30000); 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
-  const [filtroBusca, setFiltroBusca] = useState(queryParams.get('search') || '');
-
-  // Busca na API
-  const buscarDados = async (queryString = '') => {
-    try {
-      setLoading(true);
-      let url = '/get_carro.php';
-      if (queryString) url += `?${queryString}`;
-      
-      const response = await api.get(url);
-      if (response.data.success) {
-        setCarros(filtrarCarrosAprovados(response.data.data));
-      } else {
-        setCarros(filtrarCarrosAprovados(response.data));
-      }
-    } catch (error) {
-      console.error("Erro ao carregar veículos:", error);
-      setCarros([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const filtroBusca = queryParams.get('search') || '';
+  const filtroCampo = queryParams.get('campo') || '';
+  const filtroLocal = queryParams.get('localizacao') || '';
 
   useEffect(() => {
-    buscarDados();
-  }, []);
+    const c = new AbortController();
+    api.get(`/get_carro.php${pesquisaApi}`, { signal: c.signal }).then(({ data }) => {
+      if (!c.signal.aborted) setResultado({ key: pesquisaApi, carros: filtrarCarrosAprovados(data.success ? data.data : data) });
+    }).catch(() => { if (!c.signal.aborted) setResultado({ key: pesquisaApi, carros: [] }); });
+    return () => c.abort();
+  }, [pesquisaApi]);
 
   // Lógica de Filtragem Local corrigida
-  useEffect(() => {
-    const filtrados = carros.filter(carro => {
+  const carrosFiltrados = useMemo(() => carros.filter(carro => {
       // 1. Filtro de Preço (Garante que compara números)
       const preco = Number(carro.preco_dia || carro.preco_diaria || 0);
       const atendePreco = preco <= orcamento;
@@ -65,39 +59,39 @@ const Carros = () => {
                                categoriasSelecionadas.includes(carro.combustivel);
       
       // 3. Filtro de Busca Texto
-      const busca = filtroBusca.toLowerCase();
-      const atendeBusca = !filtroBusca || 
-                           carro.titulo?.toLowerCase().includes(busca) ||
-                           carro.marca?.toLowerCase().includes(busca) ||
-                           carro.localizacao?.toLowerCase().includes(busca);
+      const atendeBusca = correspondePesquisaCarro(carro, filtroBusca, filtroCampo);
+      const atendeLocal = !filtroLocal || String(carro.localizacao || '').toLocaleLowerCase().includes(filtroLocal.toLocaleLowerCase());
+      return atendePreco && atendeCategoria && atendeBusca && atendeLocal;
+    }), [carros, orcamento, categoriasSelecionadas, filtroBusca, filtroCampo, filtroLocal]);
 
-      return atendePreco && atendeCategoria && atendeBusca;
-    });
-    setCarrosFiltrados(filtrados);
-  }, [carros, orcamento, categoriasSelecionadas, filtroBusca]);
+  const carrosOrdenados = useMemo(() => {
+    const lista = [...carrosFiltrados];
+    const preco = carro => Number(carro.preco_dia || carro.preco_diaria || 0);
+    if(ordenar === 'preco_asc') lista.sort((a,b) => preco(a)-preco(b));
+    if(ordenar === 'preco_desc') lista.sort((a,b) => preco(b)-preco(a));
+    if(ordenar === 'avaliacao') lista.sort((a,b) => Number(b.rating || b.media_rating || 0)-Number(a.rating || a.media_rating || 0));
+    return lista;
+  }, [carrosFiltrados,ordenar]);
 
   const resultadosRef = useRef(null);
-  const paginacao = usePaginacao(carrosFiltrados, JSON.stringify([location.search, orcamento, categoriasSelecionadas, filtroBusca]), 9);
+  const paginacao = usePaginacao(carrosOrdenados, JSON.stringify([location.search, orcamento, categoriasSelecionadas, filtroBusca, ordenar]), 9);
   const mudarPagina = pagina => {
     paginacao.onPage(pagina);
     resultadosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleSearchBar = (queryString) => {
-    const params = new URLSearchParams(queryString);
-    setFiltroBusca(params.get('localizacao') || '');
-    buscarDados(queryString);
+    navigate({ pathname: '/carros', search: queryString ? `?${queryString}` : '' });
   };
 
   const limparFiltros = () => {
     setOrcamento(30000);
     setCategoriasSelecionadas([]);
-    setFiltroBusca('');
-    buscarDados();
+    navigate('/carros');
   };
 
   return (
-    <div className="bg-[#f8f9fc] min-h-screen pb-20 text-left">
+    <div className="bg-white min-h-screen pb-20 text-left">
       <Helmet>
         <title>MorabezaStay | Aluguer de Carros</title>
       </Helmet>
@@ -105,16 +99,19 @@ const Carros = () => {
       <CarrosHero />
       
       <div className="relative -mt-12 z-40 px-4 flex justify-center">
-        <div className="w-full max-w-6xl">
+        <div className="w-full max-w-7xl">
           <SearchBarCarros onBuscar={handleSearchBar} />
         </div>
       </div>
 
-      <main className="max-w-[1400px] mx-auto py-16 px-6">
-        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-12 items-start">
+      <main className="max-w-[1400px] mx-auto py-16 px-4 sm:px-6">
+        <div className="mb-6 flex flex-wrap gap-2 text-left text-xs font-semibold text-gray-500"><span className="cursor-pointer text-blue-600" onClick={() => navigate('/')}>{t('inicio')}</span> / <span>{t('carros')}</span></div>
+        <div className="flex flex-col items-start gap-8 lg:grid lg:grid-cols-[minmax(230px,340px)_minmax(0,1fr)] xl:gap-12">
           
-          <aside className="w-full lg:col-span-3 lg:sticky lg:top-28 z-10">
+          <aside className="z-10 w-full min-w-0 lg:sticky lg:top-28">
             <FiltrosLateralCarros 
+              pesquisa={filtroBusca}
+              onPesquisaChange={value => { const params = new URLSearchParams(location.search); if(value) { params.set('search', value); params.set('campo','marca_modelo'); } else { params.delete('search'); params.delete('campo'); } navigate({search:`?${params}`},{replace:true}); }}
               orcamento={orcamento} 
               setOrcamento={setOrcamento} 
               tiposSelecionados={categoriasSelecionadas}
@@ -123,27 +120,8 @@ const Carros = () => {
             />
           </aside>
 
-          <div ref={resultadosRef} className="w-full scroll-mt-6 lg:col-span-9">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-              <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter">
-                {filtroBusca || "Veículos"}: <span className="text-blue-600 text-4xl">{carrosFiltrados.length}</span> disponíveis
-              </h1>
-              
-              <div className="flex items-center gap-2 bg-white p-1.5 rounded-full shadow-sm border border-gray-100">
-                <button 
-                  onClick={() => setViewMode('grid')}
-                  className={`p-3 rounded-full transition-all ${viewMode === 'grid' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:bg-gray-50'}`}
-                >
-                  <LayoutGrid size={18} />
-                </button>
-                <button 
-                  onClick={() => setViewMode('list')}
-                  className={`p-3 rounded-full transition-all ${viewMode === 'list' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:bg-gray-50'}`}
-                >
-                  <List size={18} />
-                </button>
-              </div>
-            </div>
+          <div ref={resultadosRef} className="w-full min-w-0 scroll-mt-6">
+            <BarraResultadosLista total={carrosFiltrados.length} ordenar={ordenar} onOrdenar={setOrdenar} viewMode={viewMode} onViewMode={setViewMode} />
 
             {loading ? (
               <div className="flex flex-col items-center justify-center py-32">
@@ -152,7 +130,7 @@ const Carros = () => {
               </div>
             ) : (
               <div className={viewMode === 'grid' 
-                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8" 
+                ? "grid grid-cols-1 md:grid-cols-2 gap-8" 
                 : "flex flex-col gap-6"
               }>
                 {carrosFiltrados.length > 0 ? (

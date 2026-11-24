@@ -26,15 +26,15 @@ const PropriedadesAdmin = () => {
     setAvisoDestaque(null);
     try {
       const admin = JSON.parse(localStorage.getItem('morabeza_admin') || '{}');
-      const token = admin.token || localStorage.getItem('admin_token');
-      if (typeof token !== 'string' || !/^[a-f0-9]{64}$/i.test(token)) {
+      if (!admin.id) {
         setAvisoDestaque({ erro: true, key: 'admin_destaque_sessao' });
         return;
       }
-      const { data } = await api.post('/admin/alternar_destaque.php', {
-        categoria, id: item.id, destaque: ativo ? 0 : 1,
-      }, { timeout: 15000, headers: token ? { Authorization: `Bearer ${token}` } : undefined });
-      if (data?.success !== true) {
+      const tipo = categoria === 'alojamentos' ? 'alojamento' : categoria === 'carros' ? 'carro' : 'experiencia';
+      const { data } = await api.post('/admin/anuncios/acao.php', {
+        anuncio_id: Number(item.id), tipo, admin_id: Number(admin.id), acao: 'alterar_destaque', destaque: ativo ? 0 : 1,
+      }, { timeout: 15000 });
+      if (data?.status !== 'success') {
         const error = new Error('Save failed');
         error.response = { data };
         throw error;
@@ -46,14 +46,14 @@ const PropriedadesAdmin = () => {
       setAvisoDestaque({ erro: false, key: ativo ? 'admin_destaque_removido' : 'admin_destaque_guardado' });
     } catch (err) {
       const codes = {
-        AUTH_REQUIRED: 'admin_destaque_sessao',
         AUTH_SCHEMA_MISSING: 'admin_destaque_tabelas_auth',
         FEATURE_SCHEMA_MISSING: 'admin_destaque_colunas',
         CONFIG_MISSING: 'admin_destaque_config',
         CONFIG_ERROR: 'admin_destaque_config',
       };
       const key = codes[err.response?.data?.code] ||
-        ([401, 403].includes(err.response?.status) ? 'admin_destaque_sessao' :
+        (err.response?.status === 401 ? 'admin_destaque_token_recusado' :
+          err.response?.status === 403 ? 'admin_destaque_permissao_recusada' :
           err.response?.status === 404 ? 'admin_destaque_api_ausente' : 'admin_destaque_erro');
       setAvisoDestaque({ erro: true, key });
     } finally {
@@ -95,7 +95,7 @@ const PropriedadesAdmin = () => {
         if (activeTab === 'carros') setCarros(data.data);
       }
     } catch (err) {
-      console.error('Erro:', err);
+      if (!signal.aborted && err.code !== 'ERR_CANCELED') console.error('Erro:', err);
     }
     if (!signal.aborted) setLoading(false);
   }, [activeTab, filterStatus, search]);

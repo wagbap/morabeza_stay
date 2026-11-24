@@ -108,6 +108,42 @@ if (!isset($tabelas[$tipo])) {
 
 $tabela = $tabelas[$tipo];
 
+// O destaque usa o mesmo formato de pedido das restantes ações do painel.
+if ($acao === 'alterar_destaque') {
+    $destaque = $input->destaque ?? null;
+    if (!in_array($destaque, [0, 1], true)) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Destaque inválido.']);
+        exit();
+    }
+    try {
+        $conn->beginTransaction();
+        $stmt = $conn->prepare("SELECT destaque, ordem_destaque FROM `$tabela` WHERE id = :id FOR UPDATE");
+        $stmt->execute([':id' => $anuncio_id]);
+        $anuncio = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$anuncio) {
+            $conn->rollBack();
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Anúncio não encontrado.']);
+            exit();
+        }
+        $ordem = $destaque ? (int) $anuncio['ordem_destaque'] : 0;
+        if ($destaque && $ordem <= 0) {
+            $ordem = (int) $conn->query("SELECT COALESCE(MAX(ordem_destaque), 0) FROM `$tabela` WHERE destaque = 1")->fetchColumn() + 1;
+        }
+        $stmt = $conn->prepare("UPDATE `$tabela` SET destaque = :destaque, ordem_destaque = :ordem WHERE id = :id");
+        $stmt->execute([':destaque' => $destaque, ':ordem' => $ordem, ':id' => $anuncio_id]);
+        $conn->commit();
+        echo json_encode(['status' => 'success', 'data' => ['destaque' => $destaque, 'ordem_destaque' => $ordem]]);
+    } catch (Throwable $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        error_log('[anuncios/acao.php][destaque] ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Não foi possível guardar o destaque.']);
+    }
+    exit();
+}
+
 // Mapear ação → novo estado
 $mapaEstados = [
     'aprovar'        => 'aprovado',

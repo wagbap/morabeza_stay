@@ -1,0 +1,4 @@
+export const camposCondicoesCarro = ['devolucao_mesmo_horario', 'devolucao_hora_inicio', 'devolucao_hora_fim', 'levantamento_ilha', 'levantamento_local', 'levantamento_hora_inicio', 'levantamento_hora_fim', 'devolucao_mesmo_local', 'devolucao_local_alternativo', 'levantamento_notas', 'idade_minima', 'carta_minima_anos', 'franquia', 'politica_combustivel', 'limite_km', 'custo_km_extra', 'politica_atraso', 'segundo_condutor'];
+export function extrairCondicoesCarro(dados = {}) {
+  return Object.fromEntries(camposCondicoesCarro.filter(campo => dados?.[campo] !== undefined).map(campo => [campo, dados?.[campo]]));
+}

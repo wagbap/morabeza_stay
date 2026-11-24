@@ -1,0 +1,15 @@
+fs.mkdirSync('tmp/alojamento-nome',{recursive:true});
+await page.setViewportSize({width:1280,height:950});
+await page.goto(base+'/alojamentos?destino=Santiago');
+const campo=page.getByRole('searchbox',{name:'Procurar por nome',exact:true});
+await campo.waitFor();await page.getByRole('heading',{name:'Casa Tarrafal',exact:true}).waitFor();await page.getByRole('heading',{name:'Casa Praia',exact:true}).waitFor();
+const antes=requests.length;
+await campo.fill('TARRÁFAL');await page.getByRole('heading',{name:'Casa Tarrafal',exact:true}).waitFor();assert.equal(await page.getByRole('heading',{name:'Casa Praia',exact:true}).count(),0);assert.equal(await page.getByRole('heading',{name:'Casa Sal',exact:true}).count(),0);assert.equal(new URL(page.url()).searchParams.get('nome'),'TARRÁFAL');assert.equal(requests.length,antes);
+await page.reload();await campo.waitFor();assert.equal(await campo.inputValue(),'TARRÁFAL');await page.getByRole('heading',{name:'Casa Tarrafal',exact:true}).waitFor();
+await campo.fill('sem correspondencia');await page.getByRole('heading',{name:'Casa Tarrafal',exact:true}).waitFor({state:'hidden'});assert.equal(await page.locator('article').count(),0);
+await campo.fill('Praia');await page.getByRole('heading',{name:'Casa Praia',exact:true}).waitFor();
+await page.locator('[data-aloj-search]').getByRole('button',{name:'Buscar',exact:true}).click();await page.waitForLoadState('networkidle');assert.equal(new URL(page.url()).searchParams.get('nome'),'Praia');await page.getByRole('heading',{name:'Casa Praia',exact:true}).waitFor();
+await page.screenshot({path:'tmp/alojamento-nome/desktop.png'});
+await page.setViewportSize({width:369,height:844});await page.getByRole('button',{name:'Expandir filtros',exact:true}).click();await campo.waitFor();assert.equal(await campo.inputValue(),'Praia');await campo.fill('');await page.getByRole('heading',{name:'Casa Tarrafal',exact:true}).waitFor();assert.equal(new URL(page.url()).searchParams.has('nome'),false);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await campo.scrollIntoViewIfNeeded();await page.screenshot({path:'tmp/alojamento-nome/mobile.png'});
+assert.deepEqual(errors,[]);await b.close();server.close();console.log('PASS: live name filter, case/accent matching, no extra API request per keystroke, empty results, refresh, main search preserves name, mobile and clearing.');
+})().catch(e=>{console.error(e);server.close();process.exit(1)});

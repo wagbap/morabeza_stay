@@ -1,3 +1,4 @@
+import DocumentosCondutorPrivados from '../../features/carros/components/DocumentosCondutorPrivados';
 // src/components/admin/DetalheReservaModal.jsx
 import React, { useEffect, useState } from 'react';
 import {
@@ -182,6 +183,7 @@ const DetalheReservaModal = ({ reserva, onClose, onAprovar, onCancelar }) => {
 
           {data && !loading && !erro && (
             <div className="space-y-6">
+              {(data.tipo || reserva.tipo_reserva)?.toLowerCase() === 'carro' && <DocumentosCondutorPrivados reservaId={reserva.id} contexto="admin" />}
 
               {/* Status + Pagamento */}
               <div className="flex flex-wrap items-center gap-3">

@@ -1,3 +1,5 @@
+import PainelFiltrosLista from '../../../components/PainelFiltrosLista';
+import PesquisaNomeFiltro from '../../../components/PesquisaNomeFiltro';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Map, Camera, Mountain, Utensils, Waves, Footprints } from 'lucide-react';
@@ -8,7 +10,9 @@ const FiltrosLaterais = ({
   setOrcamento, 
   tiposSelecionados, 
   setTiposSelecionados, 
-  totalEncontrados 
+  totalEncontrados,
+  pesquisa = '',
+  onPesquisaChange
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -49,17 +53,8 @@ const FiltrosLaterais = ({
       </div>
 
       {/* 🔍 BLOCO DE FILTROS */}
-      <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-xl shadow-blue-900/5">
-        
-        {/* Título e Contador */}
-        <div className="flex justify-between items-center mb-6 border-b border-gray-50 pb-4">
-          <h3 className="font-black text-gray-900 uppercase text-[10px] tracking-[0.2em]">
-            {t('refinar_busca', 'Refinar Busca')}
-          </h3>
-          <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] font-black">
-            {totalEncontrados} {t('atividades', 'Atividades')}
-          </span>
-        </div>
+      <PainelFiltrosLista total={totalEncontrados} pesquisa={<PesquisaNomeFiltro divider={false} value={pesquisa} onChange={onPesquisaChange} titulo="exp_filtro_nome_titulo" placeholder="exp_filtro_nome_placeholder" ajuda="exp_filtro_nome_ajuda" />}>
+
 
         {/* Filtro de Preço por Pessoa/Dia 💸 */}
         <div className="mb-8">
@@ -114,15 +109,15 @@ const FiltrosLaterais = ({
         </div>
 
         {/* Botão para Limpar 🧹 */}
-        {(tiposSelecionados.length > 0 || orcamento < 15000) && (
+        {(pesquisa || tiposSelecionados.length > 0 || orcamento < 15000) && (
           <button 
-            onClick={() => { setOrcamento(15000); setTiposSelecionados([]); }}
+            onClick={() => { setOrcamento(15000); setTiposSelecionados([]); onPesquisaChange(''); }}
             className="w-full mt-8 pt-4 border-t border-gray-50 text-gray-400 hover:text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
           >
             <X size={14} /> {t('limpar_filtros', 'Remover Filtros')}
           </button>
         )}
-      </div>
+      </PainelFiltrosLista>
     </div>
   );
 };

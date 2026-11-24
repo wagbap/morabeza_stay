@@ -1,9 +1,10 @@
+import BarraResultadosLista from '../../../components/BarraResultadosLista';
 import PaginacaoAnuncios from '../../../components/PaginacaoAnuncios';
 import usePaginacao from '../../../hooks/usePaginacao';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import api from '../../../api/api';
 import { Helmet } from 'react-helmet-async';
-import { Loader2, LayoutGrid, List, Info, ArrowRight, ChevronDown } from 'lucide-react';
+import { Loader2, Info, ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -20,82 +21,76 @@ const Experiencias = () => {
   const queryParams = new URLSearchParams(location.search);
 
   // Estados de Dados
-  const [experiencias, setExperiencias] = useState([]);
-  const [experienciasFiltradas, setExperienciasFiltradas] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [resultado, setResultado] = useState(null);
+  const [zonasPesquisa, setZonasPesquisa] = useState([]);
   const [viewMode, setViewMode] = useState('grid');
   const [ordenar, setOrdenar] = useState('recomendados');
-  const [dropdownAberto, setDropdownAberto] = useState(false);
   
   // Estados de Filtro
   const [orcamento, setOrcamento] = useState(50000);
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState([]);
-  const [filtroDestino, setFiltroDestino] = useState(queryParams.get('localizacao') || '');
+  const filtroNome = queryParams.get('nome') || '';
+  const apiParams = new URLSearchParams(location.search);
+  apiParams.delete('nome');
+  const pesquisaApi = apiParams.toString();
+  const loading = resultado?.key !== pesquisaApi;
+  const experiencias = useMemo(() => resultado?.key === pesquisaApi ? resultado.data : [], [resultado,pesquisaApi]);
+  const filtroIlha = 'Santiago';
+  const filtroZona = queryParams.get('localizacao') || '';
+  const filtroTipo = queryParams.get('tipo_experiencia') || '';
+  const filtroDestino = filtroZona || filtroIlha;
 
-  // Opções de ordenação
-  const opcoesOrdenar = [
-    { value: 'recomendados', label: 'Recomendados' },
-    { value: 'preco_asc', label: 'Preço mais baixo' },
-    { value: 'preco_desc', label: 'Preço mais alto' },
-    { value: 'avaliacao', label: 'Melhor avaliação' },
-  ];
+  // Search options must come from the full island catalog, not filtered results.
+  useEffect(() => {
+    const controller = new AbortController();
+    api.get('/get_experiencias.php?destino=Santiago', { signal: controller.signal })
+      .then(({ data }) => {
+        if (controller.signal.aborted) return;
+        const rows = Array.isArray(data) ? data : data.success && Array.isArray(data.data) ? data.data : [];
+        setZonasPesquisa(rows.map(({ ilha, localizacao }) => ({ ilha, localizacao })));
+      })
+      .catch(() => { /* Current results remain available if the catalog fails. */ });
+    return () => controller.abort();
+  }, []);
 
-  const labelOrdenarAtual = opcoesOrdenar.find(o => o.value === ordenar)?.label || 'Recomendados';
-
-  // Função principal de busca (API)
-  const buscarDados = useCallback(async (queryString = '') => {
-    try {
-      setLoading(true);
-      let url = 'https://welovepalop.com/api/get_experiencias.php';
-      if (queryString) url += `?${queryString}`;
-      
-      const response = await axios.get(url);
-      if (response.data.success) {
-        setExperiencias(response.data.data);
-      } else {
-        setExperiencias(Array.isArray(response.data) ? response.data : []);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar experiências:", error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const legacyDates = params.has('data_inicio') || params.has('data_fim');
+    if (params.get('destino') !== 'Santiago' || legacyDates) {
+      if (!params.get('data') && params.get('data_inicio')) params.set('data',params.get('data_inicio'));
+      params.delete('data_inicio'); params.delete('data_fim');
+      params.set('destino', 'Santiago');
+      navigate(`/experiencias?${params}`, { replace: true });
     }
-  }, []);
+  }, [location.search, navigate]);
 
-  // Efeito Inicial sincronizado com os parâmetros da URL atual
   useEffect(() => {
-    const currentQuery = location.search.replace('?', '');
-    buscarDados(currentQuery);
-  }, [location.search, buscarDados]);
-
-  // Fechar dropdown ao clicar fora
-  useEffect(() => {
-    const fechar = (e) => {
-      if (!e.target.closest('[data-dropdown-ordernar-exp]')) {
-        setDropdownAberto(false);
-      }
-    };
-    document.addEventListener('mousedown', fechar);
-    return () => document.removeEventListener('mousedown', fechar);
-  }, []);
+    if (new URLSearchParams(pesquisaApi).get('destino') !== 'Santiago') return;
+    const controller = new AbortController();
+    api.get(`/get_experiencias.php?${pesquisaApi}`, {signal:controller.signal}).then(({data}) => {
+      if(controller.signal.aborted) return;
+      const rows = Array.isArray(data) ? data : data.success && Array.isArray(data.data) ? data.data : [];
+      setResultado({key:pesquisaApi,data:rows});
+    }).catch(() => { if(!controller.signal.aborted) setResultado({key:pesquisaApi,data:[]}); });
+    return () => controller.abort();
+  }, [pesquisaApi]);
 
   // Lógica de Filtragem Local
-  useEffect(() => {
-    const filtradas = experiencias.filter(exp => {
+  const experienciasFiltradas = useMemo(() => {
+    return experiencias.filter(exp => {
       const preco = parseFloat(exp.preco || 0);
       const atendePreco = preco <= orcamento;
       const atendeCategoria = categoriasSelecionadas.length === 0 || categoriasSelecionadas.includes(exp.categoria_nome);
       
-      const buscaSimples = filtroDestino.toLowerCase();
-      const atendeDestino = !filtroDestino || 
-                            exp.localizacao?.toLowerCase().includes(buscaSimples) ||
-                            exp.ilha?.toLowerCase().includes(buscaSimples) ||
-                            exp.categoria_nome?.toLowerCase().includes(buscaSimples);
-
-      return atendePreco && atendeCategoria && atendeDestino;
+      const normalizar = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const atendeIlha = !filtroIlha || normalizar(exp.ilha).includes(normalizar(filtroIlha));
+      const atendeZona = !filtroZona || normalizar(exp.localizacao).includes(normalizar(filtroZona));
+      const texto = normalizar([exp.titulo, exp.categoria_nome, exp.descricao, exp.equipamento_nome, exp.tipo].filter(Boolean).join(' '));
+      const termos = { 'jet-ski': ['jet ski','jet-ski','jetski','mota de agua'], quad: ['quad','atv','moto4'], barco: ['barco','boat','catamara','veleiro'], 'visita-guiada': ['visita','guia','guided','tour'] };
+      const atendeTipo = !filtroTipo || (termos[filtroTipo] || [filtroTipo]).some(termo => texto.includes(termo));
+      return atendePreco && atendeCategoria && atendeIlha && atendeZona && atendeTipo && normalizar(exp.titulo || exp.nome).includes(normalizar(filtroNome));
     });
-    setExperienciasFiltradas(filtradas);
-  }, [experiencias, orcamento, categoriasSelecionadas, filtroDestino]);
+  }, [experiencias, orcamento, categoriasSelecionadas, filtroIlha, filtroZona, filtroTipo, filtroNome]);
 
   // Lógica de Ordenação
   const experienciasOrdenadas = [...experienciasFiltradas].sort((a, b) => {
@@ -121,48 +116,47 @@ const Experiencias = () => {
 
   // Handler para a SearchBar
   const handleSearchBar = (queryString) => {
-    const params = new URLSearchParams(queryString);
-    setFiltroDestino(params.get('localizacao') || '');
     
     navigate(`/experiencias?${queryString}`, { replace: true });
-    buscarDados(queryString);
+
   };
 
   const limparFiltros = () => {
     setOrcamento(50000);
     setCategoriasSelecionadas([]);
-    setFiltroDestino('');
     setOrdenar('recomendados');
     navigate('/experiencias', { replace: true });
-    buscarDados();
+
   };
 
   return (
-    <div className="bg-[#f8f9fc] min-h-screen">
+    <div data-exp-page className="min-h-screen bg-white text-[#09082e]">
       <Helmet>
         <title>MorabezaStay | {t('experiencias')} {filtroDestino && `${t('em')} ${filtroDestino}`}</title>
       </Helmet>
 
       {/* SEÇÃO HERO + BUSCA INTEGRADA */}
       <ExperiencesHero />
-      <div className="relative -mt-12 z-40 px-4 flex justify-center">
-        <div className="w-full max-w-6xl">
-          <SearchBarExperiencias onBuscar={handleSearchBar} />
+      <div className="relative -mt-12 z-40 flex justify-center px-4 ">
+        <div className="w-full max-w-7xl">
+          <SearchBarExperiencias onBuscar={handleSearchBar} zonas={[...zonasPesquisa, ...experiencias]} />
         </div>
       </div>
 
-      <main className="max-w-[1400px] mx-auto py-16 px-6">
+      <main className="mx-auto max-w-[1400px] px-4 pb-16 pt-16 sm:px-6">
         {/* BREADCRUMBS */}
-        <div className="text-left text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8 flex gap-2">
+        <div className="mb-6 flex flex-wrap gap-2 text-left text-xs font-semibold text-gray-500">
           <span className="text-blue-600 cursor-pointer" onClick={() => navigate('/')}>{t('inicio')}</span> / <span>{t('experiencias')}</span> 
-          {filtroDestino && <> / <span className="text-gray-900">{filtroDestino}</span></>}
+
         </div>
 
-        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-12 items-start">
+        <div className="flex flex-col items-start gap-8 lg:grid lg:grid-cols-[minmax(230px,340px)_minmax(0,1fr)] xl:gap-12">
           
           {/* SIDEBAR DE FILTROS */}
-          <aside className="w-full lg:col-span-3 lg:sticky lg:top-28 z-10">
+          <aside className="z-10 w-full min-w-0 lg:sticky lg:top-28">
             <FiltroLateralExperiencia 
+              pesquisa={filtroNome}
+              onPesquisaChange={value => { const params = new URLSearchParams(location.search); if(value) params.set('nome',value); else params.delete('nome'); navigate({search:`?${params}`},{replace:true}); }}
               orcamento={orcamento} 
               setOrcamento={setOrcamento} 
               tiposSelecionados={categoriasSelecionadas}
@@ -172,66 +166,10 @@ const Experiencias = () => {
           </aside>
 
           {/* LISTAGEM DE RESULTADOS */}
-          <div ref={resultadosRef} className="w-full scroll-mt-6 lg:col-span-9">
+          <div ref={resultadosRef} className="w-full min-w-0 scroll-mt-6">
             
             {/* HEADER DA LISTAGEM */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
-              <h1 className="text-2xl md:text-3xl font-black text-[#1a2b6d] leading-tight italic uppercase tracking-tighter text-left">
-                {filtroDestino || t('explorar')}: <span className="text-blue-600 text-4xl">{experienciasOrdenadas.length}</span> {t('resultados')}
-              </h1>
-              
-              <div className="flex items-center gap-2 bg-white p-1.5 rounded-full shadow-sm border border-gray-100">
-                
-                {/* DROPDOWN ORDENAR POR */}
-                <div className="relative" data-dropdown-ordernar-exp>
-                  <button
-                    onClick={() => setDropdownAberto(!dropdownAberto)}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition"
-                  >
-                    <span className="whitespace-nowrap">Ordenar por: {labelOrdenarAtual}</span>
-                    <ChevronDown size={14} className={`transition-transform ${dropdownAberto ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {dropdownAberto && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
-                      {opcoesOrdenar.map((opcao) => (
-                        <button
-                          key={opcao.value}
-                          onClick={() => {
-                            setOrdenar(opcao.value);
-                            setDropdownAberto(false);
-                          }}
-                          className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider transition ${
-                            ordenar === opcao.value
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          {opcao.label}
-                          {ordenar === opcao.value && (
-                            <span className="float-right text-blue-600">✓</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="w-px h-6 bg-gray-100 mx-1"></div>
-                <button 
-                  onClick={() => setViewMode('grid')}
-                  className={`p-3 rounded-full transition-all ${viewMode === 'grid' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:bg-gray-50'}`}
-                >
-                  <LayoutGrid size={18} />
-                </button>
-                <button 
-                  onClick={() => setViewMode('list')}
-                  className={`p-3 rounded-full transition-all ${viewMode === 'list' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:bg-gray-50'}`}
-                >
-                  <List size={18} />
-                </button>
-              </div>
-            </div>
+            <BarraResultadosLista total={experienciasOrdenadas.length} ordenar={ordenar} onOrdenar={setOrdenar} viewMode={viewMode} onViewMode={setViewMode} />
 
             {/* GRID OU LISTA */}
             {loading ? (
@@ -241,7 +179,7 @@ const Experiencias = () => {
               </div>
             ) : (
               <div className={viewMode === 'grid' 
-                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 text-left" 
+                ? "grid grid-cols-1 gap-10 text-left md:grid-cols-2" 
                 : "flex flex-col gap-6 text-left"
               }>
                 {experienciasOrdenadas.length > 0 ? (
@@ -272,13 +210,13 @@ const Experiencias = () => {
               alt={t('background_promocional')}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent"></div>
-            <div className="relative z-10 p-12 max-w-lg">
+            <div className="relative z-10 max-w-lg p-6 sm:p-12">
               <h2 className="text-3xl font-black text-gray-900 leading-tight mb-4 tracking-tighter uppercase italic">
                 {t('encontre_lugar_perfeito')}
               </h2>
               <button 
                 onClick={() => navigate('/alojamentos')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl transition-all flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-black px-4 py-4 rounded-2xl sm:px-8 transition-all flex items-center gap-2"
               >
                 {t('buscar_alojamentos')} <ArrowRight size={20} />
               </button>

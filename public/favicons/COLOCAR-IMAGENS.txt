@@ -1,0 +1,9 @@
+Coloque nesta pasta os seus ficheiros com estes nomes exatos:
+
+favicon.ico              - icone do navegador (inclua 16, 32 e 48 px no ICO)
+favicon-512.png           - PNG quadrado, 512 x 512 px
+apple-touch-icon.png      - PNG quadrado, 180 x 180 px
+
+Na versao publicada, esta pasta fica em dist/favicons/.
+Para conservar as imagens nos proximos builds, copie-as tambem para public/favicons/.
+Os ficheiros das imagens ainda devem ser fornecidos por si.

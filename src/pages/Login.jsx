@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import LoginGoogle from '../components/LoginGoogle';
+import { SESSION_KEYS } from '../utils/managementSession';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ export default function Login() {
   const BACKEND_URL = 'https://welovepalop.com/api/auth_google.php';
 
   const salvarSessao = (user, token = null, validationToken = null) => {
+    [...SESSION_KEYS, 'morabeza_admin', 'admin_token'].forEach(key => localStorage.removeItem(key));
     if (typeof validationToken === 'string' && validationToken.trim()) localStorage.setItem('reserva_validation_token', validationToken);
     else localStorage.removeItem('reserva_validation_token');
     if (typeof token === 'string' && token.trim()) {

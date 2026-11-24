@@ -17,8 +17,9 @@ export function extrairFotosCarro(carro) {
     return [];
   };
   const principal = item => item?.principal === true || item?.principal === 1 || item?.principal === '1';
-  const galeria = [...lista(carro?.imagens), ...lista(carro?.photos), ...lista(carro?.fotos), ...lista(carro?.galeria), ...lista(carro?.imagens_extra)]
+  const galeria = (carro?.galeria_fonte === 'carro_imagens' ? lista(carro.imagens) : [...lista(carro?.imagens), ...lista(carro?.photos), ...lista(carro?.fotos), ...lista(carro?.galeria), ...lista(carro?.imagens_extra)])
+    .filter(item => ![0, '0', false].includes(item?.exibir_galeria))
     .sort((a, b) => Number(principal(b)) - Number(principal(a)) || Number(a?.ordem || 0) - Number(b?.ordem || 0));
-  // Actual uploaded gallery photos precede a potentially stale list thumbnail.
-  return [...new Set([...galeria, carro?.imagem_principal, carro?.imagem_capa, carro?.imagem_url].map(url).filter(Boolean))];
+  // Listing covers may contain a whole advert; never inject them into vehicle photos.
+  return [...new Set(galeria.map(url).filter(Boolean))];
 }

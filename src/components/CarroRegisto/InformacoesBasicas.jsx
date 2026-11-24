@@ -3,7 +3,7 @@ import ResumoValorRegisto from '../ResumoValorRegisto';
 // src/components/CarroRegisto/InformacoesBasicas.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Tag, DollarSign, Loader } from 'lucide-react';
+import { Tag, Loader } from 'lucide-react';
 import { buscarTiposCarro } from '../../services/carroApiService';
 
 const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
@@ -42,7 +42,7 @@ const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
             Título do Anúncio <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <Tag size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Tag size={18} /></span>
             <input
               type="text"
               value={dados.titulo || ''}
@@ -98,13 +98,12 @@ const InformacoesBasicas = ({ dados = {}, onChange, readOnly = false }) => {
             Preço por Dia (CVE) <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <DollarSign size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="number"
               value={dados.preco_dia || ''}
               onChange={(e) => handleChange('preco_dia', parseFloat(e.target.value))}
               placeholder="Ex: 5000"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
               disabled={readOnly}
             />
           </div>

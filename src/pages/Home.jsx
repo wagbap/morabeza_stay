@@ -1,8 +1,9 @@
 import useDestaques from '../hooks/useDestaques';
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 import Hero from '../features/alojamento/components/AlojamentoHeroHome';
-import SearchBar from '../features/alojamento/components/SearchBarAlojamento';
+import PesquisaServicos from '../components/PesquisaServicos';
 import CategoryBar from '../components/CategoryBar';
 import TabsComponent from '../components/TabsComponent';
 import ExperiencesSection from '../features/experiencias/components/ExperiencesSection';
@@ -13,9 +14,18 @@ const Home = () => {
 
   return (
     <>
+      <Helmet>
+        <title>{t('home_seo_titulo')}</title>
+        <meta name="description" content={t('home_seo_descricao')} />
+        <link rel="canonical" href="https://morabezastay.cv/" />
+        <meta property="og:title" content={t('home_seo_titulo')} />
+        <meta property="og:description" content={t('home_seo_descricao')} />
+        <meta property="og:url" content="https://morabezastay.cv/" />
+        <meta property="og:image:alt" content="MorabezaStay" />
+      </Helmet>
       <Hero />
       <div className="relative -mt-12 z-40 px-4">
-        <SearchBar />
+        <PesquisaServicos />
       </div>
       
       <div className="max-w-7xl mx-auto px-6">

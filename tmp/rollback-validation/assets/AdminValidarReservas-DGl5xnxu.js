@@ -1,0 +1,1 @@
+import"./chunk-BEqpzyXh.js";import{n as e,t}from"./jsx-runtime-BwJb0T-f.js";import n from"./ValidarReserva-DD8hJ8yT.js";e();var r=t();function i(){return(0,r.jsx)(n,{contexto:`admin`})}export{i as default};

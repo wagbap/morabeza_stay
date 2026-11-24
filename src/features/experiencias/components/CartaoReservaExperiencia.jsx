@@ -1,8 +1,8 @@
+import ConversaoPreco from '../../../components/ConversaoPreco';
+import '@fontsource-variable/inter/wght.css';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Star, Tag, CalendarDays, Sun, Sunset, Clock, Minus, Plus, UsersRound, ClipboardList, ChevronDown, Info } from 'lucide-react';
-import '@fontsource-variable/inter/wght.css';
-
 const money = value => `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(Number(value) || 0)} CVE`;
 const size = (px, minimum = Math.round(px * 0.6)) => `clamp(${minimum}px, ${px / 6.3}cqw, ${px}px)`;
 const Icon = ({ icon, className = '', large = false }) => <span className={`inline-flex shrink-0 ${className}`} style={{ width: `calc(${size(large ? 30 : 25, 18)} * var(--booking-icon-scale, 1))`, height: `calc(${size(large ? 30 : 25, 18)} * var(--booking-icon-scale, 1))` }}>{React.createElement(icon, { width: '100%', height: '100%', strokeWidth: 1.8, 'aria-hidden': true })}</span>;
@@ -64,7 +64,7 @@ export default function CartaoReservaExperiencia({
       {participantModel && singleDuration && durationText ? <div style={sectionStyle}>{heading(Clock, tr('duracao', 'Duração'))}<p className="mt-2 w-full rounded-[12px] border border-[#d9dce3]" style={{padding:`${cardSize(17,12)} ${cardSize(25,16)}`,fontSize:cardSize(28,19),lineHeight:1.4}}>{durationText}</p></div> : (duracoes.length > 0 || duracao) && <div style={sectionStyle}>{heading(Clock, tr('duracao', 'Duração'))}<div className="mt-2 grid" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(duracoes.length, 1), 4)}, minmax(0, 1fr))`, gap: cardSize(8, 5) }}>{(duracoes.length ? duracoes : [null]).map(n => {
         const active = n === null || Number(duracaoSelecionada) === n;
         const rate = n !== null && precosDuracoes[n] != null ? precosDuracoes[n] : duracoes.length <= 1 || active ? preco : null;
-        const content = <><Icon icon={Clock} /><strong className="whitespace-nowrap font-semibold" style={{ fontSize: cardSize(18, 11) }}>{n === null ? duracao : durationName(n)}</strong>{rate !== null && <span className="max-w-full whitespace-normal text-center leading-snug" style={{ fontSize: cardSize(14, 9) }}><span className="whitespace-nowrap">{money(rate)}</span>{' / '}{unitName}</span>}</>;
+        const content = <><Icon icon={Clock} /><strong className="whitespace-nowrap font-semibold" style={{ fontSize: cardSize(18, 11) }}>{n === null ? duracao : durationName(n)}</strong>{rate !== null && <><span className="max-w-full whitespace-normal text-center font-semibold leading-snug" style={{ fontSize: cardSize(18, 12) }}><span className="whitespace-nowrap">{money(rate)}</span>{' / '}{unitName}</span><ConversaoPreco valorCve={rate} className="max-w-full text-center text-[9px] font-normal leading-snug opacity-70 sm:text-[10px]" /></>}</>;
         const style = { ...optionStyle, minHeight: cardSize(108, 78), gap: cardSize(7, 5), minWidth: 0, padding: `${cardSize(10, 6)} ${cardSize(7, 5)}` };
         return duracoes.length > 1 ? <button type="button" key={n} aria-pressed={active} aria-label={durationName(n)} onClick={() => selecionarDuracao(n)} className={`flex flex-col items-center justify-center ${optionClass(active)}`} style={style}>{content}</button> : <div key={n || 'single'} className="flex flex-col items-center justify-center border-[#3453bb] bg-[#f8faff] text-[#2e4cb4]" style={style}>{content}</div>;
       })}</div></div>}

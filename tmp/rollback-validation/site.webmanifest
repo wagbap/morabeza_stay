@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "MorabezaStay",
+  "short_name": "MorabezaStay",
+  "lang": "pt",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#f8f9fc",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "/favicons/favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

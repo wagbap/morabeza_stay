@@ -25,9 +25,8 @@ const carregarFotos = carro => {
     const promise = new Promise((resolve, reject) => {
       fila.push(async () => {
         try {
-          // The registration endpoint contains the uploaded gallery. The public
-          // details endpoint can inject a stock photo even when no photos exist.
-          const result = await requestApiJson('/carro/buscar.php', {
+          // Read the same publishable vehicle photos as the public gallery.
+          const result = await requestApiJson('/get_carro_fotos.php', {
             params: carro.id ? { id: carro.id } : { slug: carro.slug }, retries: 0,
           });
           if (!result.success || !result.data) throw new Error('Invalid vehicle response');

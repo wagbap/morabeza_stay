@@ -181,7 +181,7 @@ const HorarioModal = ({
         </button>
 
         <div className="p-8 md:p-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-[#1A2B6D] mb-2">
+          <h2 className="text-2xl md:text-3xl font-bold text-[#1a2b6d] mb-2">
             {t('escolher_horario_passeio', 'Escolher horário do passeio')}
           </h2>
           <p className="text-slate-500 text-sm mb-8">

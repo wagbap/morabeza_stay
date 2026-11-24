@@ -1,3 +1,8 @@
+import HorariosDevolucaoCarro from '../../features/carros/components/HorariosDevolucaoCarro';
+import { obterTokenValidacao } from '../../utils/tokenValidacaoReserva';
+import { useTranslation } from 'react-i18next';
+import api from '../../api/api';
+import { normalizarCaucaoCarro } from '../../features/carros/utils/caucaoCarro';
 import HeaderGestao from './HeaderGestao';
 // src/components/gest/LevantamentoCaucaoCondicoes.jsx
 import React, { useState, useEffect } from 'react';
@@ -41,9 +46,11 @@ const POLITICAS_COMBUSTIVEL = [
 
 export default function LevantamentoCaucaoCondicoes() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const carroId = searchParams.get('carro_id');
 
+  const [horariosProntos, setHorariosProntos] = useState(false);
   const [loading, setLoading] = useState(true);
   const [carros, setCarros] = useState([]);
   const [carroSelecionado, setCarroSelecionado] = useState(null);
@@ -59,6 +66,7 @@ export default function LevantamentoCaucaoCondicoes() {
     // #14 — Levantamento e Devolução
     levantamento_ilha: '',
     levantamento_local: '',
+    devolucao_mesmo_horario: 1, devolucao_hora_inicio: '', devolucao_hora_fim: '',
     levantamento_hora_inicio: '08:00',
     levantamento_hora_fim: '20:00',
     devolucao_mesmo_local: 1,
@@ -148,6 +156,7 @@ export default function LevantamentoCaucaoCondicoes() {
     setForm({
       levantamento_ilha: carroSelecionado.levantamento_ilha || '',
       levantamento_local: carroSelecionado.levantamento_local || '',
+      devolucao_mesmo_horario: 1, devolucao_hora_inicio: '', devolucao_hora_fim: '',
       levantamento_hora_inicio: carroSelecionado.levantamento_hora_inicio?.slice(0, 5) || '08:00',
       levantamento_hora_fim: carroSelecionado.levantamento_hora_fim?.slice(0, 5) || '20:00',
       devolucao_mesmo_local: carroSelecionado.devolucao_mesmo_local ?? 1,
@@ -158,11 +167,9 @@ export default function LevantamentoCaucaoCondicoes() {
       entrega_custo_hotel: parseFloat(carroSelecionado.entrega_custo_hotel) || 0,
       levantamento_notas: carroSelecionado.levantamento_notas || '',
 
-      exige_caucao: carroSelecionado.exige_caucao ?? 0,
+      exige_caucao: Number(carroSelecionado.exige_caucao) === 1 ? 1 : 0,
       caucao_valor: parseFloat(carroSelecionado.caucao_valor) || 0,
-      caucao_formas: carroSelecionado.caucao_formas
-        ? carroSelecionado.caucao_formas.split(',')
-        : [],
+      caucao_formas: normalizarCaucaoCarro(carroSelecionado)?.caucao_formas || [],
       caucao_condicoes: carroSelecionado.caucao_condicoes || '',
 
       idade_minima: parseInt(carroSelecionado.idade_minima) || 21,
@@ -174,7 +181,13 @@ export default function LevantamentoCaucaoCondicoes() {
       politica_atraso: carroSelecionado.politica_atraso || '',
       segundo_condutor: carroSelecionado.segundo_condutor ?? 0
     });
-  }, [carroSelecionado]);
+    const c = new AbortController();setHorariosProntos(false);
+    api.post('/horarios_carro.php', { carro_id: carroSelecionado.id, acao: 'listar' }, { signal: c.signal, headers: { Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` } }).then(({ data }) => {
+      if (!data.success || !data.horarios) throw new Error('Missing schedules');
+      if (!c.signal.aborted) { setForm(v => ({ ...v, ...data.horarios }));setHorariosProntos(true); }
+    }).catch(() => { if (!c.signal.aborted) showToast('erro', t('carro_horas_erro')); });
+    return () => c.abort();
+  }, [carroSelecionado, t]);
 
   // Guardar configuração
   const guardar = async () => {
@@ -194,7 +207,7 @@ export default function LevantamentoCaucaoCondicoes() {
       setTabAtiva('levantamento');
       return;
     }
-    if (form.exige_caucao && form.caucao_valor <= 0) {
+    if (form.exige_caucao && (!Number.isFinite(Number(form.caucao_valor)) || Number(form.caucao_valor) <= 0)) {
       showToast('erro', 'Indica o valor da caução');
       setTabAtiva('caucao');
       return;
@@ -208,6 +221,9 @@ export default function LevantamentoCaucaoCondicoes() {
     const userId = obterUserId();
     if (!userId) { showToast('erro', 'Sessão expirada'); return; }
 
+    if (!horariosProntos) { showToast('erro', t('carro_horas_erro'));return; }
+    const hh = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!hh.test(form.levantamento_hora_inicio) || !hh.test(form.levantamento_hora_fim) || form.levantamento_hora_inicio > form.levantamento_hora_fim || (Number(form.devolucao_mesmo_horario) === 0 && (!hh.test(form.devolucao_hora_inicio) || !hh.test(form.devolucao_hora_fim) || form.devolucao_hora_inicio > form.devolucao_hora_fim))) { showToast('erro', t('carro_horas_intervalo_invalido'));return; }
     setGuardando(true);
     try {
       const payload = {
@@ -247,10 +263,23 @@ export default function LevantamentoCaucaoCondicoes() {
       });
       const data = await res.json();
 
-      if (data.success) {
-        showToast('ok', 'Condições guardadas com sucesso');
-        // Atualizar carro selecionado localmente
-        setCarroSelecionado(prev => ({ ...prev, ...payload }));
+      if (res.ok && data.success) {
+        const { data: horariosGuardados } = await api.post('/horarios_carro.php', { carro_id: carroSelecionado.id, acao: 'guardar', levantamento_hora_inicio: form.levantamento_hora_inicio, levantamento_hora_fim: form.levantamento_hora_fim, devolucao_mesmo_horario: form.devolucao_mesmo_horario, devolucao_hora_inicio: form.devolucao_hora_inicio, devolucao_hora_fim: form.devolucao_hora_fim }, { headers: { Authorization: `Bearer ${obterTokenValidacao(localStorage, 'host') || ''}` } });
+        if (!horariosGuardados.success) throw new Error('Schedule save failed');
+        const { data: releitura } = await api.get('/carro/listar.php', { params: { usuario_id: userId } });
+        const lista = releitura.data?.items || (Array.isArray(releitura.data) ? releitura.data : releitura.data?.carros) || [];
+        const guardado = lista.find(carro => String(carro.id) === String(carroSelecionado.id));
+        const caucaoGuardada = normalizarCaucaoCarro(guardado);
+        const caucaoEnviada = normalizarCaucaoCarro(payload);
+        if (!releitura.success || !caucaoGuardada || !caucaoEnviada || caucaoGuardada.exige_caucao !== caucaoEnviada.exige_caucao || caucaoGuardada.caucao_valor !== caucaoEnviada.caucao_valor
+          || caucaoGuardada.caucao_condicoes !== caucaoEnviada.caucao_condicoes
+          || JSON.stringify([...caucaoGuardada.caucao_formas].sort()) !== JSON.stringify([...caucaoEnviada.caucao_formas].sort())) {
+          showToast('erro', t('carro_caucao_erro_guardar'));
+          return;
+        }
+        setCarros(prev => prev.map(carro => String(carro.id) === String(guardado.id) ? guardado : carro));
+        setCarroSelecionado(guardado);
+        showToast('ok', t('carro_caucao_guardada'));
       } else {
         showToast('erro', data.message || 'Erro ao guardar');
       }
@@ -483,6 +512,7 @@ export default function LevantamentoCaucaoCondicoes() {
               </div>
             </div>
 
+            <HorariosDevolucaoCarro form={form} setForm={setForm} disabled={!horariosProntos || guardando} />
             {/* Devolução */}
             <div className="border-t border-gray-100 pt-5">
               <h3 className="text-[14px] font-bold mb-4">Devolução</h3>
@@ -647,7 +677,7 @@ export default function LevantamentoCaucaoCondicoes() {
                 {/* Valor */}
                 <div>
                   <label className="text-[11px] font-bold text-gray-500 uppercase block mb-1">
-                    Valor da Caução (CVE) *
+                    {t('carro_caucao_campo_por_carro')} *
                   </label>
                   <input
                     type="number"

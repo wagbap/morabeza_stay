@@ -1,3 +1,6 @@
+import CalendarioExperienciasAnfitriao from './CalendarioExperienciasAnfitriao';
+import PainelCalendario from '../Calendario/PainelCalendario';
+import CalendarioCarrosAnfitriao from '../../features/carros/components/CalendarioCarrosAnfitriao';
 import { requestApiJson } from '../../services/apiJson';
 import HeaderGestao from './HeaderGestao';
 // src/components/gest/Calendario.jsx
@@ -597,11 +600,11 @@ export default function Calendario() {
 
   useEffect(() => {
     setDisponibilidade({});
-    if (selectedItem && !isAlojamento) fetchDisponibilidade();
+    if (selectedItem && activeTab === 'experiencias') fetchDisponibilidade();
     const requests = disponibilidadeRequestRef;
     const abort = disponibilidadeAbortRef;
     return () => { requests.current++; abort.current?.abort(); };
-  }, [selectedItem, isAlojamento, fetchDisponibilidade]);
+  }, [selectedItem, isAlojamento, activeTab, fetchDisponibilidade]);
 
   useEffect(() => {
     setBloqueiosPorData({});
@@ -950,8 +953,20 @@ export default function Calendario() {
     selectedMonth === new Date().getMonth() &&
     selectedYear === new Date().getFullYear();
 
+  if (activeTab === 'carros' || activeTab === 'experiencias') return (
+    <div className="max-w-6xl w-full text-[#0f172a] px-3 sm:px-4 py-4 sm:py-6 md:px-0">
+      <HeaderGestao secao="calendario" className="mb-6" />
+      <div className="flex gap-2 mb-6 border-b border-gray-200">
+        {tabsPermitidas.map(tab => <button key={tab} type="button" onClick={() => setActiveTab(tab)}
+          className={`px-4 py-2 text-sm capitalize ${activeTab === tab ? 'border-b-2 border-blue-900 text-blue-900' : 'text-slate-500'}`}>{t(tab, tab)}</button>)}
+      </div>
+      {loading ? <p>{t('calendario_a_carregar')}</p> : activeTab === 'carros' ? <CalendarioCarrosAnfitriao carros={items} /> : <CalendarioExperienciasAnfitriao experiencias={items} />}
+    </div>
+  );
+
   if (isMobile) {
     return (
+      <PainelCalendario onLimpar={limparSelecao} disabled={aGuardar}>
       <div className="max-w-6xl w-full text-[#0f172a] px-3 sm:px-4 py-4 sm:py-6 md:px-0">
         <HeaderGestao secao="calendario" className="mb-6" />
 
@@ -1277,10 +1292,12 @@ export default function Calendario() {
           }}
         />
       </div>
+      </PainelCalendario>
     );
   }
 
   return (
+    <PainelCalendario onLimpar={limparSelecao} disabled={aGuardar}>
     <div className="max-w-6xl w-full text-[#0f172a] px-4 py-6 md:px-0">
       <HeaderGestao secao="calendario" className="mb-6" />
 
@@ -1586,5 +1603,6 @@ export default function Calendario() {
         }}
       />
     </div>
+    </PainelCalendario>
   );
 }

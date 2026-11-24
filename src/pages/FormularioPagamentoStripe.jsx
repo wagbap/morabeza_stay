@@ -28,6 +28,8 @@ export const FormularioPagamentoStripe = ({
   valorTotal = 0,
   moeda = 'CVE',
   onPagar,
+  disabled = false,
+  avisoPagamento = null,
 }) => {
   const { t } = useTranslation();
   const stripe = useStripe();
@@ -38,7 +40,7 @@ export const FormularioPagamentoStripe = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || disabled || loading) return;
     setLoading(true);
     try {
       if (onPagar) {
@@ -144,7 +146,7 @@ export const FormularioPagamentoStripe = ({
         {/* Pay button */}
         <button
           type="submit"
-          disabled={!stripe || loading}
+          disabled={!stripe || loading || disabled}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm active:scale-[0.99] disabled:opacity-50"
         >
           <span>
@@ -156,6 +158,7 @@ export const FormularioPagamentoStripe = ({
           </span>
           <Lock size={15} />
         </button>
+        {avisoPagamento}
       </form>
     </div>
   );

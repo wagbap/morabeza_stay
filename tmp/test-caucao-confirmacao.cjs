@@ -1,0 +1,21 @@
+const fs=require('fs'),path=require('path');
+const root=path.join(process.env.TEMP,'morabeza-email-php-check/node_modules');
+(async()=>{
+ const {PHP}=require(path.join(root,'@php-wasm/universal'));
+ const {loadNodeRuntime}=require(path.join(root,'@php-wasm/node'));
+ const php=new PHP(await loadNodeRuntime('8.3',{emscriptenOptions:{processId:59485,wasmBinary:fs.readFileSync(path.join(root,'@php-wasm/node-8-3/asyncify/8_3_33/php_8_3.wasm'))}}));
+ php.mkdir('/v');php.writeFile('/v/email.php',fs.readFileSync('server/api/send_email.php'));
+ const d=JSON.parse(fs.readFileSync('server/previews/reservas-exemplo.json')).find(d=>d.tipo==='carro');
+ d.caucao={exige_caucao:1,caucao_valor:500,quantidade:2,caucao_formas:['dinheiro','transferencia','multibanco','cheque'],caucao_condicoes:'Devolução integral após inspeção do veículo. Retenção apenas em caso de danos ou combustível em falta, nos termos acordados.'};
+ php.writeFile('/v/fixture.json',JSON.stringify(d));
+ const r=await php.run({code:`<?php require '/v/email.php'; $d=json_decode(file_get_contents('/v/fixture.json'),true);$out=[];
+ $out['curto']=base64_encode(gerarPdfComprovativoReserva($d));$out['html']=renderizarConfirmacaoReserva($d);
+ $d['caucao']['caucao_condicoes']=str_repeat('Condições completas de devolução e retenção, incluindo inspeção, danos e combustível. ',100).' FIM-DAS-CONDICOES';
+ $out['longo']=base64_encode(gerarPdfComprovativoReserva($d));echo json_encode($out);`});
+ if(r.exitCode)throw Error(r.errors);
+ const out=JSON.parse(r.text);fs.mkdirSync('tmp/pdfs',{recursive:true});
+ fs.writeFileSync('output/pdf/comprovativo-carro-caucao.pdf',Buffer.from(out.curto,'base64'));
+ fs.writeFileSync('tmp/pdfs/comprovativo-carro-caucao-longo.pdf',Buffer.from(out.longo,'base64'));
+ fs.writeFileSync('tmp/caucao-email.html',out.html);
+ console.log('PDFs com caução e email gerados');process.exit(0);
+})().catch(e=>{console.error(e);process.exit(1)});

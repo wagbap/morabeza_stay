@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 // src/components/CarroRegisto/Localizacao.jsx
 // CORRIGIDO - Envia cidade corretamente
 
@@ -30,6 +31,7 @@ const LOCALIZACOES_SUGESTAO = [
 ];
 
 const Localizacao = ({ dados = {}, onChange, readOnly = false, carroId = null }) => {
+  const { t } = useTranslation();
   const [busca, setBusca] = useState('');
   const [cidade, setCidade] = useState('');
   const [ilha, setIlha] = useState('');
@@ -103,24 +105,17 @@ const Localizacao = ({ dados = {}, onChange, readOnly = false, carroId = null })
   // 🔥 HANDLERS - ENVIAM DADOS NO FORMATO CORRETO
   const handleLocalizacaoChange = (valor) => {
     setBusca(valor);
-    setCidade(valor); // 🔥 Mantém cidade sincronizada com a busca
     onChange({
       local: valor,
       localizacao: valor,
-      cidade: valor, // 🔥 Envia cidade!
+      cidade: cidade, // 🔥 Envia cidade!
       ilha: ilha
     });
   };
   
   const handleCidadeChange = (valor) => {
     setCidade(valor);
-    setBusca(valor); // 🔥 Mantém busca sincronizada com a cidade
-    onChange({
-      local: valor,
-      localizacao: valor,
-      cidade: valor, // 🔥 Envia cidade!
-      ilha: ilha
-    });
+    onChange({ local: busca, localizacao: busca, cidade: valor, ilha });
   };
   
   const handleIlhaChange = (valor) => {
@@ -172,7 +167,7 @@ const Localizacao = ({ dados = {}, onChange, readOnly = false, carroId = null })
       {/* LOCALIZAÇÃO / CIDADE COM SUGESTÕES */}
       <div className="relative">
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Localização / Cidade <span className="text-red-500">*</span>
+          {t('carro_registo_local')} <span className="text-red-500">*</span>
         </label>
         <div className="relative">
           <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -184,12 +179,12 @@ const Localizacao = ({ dados = {}, onChange, readOnly = false, carroId = null })
             onChange={(e) => handleLocalizacaoChange(e.target.value)}
             onFocus={() => setMostrarSugestoes(true)}
             onBlur={() => setTimeout(() => setMostrarSugestoes(false), 200)}
-            placeholder="Ex: Praia, Mindelo, Santa Maria..."
+            placeholder={t('carro_registo_local_exemplo')}
             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-[#006ce4]"
             disabled={readOnly}
           />
         </div>
-        <p className="text-xs text-gray-400 mt-1">Cidade onde o veículo está disponível</p>
+        <p className="text-xs text-gray-400 mt-1">{t('carro_registo_local_ajuda')}</p>
         
         {mostrarSugestoes && sugestoesFiltradas.length > 0 && !readOnly && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -211,7 +206,7 @@ const Localizacao = ({ dados = {}, onChange, readOnly = false, carroId = null })
         )}
       </div>
       
-      {/* CIDADE (campo separado - sincronizado) */}
+      {/* CIDADE (independente do local) */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Cidade <span className="text-red-500">*</span>

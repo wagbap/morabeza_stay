@@ -1,17 +1,22 @@
+import PainelFiltrosLista from '../../../components/PainelFiltrosLista';
+import PesquisaNomeFiltro from '../../../components/PesquisaNomeFiltro';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Map, Car, Gauge, Settings, Shield, Zap, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const FiltrosLateraisCarros = ({ 
   orcamento, 
   setOrcamento, 
   tiposSelecionados, 
   setTiposSelecionados, 
-  totalEncontrados 
+  totalEncontrados,
+  pesquisa = '',
+  onPesquisaChange
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const listaCategorias = [
     { id: 'Económico', label: t('economico'), icon: <Car size={16} /> },
@@ -33,7 +38,7 @@ const FiltrosLateraisCarros = ({
       
       {/* 🗺️ SECÇÃO DO MAPA - Adaptada para Carros */}
       <div 
-        onClick={() => navigate('/mapa-carros')} 
+        onClick={() => navigate(`/mapa-carros${location.search}`)} 
         className="relative rounded-2xl overflow-hidden h-32 border-4 border-white shadow-lg cursor-pointer group"
       >
         <img 
@@ -43,23 +48,14 @@ const FiltrosLateraisCarros = ({
         />
         <div className="absolute inset-0 bg-blue-900/30 flex items-center justify-center transition-colors group-hover:bg-blue-900/40">
           <div className="bg-white text-blue-700 px-4 py-2 rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2">
-            <Map size={14} /> {t('pontos_levantamento')}
+            <Map size={14} /> {t('ver_no_mapa')}
           </div>
         </div>
       </div>
 
       {/* 🔍 BLOCO DE FILTROS */}
-      <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-xl shadow-blue-900/5">
-        
-        {/* Título e Contador */}
-        <div className="flex justify-between items-center mb-6 border-b border-gray-50 pb-4">
-          <h3 className="font-black text-gray-900 uppercase text-[10px] tracking-[0.2em]">
-            {t('refinar_frota')}
-          </h3>
-          <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-[9px] font-black">
-            {totalEncontrados} {t('veiculos')}
-          </span>
-        </div>
+      <PainelFiltrosLista total={totalEncontrados} pesquisa={<PesquisaNomeFiltro divider={false} value={pesquisa} onChange={onPesquisaChange} titulo="carro_filtro_nome_titulo" placeholder="carro_filtro_nome_placeholder" ajuda="carro_filtro_nome_ajuda" />}>
+
 
         {/* Filtro de Preço por Dia 💸 */}
         <div className="mb-8">
@@ -114,15 +110,15 @@ const FiltrosLateraisCarros = ({
         </div>
 
         {/* Botão para Limpar 🧹 */}
-        {(tiposSelecionados.length > 0 || orcamento < 30000) && (
+        {(pesquisa || tiposSelecionados.length > 0 || orcamento < 30000) && (
           <button 
-            onClick={() => { setOrcamento(30000); setTiposSelecionados([]); }}
+            onClick={() => { setOrcamento(30000); setTiposSelecionados([]); onPesquisaChange(''); }}
             className="w-full mt-8 pt-4 border-t border-gray-50 text-gray-400 hover:text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
           >
             <X size={14} /> {t('remover_filtros')}
           </button>
         )}
-      </div>
+      </PainelFiltrosLista>
     </div>
   );
 };

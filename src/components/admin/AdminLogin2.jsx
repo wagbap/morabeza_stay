@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sun, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { SESSION_KEYS } from '../../utils/managementSession';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -32,7 +33,8 @@ const AdminLogin = () => {
         // Verifica se o utilizador tem a role de admin
         if (data.user.roles && data.user.roles.includes('admin')) {
           // Guarda os dados na sessão (LocalStorage)
-          localStorage.setItem('morabeza_admin', JSON.stringify(data.user));
+          [...SESSION_KEYS, 'morabeza_admin', 'admin_token'].forEach(key => localStorage.removeItem(key));
+          localStorage.setItem('morabeza_admin', JSON.stringify({ ...data.user, token: data.token || data.user.token || null }));
           // Redireciona para o painel de controlo
           navigate('/admin/dashboard');
         } else {

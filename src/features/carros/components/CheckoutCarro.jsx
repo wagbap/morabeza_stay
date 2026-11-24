@@ -1,3 +1,12 @@
+import CampoTelefoneInternacional from '../../../components/CampoTelefoneInternacional';
+import { telefoneInternacionalValido } from '../../../utils/telefoneInternacional';
+import { janelasCarro, horaNaJanela } from '../utils/horariosCarro';
+import DocumentosCondutorUpload from './DocumentosCondutorUpload';
+import { documentosCondutorCompletos, TIPOS_DOCUMENTOS_CONDUTOR } from '../utils/documentosCondutor';
+import { extrairCondicoesCarro } from '../utils/condicoesCarro';
+import CondicoesCarro from './CondicoesCarro';
+import { normalizarCaucaoCarro } from '../utils/caucaoCarro';
+import CaucaoCarro from './CaucaoCarro';
 // CheckoutCarro.jsx - Com verificação OTP (design padrão do site)
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +24,7 @@ const API_BASE = 'https://welovepalop.com';
 // ============================================================
 // CONDUTOR PRINCIPAL
 // ============================================================
-const CondutorPrincipal = ({ condutor, updateCondutor }) => {
+const CondutorPrincipal = ({ condutor, updateCondutor, reserva, horariosEstado }) => {
   const { t } = useTranslation();
 
   return (
@@ -50,13 +59,7 @@ const CondutorPrincipal = ({ condutor, updateCondutor }) => {
 
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1">{t('telefone_whatsapp', 'Telefone / WhatsApp')} *</label>
-          <input
-            type="tel"
-            value={condutor.phone}
-            onChange={(e) => updateCondutor('phone', e.target.value)}
-            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900"
-            placeholder="+238 991 23 45"
-          />
+          <CampoTelefoneInternacional value={condutor.phone} onChange={value => updateCondutor('phone', value)} />
         </div>
 
         <div>
@@ -81,54 +84,16 @@ const CondutorPrincipal = ({ condutor, updateCondutor }) => {
       <div className="border-t border-slate-100 my-6"></div>
 
       <div className="space-y-5">
-        <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1 flex items-center gap-1">
-            <Clock size={12} /> {t('hora_levantamento', 'Hora de levantamento')} *
-          </label>
-          <select
-            value={condutor.hora_levantamento || '10:00'}
-            onChange={(e) => updateCondutor('hora_levantamento', e.target.value)}
-            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-slate-900 bg-white"
-          >
-            {['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].map(h => (
-              <option key={h} value={h}>{h}</option>
-            ))}
-          </select>
-        </div>
+        {['levantamento', 'devolucao'].map(tipo => {
+          const janela = janelasCarro(reserva)[tipo];
+          return <div key={tipo}>
+            <label htmlFor={`hora-${tipo}`} className="mb-1 block text-xs font-bold text-slate-700">{t(`carro_horas_${tipo}_escolhida`)} *</label>
+            <input id={`hora-${tipo}`} type="time" step="60" disabled={horariosEstado !== 'ready'} min={janela[0]} max={janela[1]} value={condutor[`hora_${tipo}`] || ''} onChange={e => updateCondutor(`hora_${tipo}`, e.target.value)} className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-900" />
+            <p className="mt-1 text-xs text-slate-500">{t('carro_horas_janela')}: {janela[0] && janela[1] ? janela.join(' – ') : t('carro_horas_carregando')}</p>
+          </div>;
+        })}
 
-        <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1 flex items-center gap-1">
-            <Upload size={12} /> {t('carta_conducao_upload', 'Carta de condução')} *
-          </label>
-          <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:border-blue-500 transition-colors cursor-pointer bg-slate-50/30">
-            <input
-              type="file"
-              id="carta-conducao"
-              accept=".pdf,.doc,.docx,image/*"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  updateCondutor('carta_conducao_file', file);
-                  updateCondutor('carta_conducao_nome', file.name);
-                }
-              }}
-              className="hidden"
-            />
-            <label htmlFor="carta-conducao" className="cursor-pointer block">
-              <Upload size={24} className="mx-auto text-slate-400 mb-2" />
-              {condutor.carta_conducao_nome ? (
-                <div className="text-green-600 text-sm font-medium flex items-center justify-center gap-2">
-                  <Check size={16} /> {condutor.carta_conducao_nome}
-                </div>
-              ) : (
-                <>
-                  <p className="text-sm font-medium text-slate-600">{t('clique_upload', 'Clique para carregar o documento')}</p>
-                  <p className="text-[10px] text-slate-400 mt-1">{t('upload_limite', 'PDF ou Imagem')}</p>
-                </>
-              )}
-            </label>
-          </div>
-        </div>
+        <DocumentosCondutorUpload documentos={condutor.documentos} onChange={documentos => updateCondutor('documentos', documentos)} />
 
         <div>
           <label className="text-xs font-bold text-slate-700 block mb-1 flex items-center gap-1">
@@ -191,13 +156,14 @@ const ResumoReservaCarro = ({ reserva, precoTotal, setDataModalOpen }) => {
 
       <div className="space-y-4 border-t border-slate-100 pt-5">
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('levantamento', 'Levantamento')}</span>
-          <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.checkIn)} - {reserva?.horaLevantamento || '10:00'}</span>
+          <span className="text-xs text-slate-600 font-medium">{t('carro_horas_levantamento_escolhida')}</span>
+          <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.checkIn)} - {reserva?.horaLevantamento || t('carro_horas_por_escolher')}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-xs text-slate-600 font-medium">{t('devolucao', 'Devolução')}</span>
-          <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.checkOut)} - {reserva?.horaLevantamento || '10:00'}</span>
+          <span className="text-xs text-slate-600 font-medium">{t('carro_horas_devolucao_escolhida')}</span>
+          <span className="text-xs font-bold text-blue-900">{formatarData(reserva?.checkOut)} - {reserva?.horaDevolucao || t('carro_horas_por_escolher')}</span>
         </div>
+        <p className="text-xs text-slate-500">{t('carro_horas_levantamento_janela')}: {janelasCarro(reserva).levantamento.filter(Boolean).join(' – ') || t('carro_horas_carregando')}<br />{t('carro_horas_devolucao_janela')}: {janelasCarro(reserva).devolucao.filter(Boolean).join(' – ') || t('carro_horas_carregando')}</p>
         <div className="flex justify-between">
           <span className="text-xs text-slate-600 font-medium">{t('dias', 'Dias')}</span>
           <span className="text-xs font-bold text-blue-900">{reserva?.dias || 0} {Number(reserva?.dias) === 1 ? 'dia' : 'dias'}</span>
@@ -209,7 +175,7 @@ const ResumoReservaCarro = ({ reserva, precoTotal, setDataModalOpen }) => {
             <span className="text-slate-800">{formatNumber(reserva?.precoDia)} CVE</span>
           </div>
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-500">{t('subtotal_dias', { dias: reserva?.dias || 0, defaultValue: 'Subtotal' })}</span>
+            <span className="text-slate-500">{t('subtotal_dias', { count: Number(reserva?.dias || 0), dias: reserva?.dias || 0, defaultValue: 'Subtotal' })}</span>
             <span className="text-slate-800">{formatNumber(reserva?.subtotal)} CVE</span>
           </div>
         </div>
@@ -218,6 +184,8 @@ const ResumoReservaCarro = ({ reserva, precoTotal, setDataModalOpen }) => {
           <span className="text-base font-bold text-blue-900">{t('total', 'Total')}</span>
           <span className="text-xl font-bold text-blue-600">{formatNumber(precoTotal)} CVE</span>
         </div>
+        <CondicoesCarro dados={reserva} />
+        <CaucaoCarro dados={reserva} quantidade={reserva?.quantidade || 1} />
       </div>
     </div>
   );
@@ -233,7 +201,7 @@ const CheckoutCarro = () => {
   const { showToast } = useToast();
   const { reservaData } = location.state || {};
 
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [error, setError] = useState('');
   const [isDataModalOpen, setDataModalOpen] = useState(false);
 
@@ -241,6 +209,7 @@ const CheckoutCarro = () => {
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
   const [loadingOtp, setLoadingOtp] = useState(false);
+  const [progressoDocumentos, setProgressoDocumentos] = useState(null);
   const [enviandoOtp, setEnviandoOtp] = useState(false);
   const inputRefs = useRef([]);
 
@@ -250,9 +219,9 @@ const CheckoutCarro = () => {
     phone: '',
     idade: 'adulto',
     nacionalidade: 'Cabo Verde',
-    hora_levantamento: '10:00',
-    carta_conducao_file: null,
-    carta_conducao_nome: '',
+    hora_levantamento: '',
+    hora_devolucao: '',
+    documentos: {},
     observacoes: ''
   });
 
@@ -264,12 +233,43 @@ const CheckoutCarro = () => {
     checkIn: reservaData?.checkIn || '',
     checkOut: reservaData?.checkOut || '',
     dias: reservaData?.dias || 1,
+    quantidade: reservaData?.quantidade || 1,
+    ...(normalizarCaucaoCarro(reservaData) || {}),
+    ...extrairCondicoesCarro(reservaData),
     precoDia: reservaData?.precoDia || 0,
     subtotal: reservaData?.subtotal || reservaData?.totalGeral || 0,
     totalGeral: reservaData?.totalGeral || 0,
     tipo: reservaData?.tipo || 'SUV',
-    horaLevantamento: reservaData?.horaLevantamento || '10:00'
+    horaLevantamento: '',
+    horaDevolucao: ''
   });
+
+  const [horariosEstado, setHorariosEstado] = useState('loading');
+  useEffect(() => {
+    if (!reserva.id) return;
+    const c = new AbortController();setHorariosEstado('loading');
+    api.get('/horarios_carro.php', { params: { carro_id: reserva.id }, signal: c.signal }).then(({ data }) => {
+      if (!data.success || !data.horarios) throw new Error('Missing hours');
+      if (!c.signal.aborted) { setReserva(v => ({ ...v, ...data.horarios }));setHorariosEstado('ready'); }
+    }).catch(() => { if (!c.signal.aborted) setHorariosEstado('error'); });
+    return () => c.abort();
+  }, [reserva.id]);
+
+  const [caucaoEstado, setCaucaoEstado] = useState('loading');
+  useEffect(() => {
+    if (!reserva.id) return;
+    const controller = new AbortController();
+    api.get('/get_carro.php', { params: { id: reserva.id }, signal: controller.signal }).then(({ data }) => {
+      if (controller.signal.aborted) return;
+      const caucao = data.success && String(data.data?.id) === String(reserva.id) ? normalizarCaucaoCarro(data.data) : null;
+      if (!caucao) throw new Error('Deposit unavailable');
+      setReserva(prev => ({ ...prev, ...caucao, ...extrairCondicoesCarro(data.data) }));
+      setCaucaoEstado('ready');
+    }).catch(() => {
+      if (!controller.signal.aborted) setCaucaoEstado('error');
+    });
+    return () => controller.abort();
+  }, [reserva.id]);
 
   useEffect(() => {
     let ativo = true;
@@ -308,7 +308,7 @@ const CheckoutCarro = () => {
 
   const handleSelectData = (dataObj) => {
     const novosDias = dataObj.dias;
-    const novoSubtotal = reserva.precoDia * novosDias;
+    const novoSubtotal = reserva.precoDia * novosDias * reserva.quantidade;
     setReserva(prev => ({
       ...prev,
       checkIn: dataObj.checkIn,
@@ -322,10 +322,15 @@ const CheckoutCarro = () => {
 
   const updateCondutor = (field, value) => {
     setCondutor(prev => ({ ...prev, [field]: value }));
+    setError('');
   };
 
   const validateForm = () => {
     setError('');
+    if (caucaoEstado !== 'ready') {
+      setError(t('carro_caucao_erro_consulta'));
+      return false;
+    }
     if (!condutor.nome_completo.trim()) {
       setError(t('erro_nome_obrigatorio', 'O nome completo é obrigatório.'));
       return false;
@@ -334,8 +339,8 @@ const CheckoutCarro = () => {
       setError(t('erro_email_obrigatorio', 'O e-mail é obrigatório.'));
       return false;
     }
-    if (!condutor.phone.trim()) {
-      setError(t('erro_telefone_obrigatorio', 'O telefone é obrigatório.'));
+    if (!telefoneInternacionalValido(condutor.phone)) {
+      setError(t('checkout_telefone_internacional_invalido', 'Introduza um telefone v?lido com indicativo internacional.'));
       return false;
     }
     if (!condutor.nacionalidade.trim()) {
@@ -346,6 +351,11 @@ const CheckoutCarro = () => {
       setError(t('erro_datas_obrigatorias', 'As datas de levantamento e devolução são obrigatórias.'));
       return false;
     }
+    const janelas = janelasCarro(reserva);
+    if (horariosEstado !== 'ready' || !horaNaJanela(condutor.hora_levantamento, janelas.levantamento) || !horaNaJanela(condutor.hora_devolucao, janelas.devolucao)) {
+      setError(t('carro_horas_invalidas'));return false;
+    }
+    if (!documentosCondutorCompletos(condutor.documentos)) { setError(t('carro_docs_obrigatorios'));return false; }
     return true;
   };
 
@@ -360,6 +370,11 @@ const CheckoutCarro = () => {
     if (!validateForm()) return;
     setEnviandoOtp(true);
     try {
+      const { data } = await api.get('/verificar_disponibilidade_carro.php', { params: { carro_id: reserva.id, checkin: reserva.checkIn, checkout: reserva.checkOut, quantidade: reserva.quantidade, hora_levantamento: condutor.hora_levantamento,
+        hora_devolucao: condutor.hora_devolucao } });
+      if (!data.success || !data.disponivel) { setError(t('carro_horas_sem_stock'));setEnviandoOtp(false);return; }
+    } catch { setError(t('carro_horas_erro'));setEnviandoOtp(false);return; }
+    try {
       const res = await fetch(`${API_BASE}/api/send_otp.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -372,7 +387,7 @@ const CheckoutCarro = () => {
       } else {
         showToast(data.message || t('erro_enviar_codigo', 'Não foi possível enviar o código.'), 'error');
       }
-    } catch (e) {
+    } catch {
       showToast(t('erro_conexao', 'Erro de conexão ao enviar OTP.'), 'error');
     } finally {
       setEnviandoOtp(false);
@@ -459,37 +474,36 @@ const CheckoutCarro = () => {
     }
 
     setLoadingOtp(true);
+    setProgressoDocumentos(0);
     try {
-      const res = await fetch(`${API_BASE}/api/send_otp.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'verify_otp',
-          email: condutor.email,
-          otp: codigoCompleto
-        })
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
+      if (!documentosCondutorCompletos(condutor.documentos)) throw new Error(t('carro_docs_obrigatorios'));
+      const form = new FormData();form.append('email', condutor.email);form.append('otp', codigoCompleto);
+      form.append('carro_id', reserva.id);form.append('inicio', reserva.checkIn);form.append('fim', reserva.checkOut);
+      for (const tipo of TIPOS_DOCUMENTOS_CONDUTOR) form.append(tipo, condutor.documentos[tipo]);
+      const { data } = await api.post('/documentos_condutor_upload.php', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000, onUploadProgress: event => { if (event.total) setProgressoDocumentos(Math.round(event.loaded * 100 / event.total)); } });
+      if (data.success && data.documentos?.lote && data.documentos?.token) {
         setShowOtpModal(false);
         showToast(t('email_verificado_sucesso', 'Email verificado com sucesso!'), 'success');
-        concluirReserva();
+        concluirReserva(data.documentos);
       } else {
         showToast(data.message || t('erro_codigo_invalido', 'Código inválido ou expirado.'), 'error');
       }
-    } catch (e) {
-      showToast(t('erro_conexao', 'Erro de conexão ao verificar código'), 'error');
+    } catch (err) {
+      showToast(t(err.response?.data?.code === 'OTP_INVALID' ? 'erro_codigo_invalido' : 'carro_docs_envio_erro'), 'error');
     } finally {
       setLoadingOtp(false);
+      setProgressoDocumentos(null);
     }
   };
 
-  const concluirReserva = () => {
+  const concluirReserva = (documentos) => {
     const dadosReserva = {
       reservaData: {
         ...reserva,
+        horaLevantamento: condutor.hora_levantamento, horaDevolucao: condutor.hora_devolucao,
         precoTotal: reserva.totalGeral,
-        tipo: 'carro'
+        tipo: 'carro',
+        documentos_condutor: documentos
       },
       participantePrincipal: {
         nome_completo: condutor.nome_completo,
@@ -498,7 +512,7 @@ const CheckoutCarro = () => {
         idade: condutor.idade,
         nacionalidade: condutor.nacionalidade,
         hora_levantamento: condutor.hora_levantamento,
-        carta_conducao_nome: condutor.carta_conducao_nome,
+        hora_devolucao: condutor.hora_devolucao,
         observacoes: condutor.observacoes
       },
       participantesAdicionais: [],
@@ -511,11 +525,13 @@ const CheckoutCarro = () => {
       state: {
         reservaData: {
           ...reserva,
+          horaLevantamento: condutor.hora_levantamento, horaDevolucao: condutor.hora_devolucao,
           precoTotal: reserva.totalGeral,
-          tipo: 'carro'
+          tipo: 'carro',
+          documentos_condutor: documentos
         },
         dadosParticipantes: {
-          participantePrincipal: condutor,
+          participantePrincipal: dadosReserva.participantePrincipal,
           participantes: []
         },
         tipo: 'carro'
@@ -539,11 +555,7 @@ const CheckoutCarro = () => {
     );
   }
 
-  const formatarData = (data) => {
-    if (!data) return '';
-    const d = new Date(data);
-    return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
+
 
   return (
     <>
@@ -562,6 +574,7 @@ const CheckoutCarro = () => {
               <p className="text-slate-500 text-sm mb-6 text-left font-medium">{t('preencha_dados_condutor', 'Preencha os dados abaixo para continuar.')}</p>
 
               <CondutorPrincipal
+                reserva={reserva} horariosEstado={horariosEstado}
                 condutor={condutor}
                 updateCondutor={updateCondutor}
               />
@@ -575,7 +588,7 @@ const CheckoutCarro = () => {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={enviandoOtp || loading}
+                  disabled={enviandoOtp || loading || caucaoEstado !== 'ready'}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
                 >
                   {(enviandoOtp || loading) ? <Loader size={18} className="animate-spin" /> : null}
@@ -586,7 +599,7 @@ const CheckoutCarro = () => {
 
             <div className="lg:col-span-4">
               <ResumoReservaCarro
-                reserva={reserva}
+                reserva={{ ...reserva, horaLevantamento: condutor.hora_levantamento, horaDevolucao: condutor.hora_devolucao }}
                 precoTotal={totalPreco}
                 setDataModalOpen={setDataModalOpen}
               />
@@ -655,6 +668,11 @@ const CheckoutCarro = () => {
             </div>
 
             <p className="text-[11px] text-slate-400 mb-6">O código é válido por 5 minutos.</p>
+
+            {loadingOtp && progressoDocumentos !== null && <div role="status" aria-live="polite" className="mb-4 text-left">
+              <div className="mb-2 flex justify-between gap-2 text-sm font-medium text-slate-700"><span>{t('carro_docs_enviando')}</span><span>{progressoDocumentos}%</span></div>
+              <div role="progressbar" aria-label={t('carro_docs_enviando')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressoDocumentos} className="h-2 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600 transition-[width] duration-300" style={{ width: `${progressoDocumentos}%` }} /></div>
+            </div>}
 
             <button
               type="button"

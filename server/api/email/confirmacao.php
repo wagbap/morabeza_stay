@@ -41,6 +41,29 @@ function emailReservaData($value): string {
     return $value;
 }
 
+/** Shared full deposit instructions for the email and car receipt. Rental totals are untouched. */
+function emailReservaCaucaoLinhas(array $d): array {
+    if (($d['tipo'] ?? '') !== 'carro' || !is_array($d['caucao'] ?? null)) return [];
+    $c = $d['caucao'];
+    if (!isset($c['exige_caucao'])) return [];
+    if ((int) $c['exige_caucao'] === 0) return ['Este veículo não exige caução.'];
+    if (!is_numeric($c['caucao_valor'] ?? null) || (float) $c['caucao_valor'] <= 0) return [];
+    $q = max(1, (int) ($c['quantidade'] ?? 1));
+    $linhas = ['Valor por carro: ' . emailReservaDinheiro($c['caucao_valor']) . ($q > 1 ? ' · Total para ' . $q . ' carros: ' . emailReservaDinheiro((float) $c['caucao_valor'] * $q) : '') . '.',
+        'Pague a caução ao proprietário no levantamento. Não está incluída na cobrança online nem na comissão.'];
+    $nomes = ['dinheiro' => 'Dinheiro', 'transferencia' => 'Transferência bancária', 'multibanco' => 'Multibanco/Vinti4', 'cheque' => 'Cheque'];
+    $formas = $c['caucao_formas'] ?? [];
+    if (is_string($formas)) $formas = json_decode($formas, true) ?: explode(',', $formas);
+    if (is_array($formas)) {
+        $formas = array_values(array_filter(array_map(static function ($f) use ($nomes) {
+            return is_string($f) ? ($nomes[trim($f)] ?? trim($f)) : '';
+        }, $formas)));
+        if ($formas) $linhas[] = 'Métodos aceites: ' . implode(' · ', $formas);
+    }
+    if (trim((string) ($c['caucao_condicoes'] ?? '')) !== '') $linhas[] = 'Condições de devolução ou retenção: ' . trim($c['caucao_condicoes']);
+    return $linhas;
+}
+
 /** Pure renderer: no sending, network access or database side effects. */
 function renderizarConfirmacaoReserva(array $d): string {
     $e = 'emailReservaEsc';
@@ -84,7 +107,6 @@ function renderizarConfirmacaoReserva(array $d): string {
     $reference = array_filter([$d['metodo_pagamento'] ?? '', $d['referencia_pagamento'] ?? '']);
     $tokens = [
         'subject' => $headline . ' · ' . $code, 'preheader' => $headline . ' · ' . $d['titulo'] . ' · ' . $code,
-        'hero_image' => $d['hero_image'] ?? 'https://morabezastay.cv/media/home-beach-29984774-poster.jpg',
         'headline' => $headline, 'subtitle' => $paid ? 'Pagamento recebido. A sua viagem começa aqui.' : 'Consulte os detalhes da sua reserva.',
         'first_name' => explode(' ', $name)[0], 'greeting' => $confirmed && $paid ? 'A sua reserva está confirmada e o pagamento foi recebido.' : ($paid ? 'O pagamento foi recebido. Consulte abaixo o estado da sua reserva.' : 'Recebemos a sua reserva. O pagamento ainda está pendente.'),
         'code' => $code, 'badge_state' => $paid ? 'paid' : 'pending', 'badge_color' => $paid ? '#087f46' : '#995500', 'badge_bg' => $paid ? '#d7f2df' : '#fff1cf', 'payment_badge' => $paid ? 'Pago' : 'Pagamento pendente',
@@ -103,7 +125,13 @@ function renderizarConfirmacaoReserva(array $d): string {
     ];
     $replacements = [];
     foreach ($tokens as $key => $value) $replacements['{{' . $key . '}}'] = $e($value);
+    // This artwork contains the paid confirmation text; never show it for pending payments.
+    $heroBanner = $paid
+        ? '<tr><td style="padding:0"><img src="https://morabezastay.cv/images/email_header.jpg" width="760" alt="Reserva confirmada. Pagamento recebido. A sua viagem começa aqui." style="display:block;width:100%;max-width:760px;height:auto;border:0;border-radius:11px"></td></tr>'
+        : '<tr><td class="dm-hero" bgcolor="#174b7e" style="background:#174b7e;border-radius:11px;padding:44px 32px"><h1 class="hero-title" style="font:bold 48px/1.15 Georgia,serif;color:#fff;margin:0">' . $e($headline) . '</h1><p style="font:bold 22px/1.45 Arial,sans-serif;color:#fff;margin:12px 0 0">Consulte os detalhes da sua reserva.</p></td></tr>';
     $raw = [
+        'deposit_section' => ($deposito = emailReservaCaucaoLinhas($d)) ? '<tr><td height="13"></td></tr><tr><td class="pad dm-border" style="border:1px solid #dce6f1;border-radius:10px;padding:15px 20px"><h2 class="dm-heading" style="font:bold 23px/1.3 Georgia,serif;color:#07176a;margin:0">Caução no levantamento</h2><p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:10px 0 0">' . implode('</p><p class="dm-text" style="font:15px/1.5 Arial,sans-serif;color:#294d83;margin:8px 0 0">', array_map(static function ($linha) { return nl2br(emailReservaEsc($linha)); }, $deposito)) . '</p></td></tr>' : '',
+        'hero_banner' => $heroBanner,
         'demo_banner' => !empty($d['exemplo']) ? '<tr><td class="dm-text dm-soft" align="center" style="background:#eaf2f8;border-radius:7px;padding:9px;color:#294d83;font:13px Arial,sans-serif">MODELO VISUAL &#183; DADOS DE EXEMPLO</td></tr>' : '',
         'listing_photo' => $photoHtml, 'reserved_items' => $reserved, 'payment_rows' => $rows,
         'map_link' => $map ? '<table role="presentation" style="margin-top:10px"><tr><td width="30">' . $icon('map', 21) . '</td><td style="font:15px Arial,sans-serif;vertical-align:middle"><a class="dm-link" style="color:#0758ae;text-decoration:underline" href="' . $e($map) . '">Ver localização no mapa &nbsp; &#8594;</a></td></tr></table>' : '',

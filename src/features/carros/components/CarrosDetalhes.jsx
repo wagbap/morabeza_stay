@@ -1,10 +1,19 @@
+import { dataPesquisaCarro, periodoPesquisaCarro, pesquisaComPeriodoCarro, diasPeriodoCarro } from '../utils/periodoPesquisaCarro';
+import useCalendarioCarro from '../hooks/useCalendarioCarro';
+import { podeSelecionarDataCarro } from '../utils/calendarioCarro';
+import CondicoesCarro from './CondicoesCarro';
+import { extrairCondicoesCarro } from '../utils/condicoesCarro';
+import CaucaoCarro from './CaucaoCarro';
+import { normalizarCaucaoCarro } from '../utils/caucaoCarro';
 import { requestApiJson } from '../../../services/apiJson';
+import { dataLocalCarro, disponibilidadeCarroConfirmada } from '../utils/disponibilidadeCarro';
+import useDisponibilidadeCarro from '../hooks/useDisponibilidadeCarro';
 import { extrairFotosCarro } from '../utils/fotosCarro';
 import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../../../utils/imagemIndisponivel';
 // src/features/carros/CarrosDetalhes.jsx
 import { confirmarAprovacaoCarro } from '../utils/publicacaoCarro';
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import CalendarioMorabeza from '../../../components/Calendario/CalendarioMorabeza';
 import mapboxgl from 'mapbox-gl';
@@ -13,7 +22,7 @@ import {
   Users, Gauge, Fuel, MapPin, Star, ChevronRight, ChevronLeft,
   Camera, CheckCircle, ExternalLink, ChevronDown,
   X, Loader2, Calendar, Paintbrush, Info, CalendarDays,
-  ShieldCheck, Infinity, ShieldAlert, Key, Maximize2, Navigation,
+  ShieldCheck, Infinity as InfinityIcon, ShieldAlert, Key, Maximize2, Navigation,
   AlertTriangle, Minus, Plus, Send, Phone, Mail
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
@@ -33,11 +42,12 @@ const API_URL = 'https://welovepalop.com';
 // MODAL DE IMAGENS
 // ============================================================
 const ImageSliderModal = ({ images, currentIndex, onClose, onPrev, onNext }) => {
+  const { t } = useTranslation();
   return (
-    <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center" onClick={onClose}>
-      <button onClick={onClose} className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><X size={24} /></button>
-      <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><ChevronLeft size={24} /></button>
-      <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><ChevronRight size={24} /></button>
+    <div role="dialog" aria-modal="true" aria-label={t('ver_todas_fotos')} className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center" onClick={onClose}>
+      <button aria-label={t('fechar')} onClick={onClose} className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><X size={24} /></button>
+      <button aria-label={t('carro_foto_anterior')} onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><ChevronLeft size={24} /></button>
+      <button aria-label={t('carro_foto_seguinte')} onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 transition-colors z-10"><ChevronRight size={24} /></button>
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/50 px-3 py-1 rounded-full text-sm">{Math.min(currentIndex + 1, Math.max(1, images.length))} / {Math.max(1, images.length)}</div>
       <img src={images[currentIndex] || IMAGEM_INDISPONIVEL}
         alt={`Imagem ${currentIndex + 1}`}
@@ -97,7 +107,7 @@ const EspecificacoesBar = ({ caracteristicas }) => {
       {specs.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
           <div className="text-slate-400 shrink-0"><item.icon size={18} strokeWidth={1.5} /></div>
-          <div className="flex flex-col">
+          <div className="flex min-w-0 flex-col [overflow-wrap:anywhere]">
             <span className="text-[11px] font-bold text-slate-900 leading-tight">{item.label}</span>
             <span className="text-[9px] text-slate-400 font-medium">{item.sub}</span>
           </div>
@@ -118,7 +128,7 @@ const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
     { titulo: t('quilometragem') || 'Quilometragem', valor: t('ilimitada') || 'Ilimitada', icone: 'Infinity', cor_classe: 'text-green-600' },
     { titulo: t('levantamento') || 'Levantamento', valor: localizacao || t('aeroporto_praia') || 'Espargos - Centro', icone: 'Key', cor_classe: 'text-slate-500' }
   ];
-  const iconesMapeados = { CheckCircle, ShieldCheck, Infinity, ShieldAlert, Key, Fuel };
+  const iconesMapeados = { CheckCircle, ShieldCheck, Infinity: InfinityIcon, ShieldAlert, Key, Fuel };
   return (
     <div className="grid grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
       {dadosExibicao.map((item, i) => {
@@ -127,7 +137,7 @@ const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
         return (
           <div key={i} className="flex items-center gap-3 border-slate-100 text-left">
             <div className="text-slate-400 shrink-0"><IconComponent size={20} strokeWidth={1.5} /></div>
-            <div className="flex flex-col text-left">
+            <div className="flex min-w-0 flex-col text-left [overflow-wrap:anywhere]">
               <span className="text-xs font-medium text-slate-500 leading-tight">{item.titulo}</span>
               <span className={`text-xs font-bold ${corClasse} mt-0.5`}>{item.valor}</span>
             </div>
@@ -143,97 +153,32 @@ const InclusoesCarroBar = ({ inclusoes, localizacao }) => {
 // ============================================================
 const ImageGallery = ({ images, onImageChange, onOpenModal, titulo }) => {
   const { t } = useTranslation();
-  const placeholder = IMAGEM_INDISPONIVEL;
-
-  const total = Array.isArray(images) ? images.length : 0;
-  const lista = total > 0 ? images : [placeholder];
-  const imagensEscondidas = Math.max(0, total - 4);
-
-  const abrir = (idx) => {
-    onImageChange(Math.min(idx, lista.length - 1));
-    onOpenModal();
-  };
-
-  if (lista.length === 1) {
-    return (
-      <div className="w-full h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
-        <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={substituirImagemIndisponivel} />
-        <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 1</div>
-      </div>
-    );
-  }
-
-  if (lista.length === 2) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full">
-        {[0, 1].map((i) => (
-          <div key={i} className="h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(i)}>
-            <img src={lista[i]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - ${i + 1}`} onError={substituirImagemIndisponivel} />
-            {i === 0 && <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 2</div>}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (lista.length === 3) {
-    return (
-      <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
-        <div className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
-          <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={substituirImagemIndisponivel} />
-          <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / 3</div>
-        </div>
-        <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(i)}>
-              <img src={lista[i]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - ${i + 1}`} onError={substituirImagemIndisponivel} />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col md:flex-row gap-2.5 w-full text-left">
-      <div className="w-full md:w-[62%] h-[240px] md:h-[390px] relative rounded-2xl overflow-hidden cursor-pointer shadow-sm" onClick={() => abrir(0)}>
-        <img src={lista[0]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - Principal`} onError={substituirImagemIndisponivel} />
-        <div className="absolute bottom-4 left-4 bg-black/50 text-white px-3 py-1 rounded-xs text-xs backdrop-blur-sm pointer-events-none font-sans">1 / {lista.length}</div>
-      </div>
-
-      <div className="w-full md:w-[38%] flex flex-col gap-2.5 h-[240px] md:h-[390px]">
-        <div className="h-1/2 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(1)}>
-          <img src={lista[1]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 2`} onError={substituirImagemIndisponivel} />
-        </div>
-        <div className="h-1/2 flex gap-2.5">
-          <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(2)}>
-            <img src={lista[2]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 3`} onError={substituirImagemIndisponivel} />
-          </div>
-          <div className="flex-1 rounded-2xl overflow-hidden relative cursor-pointer shadow-sm" onClick={() => abrir(3)}>
-            <img src={lista[3]} className="w-full h-full object-cover transition-transform duration-300 hover:scale-[1.01]" alt={`${titulo} - 4`} onError={substituirImagemIndisponivel} />
-            {imagensEscondidas > 0 && (
-              <div className="absolute inset-0 bg-black/55 flex items-center justify-center pointer-events-none">
-                <span className="text-white font-bold text-sm">+{imagensEscondidas} {t('fotos') || 'fotos'}</span>
-              </div>
-            )}
-            <div
-              onClick={(e) => { e.stopPropagation(); abrir(0); }}
-              className="absolute bottom-2.5 right-2.5 bg-white hover:bg-slate-50 text-slate-900 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[10px] font-bold border border-slate-200 shadow-md cursor-pointer z-20 transition-all active:scale-95 whitespace-nowrap"
-            >
-              <Camera size={12} className="text-slate-700" />
-              {t('ver_todas_fotos') || 'Ver todas as fotos'} ({lista.length})
-            </div>
-          </div>
-        </div>
-      </div>
+  const fotos = images || [];
+  const abrir = index => { if (fotos.length) { onImageChange(index);onOpenModal(); } };
+  const todas = <button type="button" disabled={!fotos.length} onClick={e => { e.stopPropagation();abrir(0); }} className="absolute bottom-2.5 right-2.5 z-20 flex max-w-[calc(100%-1rem)] items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-900 shadow-md disabled:opacity-60"><Camera size={12} />{t('ver_todas_fotos')} ({fotos.length})</button>;
+  const tile = (index, className, mostrarTodas = false) => <div key={fotos[index]} className={`relative min-w-0 overflow-hidden rounded-2xl shadow-sm ${className}`}>
+    <button type="button" onClick={() => abrir(index)} aria-label={t('carro_foto_numero', { numero: index + 1 })} className="block h-full w-full"><img src={fotos[index]} alt={`${titulo} - ${index + 1}`} className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.01]" onError={substituirImagemIndisponivel} /></button>
+    {mostrarTodas && todas}
+  </div>;
+  return <div data-carro-galeria className="flex w-full min-w-0 max-w-full flex-col gap-2.5 text-left md:flex-row">
+    <div className={`relative min-w-0 ${fotos.length > 1 ? 'w-full md:w-[62%]' : 'w-full'} h-[240px] md:h-[390px]`}>
+      {fotos.length ? tile(0, 'h-full', true) : <div className="flex h-full items-center justify-center rounded-2xl bg-gray-100 p-6 text-center text-sm text-gray-500">{t('carro_fotos_indisponiveis')}</div>}
+      {fotos.length > 0 && <span className="pointer-events-none absolute bottom-4 left-4 rounded bg-black/50 px-3 py-1 text-xs text-white">1 / {fotos.length}</span>}
     </div>
-  );
+    {fotos.length > 1 && <div className="flex h-[240px] w-full min-w-0 flex-col gap-2.5 md:h-[390px] md:w-[38%]">
+      {tile(1, fotos.length === 2 ? 'h-full' : 'h-[calc(50%-0.3125rem)]')}
+      {fotos.length > 2 && <div className="flex min-h-0 flex-1 gap-2.5">
+        {tile(2, 'flex-1')}
+        {fotos.length > 3 && tile(3, 'flex-1')}
+      </div>}
+    </div>}
+  </div>;
 };
 
 // ============================================================
 // DONO INFO — igual ao HostInfo do alojamento
 // ============================================================
-const DonoCarroInfo = ({ proprietario, onContactClick, carroTitulo, onContactar, usuarioLogado }) => {
+const DonoCarroInfo = ({ proprietario, onContactClick, carroTitulo, onContactar }) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [mostrarOpcoes, setMostrarOpcoes] = useState(false);
@@ -301,7 +246,7 @@ const DonoCarroInfo = ({ proprietario, onContactClick, carroTitulo, onContactar,
         </div>
         <div className="min-w-0 flex-1">
           <h4 className="text-sm font-bold text-slate-900 leading-tight truncate">
-            {t('proprietario') || 'Proprietário'}: {proprietario.nome}
+            {t('anfitriao', 'Anfitri\u00e3o')}: {proprietario.nome}
           </h4>
           <p className="text-[10px] text-slate-500 font-medium">
             {proprietario.tempo_resposta || (t('responde_rapido') || 'Responde rápido')}
@@ -378,28 +323,44 @@ const DonoCarroInfo = ({ proprietario, onContactClick, carroTitulo, onContactar,
 // SIDEBAR DE RESERVA DO CARRO
 // ============================================================
 const SidebarReservaCarro = ({
+  carroId,
+  periodoInicial,
+  onPeriodoChange,
   precoDia,
   estrelas,
   totalReviews,
-  quantidadeDisponivel = 5,
-  valorCaucao = 20000,
+  caucao,
   onContinueToCheckout,
   validando = false,
 }) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const regrasDialogRef = useRef(null);
+  const origemPeriodo = `${periodoInicial.inicio}|${periodoInicial.fim}`;
+  const [periodoEditado, setPeriodoEditado] = useState(null);
+  const startDate = periodoEditado?.origem === origemPeriodo ? periodoEditado.start : dataPesquisaCarro(periodoInicial.inicio);
+  const endDate = periodoEditado?.origem === origemPeriodo ? periodoEditado.end : dataPesquisaCarro(periodoInicial.fim);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [quantidade, setQuantidade] = useState(1);
+  const [quantidadeSelecionada, setQuantidade] = useState(1);
+  const stock = useDisponibilidadeCarro(carroId, startDate, endDate);
+  const quantidadeDisponivel = stock.total;
+  const quantidade = Math.min(quantidadeSelecionada, Math.max(1, quantidadeDisponivel));
+  const caucaoGuardada = normalizarCaucaoCarro(caucao);
+  const stockConfirmado = stock.estado === 'ready';
+  const [mesEditado, setMesEditado] = useState(null);
+  const mesCalendario = mesEditado?.origem === origemPeriodo ? mesEditado.data : dataPesquisaCarro(periodoInicial.inicio) || new Date();
+  const setMesCalendario = data => setMesEditado({ origem: origemPeriodo, data });
+  const calendario = useCalendarioCarro(carroId, mesCalendario, startDate, quantidade);
   const [aviso, setAviso] = useState('');
   const avisoTimer = useRef(null);
 
   const onChange = (dates) => {
+    if (validando) return;
     const [start, end] = dates;
-    setStartDate(start);
-    setEndDate(end);
-    if (start && end) setTimeout(() => setShowCalendar(false), 300);
+    if (end && !podeSelecionarDataCarro(calendario, end, start, null)) return;
+    if (start && !end && !podeSelecionarDataCarro(calendario, start, null, null)) return;
+    setPeriodoEditado({ origem: origemPeriodo, start, end });
+    if (start && end) { onPeriodoChange(start, end);setTimeout(() => setShowCalendar(false), 300); }
   };
 
   const incrementar = () => {
@@ -411,22 +372,30 @@ const SidebarReservaCarro = ({
       avisoTimer.current = setTimeout(() => setAviso(''), 3000);
       return;
     }
-    setQuantidade(q => Math.min(q + 1, quantidadeDisponivel));
+    setQuantidade(Math.min(quantidade + 1, quantidadeDisponivel));
   };
 
-  const decrementar = () => setQuantidade(q => Math.max(q - 1, 1));
+  const decrementar = () => setQuantidade(Math.max(quantidade - 1, 1));
 
-  const dias = startDate && endDate ? Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))) : 1;
+  const dias = startDate && endDate ? diasPeriodoCarro(startDate, endDate) : 1;
   const totalGeral = precoDia * quantidade * dias;
 
   const handleContinue = async () => {
+    if (!caucaoGuardada) {
+      showToast(t('carro_caucao_erro_consulta'), 'error');
+      return;
+    }
+    if (!stockConfirmado || quantidadeDisponivel < quantidade || quantidade < 1) {
+      showToast(t('sem_stock_carro', 'Não há carros suficientes disponíveis para as datas selecionadas.'), 'error');
+      return;
+    }
     if (!startDate || !endDate) {
       showToast(t('selecione_datas_carro') || "Por favor, selecione as datas de Levantamento e Devolução", 'error');
       setShowCalendar(true);
       return;
     }
     if (onContinueToCheckout) {
-      await onContinueToCheckout({ startDate, endDate, dias, quantidade, totalGeral, caucao: valorCaucao });
+      await onContinueToCheckout({ startDate, endDate, dias, quantidade, totalGeral, caucao: caucaoGuardada });
     }
   };
 
@@ -436,36 +405,42 @@ const SidebarReservaCarro = ({
   };
 
   return (
-    <div className="lg:block text-left">
-      <div className="border border-slate-200 rounded-3xl p-6 bg-white shadow-xl shadow-slate-200/50">
+    <div className="min-w-0 max-w-full text-left lg:block">
+      <div className="border border-slate-200 rounded-3xl p-4 sm:p-6 bg-white shadow-xl shadow-slate-200/50">
 
-        {/* Cabeçalho de Preço */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="text-3xl font-black text-slate-900 flex items-baseline gap-1">
-            {precoDia.toLocaleString('pt-PT')} CVE <span className="text-sm font-medium text-slate-400">/ dia</span>
+        <div className="mb-5 flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p data-carro-preco className="whitespace-nowrap text-2xl font-black leading-tight text-slate-900 sm:text-3xl">{t('carro_preco_por_dia', { valor: precoDia.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) })}</p>
+            <button type="button" disabled={validando} onClick={() => setShowCalendar(v => !v)} aria-expanded={showCalendar} aria-controls={`carro-calendario-${carroId}`} className="mt-2 min-h-11 text-sm font-semibold text-blue-700 underline underline-offset-4">{t(startDate && endDate ? 'carro_alterar_datas' : 'carro_selecionar_datas')}</button>
           </div>
-          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
-            <Star size={16} className="fill-orange-500 text-orange-500" />
-            {Number(estrelas || 0).toFixed(1)} <span className="text-slate-400 font-normal">({totalReviews || 0})</span>
+          <div className="flex max-w-full items-center gap-1.5 text-sm font-bold text-slate-900">
+            <span className="shrink-0 text-orange-500"><Star size={16} className="fill-current" /></span>
+            {Number(totalReviews) > 0 ? <>{Number(estrelas || 0).toFixed(1)} <span className="font-normal text-slate-400">({totalReviews})</span></> : t('carro_sem_avaliacoes')}
           </div>
         </div>
 
         {/* Seleção de Datas */}
         <div className="border border-slate-300 rounded-2xl mb-4 overflow-visible relative">
-          <div className="flex cursor-pointer transition-all rounded-2xl p-3" onClick={() => setShowCalendar(!showCalendar)}>
-            <div className="flex-1 border-r border-slate-200 pr-3">
-              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{t('levantamento') || 'Levantamento'}</label>
+          <button type="button" aria-label={t(startDate && endDate ? 'carro_alterar_datas' : 'carro_selecionar_datas')} aria-expanded={showCalendar} aria-controls={`carro-calendario-${carroId}`} disabled={validando} className="flex w-full min-w-0 cursor-pointer rounded-2xl p-3 text-left transition-all" onClick={() => setShowCalendar(!showCalendar)}>
+            <div className="min-w-0 flex-1 border-r border-slate-200 pr-3">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{t('levantamento') || 'Levantamento'}</span>
               <div className="text-sm font-bold text-slate-900">{startDate ? formatarData(startDate) : '__/__/____'}</div>
             </div>
-            <div className="flex-1 pl-4">
-              <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{t('devolucao') || 'Devolução'}</label>
+            <div className="min-w-0 flex-1 pl-4">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">{t('devolucao') || 'Devolução'}</span>
               <div className="text-sm font-bold text-slate-900">{endDate ? formatarData(endDate) : '__/__/____'}</div>
             </div>
-          </div>
+          </button>
 
           {showCalendar && (
-            <div className="absolute right-0 top-full mt-2 z-[100] shadow-2xl rounded-2xl bg-white border border-slate-200 p-3 max-w-[90vw]">
+            <div id={`carro-calendario-${carroId}`} data-carro-calendar className="relative z-[100] mt-2 w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl sm:absolute sm:right-0 sm:top-full sm:w-[360px] sm:max-w-[90vw]">
+              <p className="mb-2 text-xs text-gray-600">{t('carro_cal_cliente_nota')}</p>
               <CalendarioMorabeza
+                estado={calendario.estado}
+                onTentarNovamente={calendario.recarregar}
+                onFechar={() => setShowCalendar(false)}
+                onLimpar={() => { setPeriodoEditado({ origem: origemPeriodo, start: null, end: null }); onPeriodoChange(null, null); }}
+                disabled={validando}
                 selected={startDate}
                 onChange={onChange}
                 startDate={startDate}
@@ -474,6 +449,8 @@ const SidebarReservaCarro = ({
                 monthsShown={1}
                 inline
                 minDate={new Date()}
+                onMonthChange={setMesCalendario}
+                filterDate={date => podeSelecionarDataCarro(calendario, date, startDate, endDate)}
               />
             </div>
           )}
@@ -494,9 +471,9 @@ const SidebarReservaCarro = ({
         )}
 
         {/* Disponibilidade */}
-        <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-xl border border-emerald-100 mb-6">
-          <CheckCircle className="text-emerald-500" size={16} />
-          <span className="text-xs font-bold text-emerald-700">Disponibilidade: {quantidadeDisponivel} carros disponíveis</span>
+        <div role="status" aria-live="polite" className={`mb-6 flex items-center gap-2 rounded-xl border p-2.5 ${stockConfirmado && quantidadeDisponivel > 0 ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+          <span>{stock.estado === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <Info size={16} />}</span>
+          <span className="text-xs font-bold">{stock.estado === 'loading' ? t('carro_stock_verificando') : stock.estado === 'error' ? t('carro_stock_erro') : quantidadeDisponivel > 0 && (!startDate || !endDate) ? t('carro_stock_selecione_datas') : t('carro_stock_disponiveis', { count: quantidadeDisponivel })}</span>
         </div>
 
         {/* Quantidade e Cálculos */}
@@ -506,7 +483,7 @@ const SidebarReservaCarro = ({
             <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
               <button onClick={decrementar} className="text-blue-600 p-1 disabled:opacity-30 cursor-pointer" disabled={quantidade <= 1}><Minus size={16} /></button>
               <span className="font-bold text-blue-700 min-w-[50px] text-center">{quantidade} {quantidade === 1 ? 'carro' : 'carros'}</span>
-              <button onClick={incrementar} className="text-blue-600 p-1 cursor-pointer"><Plus size={16} /></button>
+              <button onClick={incrementar} disabled={!stockConfirmado || quantidade >= quantidadeDisponivel} className="text-blue-600 p-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"><Plus size={16} /></button>
             </div>
           </div>
 
@@ -517,10 +494,11 @@ const SidebarReservaCarro = ({
             </div>
           )}
 
-          <div className="flex justify-between pt-4 pb-2 border-t border-slate-100 text-lg font-black text-slate-900">
-            <span>Total pago agora</span>
-            <span className="text-blue-700">{startDate && endDate ? totalGeral.toLocaleString('pt-PT') : '0'} CVE</span>
-          </div>
+          {startDate && endDate ? <div className="flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4 pb-2 text-lg font-black text-slate-900">
+            <span>{t('carro_total_a_pagar')}</span>
+            <span className="whitespace-nowrap text-blue-700">{totalGeral.toLocaleString('pt-PT')} CVE</span>
+          </div> : <p className="border-t border-slate-100 pt-4 pb-2 text-sm font-medium text-slate-600">{t('carro_total_selecionar_datas')}</p>}
+
         </div>
 
         {/* Aviso de limite atingido */}
@@ -531,33 +509,31 @@ const SidebarReservaCarro = ({
           </div>
         )}
 
-        {/* Caução Box */}
-        <div className="mt-4 p-4 bg-orange-50/70 border border-orange-200 rounded-2xl">
-          <div className="flex items-start gap-2">
-            <AlertTriangle size={18} className="text-orange-500 shrink-0 mt-0.5" />
-            <div>
-              <h5 className="text-sm font-bold text-slate-900 mb-1">Caução: {valorCaucao.toLocaleString('pt-PT')} CVE</h5>
-              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">Paga diretamente ao proprietário no levantamento. Não está incluída no total da reserva.</p>
-            </div>
+        <button type="button" onClick={() => regrasDialogRef.current?.showModal()} className="mt-4 inline-flex min-h-11 cursor-pointer items-center text-base font-semibold text-blue-700 underline underline-offset-4">{t('carro_ver_regras')}</button>
+        <dialog ref={regrasDialogRef} aria-label={t('carro_cond_titulo')} onClick={(event) => { if (event.target === event.currentTarget) event.currentTarget.close(); }} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl backdrop:bg-slate-900/50 open:opacity-100 transition-opacity duration-300 starting:open:opacity-0 sm:p-6">
+          <div className="flex justify-end">
+            <button type="button" aria-label={t('fechar')} onClick={() => regrasDialogRef.current?.close()} className="rounded-full p-2 text-gray-600 transition-colors hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-blue-600"><X size={24} /></button>
           </div>
-        </div>
+          <CondicoesCarro dados={caucao} />
+        </dialog>
+        <CaucaoCarro dados={caucaoGuardada} quantidade={quantidade} />
 
         {/* Botão Reservar */}
         <button
           onClick={handleContinue}
-          disabled={!startDate || !endDate || validando}
+          disabled={!startDate || !endDate || validando || !stockConfirmado || quantidadeDisponivel < quantidade}
           className={`w-full font-bold py-4 rounded-2xl mt-6 transition-all shadow-md text-sm uppercase tracking-widest flex items-center justify-center gap-2 ${
-            startDate && endDate && !validando
+            startDate && endDate && !validando && stockConfirmado && quantidadeDisponivel >= quantidade
               ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          {validando ? (
+          {validando || stock.estado === 'loading' ? (
             <>
               <Loader2 className="animate-spin" size={16} />
               {t('verificando_disponibilidade', 'A verificar disponibilidade...')}
             </>
-          ) : startDate && endDate ? (
+          ) : stock.estado === 'error' ? t('carro_stock_erro') : stockConfirmado && quantidadeDisponivel === 0 ? t('carro_stock_sem_unidades') : startDate && endDate ? (
             `Reservar ${quantidade} ${quantidade === 1 ? 'carro' : 'carros'}`
           ) : (
             'Selecione as datas'
@@ -684,6 +660,8 @@ const TabContent = ({ activeTab, carro }) => {
 // ============================================================
 export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
   const { t } = useTranslation();
+  const location = useLocation();
+  const periodoInicial = periodoPesquisaCarro(location.search);
   const params = useParams();
   const slug = slugOverride || params?.slug;
   const navigate = useNavigate();
@@ -779,12 +757,29 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
         }
 
         if (data.success && data.data) {
+          if (!normalizarCaucaoCarro(data.data) || data.data.levantamento_local === undefined) {
+            const atual = await requestApiJson('/get_carro.php', { params: { id: data.data.id }, signal: controller.signal });
+            if (controller.signal.aborted) return;
+            if (atual.success && String(atual.data?.id) === String(data.data.id)) {
+              const deposit = normalizarCaucaoCarro(atual.data);
+              if (deposit) Object.assign(data.data, deposit);
+              Object.assign(data.data, extrairCondicoesCarro(atual.data));
+            }
+          }
+          if (data.data.galeria_fonte !== 'carro_imagens' || !Array.isArray(data.data.imagens)) {
+            data.data.imagens = [];data.data.galeria_fonte = 'carro_imagens';
+            try {
+              const fotos = await requestApiJson('/get_carro_fotos.php', { params: { id: data.data.id }, signal: controller.signal, retries: 0 });
+              if (controller.signal.aborted) return;
+              if (fotos.success && String(fotos.data?.id) === String(data.data.id) && fotos.data?.galeria_fonte === 'carro_imagens') data.data.imagens = fotos.data.imagens;
+            } catch { if (controller.signal.aborted) return; }
+          }
           setCarro(data.data);
           const imagensExtraidas = extrairFotosCarro(data.data);
           if (imagensExtraidas.length > 0) {
             setImages(imagensExtraidas);
           } else {
-            setImages([IMAGEM_INDISPONIVEL]);
+            setImages([]);
           }
         } else {
           const erroResposta = new Error('Invalid vehicle response');
@@ -814,8 +809,8 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       return;
     }
 
-    const checkInStr = reservaInfo.startDate.toISOString().split('T')[0];
-    const checkOutStr = reservaInfo.endDate.toISOString().split('T')[0];
+    const checkInStr = dataLocalCarro(reservaInfo.startDate);
+    const checkOutStr = dataLocalCarro(reservaInfo.endDate);
 
     setValidandoDisponibilidade(true);
 
@@ -823,6 +818,10 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       const url = `${API_URL}/api/verificar_disponibilidade_carro.php?carro_id=${encodeURIComponent(carro.id)}&checkin=${encodeURIComponent(checkInStr)}&checkout=${encodeURIComponent(checkOutStr)}&quantidade=${encodeURIComponent(reservaInfo.quantidade)}`;
       const res = await fetch(url, { method: 'GET' });
       const data = await res.json();
+
+      if (!res.ok || data.success !== true || typeof data.disponivel !== 'boolean') {
+        throw new Error('Vehicle availability could not be confirmed');
+      }
 
       if (data.success && data.disponivel === false) {
         showToast(
@@ -833,9 +832,7 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
         return;
       }
 
-      if (data.success === false && data.error) {
-        console.warn('Aviso da API de disponibilidade:', data.error);
-      }
+      if (!disponibilidadeCarroConfirmada(data)) return;
     } catch (err) {
       console.error('Erro ao verificar disponibilidade:', err);
       showToast(
@@ -851,8 +848,9 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
     const dadosParaCheckout = {
       id: carro.id,
       titulo: carro.titulo,
-      imagem: images[0] || carro.imagem_url,
+      imagem: images[0] || IMAGEM_INDISPONIVEL,
       localizacao: carro.localizacao,
+      ...extrairCondicoesCarro(carro),
       ilha: carro.ilha || 'Cabo Verde',
       precoDia: Number(carro.preco_dia),
       checkIn: checkInStr,
@@ -860,7 +858,7 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       dias: reservaInfo.dias,
       quantidade: reservaInfo.quantidade,
       totalGeral: reservaInfo.totalGeral,
-      caucao: reservaInfo.caucao,
+      ...reservaInfo.caucao,
       tipo: carro.tipo,
       ano: carro.ano,
       transmissao: carro.transmissao,
@@ -913,7 +911,7 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
   }
 
   return (
-    <div className={`w-full bg-white font-sans pb-20 relative ${embedded ? 'rounded-3xl' : ''}`}>
+    <div data-carro-ficha className={`relative w-full min-w-0 max-w-full bg-white font-sans pb-20 ${embedded ? 'rounded-3xl' : ''}`}>
       {!embedded && <Helmet><title>MorabezaStay | {carro.titulo}</title></Helmet>}
 
       {/* Botão fechar em modo embedded */}
@@ -938,7 +936,7 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       )}
 
       {/* Breadcrumb */}
-      <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500 text-left">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-2 text-[11px] font-medium text-slate-500 text-left">
         <span onClick={() => irPara('/')} className="hover:text-blue-900 cursor-pointer">{t('inicio') || 'Início'}</span>
         <ChevronRight size={10} />
         <span onClick={() => irPara('/carros')} className="hover:text-blue-900 cursor-pointer">{t('veiculos') || 'Veículos'}</span>
@@ -947,9 +945,9 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       </nav>
 
       {/* Conteúdo principal */}
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
+          <div className="min-w-0 space-y-6 lg:col-span-2">
             <ImageGallery
               images={images}
               onImageChange={setCurrentImageIndex}
@@ -958,18 +956,21 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
             />
             <div className="mt-6 pt-6 border-t border-slate-100 text-left space-y-6">
               <EspecificacoesBar caracteristicas={carro.caracteristicas} />
-              <InclusoesCarroBar inclusoes={carro.inclusoes} localizacao={carro.localizacao} />
+              <InclusoesCarroBar inclusoes={carro.inclusoes?.map(item => item.icone === 'Key' ? { ...item, valor: carro.levantamento_local || t('carro_cond_nao_definido') } : item)} localizacao={carro.levantamento_local || t('carro_cond_nao_definido')} />
             </div>
           </div>
 
-          <div className="lg:self-start">
+          <div className="min-w-0 lg:self-start">
             <div className="sticky top-24 z-30">
               <SidebarReservaCarro
+                key={carro.id}
+                periodoInicial={periodoInicial}
+                onPeriodoChange={(inicio, fim) => navigate({ pathname: location.pathname, search: pesquisaComPeriodoCarro(location.search, inicio, fim) }, { replace: true, state: location.state })}
+                carroId={carro.id}
                 precoDia={Number(carro.preco_dia)}
                 estrelas={carro.estrelas}
                 totalReviews={carro.total_avaliacoes}
-                quantidadeDisponivel={carro.quantidade_disponivel || 5}
-                valorCaucao={carro.valor_caucao || 20000}
+                caucao={carro}
                 onContinueToCheckout={handleContinueToCheckout}
                 validando={validandoDisponibilidade}
               />
@@ -979,11 +980,11 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       </div>
 
       {/* Título + Denúncia */}
-      <div className="max-w-7xl mx-auto px-6 mt-8 text-left">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 text-left">
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-bold">{carro.titulo}</h1>
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <h1 className="min-w-0 text-2xl font-bold [overflow-wrap:anywhere] md:text-3xl">{carro.titulo}</h1>
               <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded">{carro.tipo || 'SUV'}</span>
             </div>
           </div>
@@ -992,7 +993,7 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       </div>
 
       {/* Tabs + Mapa + Dono */}
-      <div className="max-w-7xl mx-auto px-6 mt-6 text-left">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 text-left">
         <TabsNavegacaoCarros activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
@@ -1024,7 +1025,7 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
 
       {/* Avaliações */}
       <div className="w-full bg-white border-t border-slate-100 mt-12 pt-12">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <AvaliacoesSeccaoCarro
             carroId={carro.id}
             usuarioLogado={usuarioLogado}
@@ -1045,6 +1046,12 @@ export const CarrosDetalhes = ({ slugOverride, onClose, embedded = false }) => {
       )}
 
       <style>{`
+        [data-carro-calendar] .react-datepicker__day-names,
+        [data-carro-calendar] .react-datepicker__week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+        [data-carro-calendar] .morabeza-calendar-inline .react-datepicker__day,
+        [data-carro-calendar] .morabeza-calendar-inline .react-datepicker__day-name { width: 100%; min-width: 0; margin: 0; }
+        [data-carro-calendar] .morabeza-calendar-inline .react-datepicker__month-container { padding: 6px; }
+        [data-carro-calendar] .react-datepicker__month { margin: 0; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>

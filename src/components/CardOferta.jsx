@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { MapPin, Star, ChevronLeft, ChevronRight, ArrowRight, Share2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import BotaoFavorito from './BotaoFavorito';
-import { IMAGEM_INDISPONIVEL, substituirImagemIndisponivel } from '../utils/imagemIndisponivel';
+import { obterImagemIndisponivel, substituirImagemIndisponivel } from '../utils/imagemIndisponivel';
 
 
 const imageUrl = value => {
@@ -17,7 +17,8 @@ const imageUrl = value => {
 const CardOferta = ({ imageContainerRef, ...props }) => {
   const { id, slug, titulo, localizacao, tipo_propriedade, tipo, estrelas, total_avaliacoes,
     preco_mostrar, preco_noite, preco_rotulo, imagem_url, imagens_extra, isList } = props;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const imagemIndisponivel = obterImagemIndisponivel(i18n.language);
   const location = useLocation();
   const [slide, setSlide] = useState(0);
   const [shareStatus, setShareStatus] = useState(null);
@@ -45,7 +46,7 @@ const CardOferta = ({ imageContainerRef, ...props }) => {
   return (
     <article className={`relative isolate overflow-hidden rounded-[14px] border border-slate-200 bg-white transition-shadow hover:shadow-lg ${isList ? 'flex flex-col md:flex-row' : 'flex h-full flex-col'}`}>
       <div ref={imageContainerRef} className={`relative h-[240px] shrink-0 overflow-hidden rounded-t-[13px] bg-[#b5b5b5] ${isList ? 'w-full md:w-[38%] md:rounded-l-[14px] md:rounded-tr-none' : 'w-full'}`}>
-        <img key={photos[active] || 'empty'} src={photos[active] || IMAGEM_INDISPONIVEL} alt={titulo} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center" onError={substituirImagemIndisponivel} />
+        <img key={photos[active] || 'empty'} src={photos[active] || imagemIndisponivel} data-fallback={imagemIndisponivel} alt={photos[active] ? titulo : t('imagem_sem_foto')} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center" onError={substituirImagemIndisponivel} />
         <span className="absolute left-3 bottom-3 rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">{type}</span>
         <button type="button" onClick={share} aria-label={t('alojamento_card_partilhar')} className="absolute right-14 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-gray-600 shadow-sm hover:bg-white"><Share2 size={22} /></button>
         <BotaoFavorito onFavoritoChange={props.onFavoritoChange} tipo={props.tipoFavorito} item={item} size={25} className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center" />
@@ -63,7 +64,7 @@ const CardOferta = ({ imageContainerRef, ...props }) => {
         <div className="my-4 grid grid-cols-2 gap-x-3 gap-y-3 text-sm text-slate-600">
           {facts.map(({ icon: Icon, text }, index) => <div key={index} className="flex min-w-0 items-center gap-2"><span className="shrink-0 text-blue-600">{React.createElement(Icon, { size: 22, strokeWidth: 1.8 })}</span><span className="line-clamp-2">{text}</span></div>)}
         </div>
-        <div className="mb-4 flex items-center gap-1.5 text-xs text-slate-500"><span className="text-amber-400 [&_svg]:fill-current"><Star size={18} strokeWidth={0} /></span>{Number(total_avaliacoes) > 0 ? <><span className="font-semibold text-slate-700">{rating.toFixed(1)}</span><span>({Number(total_avaliacoes)})</span></> : <span>{t('alojamento_card_sem_avaliacoes')}</span>}</div>
+        <div className="mb-4 flex items-center gap-1.5 text-xs text-slate-500"><span className="text-amber-400 [&_svg]:fill-current"><Star size={18} strokeWidth={0} /></span>{Number(total_avaliacoes) > 0 ? <><span className="font-semibold text-slate-700">{rating.toFixed(1)}</span><span>({Number(total_avaliacoes)})</span></> : <span>{t(props.tipoFavorito === 'carro' ? 'carro_sem_avaliacoes' : 'alojamento_card_sem_avaliacoes')}</span>}</div>
         <div className="mt-auto">
           {props.precoSobConsulta ? <p className="text-lg font-bold text-slate-900">{props.precoConsultaLabel}</p> : <>
           {preco_rotulo === 'a_partir_de' && <p className="mb-0.5 text-xs text-slate-500">{t('a_partir_de', 'A partir de')}</p>}

@@ -85,7 +85,7 @@ const CarrosHero = () => {
   }, []);
 
   return (
-    <div ref={heroRef} className="relative h-[450px] w-full overflow-hidden">
+    <div ref={heroRef} className="relative h-[390px] md:h-[450px] w-full overflow-hidden">
       <video
         ref={videoRef}
         poster={POSTER}

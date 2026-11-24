@@ -1,60 +1,80 @@
-import { useState } from 'react';
+import '@fontsource-variable/inter';
+import ConfirmarExclusao from '../ConfirmarExclusao';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Car, Search, Settings2, Shield, MapPin } from 'lucide-react';
-import HeaderGestao from './HeaderGestao';
+import { CarFront, SlidersHorizontal, Shield, Layers, CircleCheck, TriangleAlert, Info } from 'lucide-react';
+import ListaAnunciosGestao, { CartaoAnuncioGestao, GrelhaAnunciosGestao, IconeGestao as Icone } from './ListaAnunciosGestao';
+import api from '../../api/api';
+import { excluirCarro } from '../../services/carroApiService';
+import { chaveErroExclusao } from '../../utils/erroExclusao';
 import { extrairFotosCarro } from '../../features/carros/utils/fotosCarro';
 
-export default function ListaCarrosUnidades({ carros, onUnidades, onCondicoes }) {
+export default function ListaCarrosUnidades({ carros, usuarioId, onUnidades, onCondicoes, onDeleted }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState('todos');
+  const [fotos, setFotos] = useState({});
+  const [contagens, setContagens] = useState({});
+  const [aApagar, setAApagar] = useState(null);
+  const [erro, setErro] = useState('');
+  const [exclusao, setExclusao] = useState(null);
+  const deleting = useRef(false);
   const termo = busca.trim().toLocaleLowerCase();
   const filtrados = carros.filter(carro => [carro.titulo, carro.marca, carro.modelo, carro.ilha, carro.localizacao]
-    .some(valor => String(valor || '').toLocaleLowerCase().includes(termo)));
+    .some(valor => String(valor || '').toLocaleLowerCase().includes(termo)) && (filtro === 'todos' || carro.status === filtro));
 
-  return (
-    <div className="w-full max-w-7xl px-4 py-6 text-left text-gray-900 md:px-0">
-      <HeaderGestao secao="unidades" className="mb-6" />
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-bold">{t('gest_carros_unidades_meus', 'Meus carros')}</h2>
-        <div className="relative w-full sm:max-w-sm">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Search size={16} /></span>
-          <input type="search" value={busca} onChange={event => setBusca(event.target.value)}
-            aria-label={t('gest_carros_unidades_buscar', 'Pesquisar os meus carros')}
-            placeholder={t('gest_carros_unidades_buscar', 'Pesquisar os meus carros')}
-            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
-        </div>
-      </div>
-      {filtrados.length === 0 ? (
-        <p className="rounded-xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-500">{t('gest_carros_unidades_sem_resultados', 'Nenhum carro encontrado.')}</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {filtrados.map(carro => {
-            const foto = extrairFotosCarro(carro)[0];
-            return (
-              <article key={carro.id} className="flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <div className="flex h-40 items-center justify-center bg-slate-100 text-slate-300">
-                  {foto ? <img src={foto} alt={carro.titulo || ''} className="h-full w-full object-cover" onError={event => { event.currentTarget.style.display = 'none'; }} /> : <Car size={44} strokeWidth={1.5} />}
-                </div>
-                <div className="flex flex-1 flex-col p-4">
-                  <h3 className="mb-2 text-sm font-bold">{carro.titulo || [carro.marca, carro.modelo].filter(Boolean).join(' ')}</h3>
-                  <div className="mb-5 flex items-center gap-1.5 text-xs text-gray-500">
-                    <span className="shrink-0 text-gray-400"><MapPin size={13} /></span>
-                    <span>{[carro.ilha, carro.localizacao].filter(Boolean).join(' · ') || '—'}</span>
-                  </div>
-                  <div className="mt-auto grid gap-2">
-                    <button type="button" onClick={() => onUnidades(carro)} className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700">
-                      <Settings2 size={15} />{t('gest_carros_unidades_configurar', 'Configurar unidades')}
-                    </button>
-                    <button type="button" onClick={() => onCondicoes(carro)} className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-purple-700">
-                      <Shield size={15} />{t('gest_carros_unidades_condicoes', 'Condições do veículo')}
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  useEffect(() => {
+    if (!usuarioId) return;
+    const controller = new AbortController();
+    Promise.allSettled(carros.filter(carro => !extrairFotosCarro(carro)[0]).map(async carro => {
+      try { const { data } = await api.get('/carro/buscar.php', { params: { id: carro.id }, signal: controller.signal });
+        if (data.success && String(data.data?.id) === String(carro.id) && !controller.signal.aborted) setFotos(v => ({ ...v, [carro.id]: extrairFotosCarro(data.data)[0] }));
+      } catch { /* A missing preview keeps the vehicle icon visible. */ }
+    }));
+    Promise.allSettled(carros.map(async carro => {
+      try {
+        const { data } = await api.get('/carro/unidades_listar.php', {
+          params: { carro_id: carro.id, usuario_id: usuarioId }, signal: controller.signal,
+        });
+        if (!data.success || !Array.isArray(data.data)) throw new Error('Invalid units response');
+        if (!controller.signal.aborted) setContagens(prev => ({ ...prev, [carro.id]: data.data.length }));
+      } catch {
+        if (!controller.signal.aborted) setContagens(prev => ({ ...prev, [carro.id]: null }));
+      }
+    }));
+    return () => controller.abort();
+  }, [carros, usuarioId]);
+
+  const eliminar = async carro => {
+    if (deleting.current) return;
+    deleting.current = true; setAApagar(carro.id); setErro('');
+    try {
+      const data = await excluirCarro(carro.id);
+      if (data?.success) { setExclusao(null); onDeleted?.(carro.id); }
+      else setErro(chaveErroExclusao(data));
+    } catch (err) { setErro(chaveErroExclusao(err.response?.data, err.response?.status)); }
+    finally { deleting.current = false; setAApagar(null); }
+  };
+  return <>
+
+    <ConfirmarExclusao aberto={!!exclusao} nome={exclusao?.titulo} loading={aApagar !== null} erro={erro}
+      tituloKey="carro_exclusao_titulo" confirmarKey="carro_exclusao_titulo"
+      onClose={() => { if (!deleting.current) setExclusao(null); }} onConfirm={() => { if (exclusao) void eliminar(exclusao); }} />
+    <ListaAnunciosGestao icon={CarFront} titulo={t('gest_frota_titulo')} descricao={t('gest_frota_descricao')} subtitulo={t('gest_carros_unidades_meus')} adicionar={t('gest_frota_adicionar')} onAdicionar={() => navigate('/carro-registo/fluxo')} busca={busca} onBusca={setBusca} pesquisa={t('gest_carros_unidades_buscar')} filtro={filtro} onFiltro={setFiltro} filtros={['todos', 'disponivel', 'indisponivel', 'manutencao'].map(value => ({ value, label: t(`gest_lista_estado_${value}`) }))}>
+      {!filtrados.length ? <p className="rounded-xl bg-white p-8 text-center text-sm text-gray-500">{t('gest_carros_unidades_sem_resultados')}</p> : <GrelhaAnunciosGestao>{filtrados.map(carro => {
+        const quantidade = contagens[carro.id];const incompleto = quantidade === 0;
+        const ativo = quantidade > 0 && carro.status === 'disponivel' && carro.status_carro === 'aprovado';
+        const titulo = carro.titulo || [carro.marca, carro.modelo].filter(Boolean).join(' ');
+        return <CartaoAnuncioGestao key={carro.id} icon={CarFront} imagem={extrairFotosCarro(carro)[0] || fotos[carro.id]} titulo={titulo} localizacao={[carro.ilha, carro.localizacao].filter(Boolean).join(' · ')} preco={`${Number(carro.preco_dia || 0).toLocaleString('pt-PT')} CVE / ${t('dia')}`}
+          estado={incompleto || ativo ? { icon: incompleto ? TriangleAlert : CircleCheck, texto: t(incompleto ? 'gest_frota_incompleta' : 'gest_frota_ativo'), cor: incompleto ? 'bg-[#ffe187] text-[#302609]' : 'bg-[#b5f6b5] text-[#164c20]' } : null}
+          resumo={<span className="flex items-center gap-2"><Icone icon={Layers} size={22} />{quantidade === undefined ? t('gest_frota_carregar_unidades') : quantidade === null ? t('gest_frota_verificar_unidades') : t('gest_frota_unidades', { count: quantidade })}</span>}
+          nota={t(incompleto ? 'gest_frota_adicionar_unidade' : 'gest_frota_consultar_disponibilidade')}
+          acoes={[{ label: t('gest_carros_unidades_configurar'), icon: SlidersHorizontal, onClick: () => onUnidades(carro) }, { label: t('gest_carros_unidades_condicoes'), icon: Shield, onClick: () => onCondicoes(carro) }]}
+          onVer={() => navigate(carro.slug ? `/carros/${encodeURIComponent(carro.slug)}` : `/carro-registo/detalhes/${carro.id}`)} onEditar={() => navigate(`/carro-registo/editar/${carro.id}`)} onEliminar={() => { setErro('');setExclusao(carro); }} eliminando={aApagar === carro.id} bloquearExclusao={aApagar !== null} />;
+      })}</GrelhaAnunciosGestao>}
+      <p className="mt-7 flex items-start gap-2.5 text-sm"><Icone icon={Info} size={19} className="text-[#686b84]" />{t('gest_frota_nota_disponibilidade')}</p>
+    </ListaAnunciosGestao>
+  </>;
 }

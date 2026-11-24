@@ -1,3 +1,4 @@
+import { obterTokenValidacao } from '../../utils/tokenValidacaoReserva';
 // src/components/gest/GestaoRouter.jsx
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
@@ -22,6 +23,7 @@ import DadosRecebimento from './DadosRecebimento';
 import UnidadesVeiculos from './UnidadesVeiculos';
 import LevantamentoCaucaoCondicoes from './LevantamentoCaucaoCondicoes';
 import MinhasExperiencias from './MinhasExperiencias';
+import MeusAlojamentosGestao from '../../features/alojamento/components/MeusAlojamentosGestao';
 
 // 🔥 Lazy para páginas mais pesadas
 const ValidarReserva = lazy(() => import('../ValidarReserva'));
@@ -36,13 +38,14 @@ const LoadingSpinner = () => (
 
 const LayoutGestao = ({ children }) => {
   const location = useLocation();
+  const vehicleDesign = ['/gest/unidades-veiculos', '/gest/minhas-experiencias', '/gest/meus-alojamentos'].includes(location.pathname) && !location.search;
   const sessionDesign = /^\/gest\/experiencia\/[^/]+\/sessoes$/.test(location.pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const navigate = useNavigate();
   
   useEffect(() => {
-    const token = localStorage.getItem('token') || localStorage.getItem('morabeza_token');
+    const token = obterTokenValidacao(localStorage, 'host', true);
     const userData = localStorage.getItem('user');
     
     if (token) {
@@ -91,7 +94,7 @@ const LayoutGestao = ({ children }) => {
       <Navbar />
 
       <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        <Sidebar sessionDesign={sessionDesign} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar vehicleDesign={vehicleDesign} sessionDesign={sessionDesign} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         
         {sidebarOpen && (
           <div 
@@ -112,7 +115,7 @@ const LayoutGestao = ({ children }) => {
             </button>
           </div>
 
-          <div className={`flex-1 overflow-y-auto ${sessionDesign ? "bg-[#fbfcff] p-4 lg:pt-3.5 lg:pb-8" : "p-4 md:p-8"}`}>
+          <div className={`flex-1 overflow-y-auto ${vehicleDesign ? "bg-[#eef1fa] px-4 py-7 md:px-8 md:pt-11 [font-family:Inter_Variable,Arial,sans-serif]" : sessionDesign ? "bg-[#fbfcff] p-4 lg:pt-3.5 lg:pb-8" : "p-4 md:p-8"}`}>
             <Suspense fallback={<LoadingSpinner />}>
               {children}
             </Suspense>
@@ -151,6 +154,7 @@ const GestaoRouter = () => {
       {/* ============================================================ */}
       {/* 🔥 EXPERIÊNCIAS DO ANFITRIÃO */}
       {/* ============================================================ */}
+      <Route path="meus-alojamentos" element={<LayoutGestao><MeusAlojamentosGestao /></LayoutGestao>} />
       <Route path="minhas-experiencias" element={<LayoutGestao><MinhasExperiencias /></LayoutGestao>} />
       <Route path="experiencia/:id/sessoes/anterior" element={<RedirecionarBloqueiosParaSessoes />} />
       <Route path="experiencia/:id/sessoes" element={<LayoutGestao><ConfigurarSessoes /></LayoutGestao>} />

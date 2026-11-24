@@ -1,0 +1,1 @@
+import{a as e}from"./chunk-BEqpzyXh.js";import{n as t,t as n}from"./jsx-runtime-BwJb0T-f.js";var r=e(t(),1),i=n();function a({icon:e,size:t=24}){return(0,i.jsx)(`span`,{"aria-hidden":`true`,className:`inline-flex shrink-0 text-blue-600`,children:(0,r.createElement)(e,{size:t,strokeWidth:1.8})})}export{a as t};
